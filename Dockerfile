@@ -16,7 +16,8 @@ WORKDIR /app
 
 # non-root 실행 (보안)
 RUN useradd -r -u 1001 appuser
-COPY --from=build /workspace/build/libs/*-SNAPSHOT.jar app.jar
+# bootJar 산출물(단일). 버전 문자열에 결합하지 않도록 *.jar 사용.
+COPY --from=build /workspace/build/libs/*.jar app.jar
 USER appuser
 
 EXPOSE 8080
