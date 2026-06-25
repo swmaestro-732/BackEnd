@@ -1,0 +1,379 @@
+name: Backend CI
+
+# PR 검증: 포맷(ktlint) · 테스트+커버리지(JaCoCo) · 도커 빌드 · Trivy 스캔.
+# 결과는 하나의 PR 코멘트로 통합.
+on:
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+env:
+  KTLINT_VERSION: "1.8.0"
+
+jobs:
+  # ───────────────────────── 포맷 검사 (ktlint) ─────────────────────────
+  lint:
+    name: ktlint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+
+      - name: Run ktlint
+        id: ktlint
+        run: |
+          curl -fsSLo ktlint "https://github.com/pinterest/ktlint/releases/download/${KTLINT_VERSION}/ktlint"
+          chmod +x ktlint
+          set +e
+          ./ktlint "src/**/*.kt" > ktlint.txt 2>&1
+          echo "exit=$?" >> "$GITHUB_OUTPUT"
+          cat ktlint.txt
+          exit 0
+
+      - name: Upload ktlint result
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: result-lint
+          path: ktlint.txt
+          if-no-files-found: ignore
+
+      - name: Gate
+        if: steps.ktlint.outputs.exit != '0'
+        run: echo "::error::ktlint 포맷 위반. PR 코멘트 참고." && exit 1
+
+  # ───────────────────────── 테스트 + 커버리지 ─────────────────────────
+  test:
+    name: build & test
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_DB: backend_test
+          POSTGRES_USER: test
+          POSTGRES_PASSWORD: test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+      - uses: gradle/actions/setup-gradle@v4
+
+      - name: Build & test (+ coverage)
+        run: ./gradlew build jacocoTestReport --no-daemon
+        env:
+          SPRING_DATASOURCE_URL: jdbc:postgresql://localhost:5432/backend_test
+          SPRING_DATASOURCE_USERNAME: test
+          SPRING_DATASOURCE_PASSWORD: test
+
+      - name: Collect coverage
+        if: always()
+        run: |
+          mkdir -p out
+          cp build/reports/jacoco/test/jacocoTestReport.xml out/jacoco.xml 2>/dev/null || true
+
+      - name: Upload test result
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: result-test
+          path: out/
+          if-no-files-found: ignore
+
+  # ───────────────────────── 도커 빌드 + Trivy ─────────────────────────
+  docker:
+    name: docker & trivy
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Build image
+        id: build
+        run: |
+          set +e
+          docker build -t backend:ci .
+          echo "exit=$?" >> "$GITHUB_OUTPUT"
+          exit 0
+
+      - name: Trivy scan (image, json)
+        if: steps.build.outputs.exit == '0'
+        uses: aquasecurity/trivy-action@v0.36.0
+        with:
+          scan-type: image
+          image-ref: backend:ci
+          format: json
+          output: trivy.json
+          severity: CRITICAL,HIGH
+          exit-code: "0"
+
+      - name: Summarize docker/trivy
+        if: always()
+        run: |
+          mkdir -p out
+          echo "${{ steps.build.outputs.exit }}" > out/docker_exit.txt
+          [ -f trivy.json ] && cp trivy.json out/trivy.json || echo '{}' > out/trivy.json
+
+      - name: Upload docker result
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: result-docker
+          path: out/
+          if-no-files-found: ignore
+
+      - name: Trivy gate (CRITICAL)
+        if: steps.build.outputs.exit == '0'
+        uses: aquasecurity/trivy-action@v0.36.0
+        with:
+          scan-type: image
+          image-ref: backend:ci
+          format: table
+          severity: CRITICAL
+          exit-code: "1"
+
+      - name: Fail if docker build failed
+        if: steps.build.outputs.exit != '0'
+        run: echo "::error::도커 이미지 빌드 실패." && exit 1
+
+  # ───────────────────────── 코드 보안 (Trivy fs + Semgrep) ─────────────────────────
+  # 패키지 CVE(image)와 달리 "코드 어디가 문제인지" 파일:라인으로. 시크릿만 차단, 나머지는 표시.
+  codesec:
+    name: code security
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      # Trivy fs: 하드코딩 시크릿 + 미스컨피그(Dockerfile 등) → 파일:라인
+      - name: Trivy fs (secret + misconfig)
+        uses: aquasecurity/trivy-action@v0.36.0
+        with:
+          scan-type: fs
+          scan-ref: .
+          scanners: secret,misconfig
+          format: json
+          output: trivy_fs.json
+          exit-code: "0"
+
+      # Semgrep SAST: 코드 로직 취약점(인젝션·위험함수 등) → 파일:라인
+      # 종료코드: 0=깨끗, 1=취약점 발견(둘 다 정상), 2+=실행 에러(거짓 "없음" 방지 위해 기록)
+      - name: Semgrep (SAST)
+        id: semgrep
+        run: |
+          set +e
+          # 설치 실패도 잡아 rc=2(에러)로 기록 — 거짓 "이슈 없음" 방지
+          pip install --quiet semgrep
+          if [ $? -ne 0 ]; then
+            echo "rc=2" >> "$GITHUB_OUTPUT"
+            echo "::warning::Semgrep 설치 실패 — SAST 미실행(결과 신뢰 불가)"
+            exit 0
+          fi
+          semgrep scan --config p/security-audit --config p/secrets \
+            --json --output semgrep.json --quiet .
+          rc=$?
+          echo "rc=$rc"
+          echo "rc=$rc" >> "$GITHUB_OUTPUT"
+          # 0/1 은 정상 종료(발견 여부), 2 이상은 실행 자체 실패
+          if [ "$rc" -ge 2 ]; then echo "::warning::Semgrep 실행 실패(rc=$rc) — 결과 신뢰 불가"; fi
+          exit 0
+
+      # 통합 리포트는 severity/title/check_id/path/line 만 사용.
+      # raw 시크릿 원문(Match/Code/extra.lines)은 아티팩트에 올리지 않도록 최소 필드만 추출.
+      - name: Collect (민감 원문 제거)
+        if: always()
+        run: |
+          mkdir -p out
+          echo "${{ steps.semgrep.outputs.rc }}" > out/semgrep_rc.txt
+          python3 - <<'PY'
+          import json
+          def load(p):
+              try:
+                  with open(p) as f: return json.load(f)
+              except Exception: return {}
+          # Trivy fs: Match/Code 등 원문 제거, 위치/심각도/제목만
+          tfs = load("trivy_fs.json"); slim = {"Results": []}
+          for r in tfs.get("Results", []):
+              o = {"Target": r.get("Target"), "Secrets": [], "Misconfigurations": []}
+              for s in r.get("Secrets", []):
+                  o["Secrets"].append({"RuleID": s.get("RuleID"), "Title": s.get("Title"),
+                                       "Severity": s.get("Severity"), "StartLine": s.get("StartLine")})
+              for m in r.get("Misconfigurations", []):
+                  cm = m.get("CauseMetadata") or {}
+                  o["Misconfigurations"].append({"ID": m.get("ID"), "Title": m.get("Title"),
+                      "Severity": m.get("Severity"), "CauseMetadata": {"StartLine": cm.get("StartLine")}})
+              slim["Results"].append(o)
+          json.dump(slim, open("out/trivy_fs.json","w"))
+          # Semgrep: 매칭된 코드 원문(extra.lines) 제거, 위치/심각도/메시지만
+          sg = load("semgrep.json"); sout = {"results": []}
+          for f in sg.get("results", []):
+              ex = f.get("extra") or {}
+              sout["results"].append({"check_id": f.get("check_id"), "path": f.get("path"),
+                  "start": {"line": (f.get("start") or {}).get("line")},
+                  "extra": {"severity": ex.get("severity"), "message": ex.get("message")}})
+          json.dump(sout, open("out/semgrep.json","w"))
+          print("slimmed:", len(slim["Results"]), "trivy results,", len(sout["results"]), "semgrep findings")
+          PY
+
+      - name: Upload codesec result
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: result-codesec
+          path: out/
+          if-no-files-found: ignore
+
+      # 시크릿 발견 시에만 차단 (하드코딩 비밀값은 무조건 막음)
+      - name: Secret gate
+        uses: aquasecurity/trivy-action@v0.36.0
+        with:
+          scan-type: fs
+          scan-ref: .
+          scanners: secret
+          format: table
+          exit-code: "1"
+
+  # ───────────────────────── 통합 리포트 (단일 PR 코멘트) ─────────────────────────
+  report:
+    name: CI report
+    needs: [lint, test, docker, codesec]
+    if: always()
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write
+    steps:
+      - name: Download all results
+        uses: actions/download-artifact@v4
+        with:
+          path: results
+          merge-multiple: true
+
+      - name: Build & post combined comment
+        uses: actions/github-script@v7
+        env:
+          R_LINT: ${{ needs.lint.result }}
+          R_TEST: ${{ needs.test.result }}
+          R_DOCKER: ${{ needs.docker.result }}
+          R_CODESEC: ${{ needs.codesec.result }}
+        with:
+          script: |
+            const fs = require('fs');
+            const { owner, repo } = context.repo;
+            const read = (p) => fs.existsSync(p) ? fs.readFileSync(p, 'utf8') : '';
+            const icon = (r) => r === 'success' ? '✅' : (r === 'skipped' ? '⏭️' : '❌');
+
+            // ── 포맷 ──
+            const lintTxt = read('results/ktlint.txt').trim();
+            const lintLines = lintTxt ? lintTxt.split('\n').filter(Boolean) : [];
+            let lintSection = `### 포맷 (ktlint) ${icon(process.env.R_LINT)}\n\n`;
+            lintSection += lintLines.length
+              ? `위반 ${lintLines.length}건\n\n<details><summary>보기</summary>\n\n\`\`\`\n${lintTxt.slice(0,8000)}\n\`\`\`\n</details>`
+              : '위반 없음';
+
+            // ── 테스트 + 커버리지 ──
+            let covPct = null;
+            try {
+              const xml = read('results/jacoco.xml');
+              // 루트 레벨 마지막 INSTRUCTION counter
+              const ms = [...xml.matchAll(/<counter type="INSTRUCTION" missed="(\d+)" covered="(\d+)"\/>/g)];
+              if (ms.length) {
+                const last = ms[ms.length - 1];
+                const missed = +last[1], covered = +last[2];
+                if (missed + covered > 0) covPct = (covered / (missed + covered) * 100).toFixed(1);
+              }
+            } catch (e) {}
+            let testSection = `### 테스트 & 커버리지 ${icon(process.env.R_TEST)}\n\n`;
+            testSection += covPct != null ? `라인 커버리지(instruction): **${covPct}%**` : '커버리지 데이터 없음';
+
+            // ── 도커 + Trivy ──
+            const dExit = read('results/docker_exit.txt').trim();
+            let trivy = { CRITICAL: 0, HIGH: 0, rows: [] };
+            try {
+              const tj = JSON.parse(read('results/trivy.json') || '{}');
+              for (const r of (tj.Results || [])) {
+                for (const v of (r.Vulnerabilities || [])) {
+                  if (v.Severity === 'CRITICAL') trivy.CRITICAL++;
+                  if (v.Severity === 'HIGH') trivy.HIGH++;
+                  if (trivy.rows.length < 20)
+                    trivy.rows.push(`| ${v.Severity} | ${v.VulnerabilityID} | \`${v.PkgName}\` | ${v.InstalledVersion} → ${v.FixedVersion || '-'} |`);
+                }
+              }
+            } catch (e) {}
+            let dockerSection = `### 도커 빌드 & Trivy(패키지 CVE) ${icon(process.env.R_DOCKER)}\n\n`;
+            dockerSection += `이미지 빌드: ${dExit === '0' ? '성공' : '실패'} · 취약점 **CRITICAL ${trivy.CRITICAL} · HIGH ${trivy.HIGH}** (CRITICAL만 차단)`;
+            if (trivy.rows.length)
+              dockerSection += `\n\n<details><summary>취약점 보기 (베이스 이미지 패키지)</summary>\n\n| 심각도 | ID | 패키지 | 버전 |\n|---|---|---|---|\n${trivy.rows.join('\n')}\n</details>`;
+
+            // ── 코드 보안 (Trivy fs: 시크릿/미스컨피그 + Semgrep SAST) : 파일:라인 ──
+            const codeRows = [];
+            try {
+              const tfs = JSON.parse(read('results/trivy_fs.json') || '{}');
+              for (const r of (tfs.Results || [])) {
+                for (const s of (r.Secrets || []))
+                  codeRows.push(`| 🔑 시크릿 | ${s.Severity || '-'} | ${(s.Title || s.RuleID || '').replace(/\|/g,'\\|').slice(0,60)} | \`${r.Target}:${s.StartLine || '?'}\` |`);
+                for (const m of (r.Misconfigurations || [])) {
+                  const ln = (m.CauseMetadata && m.CauseMetadata.StartLine) || '-';
+                  const desc = `${m.ID || ''} ${m.Title || ''}`.replace(/\|/g, '\\|').replace(/\s+/g, ' ').trim().slice(0, 80);
+                  codeRows.push(`| ⚙️ 미스컨피그 | ${m.Severity || '-'} | ${desc} | \`${r.Target}:${ln}\` |`);
+                }
+              }
+            } catch (e) {}
+            let secretCount = codeRows.filter(r => r.includes('시크릿')).length;
+            try {
+              const sg = JSON.parse(read('results/semgrep.json') || '{}');
+              for (const f of (sg.results || [])) {
+                const sev = (f.extra && f.extra.severity) || '-';
+                const msg = ((f.extra && f.extra.message) || f.check_id || '').replace(/\s+/g,' ').replace(/\|/g,'\\|').slice(0,70);
+                codeRows.push(`| 🐞 SAST | ${sev} | ${msg} | \`${f.path}:${(f.start&&f.start.line)||'?'}\` |`);
+              }
+            } catch (e) {}
+            const semgrepRc = parseInt(read('results/semgrep_rc.txt').trim() || '0', 10);
+            const semgrepFailed = semgrepRc >= 2;
+            let codeSection = `### 코드 보안 (Trivy fs + Semgrep) ${icon(process.env.R_CODESEC)}\n\n`;
+            if (semgrepFailed) codeSection += `> ⚠️ Semgrep 실행 실패(rc=${semgrepRc}) — SAST 결과는 신뢰할 수 없음(Trivy 결과만 유효).\n\n`;
+            if (codeRows.length) {
+              codeSection += `발견 ${codeRows.length}건${secretCount ? ` (시크릿 ${secretCount} — 차단)` : ''}\n\n`
+                + `| 종류 | 심각도 | 내용 | 위치 |\n|---|---|---|---|\n${codeRows.slice(0,50).join('\n')}`;
+            } else {
+              codeSection += semgrepFailed
+                ? 'Trivy 기준 코드 레벨 이슈 없음 (SAST는 위 경고 참고)'
+                : '코드 레벨 이슈 없음 (시크릿/미스컨피그/SAST)';
+            }
+
+            const body = [
+              '<!-- ci-report -->',
+              `## Backend CI 리포트 — \`${context.sha.slice(0,7)}\` · @${context.actor}`,
+              '', lintSection,
+              '', '---', '', testSection,
+              '', '---', '', dockerSection,
+              '', '---', '', codeSection,
+            ].join('\n');
+
+            await core.summary.addRaw(body).write();
+
+            const issue_number = context.issue.number;
+            const { data: comments } = await github.rest.issues.listComments({ owner, repo, issue_number, per_page: 100 });
+            const found = comments.find(c => c.body && c.body.includes('<!-- ci-report -->'));
+            if (found) await github.rest.issues.updateComment({ owner, repo, comment_id: found.id, body });
+            else await github.rest.issues.createComment({ owner, repo, issue_number, body });
