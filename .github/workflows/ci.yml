@@ -149,10 +149,64 @@ jobs:
         if: steps.build.outputs.exit != '0'
         run: echo "::error::도커 이미지 빌드 실패." && exit 1
 
+  # ───────────────────────── 코드 보안 (Trivy fs + Semgrep) ─────────────────────────
+  # 패키지 CVE(image)와 달리 "코드 어디가 문제인지" 파일:라인으로. 시크릿만 차단, 나머지는 표시.
+  codesec:
+    name: code security
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # Trivy fs: 하드코딩 시크릿 + 미스컨피그(Dockerfile 등) → 파일:라인
+      - name: Trivy fs (secret + misconfig)
+        uses: aquasecurity/trivy-action@v0.36.0
+        with:
+          scan-type: fs
+          scan-ref: .
+          scanners: secret,misconfig
+          format: json
+          output: trivy_fs.json
+          exit-code: "0"
+
+      # Semgrep SAST: 코드 로직 취약점(인젝션·위험함수 등) → 파일:라인
+      - name: Semgrep (SAST)
+        run: |
+          pip install --quiet semgrep
+          set +e
+          semgrep scan --config p/security-audit --config p/secrets \
+            --json --output semgrep.json --quiet .
+          echo "semgrep done ($?)"
+          exit 0
+
+      - name: Collect
+        if: always()
+        run: |
+          mkdir -p out
+          cp trivy_fs.json out/ 2>/dev/null || echo '{}' > out/trivy_fs.json
+          cp semgrep.json  out/ 2>/dev/null || echo '{}' > out/semgrep.json
+
+      - name: Upload codesec result
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: result-codesec
+          path: out/
+          if-no-files-found: ignore
+
+      # 시크릿 발견 시에만 차단 (하드코딩 비밀값은 무조건 막음)
+      - name: Secret gate
+        uses: aquasecurity/trivy-action@v0.36.0
+        with:
+          scan-type: fs
+          scan-ref: .
+          scanners: secret
+          format: table
+          exit-code: "1"
+
   # ───────────────────────── 통합 리포트 (단일 PR 코멘트) ─────────────────────────
   report:
     name: CI report
-    needs: [lint, test, docker]
+    needs: [lint, test, docker, codesec]
     if: always()
     runs-on: ubuntu-latest
     permissions:
@@ -171,6 +225,7 @@ jobs:
           R_LINT: ${{ needs.lint.result }}
           R_TEST: ${{ needs.test.result }}
           R_DOCKER: ${{ needs.docker.result }}
+          R_CODESEC: ${{ needs.codesec.result }}
         with:
           script: |
             const fs = require('fs');
@@ -215,10 +270,40 @@ jobs:
                 }
               }
             } catch (e) {}
-            let dockerSection = `### 도커 빌드 & Trivy ${icon(process.env.R_DOCKER)}\n\n`;
+            let dockerSection = `### 도커 빌드 & Trivy(패키지 CVE) ${icon(process.env.R_DOCKER)}\n\n`;
             dockerSection += `이미지 빌드: ${dExit === '0' ? '성공' : '실패'} · 취약점 **CRITICAL ${trivy.CRITICAL} · HIGH ${trivy.HIGH}** (CRITICAL만 차단)`;
             if (trivy.rows.length)
-              dockerSection += `\n\n<details><summary>취약점 보기</summary>\n\n| 심각도 | ID | 패키지 | 버전 |\n|---|---|---|---|\n${trivy.rows.join('\n')}\n</details>`;
+              dockerSection += `\n\n<details><summary>취약점 보기 (베이스 이미지 패키지)</summary>\n\n| 심각도 | ID | 패키지 | 버전 |\n|---|---|---|---|\n${trivy.rows.join('\n')}\n</details>`;
+
+            // ── 코드 보안 (Trivy fs: 시크릿/미스컨피그 + Semgrep SAST) : 파일:라인 ──
+            const codeRows = [];
+            try {
+              const tfs = JSON.parse(read('results/trivy_fs.json') || '{}');
+              for (const r of (tfs.Results || [])) {
+                for (const s of (r.Secrets || []))
+                  codeRows.push(`| 🔑 시크릿 | ${s.Severity || '-'} | ${(s.Title || s.RuleID || '').replace(/\|/g,'\\|').slice(0,60)} | \`${r.Target}:${s.StartLine || '?'}\` |`);
+                for (const m of (r.Misconfigurations || [])) {
+                  const ln = (m.CauseMetadata && m.CauseMetadata.StartLine) || '?';
+                  codeRows.push(`| ⚙️ 미스컨피그 | ${m.Severity || '-'} | ${(m.ID || '')+' '+(m.Title||'')}`.replace(/\|/g,'\\|').slice(0,80) + ` | \`${r.Target}:${ln}\` |`);
+                }
+              }
+            } catch (e) {}
+            let secretCount = codeRows.filter(r => r.includes('시크릿')).length;
+            try {
+              const sg = JSON.parse(read('results/semgrep.json') || '{}');
+              for (const f of (sg.results || [])) {
+                const sev = (f.extra && f.extra.severity) || '-';
+                const msg = ((f.extra && f.extra.message) || f.check_id || '').replace(/\s+/g,' ').replace(/\|/g,'\\|').slice(0,70);
+                codeRows.push(`| 🐞 SAST | ${sev} | ${msg} | \`${f.path}:${(f.start&&f.start.line)||'?'}\` |`);
+              }
+            } catch (e) {}
+            let codeSection = `### 코드 보안 (Trivy fs + Semgrep) ${icon(process.env.R_CODESEC)}\n\n`;
+            if (codeRows.length) {
+              codeSection += `발견 ${codeRows.length}건${secretCount ? ` (시크릿 ${secretCount} — 차단)` : ''}\n\n`
+                + `| 종류 | 심각도 | 내용 | 위치 |\n|---|---|---|---|\n${codeRows.slice(0,50).join('\n')}`;
+            } else {
+              codeSection += '코드 레벨 이슈 없음 (시크릿/미스컨피그/SAST)';
+            }
 
             const body = [
               '<!-- ci-report -->',
@@ -226,6 +311,7 @@ jobs:
               '', lintSection,
               '', '---', '', testSection,
               '', '---', '', dockerSection,
+              '', '---', '', codeSection,
             ].join('\n');
 
             await core.summary.addRaw(body).write();
