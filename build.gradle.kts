@@ -28,11 +28,15 @@ dependencies {
     // 날짜/시간 지원
     implementation("org.jetbrains.exposed:exposed-kotlin-datetime:1.3.0")
 
+    // Exposed ↔ Spring 연동 (Database 자동구성 + @Transactional 지원)
+    implementation("org.jetbrains.exposed:exposed-spring-boot-starter:1.3.0")
+
     implementation("org.springframework.boot:spring-boot-starter-flyway")
     implementation("org.springframework.boot:spring-boot-starter-jdbc") // HikariCP 포함
     implementation("org.springframework.boot:spring-boot-starter-security")
     implementation("org.springframework.boot:spring-boot-starter-validation")
     implementation("org.springframework.boot:spring-boot-starter-webmvc")
+    implementation("org.springframework.boot:spring-boot-starter-actuator") // health
     implementation("org.flywaydb:flyway-database-postgresql")
     implementation("org.jetbrains.kotlin:kotlin-reflect")
     implementation("tools.jackson.module:jackson-module-kotlin")
