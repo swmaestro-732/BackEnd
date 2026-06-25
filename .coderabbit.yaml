@@ -1,14 +1,17 @@
 # CodeRabbit AI 리뷰 설정 — https://docs.coderabbit.ai
 # GitHub Marketplace에서 CodeRabbit 앱을 레포에 설치해야 동작 (public 레포 무료).
+# 방침: "AI 리뷰로 요약해서 같이 확인" — 라인 도배 대신 요약 중심, 노이즈 최소.
 language: ko-KR
 early_access: false
 reviews:
-  profile: chill # 과하지 않게
-  request_changes_workflow: false # 변경요청 강제 X (리뷰는 요약/제안 위주)
-  high_level_summary: true # PR 상단 요약
-  review_status: true
+  profile: chill # nitpick 최소
+  request_changes_workflow: false # 변경요청 강제 X
+  high_level_summary: true # PR 상단 요약 (이게 핵심)
+  review_status: false # 상태 코멘트 생략 (노이즈↓)
+  collapse_walkthrough: true # 워크스루 접기
+  changed_files_summary: false # 변경 파일 목록 요약 생략
+  sequence_diagrams: false # 시퀀스 다이어그램 생략
   poem: false
-  collapse_walkthrough: true
   auto_review:
     enabled: true
     drafts: false
