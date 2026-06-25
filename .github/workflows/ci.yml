@@ -1,7 +1,7 @@
 name: Backend CI
 
-# PR 검증: 컴파일 + 테스트 (Gradle / JDK 21).
-# @SpringBootTest 가 전체 컨텍스트(JDBC·Flyway)를 띄우므로 Postgres 서비스를 붙인다.
+# PR 검증: 포맷(ktlint) · 테스트+커버리지(JaCoCo) · 도커 빌드 · Trivy 스캔.
+# 결과는 하나의 PR 코멘트로 통합.
 on:
   pull_request:
     branches: [main]
@@ -9,11 +9,48 @@ on:
 permissions:
   contents: read
 
+env:
+  KTLINT_VERSION: "1.8.0"
+
 jobs:
-  build:
+  # ───────────────────────── 포맷 검사 (ktlint) ─────────────────────────
+  lint:
+    name: ktlint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+
+      - name: Run ktlint
+        id: ktlint
+        run: |
+          curl -sSLo ktlint "https://github.com/pinterest/ktlint/releases/download/${KTLINT_VERSION}/ktlint"
+          chmod +x ktlint
+          set +e
+          ./ktlint "src/**/*.kt" > ktlint.txt 2>&1
+          echo "exit=$?" >> "$GITHUB_OUTPUT"
+          cat ktlint.txt
+          exit 0
+
+      - name: Upload ktlint result
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: result-lint
+          path: ktlint.txt
+          if-no-files-found: ignore
+
+      - name: Gate
+        if: steps.ktlint.outputs.exit != '0'
+        run: echo "::error::ktlint 포맷 위반. PR 코멘트 참고." && exit 1
+
+  # ───────────────────────── 테스트 + 커버리지 ─────────────────────────
+  test:
     name: build & test
     runs-on: ubuntu-latest
-
     services:
       postgres:
         image: postgres:16
@@ -28,30 +65,173 @@ jobs:
           --health-interval 10s
           --health-timeout 5s
           --health-retries 5
-
     steps:
       - uses: actions/checkout@v4
-
-      - name: Set up JDK 21
-        uses: actions/setup-java@v4
+      - uses: actions/setup-java@v4
         with:
           distribution: temurin
           java-version: "21"
+      - uses: gradle/actions/setup-gradle@v4
 
-      - name: Setup Gradle
-        uses: gradle/actions/setup-gradle@v4
-
-      - name: Build & test
-        run: ./gradlew build --no-daemon
+      - name: Build & test (+ coverage)
+        run: ./gradlew build jacocoTestReport --no-daemon
         env:
           SPRING_DATASOURCE_URL: jdbc:postgresql://localhost:5432/backend_test
           SPRING_DATASOURCE_USERNAME: test
           SPRING_DATASOURCE_PASSWORD: test
 
-      - name: Upload test report
+      - name: Collect coverage
+        if: always()
+        run: |
+          mkdir -p out
+          cp build/reports/jacoco/test/jacocoTestReport.xml out/jacoco.xml 2>/dev/null || true
+
+      - name: Upload test result
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: test-report
-          path: build/reports/tests/test
+          name: result-test
+          path: out/
           if-no-files-found: ignore
+
+  # ───────────────────────── 도커 빌드 + Trivy ─────────────────────────
+  docker:
+    name: docker & trivy
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build image
+        id: build
+        run: |
+          set +e
+          docker build -t backend:ci .
+          echo "exit=$?" >> "$GITHUB_OUTPUT"
+          exit 0
+
+      - name: Trivy scan (image, json)
+        if: steps.build.outputs.exit == '0'
+        uses: aquasecurity/trivy-action@v0.36.0
+        with:
+          scan-type: image
+          image-ref: backend:ci
+          format: json
+          output: trivy.json
+          severity: CRITICAL,HIGH
+          exit-code: "0"
+
+      - name: Summarize docker/trivy
+        if: always()
+        run: |
+          mkdir -p out
+          echo "${{ steps.build.outputs.exit }}" > out/docker_exit.txt
+          [ -f trivy.json ] && cp trivy.json out/trivy.json || echo '{}' > out/trivy.json
+
+      - name: Upload docker result
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: result-docker
+          path: out/
+          if-no-files-found: ignore
+
+      - name: Trivy gate (CRITICAL)
+        if: steps.build.outputs.exit == '0'
+        uses: aquasecurity/trivy-action@v0.36.0
+        with:
+          scan-type: image
+          image-ref: backend:ci
+          format: table
+          severity: CRITICAL
+          exit-code: "1"
+
+      - name: Fail if docker build failed
+        if: steps.build.outputs.exit != '0'
+        run: echo "::error::도커 이미지 빌드 실패." && exit 1
+
+  # ───────────────────────── 통합 리포트 (단일 PR 코멘트) ─────────────────────────
+  report:
+    name: CI report
+    needs: [lint, test, docker]
+    if: always()
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write
+    steps:
+      - name: Download all results
+        uses: actions/download-artifact@v4
+        with:
+          path: results
+          merge-multiple: true
+
+      - name: Build & post combined comment
+        uses: actions/github-script@v7
+        env:
+          R_LINT: ${{ needs.lint.result }}
+          R_TEST: ${{ needs.test.result }}
+          R_DOCKER: ${{ needs.docker.result }}
+        with:
+          script: |
+            const fs = require('fs');
+            const { owner, repo } = context.repo;
+            const read = (p) => fs.existsSync(p) ? fs.readFileSync(p, 'utf8') : '';
+            const icon = (r) => r === 'success' ? '✅' : (r === 'skipped' ? '⏭️' : '❌');
+
+            // ── 포맷 ──
+            const lintTxt = read('results/ktlint.txt').trim();
+            const lintLines = lintTxt ? lintTxt.split('\n').filter(Boolean) : [];
+            let lintSection = `### 포맷 (ktlint) ${icon(process.env.R_LINT)}\n\n`;
+            lintSection += lintLines.length
+              ? `위반 ${lintLines.length}건\n\n<details><summary>보기</summary>\n\n\`\`\`\n${lintTxt.slice(0,8000)}\n\`\`\`\n</details>`
+              : '위반 없음';
+
+            // ── 테스트 + 커버리지 ──
+            let covPct = null;
+            try {
+              const xml = read('results/jacoco.xml');
+              // 루트 레벨 마지막 INSTRUCTION counter
+              const ms = [...xml.matchAll(/<counter type="INSTRUCTION" missed="(\d+)" covered="(\d+)"\/>/g)];
+              if (ms.length) {
+                const last = ms[ms.length - 1];
+                const missed = +last[1], covered = +last[2];
+                if (missed + covered > 0) covPct = (covered / (missed + covered) * 100).toFixed(1);
+              }
+            } catch (e) {}
+            let testSection = `### 테스트 & 커버리지 ${icon(process.env.R_TEST)}\n\n`;
+            testSection += covPct != null ? `라인 커버리지(instruction): **${covPct}%**` : '커버리지 데이터 없음';
+
+            // ── 도커 + Trivy ──
+            const dExit = read('results/docker_exit.txt').trim();
+            let trivy = { CRITICAL: 0, HIGH: 0, rows: [] };
+            try {
+              const tj = JSON.parse(read('results/trivy.json') || '{}');
+              for (const r of (tj.Results || [])) {
+                for (const v of (r.Vulnerabilities || [])) {
+                  if (v.Severity === 'CRITICAL') trivy.CRITICAL++;
+                  if (v.Severity === 'HIGH') trivy.HIGH++;
+                  if (trivy.rows.length < 20)
+                    trivy.rows.push(`| ${v.Severity} | ${v.VulnerabilityID} | \`${v.PkgName}\` | ${v.InstalledVersion} → ${v.FixedVersion || '-'} |`);
+                }
+              }
+            } catch (e) {}
+            let dockerSection = `### 도커 빌드 & Trivy ${icon(process.env.R_DOCKER)}\n\n`;
+            dockerSection += `이미지 빌드: ${dExit === '0' ? '성공' : '실패'} · 취약점 **CRITICAL ${trivy.CRITICAL} · HIGH ${trivy.HIGH}** (CRITICAL만 차단)`;
+            if (trivy.rows.length)
+              dockerSection += `\n\n<details><summary>취약점 보기</summary>\n\n| 심각도 | ID | 패키지 | 버전 |\n|---|---|---|---|\n${trivy.rows.join('\n')}\n</details>`;
+
+            const body = [
+              '<!-- ci-report -->',
+              `## Backend CI 리포트 — \`${context.sha.slice(0,7)}\` · @${context.actor}`,
+              '', lintSection,
+              '', '---', '', testSection,
+              '', '---', '', dockerSection,
+            ].join('\n');
+
+            await core.summary.addRaw(body).write();
+
+            const issue_number = context.issue.number;
+            const { data: comments } = await github.rest.issues.listComments({ owner, repo, issue_number, per_page: 100 });
+            const found = comments.find(c => c.body && c.body.includes('<!-- ci-report -->'));
+            if (found) await github.rest.issues.updateComment({ owner, repo, comment_id: found.id, body });
+            else await github.rest.issues.createComment({ owner, repo, issue_number, body });

@@ -1,0 +1,11 @@
+.git
+.gitignore
+.github
+.gradle
+build
+.idea
+.omc
+.remember
+*.md
+Dockerfile
+.dockerignore
