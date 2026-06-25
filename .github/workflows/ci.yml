@@ -181,8 +181,14 @@ jobs:
       - name: Semgrep (SAST)
         id: semgrep
         run: |
-          pip install --quiet semgrep
           set +e
+          # 설치 실패도 잡아 rc=2(에러)로 기록 — 거짓 "이슈 없음" 방지
+          pip install --quiet semgrep
+          if [ $? -ne 0 ]; then
+            echo "rc=2" >> "$GITHUB_OUTPUT"
+            echo "::warning::Semgrep 설치 실패 — SAST 미실행(결과 신뢰 불가)"
+            exit 0
+          fi
           semgrep scan --config p/security-audit --config p/secrets \
             --json --output semgrep.json --quiet .
           rc=$?
