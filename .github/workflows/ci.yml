@@ -283,8 +283,9 @@ jobs:
                 for (const s of (r.Secrets || []))
                   codeRows.push(`| 🔑 시크릿 | ${s.Severity || '-'} | ${(s.Title || s.RuleID || '').replace(/\|/g,'\\|').slice(0,60)} | \`${r.Target}:${s.StartLine || '?'}\` |`);
                 for (const m of (r.Misconfigurations || [])) {
-                  const ln = (m.CauseMetadata && m.CauseMetadata.StartLine) || '?';
-                  codeRows.push(`| ⚙️ 미스컨피그 | ${m.Severity || '-'} | ${(m.ID || '')+' '+(m.Title||'')}`.replace(/\|/g,'\\|').slice(0,80) + ` | \`${r.Target}:${ln}\` |`);
+                  const ln = (m.CauseMetadata && m.CauseMetadata.StartLine) || '-';
+                  const desc = `${m.ID || ''} ${m.Title || ''}`.replace(/\|/g, '\\|').replace(/\s+/g, ' ').trim().slice(0, 80);
+                  codeRows.push(`| ⚙️ 미스컨피그 | ${m.Severity || '-'} | ${desc} | \`${r.Target}:${ln}\` |`);
                 }
               }
             } catch (e) {}
