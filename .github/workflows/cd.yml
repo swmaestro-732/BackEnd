@@ -19,18 +19,19 @@ jobs:
     runs-on: ubuntu-latest
     if: vars.AWS_DEPLOY_ROLE_ARN != '' # 배포 변수 등록 시 활성화
     steps:
-      - uses: actions/checkout@v4
+      # 공급망 보안: 배포 자격증명을 다루므로 액션을 커밋 SHA로 고정 (주석은 버전)
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
         with:
           persist-credentials: false
 
       - name: Configure AWS credentials (OIDC)
-        uses: aws-actions/configure-aws-credentials@v4
+        uses: aws-actions/configure-aws-credentials@7474bc4690e29a8392af63c5b98e7449536d5c3a # v4
         with:
           role-to-assume: ${{ vars.AWS_DEPLOY_ROLE_ARN }}
           aws-region: ${{ vars.AWS_REGION }}
 
       - name: Login to Amazon ECR
-        uses: aws-actions/amazon-ecr-login@v2
+        uses: aws-actions/amazon-ecr-login@d539f0932e70871a027e9d5a9d8fc38589180a64 # v2
 
       - name: Build & push image
         env:
