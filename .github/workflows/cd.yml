@@ -1,0 +1,48 @@
+name: Backend CD
+
+# main 머지 시 이미지 빌드 → ECR push. (EC2 배포는 인프라 Phase 3 이후 추가)
+on:
+  push:
+    branches: [main]
+
+permissions:
+  id-token: write # OIDC (AWS_DEPLOY_ROLE_ARN assume)
+  contents: read
+
+concurrency:
+  group: backend-cd
+  cancel-in-progress: false
+
+jobs:
+  build-push:
+    name: build & push image
+    runs-on: ubuntu-latest
+    if: vars.AWS_DEPLOY_ROLE_ARN != '' # 배포 변수 등록 시 활성화
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Configure AWS credentials (OIDC)
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ vars.AWS_DEPLOY_ROLE_ARN }}
+          aws-region: ${{ vars.AWS_REGION }}
+
+      - name: Login to Amazon ECR
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Build & push image
+        env:
+          ECR: ${{ vars.ECR_REPOSITORY }}
+        run: |
+          TAG="${GITHUB_SHA::7}"
+          docker build -t "$ECR:$TAG" -t "$ECR:latest" .
+          docker push "$ECR:$TAG"
+          docker push "$ECR:latest"
+          {
+            echo "## Backend CD — 이미지 push ✅"
+            echo ""
+            echo "- 레포: \`$ECR\`"
+            echo "- 태그: \`$TAG\`, \`latest\`"
+          } >> "$GITHUB_STEP_SUMMARY"
