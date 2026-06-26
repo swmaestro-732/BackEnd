@@ -5,6 +5,7 @@ import org.junit.jupiter.api.Test
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc
 import org.springframework.http.MediaType
+import org.springframework.test.context.jdbc.Sql
 import org.springframework.test.web.servlet.MockMvc
 import org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get
 import org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post
@@ -12,6 +13,11 @@ import org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPat
 import org.springframework.test.web.servlet.result.MockMvcResultMatchers.status
 
 @AutoConfigureMockMvc
+// 각 테스트 전에 테이블을 비워 DB 상태에 의존하지 않도록(결정성 확보).
+@Sql(
+    statements = ["TRUNCATE TABLE samples RESTART IDENTITY CASCADE"],
+    executionPhase = Sql.ExecutionPhase.BEFORE_TEST_METHOD,
+)
 class SampleControllerTest
     @Autowired
     constructor(

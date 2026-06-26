@@ -24,11 +24,18 @@ class SecurityConfig {
             .sessionManagement { it.sessionCreationPolicy(SessionCreationPolicy.STATELESS) }
             .authorizeHttpRequests {
                 it
-                    .requestMatchers("/actuator/health", "/api/**")
-                    .permitAll()
-                    // TODO: 인증 도입 시 anyRequest().authenticated() 로 전환
+                    .requestMatchers(
+                        "/actuator/health",
+                        "/api/**",
+                        // Swagger UI / OpenAPI 문서 (springdoc)
+                        "/swagger-ui/**",
+                        "/swagger-ui.html",
+                        "/v3/api-docs/**",
+                    ).permitAll()
+                    // 그 외 경로는 기본 차단(default deny) — 새 엔드포인트가 검토 없이 공개되지 않도록.
+                    // 인증 도입 시 여기에 인증/인가 규칙을 추가한다.
                     .anyRequest()
-                    .permitAll()
+                    .authenticated()
             }
         return http.build()
     }

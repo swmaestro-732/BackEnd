@@ -10,7 +10,7 @@ spring:
       maximum-pool-size: 10
   flyway:
     enabled: true
-    baseline-on-migrate: true
+    # baseline-on-migrate 는 레거시 DB 온보딩 전용. 신규 프로젝트는 끔(스키마 드리프트를 숨기지 않도록).
 
 # Actuator: health 만 공개
 management:
