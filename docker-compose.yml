@@ -1,0 +1,16 @@
+# 로컬 개발용 Postgres. `docker compose up -d` 후 앱/테스트 실행.
+# 운영/CI 는 환경변수(SPRING_DATASOURCE_*)로 별도 DB 를 주입한다.
+services:
+  postgres:
+    image: postgres:16
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_DB: chilsami
+      POSTGRES_USER: chilsami
+      POSTGRES_PASSWORD: localdev
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+
+volumes:
+  pgdata:

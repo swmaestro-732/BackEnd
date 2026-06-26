@@ -1,0 +1,23 @@
+spring:
+  application:
+    name: Backend
+  # DataSource: 환경변수가 있으면(CI/운영) 그 값을, 없으면 로컬 기본값(docker-compose).
+  datasource:
+    url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://localhost:5432/chilsami}
+    username: ${SPRING_DATASOURCE_USERNAME:chilsami}
+    password: ${SPRING_DATASOURCE_PASSWORD:localdev}
+    hikari:
+      maximum-pool-size: 10
+  flyway:
+    enabled: true
+    # baseline-on-migrate 는 레거시 DB 온보딩 전용. 신규 프로젝트는 끔(스키마 드리프트를 숨기지 않도록).
+
+# Actuator: health 만 공개
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health
+  endpoint:
+    health:
+      show-details: never
