@@ -54,6 +54,21 @@ jobs:
         env:
           ASG_NAME: ${{ vars.ASG_NAME || 'chilsami-asg' }}
         run: |
+          set -euo pipefail
+          status() {
+            aws autoscaling describe-instance-refreshes \
+              --auto-scaling-group-name "$ASG_NAME" \
+              --max-records 1 --query 'InstanceRefreshes[0].Status' --output text 2>/dev/null || echo None
+          }
+          # 이미 진행 중인 refresh 가 있으면 start 는 InstanceRefreshInProgressFault 로 실패.
+          # 최신 이미지가 이겨야 하므로 진행 중이면 취소하고 종료될 때까지 대기 후 새로 시작.
+          if [[ "$(status)" == "Pending" || "$(status)" == "InProgress" ]]; then
+            echo "진행 중 refresh 취소 후 재시작"
+            aws autoscaling cancel-instance-refresh --auto-scaling-group-name "$ASG_NAME" || true
+            for _ in $(seq 1 30); do
+              case "$(status)" in Pending|InProgress|Cancelling) sleep 10 ;; *) break ;; esac
+            done
+          fi
           REFRESH_ID=$(aws autoscaling start-instance-refresh \
             --auto-scaling-group-name "$ASG_NAME" \
             --preferences '{"MinHealthyPercentage":50,"InstanceWarmup":180}' \
