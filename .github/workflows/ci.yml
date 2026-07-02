@@ -4,7 +4,7 @@ name: Backend CI
 # 결과는 하나의 PR 코멘트로 통합.
 on:
   pull_request:
-    branches: [main]
+    branches: [main, develop] # gitflow: feat→develop→main 모두 검증
 
 permissions:
   contents: read
