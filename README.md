@@ -32,7 +32,7 @@ pre-commit install               # commit-msg·pre-commit 훅 자동 설치
 
 ### 3-1. 브랜치 전략 (gitflow)
 
-```
+```text
 feat/* ─▶ develop ─▶ main
 ```
 
@@ -89,7 +89,7 @@ feat/* ─▶ develop ─▶ main
 
 **멀티모듈은 쓰지 않고**, 도메인(bounded context)별로 패키지를 나눈 뒤 각 도메인 안을 헥사고날로 구성한다. 나중에 특정 도메인을 MSA로 떼기 쉽게(extraction-ready) 경계를 유지한다.
 
-```
+```text
 com.example.backend
 ├─ bootstrap/                 # 조립 루트: 앱 진입점, config(Security/OpenAPI), 전역 예외핸들러
 ├─ common/                    # 도메인 무관 기술 공통(response/util 등). 도메인 개념 금지.
