@@ -84,3 +84,26 @@ feat/* ─▶ develop ─▶ main
    - 진행 중 refresh가 있으면 취소·대기 후 최신 이미지로 재시작
 
 인프라(ECR·ASG·배포 IAM)는 [`swmaestro-732/Infra`](https://github.com/swmaestro-732/Infra) 레포에서 관리한다.
+
+## 5. 아키텍처 (DDD + 헥사고날)
+
+bounded context(예: `sample`) 단위로 아래 레이어를 둔다.
+
+```
+sample
+├── domain/                 # 순수 도메인 (Spring·Exposed 의존 X). 애그리거트·불변식.
+├── application/
+│   ├── port/inbound/       # 유스케이스 계약 (SampleUseCase)
+│   ├── port/outbound/      # 영속성 계약 (SampleRepository)
+│   └── service/            # 유스케이스 구현 (inbound 구현, outbound 사용, 트랜잭션 경계)
+└── adapter/
+    ├── inbound/web/         # REST 컨트롤러 + 요청/응답 DTO
+    └── outbound/persistence/ # Exposed 테이블 + 포트 구현체(도메인↔행 매핑)
+```
+
+**의존 규칙**: 바깥(adapter) → 안(application) → 도메인 한 방향으로만 의존한다.
+도메인·애플리케이션은 어댑터(웹·DB)를 알지 못하고, 포트(인터페이스)로만 소통한다.
+따라서 도메인은 프레임워크 없이 단위 테스트할 수 있고(`SampleTest`), 웹/DB 기술 교체가 도메인에 영향을 주지 않는다.
+
+- `in`은 Kotlin 예약어라 포트/어댑터 하위 패키지는 `inbound`/`outbound`로 명명한다.
+- 새 도메인은 `sample` 구조를 템플릿으로 복제해 추가한다.

@@ -1,4 +1,4 @@
-package com.example.backend.domain.sample
+package com.example.backend.sample.adapter.inbound.web
 
 import com.example.backend.support.IntegrationTestBase
 import org.junit.jupiter.api.Test
