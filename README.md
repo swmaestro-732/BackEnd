@@ -85,25 +85,31 @@ feat/* ─▶ develop ─▶ main
 
 인프라(ECR·ASG·배포 IAM)는 [`swmaestro-732/Infra`](https://github.com/swmaestro-732/Infra) 레포에서 관리한다.
 
-## 5. 아키텍처 (DDD + 헥사고날)
+## 5. 아키텍처 (DDD + 헥사고날, 모듈러 모놀리스)
 
-bounded context(예: `sample`) 단위로 아래 레이어를 둔다.
+**멀티모듈은 쓰지 않고**, 도메인(bounded context)별로 패키지를 나눈 뒤 각 도메인 안을 헥사고날로 구성한다. 나중에 특정 도메인을 MSA로 떼기 쉽게(extraction-ready) 경계를 유지한다.
 
 ```
-sample
-├── domain/                 # 순수 도메인 (Spring·Exposed 의존 X). 애그리거트·불변식.
-├── application/
-│   ├── port/inbound/       # 유스케이스 계약 (SampleUseCase)
-│   ├── port/outbound/      # 영속성 계약 (SampleRepository)
-│   └── service/            # 유스케이스 구현 (inbound 구현, outbound 사용, 트랜잭션 경계)
-└── adapter/
-    ├── inbound/web/         # REST 컨트롤러 + 요청/응답 DTO
-    └── outbound/persistence/ # Exposed 테이블 + 포트 구현체(도메인↔행 매핑)
+com.example.backend
+├─ bootstrap/                 # 조립 루트: 앱 진입점, config(Security/OpenAPI), 전역 예외핸들러
+├─ common/                    # 도메인 무관 기술 공통(response/util 등). 도메인 개념 금지.
+└─ sample/                    # 도메인(= bounded context). 새 도메인은 이 구조를 복제.
+   ├─ domain/model/           # 순수 도메인 (Spring·Exposed 의존 X). 애그리거트·불변식.
+   ├─ application/
+   │  ├─ port/inbound/        # 유스케이스 계약 (SampleUseCase)
+   │  ├─ port/outbound/       # 영속성 계약 (SamplePersistencePort)
+   │  ├─ service/             # 유스케이스 구현 (트랜잭션 경계)
+   │  └─ dto/                 # Command/Result — 애플리케이션 경계 타입(도메인 비노출)
+   └─ adapter/
+      ├─ inbound/web/         # 컨트롤러 + request/·response/ DTO
+      └─ outbound/persistence/ # Exposed 테이블 + 포트 구현체(도메인↔행 매핑)
 ```
 
-**의존 규칙**: 바깥(adapter) → 안(application) → 도메인 한 방향으로만 의존한다.
-도메인·애플리케이션은 어댑터(웹·DB)를 알지 못하고, 포트(인터페이스)로만 소통한다.
-따라서 도메인은 프레임워크 없이 단위 테스트할 수 있고(`SampleTest`), 웹/DB 기술 교체가 도메인에 영향을 주지 않는다.
+**의존 규칙** (adapter → application → domain 한 방향):
+- 도메인·애플리케이션은 어댑터(웹·DB)를 모르고 포트(인터페이스)로만 소통 → 도메인은 프레임워크 없이 단위 테스트 가능(`SampleTest`).
+- **도메인 간 호출은 Port로만**: 조회는 아웃바운드 포트(+`adapter/outbound/<도메인>`의 내부 어댑터가 상대 도메인의 inbound 포트 호출), 알림은 도메인 이벤트. MSA 확장 시 이 어댑터만 원격 호출로 교체.
+- **DB 규율**: 크로스 도메인 FK·JOIN 금지, 트랜잭션 경계는 도메인 안에서만.
 
-- `in`은 Kotlin 예약어라 포트/어댑터 하위 패키지는 `inbound`/`outbound`로 명명한다.
-- 새 도메인은 `sample` 구조를 템플릿으로 복제해 추가한다.
+**경계 강제**: 위 규칙을 **ArchUnit 테스트**(`HexagonalArchitectureTest`)로 검증한다 — 위반 시 CI 실패.
+
+- `in`은 Kotlin 예약어라 하위 패키지는 `inbound`/`outbound`로 명명한다.

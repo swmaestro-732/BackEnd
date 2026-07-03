@@ -1,5 +1,6 @@
-package com.example.backend.common.exception
+package com.example.backend.bootstrap.exception
 
+import com.example.backend.common.response.ApiError
 import jakarta.servlet.http.HttpServletRequest
 import org.springframework.http.HttpStatus
 import org.springframework.http.ResponseEntity

@@ -1,13 +1,14 @@
 package com.example.backend.sample.application.port.inbound
 
-import com.example.backend.sample.domain.Sample
+import com.example.backend.sample.application.dto.CreateSampleCommand
+import com.example.backend.sample.application.dto.SampleResult
 
 /**
  * 인바운드 포트 — 애플리케이션이 바깥(웹 등)에 제공하는 유스케이스 계약.
- * 인바운드 어댑터(컨트롤러)는 이 인터페이스에만 의존한다.
+ * 입출력은 도메인이 아니라 애플리케이션 DTO(Command/Result)로 주고받는다.
  */
 interface SampleUseCase {
-    fun list(): List<Sample>
+    fun list(): List<SampleResult>
 
-    fun create(name: String): Sample
+    fun create(command: CreateSampleCommand): SampleResult
 }

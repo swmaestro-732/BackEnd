@@ -1,4 +1,4 @@
-package com.example.backend.sample.domain
+package com.example.backend.sample.domain.model
 
 /**
  * Sample 애그리거트 루트.

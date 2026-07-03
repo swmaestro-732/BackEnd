@@ -1,8 +1,8 @@
-package com.example.backend.common.exception
+package com.example.backend.common.response
 
 import java.time.OffsetDateTime
 
-/** 표준 에러 응답 바디. */
+/** 표준 에러 응답 바디. (도메인 무관 공통 응답 타입) */
 data class ApiError(
     val status: Int,
     val error: String,
