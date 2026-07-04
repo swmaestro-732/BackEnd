@@ -253,6 +253,24 @@ jobs:
           format: table
           exit-code: "1"
 
+  # ───────────────────────── 아키텍처 경계 (ArchUnit) ─────────────────────────
+  architecture:
+    name: architecture
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+      - uses: gradle/actions/setup-gradle@v4
+
+      # 헥사고날·도메인 분리 경계 규칙만 별도 실행 (DB 불필요) → 위반 시 이 체크가 명시적으로 빨감.
+      - name: ArchUnit (아키텍처 경계 규칙)
+        run: ./gradlew test --tests "com.example.backend.architecture.*" --no-daemon
+
   # ───────────────────────── 통합 리포트 (단일 PR 코멘트) ─────────────────────────
   report:
     name: CI report
