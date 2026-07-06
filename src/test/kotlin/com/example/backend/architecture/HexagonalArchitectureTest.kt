@@ -8,8 +8,9 @@ import org.junit.jupiter.api.Test
 /**
  * 헥사고날 + 도메인 분리 경계를 테스트로 강제한다(컴파일 대신 CI 로 위반 차단).
  *
- * 도메인이 하나(sample)뿐이라 크로스 도메인 규칙은 주석으로만 남겨두고,
- * member/order 등 두 번째 도메인이 생기면 활성화한다.
+ * 도메인(member/place/course/review)은 서로의 내부에 의존하지 않고,
+ * 오직 상대 도메인의 application.port.inbound(공개 API)만 참조할 수 있다.
+ * BFF 패키지(discovery/search/mypage)는 화면단위 조합을 위해 도메인의 inbound 포트에 의존할 수 있다.
  */
 class HexagonalArchitectureTest {
     private val classes =
@@ -72,11 +73,44 @@ class HexagonalArchitectureTest {
             .resideInAPackage("..common..")
             .should()
             .dependOnClassesThat()
-            .resideInAnyPackage("..sample..")
-            .check(classes)
+            .resideInAnyPackage(
+                "..member..",
+                "..place..",
+                "..course..",
+                "..review..",
+                "..discovery..",
+                "..search..",
+                "..mypage..",
+            ).check(classes)
     }
 
-    // TODO(두 번째 도메인 추가 시): 크로스 도메인 격리
-    //  order.. 는 member.. 를 오직 order.adapter.outbound.member 에서,
-    //  그것도 member.application.port.inbound 만 참조 가능하도록 규칙 추가.
+    /**
+     * 크로스 도메인 격리 — 한 도메인은 다른 도메인의 내부(domain/adapter/service/dto/outbound 포트)에
+     * 의존할 수 없고, 오직 상대 도메인의 application.port.inbound(공개 API)만 참조할 수 있다.
+     * 현재 스캐폴드에는 크로스 도메인 호출이 없어 규칙은 공허참으로 통과한다.
+     * (BFF 패키지 discovery/search/mypage 는 이 규칙 밖이며 도메인 inbound 포트 의존이 허용된다.)
+     */
+    @Test
+    fun `도메인은 다른 도메인의 inbound 포트만 참조한다`() {
+        val domains = listOf("member", "place", "course", "review")
+        for (dependent in domains) {
+            for (target in domains) {
+                if (dependent == target) continue
+                // dependent 도메인은 target 도메인의 내부(도메인/어댑터/서비스/DTO/아웃바운드 포트)에 의존할 수 없다.
+                // 허용되는 건 target.application.port.inbound 뿐이다.
+                noClasses()
+                    .that()
+                    .resideInAPackage("..$dependent..")
+                    .should()
+                    .dependOnClassesThat()
+                    .resideInAnyPackage(
+                        "..$target.domain..",
+                        "..$target.adapter..",
+                        "..$target.application.service..",
+                        "..$target.application.dto..",
+                        "..$target.application.port.outbound..",
+                    ).check(classes)
+            }
+        }
+    }
 }
