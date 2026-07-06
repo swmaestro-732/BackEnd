@@ -1,6 +1,5 @@
 package com.example.backend.member.domain.model
 
-import com.example.backend.common.area.Area
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
@@ -13,22 +12,21 @@ import kotlin.test.assertNull
 class MemberTest {
     @Test
     fun `create 는 신규 Member 를 id 없이 생성한다`() {
-        val member = Member.create("hello", Area("서울"))
+        val member = Member.create("hello")
 
         assertNull(member.id)
-        assertEquals("hello", member.name)
-        assertEquals("서울", member.area.value)
+        assertEquals("hello", member.nickname)
     }
 
     @Test
-    fun `이름이 비면 예외를 던진다`() {
-        assertFailsWith<IllegalArgumentException> { Member.create(" ", Area("서울")) }
+    fun `닉네임이 비면 예외를 던진다`() {
+        assertFailsWith<IllegalArgumentException> { Member.create(" ") }
     }
 
     @Test
-    fun `이름이 최대 길이를 넘으면 예외를 던진다`() {
-        val tooLong = "a".repeat(Member.MAX_NAME_LENGTH + 1)
+    fun `닉네임이 최대 길이를 넘으면 예외를 던진다`() {
+        val tooLong = "a".repeat(Member.MAX_NICKNAME_LENGTH + 1)
 
-        assertFailsWith<IllegalArgumentException> { Member.create(tooLong, Area("서울")) }
+        assertFailsWith<IllegalArgumentException> { Member.create(tooLong) }
     }
 }

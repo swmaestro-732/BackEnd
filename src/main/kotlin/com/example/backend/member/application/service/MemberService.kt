@@ -1,6 +1,5 @@
 package com.example.backend.member.application.service
 
-import com.example.backend.common.area.Area
 import com.example.backend.member.application.dto.CreateMemberCommand
 import com.example.backend.member.application.dto.MemberResult
 import com.example.backend.member.application.port.inbound.MemberUseCase
@@ -23,7 +22,7 @@ class MemberService(
 
     @Transactional
     override fun create(command: CreateMemberCommand): MemberResult {
-        val saved = memberPersistencePort.save(Member.create(command.name, Area(command.area)))
+        val saved = memberPersistencePort.save(Member.create(command.nickname))
         return MemberResult.from(saved)
     }
 }

@@ -2,7 +2,7 @@
 # 운영/CI 는 환경변수(SPRING_DATASOURCE_*)로 별도 DB 를 주입한다.
 services:
   postgres:
-    image: postgres:16
+    image: postgis/postgis:16-3.5
     ports:
       - "5432:5432"
     environment:

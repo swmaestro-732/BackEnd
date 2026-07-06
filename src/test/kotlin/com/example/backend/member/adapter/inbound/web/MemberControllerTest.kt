@@ -15,7 +15,7 @@ import org.springframework.test.web.servlet.result.MockMvcResultMatchers.status
 @AutoConfigureMockMvc
 // 각 테스트 전에 테이블을 비워 DB 상태에 의존하지 않도록(결정성 확보).
 @Sql(
-    statements = ["TRUNCATE TABLE members RESTART IDENTITY CASCADE"],
+    statements = ["TRUNCATE TABLE users RESTART IDENTITY CASCADE"],
     executionPhase = Sql.ExecutionPhase.BEFORE_TEST_METHOD,
 )
 class MemberControllerTest
@@ -26,26 +26,24 @@ class MemberControllerTest
         @Test
         fun `멤버 생성 후 목록에 포함된다`() {
             mockMvc
-                .post("/api/members", """{"name":"hello","area":"서울"}""")
+                .post("/api/members", """{"nickname":"hello"}""")
                 .andExpect(status().isCreated)
                 .andExpect(jsonPath("$.id").exists())
-                .andExpect(jsonPath("$.name").value("hello"))
-                .andExpect(jsonPath("$.area").value("서울"))
+                .andExpect(jsonPath("$.nickname").value("hello"))
 
             mockMvc
                 .perform(get("/api/members"))
                 .andExpect(status().isOk)
-                .andExpect(jsonPath("$[0].name").value("hello"))
-                .andExpect(jsonPath("$[0].area").value("서울"))
+                .andExpect(jsonPath("$[0].nickname").value("hello"))
         }
 
         @Test
-        fun `이름이 비면 400과 에러 응답`() {
+        fun `닉네임이 비면 400과 에러 응답`() {
             mockMvc
-                .post("/api/members", """{"name":"","area":"서울"}""")
+                .post("/api/members", """{"nickname":""}""")
                 .andExpect(status().isBadRequest)
                 .andExpect(jsonPath("$.status").value(400))
-                .andExpect(jsonPath("$.fieldErrors[0].field").value("name"))
+                .andExpect(jsonPath("$.fieldErrors[0].field").value("nickname"))
         }
 
         private fun MockMvc.post(

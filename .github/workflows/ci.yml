@@ -55,7 +55,7 @@ jobs:
     runs-on: ubuntu-latest
     services:
       postgres:
-        image: postgres:16
+        image: postgis/postgis:16-3.5
         env:
           POSTGRES_DB: backend_test
           POSTGRES_USER: test

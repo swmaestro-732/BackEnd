@@ -1,6 +1,5 @@
 package com.example.backend.member.adapter.outbound.persistence
 
-import com.example.backend.common.area.Area
 import com.example.backend.member.application.port.outbound.MemberPersistencePort
 import com.example.backend.member.domain.model.Member
 import org.jetbrains.exposed.v1.core.ResultRow
@@ -21,16 +20,14 @@ class MemberPersistenceAdapter : MemberPersistencePort {
     override fun save(member: Member): Member {
         val id =
             MemberTable.insert {
-                it[name] = member.name
-                it[area] = member.area.value
+                it[nickname] = member.nickname
             }[MemberTable.id]
-        return Member.reconstitute(id = id, name = member.name, area = member.area)
+        return Member.reconstitute(id = id, nickname = member.nickname)
     }
 
     private fun toDomain(row: ResultRow): Member =
         Member.reconstitute(
             id = row[MemberTable.id],
-            name = row[MemberTable.name],
-            area = Area(row[MemberTable.area]),
+            nickname = row[MemberTable.nickname],
         )
 }

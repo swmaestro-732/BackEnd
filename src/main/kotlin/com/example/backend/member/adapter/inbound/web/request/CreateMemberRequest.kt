@@ -8,9 +8,8 @@ import jakarta.validation.constraints.Size
 /** 웹 요청 DTO. 애플리케이션 경계 타입([CreateMemberCommand])으로 매핑한다. */
 data class CreateMemberRequest(
     @field:NotBlank
-    @field:Size(max = Member.MAX_NAME_LENGTH)
-    val name: String,
-    val area: String,
+    @field:Size(max = Member.MAX_NICKNAME_LENGTH)
+    val nickname: String,
 ) {
-    fun toCommand(): CreateMemberCommand = CreateMemberCommand(name = name, area = area)
+    fun toCommand(): CreateMemberCommand = CreateMemberCommand(nickname = nickname)
 }
