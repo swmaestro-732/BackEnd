@@ -124,7 +124,7 @@ CREATE TABLE place_reviews (
 CREATE TABLE place_review_photos (
     id              BIGSERIAL PRIMARY KEY,
     place_review_id BIGINT   NOT NULL REFERENCES place_reviews (id),
-    image_url       TEXT,
+    image_url       TEXT     NOT NULL,
     order_no        SMALLINT NOT NULL DEFAULT 0
 );
 
@@ -185,7 +185,7 @@ CREATE TABLE course_places (
 CREATE TABLE course_place_images (
     id              BIGSERIAL PRIMARY KEY,
     course_place_id BIGINT   NOT NULL REFERENCES course_places (id),
-    image_url       TEXT,
+    image_url       TEXT     NOT NULL,
     order_no        SMALLINT NOT NULL DEFAULT 0,
     UNIQUE (course_place_id, order_no)
 );
@@ -205,7 +205,7 @@ CREATE TABLE course_reviews (
 CREATE TABLE course_review_photos (
     id               BIGSERIAL PRIMARY KEY,
     course_review_id BIGINT   NOT NULL REFERENCES course_reviews (id),
-    image_url        TEXT,
+    image_url        TEXT    NOT NULL,
     order_no         SMALLINT NOT NULL DEFAULT 0
 );
 
