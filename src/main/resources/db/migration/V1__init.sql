@@ -83,21 +83,6 @@ CREATE TABLE added_places (
     created_at        TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
-CREATE TABLE items (
-    id          BIGSERIAL PRIMARY KEY,
-    name        VARCHAR(100) NOT NULL UNIQUE,
-    description TEXT
-);
-
-CREATE TABLE user_items (
-    id          BIGSERIAL PRIMARY KEY,
-    user_id     BIGINT      NOT NULL REFERENCES users (id),
-    item_id     BIGINT      NOT NULL REFERENCES items (id),
-    item_cnt    INT         NOT NULL DEFAULT 1,
-    acquired_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-    expired_at  TIMESTAMPTZ
-);
-
 -- ============================ place ============================
 
 CREATE TABLE places (
