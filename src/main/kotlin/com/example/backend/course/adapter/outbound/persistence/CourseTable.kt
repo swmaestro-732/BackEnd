@@ -10,7 +10,7 @@ internal object CourseTable : Table("courses") {
     val createdAt = timestamp("created_at")
     val updatedAt = timestamp("updated_at")
     val deletedAt = timestamp("deleted_at").nullable()
-    val userId = long("user_id") // cross-domain(member): FK 없음
+    val userId = long("user_id") // cross-domain(user): FK 없음
     val title = varchar("title", 200)
     val description = text("description").nullable()
     val area = varchar("area", 100).nullable()

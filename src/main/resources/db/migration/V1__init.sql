@@ -8,7 +8,7 @@
 
 CREATE EXTENSION IF NOT EXISTS postgis;
 
--- ============================ member (users) ============================
+-- ============================ user (users) ============================
 
 CREATE TABLE users (
     id                BIGSERIAL PRIMARY KEY,
@@ -131,7 +131,7 @@ CREATE TABLE place_reviews (
     created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
     updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
     deleted_at TIMESTAMPTZ,
-    user_id    BIGINT      NOT NULL,                            -- cross-domain(member): FK 없음
+    user_id    BIGINT      NOT NULL,                            -- cross-domain(user): FK 없음
     rating     SMALLINT    NOT NULL,                            -- 1~5
     content    TEXT
 );
@@ -168,7 +168,7 @@ CREATE TABLE courses (
     created_at     TIMESTAMPTZ  NOT NULL DEFAULT now(),
     updated_at     TIMESTAMPTZ  NOT NULL DEFAULT now(),
     deleted_at     TIMESTAMPTZ,
-    user_id        BIGINT       NOT NULL,                       -- cross-domain(member): FK 없음
+    user_id        BIGINT       NOT NULL,                       -- cross-domain(user): FK 없음
     title          VARCHAR(200) NOT NULL,
     description    TEXT,
     area           VARCHAR(100),
@@ -212,7 +212,7 @@ CREATE TABLE course_reviews (
     created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
     updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
     deleted_at TIMESTAMPTZ,
-    user_id    BIGINT      NOT NULL,                            -- cross-domain(member): FK 없음
+    user_id    BIGINT      NOT NULL,                            -- cross-domain(user): FK 없음
     rating     SMALLINT    NOT NULL,                            -- 1~5
     content    TEXT
 );
@@ -250,7 +250,7 @@ CREATE TABLE reports (
 
 CREATE TABLE inquiries (
     id          BIGSERIAL PRIMARY KEY,
-    user_id     BIGINT,                                         -- cross-domain(member): FK 없음
+    user_id     BIGINT,                                         -- cross-domain(user): FK 없음
     category    VARCHAR(50),
     title       VARCHAR(200) NOT NULL,
     content     TEXT         NOT NULL,
@@ -271,7 +271,7 @@ CREATE TABLE chat_rooms (
 CREATE TABLE chat_messages (
     id           BIGSERIAL PRIMARY KEY,
     chat_room_id BIGINT      NOT NULL REFERENCES chat_rooms (id),
-    user_id      BIGINT      NOT NULL,                          -- cross-domain(member): FK 없음
+    user_id      BIGINT      NOT NULL,                          -- cross-domain(user): FK 없음
     age_group    SMALLINT,                                      -- 0,10,20,...,60+
     message_type SMALLINT    NOT NULL DEFAULT 0,                -- TEXT, PHOTO, VIDEO, VOICE, LOCATION, GAME, FILE, LINK
     content      TEXT,

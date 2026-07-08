@@ -1,7 +1,7 @@
 package com.example.backend.course.domain.model
 
 /**
- * Course 도메인 스켈레톤 — 상세 유스케이스/어댑터는 후속(SCRUM). member 도메인을 템플릿으로 확장.
+ * Course 도메인 스켈레톤 — 상세 유스케이스/어댑터는 후속(SCRUM). user 도메인을 템플릿으로 확장.
  */
 @ConsistentCopyVisibility // copy() 도 private 으로 — 팩토리 우회 차단
 data class Course private constructor(
