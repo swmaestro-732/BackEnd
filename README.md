@@ -105,15 +105,13 @@ com.example.backend
 │     └─ outbound/persistence/ # Exposed 테이블 + 포트 구현체(도메인↔행 매핑)
 ├─ place/                     # 도메인 (스켈레톤 — user 템플릿으로 확장). 장소 리뷰 테이블도 이 도메인 persistence 에.
 ├─ course/                    # 도메인 (스켈레톤). 코스 리뷰 테이블도 이 도메인 persistence 에.
-├─ discovery/                 # BFF(화면단위): 홈/지도 추천·탐색 조합
-├─ search/                    # BFF(화면단위): 장소·코스 통합검색
-└─ mypage/                    # BFF(화면단위): 내 활동·저장목록
+└─ bff/                       # 화면 조합(BFF): 여러 도메인의 inbound 포트를 조합하는 화면(홈/저장/마이 등)만 모음
 ```
 
 도메인은 user/place/course 3개이며 각 도메인 내부는 헥사고날로 구성한다.
 리뷰는 별도 도메인이 아니라 대상 도메인에 속한다 — 장소 리뷰(place_reviews 등)는 `place`, 코스 리뷰(course_reviews 등)는 `course` 의 `adapter/outbound/persistence/` 에 둔다.
-BFF(화면단위) 패키지 discovery/search/mypage 는 도메인의 inbound 포트를 조합해 화면단위 API를 제공한다.
-`user` 가 동작하는 레퍼런스 구현이고, place/course + BFF 는 user 템플릿으로 채워갈 스켈레톤이다.
+**BFF는 화면별로 쪼개지 않고 단일 `bff` 패키지 하나**로 모은다 — 여러 도메인을 조합해야 하는 화면(홈·저장·마이 등)의 컨트롤러+조합서비스만 두고, 도메인의 `application.port.inbound`만 호출한다(테이블·도메인 로직 없음). 단일 도메인으로 끝나는 화면(지도=place 등)은 BFF가 아니라 해당 도메인에 둔다.
+`user` 가 동작하는 레퍼런스 구현이고, place/course + bff 는 user 템플릿으로 채워갈 스켈레톤이다.
 `area`(지역)는 팀 결정에 따라 특정 도메인이 아니라 `common/area` 에 두고 여러 도메인이 공유 참조한다.
 
 **의존 규칙** (adapter → application → domain 한 방향):

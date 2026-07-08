@@ -1,12 +1,14 @@
 package com.example.backend.course.adapter.outbound.persistence
 
+import com.example.backend.common.persistence.codeEnum
+import com.example.backend.course.domain.model.CourseReviewStatus
 import org.jetbrains.exposed.v1.core.Table
 import org.jetbrains.exposed.v1.datetime.timestamp
 
 internal object CourseReviewTable : Table("course_reviews") {
     val id = long("id").autoIncrement()
     val courseId = long("course_id") // cross-domain(course): FK 없음
-    val status = short("status")
+    val status = codeEnum<CourseReviewStatus>("status")
     val createdAt = timestamp("created_at")
     val updatedAt = timestamp("updated_at")
     val deletedAt = timestamp("deleted_at").nullable()

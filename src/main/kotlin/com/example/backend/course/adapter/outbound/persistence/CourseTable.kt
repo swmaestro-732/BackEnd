@@ -1,12 +1,15 @@
 package com.example.backend.course.adapter.outbound.persistence
 
+import com.example.backend.common.persistence.codeEnum
+import com.example.backend.course.domain.model.CourseStatus
+import com.example.backend.course.domain.model.CourseVisibility
 import org.jetbrains.exposed.v1.core.Table
 import org.jetbrains.exposed.v1.datetime.date
 import org.jetbrains.exposed.v1.datetime.timestamp
 
 internal object CourseTable : Table("courses") {
     val id = long("id").autoIncrement()
-    val status = short("status")
+    val status = codeEnum<CourseStatus>("status")
     val createdAt = timestamp("created_at")
     val updatedAt = timestamp("updated_at")
     val deletedAt = timestamp("deleted_at").nullable()
@@ -16,7 +19,7 @@ internal object CourseTable : Table("courses") {
     val area = varchar("area", 100).nullable()
     val visitDate = date("visit_date").nullable()
     val isPublished = bool("is_published")
-    val visibility = short("visibility")
+    val visibility = codeEnum<CourseVisibility>("visibility")
     val likesCnt = integer("likes_cnt")
     val commentsCnt = integer("comments_cnt")
     val savesCnt = integer("saves_cnt")

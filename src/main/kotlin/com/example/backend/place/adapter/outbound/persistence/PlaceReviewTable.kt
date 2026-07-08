@@ -1,12 +1,14 @@
 package com.example.backend.place.adapter.outbound.persistence
 
+import com.example.backend.common.persistence.codeEnum
+import com.example.backend.place.domain.model.PlaceReviewStatus
 import org.jetbrains.exposed.v1.core.Table
 import org.jetbrains.exposed.v1.datetime.timestamp
 
 internal object PlaceReviewTable : Table("place_reviews") {
     val id = long("id").autoIncrement()
     val placeId = long("place_id") // cross-domain(place): FK 없음
-    val status = short("status")
+    val status = codeEnum<PlaceReviewStatus>("status")
     val createdAt = timestamp("created_at")
     val updatedAt = timestamp("updated_at")
     val deletedAt = timestamp("deleted_at").nullable()

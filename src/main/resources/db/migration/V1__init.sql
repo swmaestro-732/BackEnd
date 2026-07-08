@@ -197,12 +197,12 @@ CREATE TABLE course_places (
     UNIQUE (course_id, order_no)
 );
 
-CREATE TABLE course_places_images (
-    id               BIGSERIAL PRIMARY KEY,
-    course_places_id BIGINT   NOT NULL REFERENCES course_places (id),
-    image_url        TEXT,
-    order_no         SMALLINT,
-    UNIQUE (course_places_id, order_no)
+CREATE TABLE course_place_images (
+    id              BIGSERIAL PRIMARY KEY,
+    course_place_id BIGINT   NOT NULL REFERENCES course_places (id),
+    image_url       TEXT,
+    order_no        SMALLINT,
+    UNIQUE (course_place_id, order_no)
 );
 
 CREATE TABLE course_reviews (
@@ -234,47 +234,4 @@ CREATE TABLE course_review_tag_links (
     course_review_id     BIGINT NOT NULL REFERENCES course_reviews (id),
     course_review_tag_id BIGINT NOT NULL REFERENCES course_review_tags (id),
     PRIMARY KEY (course_review_id, course_review_tag_id)
-);
-
--- ============================ support / chat ============================
-
-CREATE TABLE reports (
-    id           BIGSERIAL PRIMARY KEY,
-    target_type  SMALLINT    NOT NULL,                          -- COURSE, USER, COMMENT, CHAT
-    target_id    BIGINT      NOT NULL,                          -- cross-domain 대상: FK 없음
-    description  TEXT        NOT NULL,
-    status       SMALLINT    NOT NULL DEFAULT 0,                -- PENDING, REVIEWING, RESOLVED, REJECTED
-    processed_at TIMESTAMPTZ,
-    created_at   TIMESTAMPTZ NOT NULL DEFAULT now()
-);
-
-CREATE TABLE inquiries (
-    id          BIGSERIAL PRIMARY KEY,
-    user_id     BIGINT,                                         -- cross-domain(user): FK 없음
-    category    VARCHAR(50),
-    title       VARCHAR(200) NOT NULL,
-    content     TEXT         NOT NULL,
-    status      SMALLINT     NOT NULL DEFAULT 0,                -- PENDING, ANSWERED, CLOSED
-    answer      TEXT,
-    answered_at TIMESTAMPTZ,
-    created_at  TIMESTAMPTZ  NOT NULL DEFAULT now(),
-    updated_at  TIMESTAMPTZ  NOT NULL DEFAULT now()
-);
-
-CREATE TABLE chat_rooms (
-    id               BIGSERIAL PRIMARY KEY,
-    h3_idx           VARCHAR(20)  NOT NULL UNIQUE,              -- h3 지역 셀
-    name             VARCHAR(200),
-    active_users_cnt INT          NOT NULL DEFAULT 0
-);
-
-CREATE TABLE chat_messages (
-    id           BIGSERIAL PRIMARY KEY,
-    chat_room_id BIGINT      NOT NULL REFERENCES chat_rooms (id),
-    user_id      BIGINT      NOT NULL,                          -- cross-domain(user): FK 없음
-    age_group    SMALLINT,                                      -- 0,10,20,...,60+
-    message_type SMALLINT    NOT NULL DEFAULT 0,                -- TEXT, PHOTO, VIDEO, VOICE, LOCATION, GAME, FILE, LINK
-    content      TEXT,
-    media        TEXT,
-    created_at   TIMESTAMPTZ NOT NULL DEFAULT now()
 );

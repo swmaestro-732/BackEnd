@@ -10,7 +10,7 @@ import org.junit.jupiter.api.Test
  *
  * 도메인(user/place/course)은 서로의 내부에 의존하지 않고,
  * 오직 상대 도메인의 application.port.inbound(공개 API)만 참조할 수 있다.
- * BFF 패키지(discovery/search/mypage)는 화면단위 조합을 위해 도메인의 inbound 포트에 의존할 수 있다.
+ * BFF 패키지(bff)는 화면단위 조합을 위해 도메인의 inbound 포트에 의존할 수 있다.
  */
 class HexagonalArchitectureTest {
     private val classes =
@@ -77,9 +77,7 @@ class HexagonalArchitectureTest {
                 "..user..",
                 "..place..",
                 "..course..",
-                "..discovery..",
-                "..search..",
-                "..mypage..",
+                "..bff..",
             ).check(classes)
     }
 
@@ -87,7 +85,7 @@ class HexagonalArchitectureTest {
      * 크로스 도메인 격리 — 한 도메인은 다른 도메인의 내부(domain/adapter/service/dto/outbound 포트)에
      * 의존할 수 없고, 오직 상대 도메인의 application.port.inbound(공개 API)만 참조할 수 있다.
      * 현재 스캐폴드에는 크로스 도메인 호출이 없어 규칙은 공허참으로 통과한다.
-     * (BFF 패키지 discovery/search/mypage 는 이 규칙 밖이며 도메인 inbound 포트 의존이 허용된다.)
+     * (BFF 패키지 bff 는 이 규칙 밖이며 도메인 inbound 포트 의존이 허용된다.)
      */
     @Test
     fun `도메인은 다른 도메인의 inbound 포트만 참조한다`() {
