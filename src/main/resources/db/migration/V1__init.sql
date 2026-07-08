@@ -163,7 +163,7 @@ CREATE TABLE courses (
     likes_cnt      INT          NOT NULL DEFAULT 0,
     comments_cnt   INT          NOT NULL DEFAULT 0,
     saves_cnt      INT          NOT NULL DEFAULT 0,
-    forked_from_id BIGINT                                       -- 포크 원본 course (같은 도메인, nullable)
+    forked_from_id BIGINT       REFERENCES courses (id)         -- 포크 원본 course (같은 도메인, nullable)
 );
 
 CREATE TABLE course_tags (
@@ -186,7 +186,7 @@ CREATE TABLE course_place_images (
     id              BIGSERIAL PRIMARY KEY,
     course_place_id BIGINT   NOT NULL REFERENCES course_places (id),
     image_url       TEXT,
-    order_no        SMALLINT,
+    order_no        SMALLINT NOT NULL DEFAULT 0,
     UNIQUE (course_place_id, order_no)
 );
 

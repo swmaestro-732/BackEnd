@@ -5,7 +5,7 @@ package com.example.backend.place.domain.model
  */
 @ConsistentCopyVisibility // copy() 도 private 으로 — 팩토리 우회 차단
 data class Place private constructor(
-    val id: Int?,
+    val id: Long?,
     val name: String,
 ) {
     companion object {

@@ -117,7 +117,7 @@ com.example.backend
 **의존 규칙** (adapter → application → domain 한 방향):
 - 도메인·애플리케이션은 어댑터(웹·DB)를 모르고 포트(인터페이스)로만 소통 → 도메인은 프레임워크 없이 단위 테스트 가능(`UserTest`).
 - **도메인 간 호출은 Port로만**: 한 도메인은 상대 도메인의 `application.port.inbound`(공개 API)만 참조하고, 조회는 `adapter/outbound/<도메인>`의 내부 어댑터가 상대 inbound 포트를 호출한다. 알림은 도메인 이벤트. MSA 확장 시 이 어댑터만 원격 호출로 교체.
-- **BFF 예외**: discovery/search/mypage 는 화면단위 조합을 위해 도메인의 inbound 포트에 의존할 수 있다.
+- **BFF 예외**: `bff`(홈·저장·마이 등 화면 조합)는 화면단위 조합을 위해 도메인의 inbound 포트에 의존할 수 있다.
 - **DB 규율**: 크로스 도메인 FK·JOIN 금지, 트랜잭션 경계는 도메인 안에서만.
 
 **경계 강제**: 위 규칙을 **ArchUnit 테스트**(`HexagonalArchitectureTest`)로 검증한다 — 위반 시 CI 실패. 크로스 도메인 격리·common→도메인 비참조 규칙 포함.
