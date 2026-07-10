@@ -52,6 +52,8 @@ dependencies {
     testImplementation("org.springframework.boot:spring-boot-starter-validation-test")
     testImplementation("org.springframework.boot:spring-boot-starter-webmvc-test")
     testImplementation("org.jetbrains.kotlin:kotlin-test-junit5")
+    // 아키텍처 경계(헥사고날·도메인 분리)를 테스트로 강제
+    testImplementation("com.tngtech.archunit:archunit-junit5:1.3.0")
     testRuntimeOnly("org.junit.platform:junit-platform-launcher")
 }
 
@@ -63,7 +65,22 @@ kotlin {
 
 tasks.withType<Test> {
     useJUnitPlatform()
+}
+
+// 메인 test: 아키텍처(ArchUnit) 테스트는 제외 — 전용 archTest 에서만 실행(이중 실행 방지).
+tasks.test {
+    filter { excludeTestsMatching("com.example.backend.architecture.*") }
     finalizedBy(tasks.jacocoTestReport) // 테스트 후 커버리지 리포트 생성
+}
+
+// ArchUnit 아키텍처 경계 규칙만 실행하는 전용 태스크(DB 불필요). CI 의 architecture 잡이 사용.
+// build/check 에 연결하지 않아 build & test 에서는 실행되지 않는다.
+tasks.register<Test>("archTest") {
+    description = "ArchUnit 아키텍처 경계 규칙만 실행"
+    group = "verification"
+    testClassesDirs = sourceSets["test"].output.classesDirs
+    classpath = sourceSets["test"].runtimeClasspath
+    filter { includeTestsMatching("com.example.backend.architecture.*") }
 }
 
 tasks.jacocoTestReport {

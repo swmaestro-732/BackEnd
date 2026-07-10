@@ -55,7 +55,7 @@ jobs:
     runs-on: ubuntu-latest
     services:
       postgres:
-        image: postgres:16
+        image: postgis/postgis:16-3.5
         env:
           POSTGRES_DB: backend_test
           POSTGRES_USER: test
@@ -253,10 +253,29 @@ jobs:
           format: table
           exit-code: "1"
 
+  # ───────────────────────── 아키텍처 경계 (ArchUnit) ─────────────────────────
+  architecture:
+    name: architecture
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+      - uses: gradle/actions/setup-gradle@v4
+
+      # 헥사고날·도메인 분리 경계 규칙만 별도 실행 (DB 불필요) → 위반 시 이 체크가 명시적으로 빨감.
+      # 전용 archTest 태스크 — 메인 test 는 이 패키지를 제외하므로 이중 실행되지 않음.
+      - name: ArchUnit (아키텍처 경계 규칙)
+        run: ./gradlew archTest --no-daemon
+
   # ───────────────────────── 통합 리포트 (단일 PR 코멘트) ─────────────────────────
   report:
     name: CI report
-    needs: [lint, test, docker, codesec]
+    needs: [lint, test, docker, codesec, architecture]
     if: always()
     runs-on: ubuntu-latest
     permissions:
@@ -276,6 +295,7 @@ jobs:
           R_TEST: ${{ needs.test.result }}
           R_DOCKER: ${{ needs.docker.result }}
           R_CODESEC: ${{ needs.codesec.result }}
+          R_ARCH: ${{ needs.architecture.result }}
         with:
           script: |
             const fs = require('fs');
@@ -361,6 +381,12 @@ jobs:
                 : '코드 레벨 이슈 없음 (시크릿/미스컨피그/SAST)';
             }
 
+            // ── 아키텍처 경계 (ArchUnit) ──
+            let archSection = `### 아키텍처 경계 (ArchUnit) ${icon(process.env.R_ARCH)}\n\n`;
+            archSection += process.env.R_ARCH === 'success'
+              ? '헥사고날·도메인 분리 경계 규칙 통과 (도메인/레이어/common 격리)'
+              : '경계 규칙 위반 — `architecture` 잡 로그 참고';
+
             const body = [
               '<!-- ci-report -->',
               `## Backend CI 리포트 — \`${context.sha.slice(0,7)}\` · @${context.actor}`,
@@ -368,6 +394,7 @@ jobs:
               '', '---', '', testSection,
               '', '---', '', dockerSection,
               '', '---', '', codeSection,
+              '', '---', '', archSection,
             ].join('\n');
 
             await core.summary.addRaw(body).write();

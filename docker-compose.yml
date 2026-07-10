@@ -2,7 +2,8 @@
 # 운영/CI 는 환경변수(SPRING_DATASOURCE_*)로 별도 DB 를 주입한다.
 services:
   postgres:
-    image: postgres:16
+    image: postgis/postgis:16-3.5
+    platform: linux/amd64 # postgis 공식 이미지는 arm64 미제공 — Apple Silicon 은 Rosetta 로 실행
     ports:
       - "5432:5432"
     environment:
