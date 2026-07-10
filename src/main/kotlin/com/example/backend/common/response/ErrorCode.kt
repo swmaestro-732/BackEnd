@@ -21,4 +21,7 @@ enum class ErrorCode(
     NOT_FOUND(404, "COMMON_404", "요청한 리소스를 찾을 수 없습니다."),
     METHOD_NOT_ALLOWED(405, "COMMON_405", "허용되지 않은 HTTP 메서드입니다."),
     INTERNAL_ERROR(500, "COMMON_500", "서버 오류가 발생했습니다."),
+
+    // ── 코스(course) ──
+    COURSE_NOT_FOUND(404, "COURSE_404", "코스를 찾을 수 없습니다."),
 }
