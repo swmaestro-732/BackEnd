@@ -28,13 +28,15 @@ class UserControllerTest
             mockMvc
                 .post("/api/users", """{"nickname":"hello"}""")
                 .andExpect(status().isCreated)
-                .andExpect(jsonPath("$.id").exists())
-                .andExpect(jsonPath("$.nickname").value("hello"))
+                .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.data.id").exists())
+                .andExpect(jsonPath("$.data.nickname").value("hello"))
 
             mockMvc
                 .perform(get("/api/users"))
                 .andExpect(status().isOk)
-                .andExpect(jsonPath("$[0].nickname").value("hello"))
+                .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.data[0].nickname").value("hello"))
         }
 
         @Test
@@ -42,7 +44,8 @@ class UserControllerTest
             mockMvc
                 .post("/api/users", """{"nickname":""}""")
                 .andExpect(status().isBadRequest)
-                .andExpect(jsonPath("$.status").value(400))
+                .andExpect(jsonPath("$.success").value(false))
+                .andExpect(jsonPath("$.code").value("COMMON_400_2"))
                 .andExpect(jsonPath("$.fieldErrors[0].field").value("nickname"))
         }
 
