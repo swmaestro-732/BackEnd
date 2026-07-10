@@ -3,6 +3,7 @@ package com.example.backend.bootstrap.exception
 import com.example.backend.common.exception.BusinessException
 import com.example.backend.common.response.ApiResponse
 import com.example.backend.common.response.ErrorCode
+import org.slf4j.LoggerFactory
 import org.springframework.http.ResponseEntity
 import org.springframework.web.bind.MethodArgumentNotValidException
 import org.springframework.web.bind.annotation.ExceptionHandler
@@ -14,6 +15,8 @@ import org.springframework.web.bind.annotation.RestControllerAdvice
  */
 @RestControllerAdvice
 class GlobalExceptionHandler {
+    private val log = LoggerFactory.getLogger(GlobalExceptionHandler::class.java)
+
     /** 도메인/애플리케이션이 던진 비즈니스 예외 → ErrorCode 기준 응답. */
     @ExceptionHandler(BusinessException::class)
     fun handleBusiness(e: BusinessException): ResponseEntity<ApiResponse<Nothing?>> = respond(e.errorCode, e.message)
@@ -38,9 +41,12 @@ class GlobalExceptionHandler {
     fun handleNotFound(e: NoSuchElementException): ResponseEntity<ApiResponse<Nothing?>> =
         respond(ErrorCode.NOT_FOUND, e.message)
 
-    /** 그 외 → 500. */
+    /** 그 외 → 500. 원인 추적을 위해 스택트레이스를 남긴다. */
     @ExceptionHandler(Exception::class)
-    fun handleUnexpected(e: Exception): ResponseEntity<ApiResponse<Nothing?>> = respond(ErrorCode.INTERNAL_ERROR)
+    fun handleUnexpected(e: Exception): ResponseEntity<ApiResponse<Nothing?>> {
+        log.error("처리되지 않은 예외", e)
+        return respond(ErrorCode.INTERNAL_ERROR)
+    }
 
     private fun respond(
         errorCode: ErrorCode,
