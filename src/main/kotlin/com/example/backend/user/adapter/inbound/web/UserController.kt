@@ -1,5 +1,6 @@
 package com.example.backend.user.adapter.inbound.web
 
+import com.example.backend.common.response.ApiResponse
 import com.example.backend.user.adapter.inbound.web.request.CreateUserRequest
 import com.example.backend.user.adapter.inbound.web.response.UserResponse
 import com.example.backend.user.application.port.inbound.UserUseCase
@@ -22,11 +23,11 @@ class UserController(
     private val userUseCase: UserUseCase,
 ) {
     @GetMapping
-    fun list(): List<UserResponse> = userUseCase.list().map(UserResponse::from)
+    fun list(): ApiResponse<List<UserResponse>> = ApiResponse.success(userUseCase.list().map(UserResponse::from))
 
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
     fun create(
         @Valid @RequestBody request: CreateUserRequest,
-    ): UserResponse = UserResponse.from(userUseCase.create(request.toCommand()))
+    ): ApiResponse<UserResponse> = ApiResponse.success(UserResponse.from(userUseCase.create(request.toCommand())))
 }

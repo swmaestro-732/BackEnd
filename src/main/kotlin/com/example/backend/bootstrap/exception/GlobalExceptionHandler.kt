@@ -1,62 +1,57 @@
 package com.example.backend.bootstrap.exception
 
-import com.example.backend.common.response.ApiError
-import jakarta.servlet.http.HttpServletRequest
-import org.springframework.http.HttpStatus
+import com.example.backend.common.exception.BusinessException
+import com.example.backend.common.response.ApiResponse
+import com.example.backend.common.response.ErrorCode
+import org.slf4j.LoggerFactory
 import org.springframework.http.ResponseEntity
 import org.springframework.web.bind.MethodArgumentNotValidException
 import org.springframework.web.bind.annotation.ExceptionHandler
 import org.springframework.web.bind.annotation.RestControllerAdvice
 
+/**
+ * 모든 예외를 [ApiResponse] 에러 엔벨로프로 통일한다.
+ * HTTP 상태코드는 [ErrorCode.status] 로 매핑하고, 바디는 항상 `{ success:false, code, message, ... }`.
+ */
 @RestControllerAdvice
 class GlobalExceptionHandler {
+    private val log = LoggerFactory.getLogger(GlobalExceptionHandler::class.java)
+
+    /** 도메인/애플리케이션이 던진 비즈니스 예외 → ErrorCode 기준 응답. */
+    @ExceptionHandler(BusinessException::class)
+    fun handleBusiness(e: BusinessException): ResponseEntity<ApiResponse<Nothing?>> = respond(e.errorCode, e.message)
+
     /** Bean Validation 실패 → 400 + 필드별 사유. */
     @ExceptionHandler(MethodArgumentNotValidException::class)
-    fun handleValidation(
-        e: MethodArgumentNotValidException,
-        request: HttpServletRequest,
-    ): ResponseEntity<ApiError> {
+    fun handleValidation(e: MethodArgumentNotValidException): ResponseEntity<ApiResponse<Nothing?>> {
         val fieldErrors =
             e.bindingResult.fieldErrors.map {
-                ApiError.FieldError(it.field, it.defaultMessage ?: "invalid")
+                ApiResponse.FieldError(it.field, it.defaultMessage ?: "invalid")
             }
-        return build(HttpStatus.BAD_REQUEST, "유효성 검사 실패", request, fieldErrors)
+        return respond(ErrorCode.VALIDATION_FAILED, fieldErrors = fieldErrors)
     }
-
-    /** 조회 실패 등 → 404. */
-    @ExceptionHandler(NoSuchElementException::class)
-    fun handleNotFound(
-        e: NoSuchElementException,
-        request: HttpServletRequest,
-    ): ResponseEntity<ApiError> = build(HttpStatus.NOT_FOUND, e.message ?: "찾을 수 없음", request)
 
     /** 잘못된 요청 인자 → 400. */
     @ExceptionHandler(IllegalArgumentException::class)
-    fun handleBadRequest(
-        e: IllegalArgumentException,
-        request: HttpServletRequest,
-    ): ResponseEntity<ApiError> = build(HttpStatus.BAD_REQUEST, e.message ?: "잘못된 요청", request)
+    fun handleBadRequest(e: IllegalArgumentException): ResponseEntity<ApiResponse<Nothing?>> =
+        respond(ErrorCode.INVALID_INPUT, e.message)
 
-    /** 그 외 → 500. */
+    /** 조회 실패 등 → 404. */
+    @ExceptionHandler(NoSuchElementException::class)
+    fun handleNotFound(e: NoSuchElementException): ResponseEntity<ApiResponse<Nothing?>> =
+        respond(ErrorCode.NOT_FOUND, e.message)
+
+    /** 그 외 → 500. 원인 추적을 위해 스택트레이스를 남긴다. */
     @ExceptionHandler(Exception::class)
-    fun handleUnexpected(
-        e: Exception,
-        request: HttpServletRequest,
-    ): ResponseEntity<ApiError> = build(HttpStatus.INTERNAL_SERVER_ERROR, "서버 오류가 발생했습니다", request)
+    fun handleUnexpected(e: Exception): ResponseEntity<ApiResponse<Nothing?>> {
+        log.error("처리되지 않은 예외", e)
+        return respond(ErrorCode.INTERNAL_ERROR)
+    }
 
-    private fun build(
-        status: HttpStatus,
-        message: String,
-        request: HttpServletRequest,
-        fieldErrors: List<ApiError.FieldError> = emptyList(),
-    ): ResponseEntity<ApiError> =
-        ResponseEntity.status(status).body(
-            ApiError(
-                status = status.value(),
-                error = status.reasonPhrase,
-                message = message,
-                path = request.requestURI,
-                fieldErrors = fieldErrors,
-            ),
-        )
+    private fun respond(
+        errorCode: ErrorCode,
+        message: String? = null,
+        fieldErrors: List<ApiResponse.FieldError>? = null,
+    ): ResponseEntity<ApiResponse<Nothing?>> =
+        ResponseEntity.status(errorCode.status).body(ApiResponse.error(errorCode, message, fieldErrors))
 }
