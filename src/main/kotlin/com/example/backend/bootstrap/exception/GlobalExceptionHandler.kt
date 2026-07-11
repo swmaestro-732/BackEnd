@@ -8,6 +8,7 @@ import org.springframework.http.ResponseEntity
 import org.springframework.web.bind.MethodArgumentNotValidException
 import org.springframework.web.bind.annotation.ExceptionHandler
 import org.springframework.web.bind.annotation.RestControllerAdvice
+import org.springframework.web.method.annotation.HandlerMethodValidationException
 import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException
 
 /**
@@ -22,12 +23,27 @@ class GlobalExceptionHandler {
     @ExceptionHandler(BusinessException::class)
     fun handleBusiness(e: BusinessException): ResponseEntity<ApiResponse<Nothing?>> = respond(e.errorCode, e.message)
 
-    /** Bean Validation 실패 → 400 + 필드별 사유. */
+    /** Bean Validation 실패(@RequestBody) → 400 + 필드별 사유. */
     @ExceptionHandler(MethodArgumentNotValidException::class)
     fun handleValidation(e: MethodArgumentNotValidException): ResponseEntity<ApiResponse<Nothing?>> {
         val fieldErrors =
             e.bindingResult.fieldErrors.map {
                 ApiResponse.FieldError(it.field, it.defaultMessage ?: "invalid")
+            }
+        return respond(ErrorCode.VALIDATION_FAILED, fieldErrors = fieldErrors)
+    }
+
+    /** Bean Validation 실패(@RequestParam/@PathVariable 등 핸들러 파라미터) → 400 + 필드별 사유. */
+    @ExceptionHandler(HandlerMethodValidationException::class)
+    fun handleParamValidation(e: HandlerMethodValidationException): ResponseEntity<ApiResponse<Nothing?>> {
+        val fieldErrors =
+            e.parameterValidationResults.flatMap { result ->
+                result.resolvableErrors.map {
+                    ApiResponse.FieldError(
+                        result.methodParameter.parameterName ?: "unknown",
+                        it.defaultMessage ?: "invalid",
+                    )
+                }
             }
         return respond(ErrorCode.VALIDATION_FAILED, fieldErrors = fieldErrors)
     }

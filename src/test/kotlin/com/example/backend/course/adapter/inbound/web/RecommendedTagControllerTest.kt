@@ -33,11 +33,13 @@ class RecommendedTagControllerTest
         }
 
         @Test
-        fun `limit이 범위를 벗어나면 4001 에러`() {
+        fun `limit이 범위를 벗어나면 4002와 fieldErrors`() {
             mockMvc
                 .perform(get("/api/v1/recommended-tags?limit=0"))
                 .andExpect(status().isBadRequest)
-                .andExpect(jsonPath("$.code").value(4001))
+                .andExpect(jsonPath("$.code").value(4002))
+                .andExpect(jsonPath("$.fieldErrors[0].field").value("limit"))
+                .andExpect(jsonPath("$.fieldErrors[0].reason").value("1 이상이어야 합니다"))
         }
 
         @Test
