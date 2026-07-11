@@ -55,16 +55,14 @@ data class CourseResponse(
 data class CourseStatsResponse(
     val placeCount: Int,
     val walkingMinutes: Int,
-    val followerCount: Int,
-    val followerCountLabel: String,
+    val tracingCountLabel: String,
 ) {
     companion object {
         fun from(result: CourseStatsResult): CourseStatsResponse =
             CourseStatsResponse(
                 placeCount = result.placeCount,
                 walkingMinutes = result.walkingMinutes,
-                followerCount = result.followerCount,
-                followerCountLabel = result.followerCountLabel,
+                tracingCountLabel = result.tracingCountLabel,
             )
     }
 }

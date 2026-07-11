@@ -48,8 +48,7 @@ class CourseService : CourseUseCase {
                             CourseStatsResult(
                                 placeCount = 4,
                                 walkingMinutes = 20,
-                                followerCount = 1200,
-                                followerCountLabel = "1.2k",
+                                tracingCountLabel = "1.2k",
                             ),
                         author =
                             CourseAuthorResult(

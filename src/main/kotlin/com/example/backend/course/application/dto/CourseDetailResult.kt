@@ -19,12 +19,11 @@ data class CourseDetailResult(
     val viewer: CourseViewerResult,
 )
 
-/** 코스 요약 지표. followerCountLabel 은 표시용 축약("1.2k"). */
+/** 코스 요약 지표. tracingCountLabel 은 표시용 축약("1.2k"). */
 data class CourseStatsResult(
     val placeCount: Int,
     val walkingMinutes: Int,
-    val followerCount: Int,
-    val followerCountLabel: String,
+    val tracingCountLabel: String,
 )
 
 /** 코스 작성자. user 도메인 참조는 식별자(id)로만. isFollowing 은 조회자 기준. */
