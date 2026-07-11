@@ -38,7 +38,8 @@ class CourseService : CourseUseCase {
                     CourseDetailResult(
                         id = "1",
                         title = "비 오는 날 성수 감성 카페 코스",
-                        coverImageUrl = "https://cdn.example.com/courses/8f21a9/cover.jpg",
+                        coverImageUrl =
+                            "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcTHb4AHDBpbwjQOwLbBj3pgro4xFRpvBdRRZDTcbVmMkg&s=10",
                         themes = listOf("데이트"),
                         description =
                             "비가 오면 더 예쁜 성수 카페만 골라 담았어요. 전부 도보로 이어지고, " +
@@ -55,7 +56,8 @@ class CourseService : CourseUseCase {
                                 id = "1",
                                 nickname = "지호님",
                                 handle = "jiho_routes",
-                                profileImageUrl = "https://cdn.example.com/users/jiho/avatar.jpg",
+                                profileImageUrl =
+                                    "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQi7ZSFKA2brmDYt72J8vLDQxgOJKxs-lj4tavhXo_pEA&s=10",
                                 isFollowing = false,
                             ),
                         places =
@@ -65,7 +67,8 @@ class CourseService : CourseUseCase {
                                     id = "1",
                                     name = "어니언 성수",
                                     categories = listOf("카페", "베이커리"),
-                                    thumbnailUrl = "https://cdn.example.com/places/onion/thumb.jpg",
+                                    thumbnailUrl =
+                                        "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcTHIxFwvmFDIDNW9rHdqN1wRMZjFTQwfEmgO-O4kBM5nA&s=10",
                                     authorTip = "통창 자리가 명당이에요. 비 오는 날 앉으면 뷰가 최고.",
                                     label = "도보 6분",
                                 ),
@@ -74,7 +77,8 @@ class CourseService : CourseUseCase {
                                     id = "2",
                                     name = "대림창고 갤러리",
                                     categories = listOf("전시", "카페"),
-                                    thumbnailUrl = "https://cdn.example.com/places/daelim/thumb.jpg",
+                                    thumbnailUrl =
+                                        "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcSYjLV1q0A21vyJJ_N3LlUSp3HwiDDouEZRzcVhJb8KJw&s=10",
                                     authorTip = "안쪽 전시 공간 꼭 들러보세요.",
                                     label = "도보 3분",
                                 ),
@@ -83,7 +87,8 @@ class CourseService : CourseUseCase {
                                     id = "3",
                                     name = "센터커피 성수",
                                     categories = listOf("카페"),
-                                    thumbnailUrl = "https://cdn.example.com/places/center/thumb.jpg",
+                                    thumbnailUrl =
+                                        "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcTMRMGDnfUqzsxQXY1TOrhMtWZ8-otKbsLPlfnIkvDfUw&s=10",
                                     authorTip = "원두 향이 좋아요. 2층 창가 추천.",
                                     label = "도보 5분",
                                 ),
@@ -92,7 +97,8 @@ class CourseService : CourseUseCase {
                                     id = "4",
                                     name = "카페 할아버지공장",
                                     categories = listOf("카페", "베이커리"),
-                                    thumbnailUrl = "https://cdn.example.com/places/factory/thumb.jpg",
+                                    thumbnailUrl =
+                                        "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQr6pSHzsT4DD0ieT5VQ__SVo2ErRODzDyViWmZeXHGlA&s=10",
                                     authorTip = "마무리로 딱. 넓어서 웨이팅 걱정 없어요.",
                                     label = null,
                                 ),
@@ -108,7 +114,8 @@ class CourseService : CourseUseCase {
                                             author =
                                                 CourseReviewAuthorResult(
                                                     nickname = "소마님",
-                                                    profileImageUrl = "https://cdn.example.com/users/soma/avatar.jpg",
+                                                    profileImageUrl =
+                                                        "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcSw5pb0y29fQQhEAjcazcmovozw_80MX3PBd_8mlxGtNA&s=10",
                                                 ),
                                             rating = 5,
                                             content =
@@ -119,8 +126,8 @@ class CourseService : CourseUseCase {
                                             relativeTime = "2일 전",
                                             photoUrls =
                                                 listOf(
-                                                    "https://cdn.example.com/reviews/1204/1.jpg",
-                                                    "https://cdn.example.com/reviews/1204/2.jpg",
+                                                    "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQri_COfUpGil6k79RTh7vRhzDdP08yEcUmXIHnvn7Hfw&s=10",
+                                                    "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcR_3CDZ5UcouOOEkvGYQVI2emgnCGRIzRysaKhwNlq-kw&s=10",
                                                 ),
                                         ),
                                         CourseReviewResult(
@@ -128,7 +135,8 @@ class CourseService : CourseUseCase {
                                             author =
                                                 CourseReviewAuthorResult(
                                                     nickname = "커피러버",
-                                                    profileImageUrl = "https://cdn.example.com/users/coffee/avatar.jpg",
+                                                    profileImageUrl =
+                                                        "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcSqUUfhoYwxXJCW781fTarStEzoNyMS9vYcpAnhNVbjeg&s=10",
                                                 ),
                                             rating = 4,
                                             content = "코스 좋아요! 세 번째 카페가 조금 붐볐어요.",
