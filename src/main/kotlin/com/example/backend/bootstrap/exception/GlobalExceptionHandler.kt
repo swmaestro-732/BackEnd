@@ -11,7 +11,7 @@ import org.springframework.web.bind.annotation.RestControllerAdvice
 
 /**
  * 모든 예외를 [ApiResponse] 에러 엔벨로프로 통일한다.
- * HTTP 상태코드는 [ErrorCode.status] 로 매핑하고, 바디는 항상 `{ success:false, code, message, ... }`.
+ * HTTP 상태코드는 [ErrorCode.status] 로 매핑하고, 바디는 항상 `{ code, message, ... }`.
  */
 @RestControllerAdvice
 class GlobalExceptionHandler {
