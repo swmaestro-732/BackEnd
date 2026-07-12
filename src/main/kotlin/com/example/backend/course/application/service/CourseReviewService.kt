@@ -1,5 +1,7 @@
 package com.example.backend.course.application.service
 
+import com.example.backend.common.exception.BusinessException
+import com.example.backend.common.response.ErrorCode
 import com.example.backend.course.application.dto.CourseReviewPageResult
 import com.example.backend.course.application.dto.CourseReviewQuery
 import com.example.backend.course.application.dto.CourseReviewResult
@@ -20,7 +22,7 @@ import kotlin.math.round
  *
  * MOCK(SCRUM-223): 아직 아웃바운드 포트/영속성 어댑터가 없어 고정 데이터를 정렬·슬라이스해서 반환한다.
  * 실제 구현 시 정렬/페이징은 DB 쿼리(ORDER BY + LIMIT/OFFSET)로 내려보내고 이 하드코딩만 교체한다.
- * 존재하지 않는 코스는 빈 페이지를 반환한다(코스 존재 검증은 코스 상세 조회의 책임).
+ * 존재하지 않는 코스는 404(COURSE_NOT_FOUND). 코스는 있으나 리뷰가 0개면 빈 페이지(200)다.
  */
 @Service
 @Transactional(readOnly = true)
@@ -29,7 +31,9 @@ class CourseReviewService : CourseReviewUseCase {
         courseId: Long,
         query: CourseReviewQuery,
     ): CourseReviewPageResult {
-        val all = MOCK_REVIEWS[courseId] ?: emptyList()
+        val all =
+            MOCK_REVIEWS[courseId]
+                ?: throw BusinessException(ErrorCode.COURSE_NOT_FOUND, "코스를 찾을 수 없습니다: id=$courseId")
         val sorted = all.sortedWith(comparator(query.sort, query.order))
 
         val startIndex = startIndexAfter(query.cursor, sorted)
@@ -132,7 +136,7 @@ class CourseReviewService : CourseReviewUseCase {
             minute: Int,
         ) = OffsetDateTime.of(year, month, day, hour, minute, 0, 0, ZoneOffset.ofHours(9))
 
-        /** id=1 만 리뷰 데이터, 나머지는 빈 목록 */
+        /** 맵에 있는 courseId 만 "존재하는 코스"로 보고, 없으면 404. id=1 만 데이터 보유. */
         val MOCK_REVIEWS: Map<Long, List<CourseReviewResult>> =
             mapOf(
                 1L to
