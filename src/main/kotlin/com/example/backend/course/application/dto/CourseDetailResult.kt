@@ -1,7 +1,5 @@
 package com.example.backend.course.application.dto
 
-import java.time.OffsetDateTime
-
 /**
  * 유스케이스 출력 — 코스 상세. 도메인 모델을 밖으로 노출하지 않기 위한 애플리케이션 경계 타입.
  * 프론트 상세 화면 계약에 맞춘 뷰 지향 구조다. id 는 외부 계약상 문자열로 다룬다.
@@ -13,10 +11,30 @@ data class CourseDetailResult(
     val themes: List<String>,
     val description: String,
     val stats: CourseStatsResult,
-    val author: CourseAuthorResult,
+    val authorId: Long,
     val places: List<CoursePlaceResult>,
-    val reviewSummary: CourseReviewSummaryResult,
     val viewer: CourseViewerResult,
+)
+
+/**
+ * 코스에 담긴 장소(course_places 행).
+ * id 는 course_place 식별자, placeId 는 place 도메인 식별자(별개). orderNo 는 코스 내 장소 순서.
+ */
+data class CoursePlaceResult(
+    val id: Long,
+    val placeId: Long,
+    val orderNo: Int,
+    val caption: String?,
+    val subcaption: String?,
+    /** 다음 장소까지 도보 이동 시간(분). 마지막 장소면 null. */
+    val walkingMinutesToNext: Int?,
+    val images: List<CoursePlaceImageResult>,
+)
+
+/** 장소 사진(course_place_images 행). orderNo 는 해당 장소 안에서의 사진 순서. */
+data class CoursePlaceImageResult(
+    val imageUrl: String,
+    val orderNo: Int,
 )
 
 /** 코스 요약 지표. tracingCountLabel 은 표시용 축약("1.2k"). */
@@ -24,48 +42,6 @@ data class CourseStatsResult(
     val placeCount: Int,
     val walkingMinutes: Int,
     val tracingCountLabel: String,
-)
-
-/** 코스 작성자. user 도메인 참조는 식별자(id)로만. isFollowing 은 조회자 기준. */
-data class CourseAuthorResult(
-    val id: String,
-    val nickname: String,
-    val handle: String,
-    val profileImageUrl: String,
-    val isFollowing: Boolean,
-)
-
-/** 코스에 담긴 장소. place 도메인 참조는 식별자(id)로만. label 은 이전 장소로부터의 도보 시간 등. */
-data class CoursePlaceResult(
-    val order: Int,
-    val id: String,
-    val name: String,
-    val categories: List<String>,
-    val thumbnailUrl: String,
-    val authorTip: String,
-    val label: String?,
-)
-
-/** 리뷰 요약 — 평균/총개수 + 대표 리뷰 일부. */
-data class CourseReviewSummaryResult(
-    val averageRating: Double,
-    val totalCount: Int,
-    val reviews: List<CourseReviewResult>,
-)
-
-data class CourseReviewResult(
-    val id: String,
-    val author: CourseReviewAuthorResult,
-    val rating: Int,
-    val content: String,
-    val createdAt: OffsetDateTime,
-    val relativeTime: String,
-    val photoUrls: List<String>,
-)
-
-data class CourseReviewAuthorResult(
-    val nickname: String,
-    val profileImageUrl: String,
 )
 
 /** 조회자 관점 상태(저장 여부/코스 시작 여부). */

@@ -1,14 +1,10 @@
 package com.example.backend.course.adapter.inbound.web.response
 
-import com.example.backend.course.application.dto.CourseAuthorResult
 import com.example.backend.course.application.dto.CourseDetailResult
+import com.example.backend.course.application.dto.CoursePlaceImageResult
 import com.example.backend.course.application.dto.CoursePlaceResult
-import com.example.backend.course.application.dto.CourseReviewAuthorResult
-import com.example.backend.course.application.dto.CourseReviewResult
-import com.example.backend.course.application.dto.CourseReviewSummaryResult
 import com.example.backend.course.application.dto.CourseStatsResult
 import com.example.backend.course.application.dto.CourseViewerResult
-import java.time.OffsetDateTime
 
 /**
  * 웹 응답 DTO. 유스케이스 결과([CourseDetailResult])를 직렬화 형태로 변환한다.
@@ -30,9 +26,8 @@ data class CourseResponse(
     val themes: List<String>,
     val description: String,
     val stats: CourseStatsResponse,
-    val author: CourseAuthorResponse,
+    val authorId: Long,
     val places: List<CoursePlaceResponse>,
-    val reviewSummary: CourseReviewSummaryResponse,
     val viewer: CourseViewerResponse,
 ) {
     companion object {
@@ -44,9 +39,8 @@ data class CourseResponse(
                 themes = result.themes,
                 description = result.description,
                 stats = CourseStatsResponse.from(result.stats),
-                author = CourseAuthorResponse.from(result.author),
+                authorId = result.authorId,
                 places = result.places.map(CoursePlaceResponse::from),
-                reviewSummary = CourseReviewSummaryResponse.from(result.reviewSummary),
                 viewer = CourseViewerResponse.from(result.viewer),
             )
     }
@@ -67,93 +61,36 @@ data class CourseStatsResponse(
     }
 }
 
-data class CourseAuthorResponse(
-    val id: String,
-    val nickname: String,
-    val handle: String,
-    val profileImageUrl: String,
-    val isFollowing: Boolean,
-) {
-    companion object {
-        fun from(result: CourseAuthorResult): CourseAuthorResponse =
-            CourseAuthorResponse(
-                id = result.id,
-                nickname = result.nickname,
-                handle = result.handle,
-                profileImageUrl = result.profileImageUrl,
-                isFollowing = result.isFollowing,
-            )
-    }
-}
-
 data class CoursePlaceResponse(
-    val order: Int,
-    val id: String,
-    val name: String,
-    val categories: List<String>,
-    val thumbnailUrl: String,
-    val authorTip: String,
-    val label: String?,
+    val id: Long,
+    val placeId: Long,
+    val orderNo: Int,
+    val caption: String?,
+    val subcaption: String?,
+    val walkingMinutesToNext: Int?,
+    val images: List<CoursePlaceImageResponse>,
 ) {
     companion object {
         fun from(result: CoursePlaceResult): CoursePlaceResponse =
             CoursePlaceResponse(
-                order = result.order,
                 id = result.id,
-                name = result.name,
-                categories = result.categories,
-                thumbnailUrl = result.thumbnailUrl,
-                authorTip = result.authorTip,
-                label = result.label,
+                placeId = result.placeId,
+                orderNo = result.orderNo,
+                caption = result.caption,
+                subcaption = result.subcaption,
+                walkingMinutesToNext = result.walkingMinutesToNext,
+                images = result.images.map(CoursePlaceImageResponse::from),
             )
     }
 }
 
-data class CourseReviewSummaryResponse(
-    val averageRating: Double,
-    val totalCount: Int,
-    val reviews: List<CourseReviewResponse>,
+data class CoursePlaceImageResponse(
+    val imageUrl: String,
+    val orderNo: Int,
 ) {
     companion object {
-        fun from(result: CourseReviewSummaryResult): CourseReviewSummaryResponse =
-            CourseReviewSummaryResponse(
-                averageRating = result.averageRating,
-                totalCount = result.totalCount,
-                reviews = result.reviews.map(CourseReviewResponse::from),
-            )
-    }
-}
-
-data class CourseReviewResponse(
-    val id: String,
-    val author: CourseReviewAuthorResponse,
-    val rating: Int,
-    val content: String,
-    val createdAt: OffsetDateTime,
-    val relativeTime: String,
-    val photoUrls: List<String>,
-) {
-    companion object {
-        fun from(result: CourseReviewResult): CourseReviewResponse =
-            CourseReviewResponse(
-                id = result.id,
-                author = CourseReviewAuthorResponse.from(result.author),
-                rating = result.rating,
-                content = result.content,
-                createdAt = result.createdAt,
-                relativeTime = result.relativeTime,
-                photoUrls = result.photoUrls,
-            )
-    }
-}
-
-data class CourseReviewAuthorResponse(
-    val nickname: String,
-    val profileImageUrl: String,
-) {
-    companion object {
-        fun from(result: CourseReviewAuthorResult): CourseReviewAuthorResponse =
-            CourseReviewAuthorResponse(nickname = result.nickname, profileImageUrl = result.profileImageUrl)
+        fun from(result: CoursePlaceImageResult): CoursePlaceImageResponse =
+            CoursePlaceImageResponse(imageUrl = result.imageUrl, orderNo = result.orderNo)
     }
 }
 

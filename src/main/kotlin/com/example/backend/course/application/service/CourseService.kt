@@ -2,19 +2,14 @@ package com.example.backend.course.application.service
 
 import com.example.backend.common.exception.BusinessException
 import com.example.backend.common.response.ErrorCode
-import com.example.backend.course.application.dto.CourseAuthorResult
 import com.example.backend.course.application.dto.CourseDetailResult
+import com.example.backend.course.application.dto.CoursePlaceImageResult
 import com.example.backend.course.application.dto.CoursePlaceResult
-import com.example.backend.course.application.dto.CourseReviewAuthorResult
-import com.example.backend.course.application.dto.CourseReviewResult
-import com.example.backend.course.application.dto.CourseReviewSummaryResult
 import com.example.backend.course.application.dto.CourseStatsResult
 import com.example.backend.course.application.dto.CourseViewerResult
 import com.example.backend.course.application.port.inbound.CourseUseCase
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
-import java.time.OffsetDateTime
-import java.time.ZoneOffset
 
 /**
  * 유스케이스 구현. 인바운드 포트([CourseUseCase])를 구현한다.
@@ -50,101 +45,83 @@ class CourseService : CourseUseCase {
                                 walkingMinutes = 20,
                                 tracingCountLabel = "1.2k",
                             ),
-                        author =
-                            CourseAuthorResult(
-                                id = "1",
-                                nickname = "지호님",
-                                handle = "jiho_routes",
-                                profileImageUrl =
-                                    "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQi7ZSFKA2brmDYt72J8vLDQxgOJKxs-lj4tavhXo_pEA&s=10",
-                                isFollowing = false,
-                            ),
+                        authorId = 1L,
                         places =
                             listOf(
                                 CoursePlaceResult(
-                                    order = 1,
-                                    id = "1",
-                                    name = "어니언 성수",
-                                    categories = listOf("카페", "베이커리"),
-                                    thumbnailUrl =
-                                        "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcTHIxFwvmFDIDNW9rHdqN1wRMZjFTQwfEmgO-O4kBM5nA&s=10",
-                                    authorTip = "통창 자리가 명당이에요. 비 오는 날 앉으면 뷰가 최고.",
-                                    label = "도보 6분",
-                                ),
-                                CoursePlaceResult(
-                                    order = 2,
-                                    id = "2",
-                                    name = "대림창고 갤러리",
-                                    categories = listOf("전시", "카페"),
-                                    thumbnailUrl =
-                                        "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcSYjLV1q0A21vyJJ_N3LlUSp3HwiDDouEZRzcVhJb8KJw&s=10",
-                                    authorTip = "안쪽 전시 공간 꼭 들러보세요.",
-                                    label = "도보 3분",
-                                ),
-                                CoursePlaceResult(
-                                    order = 3,
-                                    id = "3",
-                                    name = "센터커피 성수",
-                                    categories = listOf("카페"),
-                                    thumbnailUrl =
-                                        "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcTMRMGDnfUqzsxQXY1TOrhMtWZ8-otKbsLPlfnIkvDfUw&s=10",
-                                    authorTip = "원두 향이 좋아요. 2층 창가 추천.",
-                                    label = "도보 5분",
-                                ),
-                                CoursePlaceResult(
-                                    order = 4,
-                                    id = "4",
-                                    name = "카페 할아버지공장",
-                                    categories = listOf("카페", "베이커리"),
-                                    thumbnailUrl =
-                                        "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQr6pSHzsT4DD0ieT5VQ__SVo2ErRODzDyViWmZeXHGlA&s=10",
-                                    authorTip = "마무리로 딱. 넓어서 웨이팅 걱정 없어요.",
-                                    label = null,
-                                ),
-                            ),
-                        reviewSummary =
-                            CourseReviewSummaryResult(
-                                averageRating = 4.8,
-                                totalCount = 128,
-                                reviews =
-                                    listOf(
-                                        CourseReviewResult(
-                                            id = "1",
-                                            author =
-                                                CourseReviewAuthorResult(
-                                                    nickname = "소마님",
-                                                    profileImageUrl =
-                                                        "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcSw5pb0y29fQQhEAjcazcmovozw_80MX3PBd_8mlxGtNA&s=10",
-                                                ),
-                                            rating = 5,
-                                            content =
-                                                "비 오는 날 딱이에요. 통창 자리 순서대로 도니 동선도 완벽했어요. " +
-                                                    "웨이팅도 거의 없었어요 🌧️",
-                                            createdAt =
-                                                OffsetDateTime.of(2026, 7, 7, 13, 20, 0, 0, ZoneOffset.ofHours(9)),
-                                            relativeTime = "2일 전",
-                                            photoUrls =
-                                                listOf(
+                                    id = 1L,
+                                    placeId = 101L,
+                                    orderNo = 1,
+                                    caption = "어니언 성수",
+                                    subcaption = "통창 자리가 명당이에요. 비 오는 날 앉으면 뷰가 최고.",
+                                    walkingMinutesToNext = 6,
+                                    images =
+                                        listOf(
+                                            CoursePlaceImageResult(
+                                                imageUrl =
+                                                    "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcTHIxFwvmFDIDNW9rHdqN1wRMZjFTQwfEmgO-O4kBM5nA&s=10",
+                                                orderNo = 0,
+                                            ),
+                                            CoursePlaceImageResult(
+                                                imageUrl =
                                                     "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQri_COfUpGil6k79RTh7vRhzDdP08yEcUmXIHnvn7Hfw&s=10",
+                                                orderNo = 1,
+                                            ),
+                                        ),
+                                ),
+                                CoursePlaceResult(
+                                    id = 2L,
+                                    placeId = 102L,
+                                    orderNo = 2,
+                                    caption = "대림창고 갤러리",
+                                    subcaption = "안쪽 전시 공간 꼭 들러보세요.",
+                                    walkingMinutesToNext = 3,
+                                    images =
+                                        listOf(
+                                            CoursePlaceImageResult(
+                                                imageUrl =
+                                                    "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcSYjLV1q0A21vyJJ_N3LlUSp3HwiDDouEZRzcVhJb8KJw&s=10",
+                                                orderNo = 0,
+                                            ),
+                                        ),
+                                ),
+                                CoursePlaceResult(
+                                    id = 3L,
+                                    placeId = 103L,
+                                    orderNo = 3,
+                                    caption = "센터커피 성수",
+                                    subcaption = "원두 향이 좋아요. 2층 창가 추천.",
+                                    walkingMinutesToNext = 5,
+                                    images =
+                                        listOf(
+                                            CoursePlaceImageResult(
+                                                imageUrl =
+                                                    "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcTMRMGDnfUqzsxQXY1TOrhMtWZ8-otKbsLPlfnIkvDfUw&s=10",
+                                                orderNo = 0,
+                                            ),
+                                        ),
+                                ),
+                                CoursePlaceResult(
+                                    id = 4L,
+                                    placeId = 104L,
+                                    orderNo = 4,
+                                    caption = "카페 할아버지공장",
+                                    subcaption = "마무리로 딱. 넓어서 웨이팅 걱정 없어요.",
+                                    walkingMinutesToNext = null,
+                                    images =
+                                        listOf(
+                                            CoursePlaceImageResult(
+                                                imageUrl =
+                                                    "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQr6pSHzsT4DD0ieT5VQ__SVo2ErRODzDyViWmZeXHGlA&s=10",
+                                                orderNo = 0,
+                                            ),
+                                            CoursePlaceImageResult(
+                                                imageUrl =
                                                     "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcR_3CDZ5UcouOOEkvGYQVI2emgnCGRIzRysaKhwNlq-kw&s=10",
-                                                ),
+                                                orderNo = 1,
+                                            ),
                                         ),
-                                        CourseReviewResult(
-                                            id = "2",
-                                            author =
-                                                CourseReviewAuthorResult(
-                                                    nickname = "커피러버",
-                                                    profileImageUrl =
-                                                        "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcSqUUfhoYwxXJCW781fTarStEzoNyMS9vYcpAnhNVbjeg&s=10",
-                                                ),
-                                            rating = 4,
-                                            content = "코스 좋아요! 세 번째 카페가 조금 붐볐어요.",
-                                            createdAt =
-                                                OffsetDateTime.of(2026, 7, 5, 18, 5, 0, 0, ZoneOffset.ofHours(9)),
-                                            relativeTime = "4일 전",
-                                            photoUrls = emptyList(),
-                                        ),
-                                    ),
+                                ),
                             ),
                         viewer =
                             CourseViewerResult(
