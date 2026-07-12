@@ -20,7 +20,7 @@ import org.springframework.web.bind.annotation.RestController
  * Request → Command, Result → Response 로 매핑해 도메인/애플리케이션 타입을 밖으로 노출하지 않는다.
  */
 @RestController
-@RequestMapping("/api/users")
+@RequestMapping("/api/v1/users")
 class UserController(
     private val userUseCase: UserUseCase,
 ) {
