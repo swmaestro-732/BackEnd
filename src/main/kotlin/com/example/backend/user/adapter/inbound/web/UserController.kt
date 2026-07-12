@@ -2,11 +2,13 @@ package com.example.backend.user.adapter.inbound.web
 
 import com.example.backend.common.response.ApiResponse
 import com.example.backend.user.adapter.inbound.web.request.CreateUserRequest
+import com.example.backend.user.adapter.inbound.web.response.UserProfileResponse
 import com.example.backend.user.adapter.inbound.web.response.UserResponse
 import com.example.backend.user.application.port.inbound.UserUseCase
 import jakarta.validation.Valid
 import org.springframework.http.HttpStatus
 import org.springframework.web.bind.annotation.GetMapping
+import org.springframework.web.bind.annotation.PathVariable
 import org.springframework.web.bind.annotation.PostMapping
 import org.springframework.web.bind.annotation.RequestBody
 import org.springframework.web.bind.annotation.RequestMapping
@@ -24,6 +26,11 @@ class UserController(
 ) {
     @GetMapping
     fun list(): ApiResponse<List<UserResponse>> = ApiResponse.success(userUseCase.list().map(UserResponse::from))
+
+    @GetMapping("/{userId}")
+    fun getProfile(
+        @PathVariable userId: Long,
+    ): ApiResponse<UserProfileResponse> = ApiResponse.success(UserProfileResponse.from(userUseCase.getProfile(userId)))
 
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)

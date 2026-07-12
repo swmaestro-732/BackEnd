@@ -24,4 +24,7 @@ enum class ErrorCode(
 
     // ── 코스(course) ──
     COURSE_NOT_FOUND(404, "COURSE_404", "코스를 찾을 수 없습니다."),
+
+    // ── 사용자(user) ──
+    USER_NOT_FOUND(404, "USER_404", "사용자를 찾을 수 없습니다."),
 }
