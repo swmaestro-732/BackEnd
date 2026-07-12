@@ -53,7 +53,7 @@ class GlobalExceptionHandler {
     fun handleBadRequest(e: IllegalArgumentException): ResponseEntity<ApiResponse<Nothing?>> =
         respond(ErrorCode.INVALID_INPUT, e.message)
 
-    /** 경로/쿼리 파라미터 타입 불일치(예: placeId에 문자) → 400. */
+    /** 경로/쿼리 파라미터 타입 불일치(예: 숫자 자리에 문자) → 400. */
     @ExceptionHandler(MethodArgumentTypeMismatchException::class)
     fun handleTypeMismatch(e: MethodArgumentTypeMismatchException): ResponseEntity<ApiResponse<Nothing?>> =
         respond(ErrorCode.INVALID_INPUT, "요청 파라미터 형식이 올바르지 않습니다: ${e.name}")
