@@ -26,10 +26,8 @@ enum class ErrorCode(
     INTERNAL_ERROR(500, 5000, "서버 오류가 발생했습니다."),
 
     // ── 코스(course) ──
-    // COURSE_NOT_FOUND(404, "COURSE_404", "코스를 찾을 수 없습니다."),
     COURSE_NOT_FOUND(404, 4041, "코스를 찾을 수 없습니다."),
 
     // ── 사용자(user) ──
-    // USER_NOT_FOUND(404, "USER_404", "사용자를 찾을 수 없습니다."),
-    USER_NOT_FOUND(404, 4042, "사용자를 찾을 수 없습니다.")
+    USER_NOT_FOUND(404, 4042, "사용자를 찾을 수 없습니다."),
 }
