@@ -77,9 +77,9 @@ class PlaceQueryService(
             else -> PlaceDetailResult.OpenStatus.CLOSED
         }
 
-    /** 모든 요일의 영업시간이 동일할 때만 "매일 HH:mm – HH:mm"으로 표기, 아니면 null(요일별 표기는 추후). */
+    /** 7일 전체의 영업시간이 동일할 때만 "매일 HH:mm – HH:mm"으로 표기, 아니면 null(요일별 표기는 추후). */
     private fun formatOpeningHours(hours: List<PlaceQueryPort.BusinessHourRecord>): String? {
-        if (hours.isEmpty()) return null
+        if (hours.map { it.dayOfWeek }.distinct().size != DAYS_PER_WEEK) return null
         val spans = hours.map { it.openTime to it.closeTime }.distinct()
         val (open, close) = spans.singleOrNull() ?: return null
         if (open == null || close == null) return null
@@ -104,6 +104,7 @@ class PlaceQueryService(
         /** 상세 화면 리뷰 미리보기 개수(디자인 확정: 2개, 전체는 리뷰 목록 API). */
         private const val REVIEW_PREVIEW_COUNT = 2
         private const val WITHDRAWN_USER_NICKNAME = "탈퇴한 사용자"
+        private const val DAYS_PER_WEEK = 7
         private val TIME_FORMAT = DateTimeFormatter.ofPattern("HH:mm")
     }
 }

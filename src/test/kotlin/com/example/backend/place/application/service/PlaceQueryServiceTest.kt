@@ -159,6 +159,19 @@ class PlaceQueryServiceTest {
     }
 
     @Test
+    fun `영업시간이 7일 전체가 아니면 매일로 표기하지 않는다`() {
+        fakePlacePort.place = place()
+        fakePlacePort.hours =
+            (0..4).map {
+                PlaceQueryPort.BusinessHourRecord(it, LocalTime.of(11, 0), LocalTime.of(21, 0))
+            }
+
+        val result = service.getDetail(1)
+
+        assertNull(result.openingHoursText)
+    }
+
+    @Test
     fun `영업시간이 요일별로 다르면 표기하지 않는다`() {
         fakePlacePort.place = place()
         fakePlacePort.hours =

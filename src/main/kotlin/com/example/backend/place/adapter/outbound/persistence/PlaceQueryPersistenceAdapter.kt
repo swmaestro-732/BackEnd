@@ -1,6 +1,7 @@
 package com.example.backend.place.adapter.outbound.persistence
 
 import com.example.backend.place.application.port.outbound.PlaceQueryPort
+import com.example.backend.place.domain.model.PlaceReviewStatus
 import kotlinx.datetime.toJavaLocalTime
 import org.jetbrains.exposed.v1.core.SortOrder
 import org.jetbrains.exposed.v1.core.and
@@ -64,7 +65,7 @@ class PlaceQueryPersistenceAdapter : PlaceQueryPort {
         val rows =
             PlaceReviewTable
                 .selectAll()
-                .where { (PlaceReviewTable.placeId eq placeId) and (PlaceReviewTable.deletedAt.isNull()) }
+                .where { publishedReviewsOf(placeId) }
                 .orderBy(PlaceReviewTable.createdAt to SortOrder.DESC)
                 .limit(limit)
                 .toList()
@@ -89,14 +90,21 @@ class PlaceQueryPersistenceAdapter : PlaceQueryPort {
     override fun countReviews(placeId: Long): Int =
         PlaceReviewTable
             .selectAll()
-            .where { (PlaceReviewTable.placeId eq placeId) and (PlaceReviewTable.deletedAt.isNull()) }
+            .where { publishedReviewsOf(placeId) }
             .count()
             .toInt()
 
     override fun averageRating(placeId: Long): Double? =
         TransactionManager.current().exec(
-            "SELECT AVG(rating)::float8 AS avg_rating FROM place_reviews WHERE place_id = $placeId AND deleted_at IS NULL",
+            "SELECT AVG(rating)::float8 AS avg_rating FROM place_reviews " +
+                "WHERE place_id = $placeId AND deleted_at IS NULL AND status = ${PlaceReviewStatus.PUBLISHED.code}",
         ) { rs ->
             if (rs.next()) rs.getObject("avg_rating") as Double? else null
         }
+
+    /** 공개 조회 공통 조건 — HIDDEN/DELETED 리뷰는 미리보기·개수·평점에서 제외한다. */
+    private fun publishedReviewsOf(placeId: Long) =
+        (PlaceReviewTable.placeId eq placeId) and
+            (PlaceReviewTable.deletedAt.isNull()) and
+            (PlaceReviewTable.status eq PlaceReviewStatus.PUBLISHED)
 }
