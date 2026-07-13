@@ -1,5 +1,6 @@
 package com.example.backend.course.adapter.inbound.web
 
+import com.example.backend.common.mock.MockErrors
 import com.example.backend.common.response.ApiResponse
 import com.example.backend.course.adapter.inbound.web.response.CourseReviewListResponse
 import com.example.backend.course.application.dto.CourseReviewQuery
@@ -21,6 +22,7 @@ import org.springframework.web.bind.annotation.RestController
  *   · LATEST+DESC=최신순, LATEST+ASC=오래된순, RATING+DESC=별점 높은순, RATING+ASC=별점 낮은순.
  * - cursor: 직전 응답의 nextCursor 를 그대로 넘긴다(첫 페이지는 생략). 유효하지 않은 커서는 400.
  * - size: 페이지 크기(기본 10, 최대 50). 범위를 벗어나면 400.
+ * - mockError: 모킹 에러 주입(예: `?mockError=4041`).
  */
 @RestController
 @RequestMapping("/api/v1")
@@ -34,7 +36,9 @@ class CourseReviewController(
         @RequestParam(defaultValue = "DESC") order: SortDirection,
         @RequestParam(required = false) cursor: String?,
         @RequestParam(defaultValue = "10") size: Int,
+        @RequestParam(required = false) mockError: Int?,
     ): ApiResponse<CourseReviewListResponse> {
+        MockErrors.throwIfRequested(mockError)
         val query = CourseReviewQuery(sort = sort, order = order, cursor = cursor, size = size)
         return ApiResponse.success(CourseReviewListResponse.from(courseReviewUseCase.getReviews(courseId, query)))
     }
