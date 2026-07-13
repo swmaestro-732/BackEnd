@@ -27,6 +27,8 @@ class SecurityConfig {
                     .requestMatchers(
                         "/actuator/health",
                         "/api/**",
+                        // 화면 조합(BFF) 엔드포인트
+                        "/service/**",
                         // Swagger UI / OpenAPI 문서 (springdoc)
                         "/swagger-ui/**",
                         "/swagger-ui.html",
