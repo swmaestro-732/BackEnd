@@ -1,5 +1,6 @@
 package com.example.backend.place.adapter.inbound.web.response
 
+import com.example.backend.place.application.dto.PlaceDetailResult
 import java.time.Instant
 
 /**
@@ -17,7 +18,7 @@ data class PlaceDetailResponse(
         val imageUrls: List<String>,
         val address: String,
         val location: Location,
-        val openStatus: OpenStatus,
+        val openStatus: String,
         val openingHoursText: String?,
         val reviewSummary: ReviewSummary,
         val viewer: Viewer,
@@ -27,9 +28,6 @@ data class PlaceDetailResponse(
         val latitude: Double,
         val longitude: Double,
     )
-
-    /** 영업 상태 — 응답은 String 직렬화, 요청에 쓰이면 Enum으로 받는다(api-design 정책). */
-    enum class OpenStatus { OPEN, CLOSED }
 
     data class ReviewSummary(
         val averageRating: Double,
@@ -56,4 +54,43 @@ data class PlaceDetailResponse(
     data class Viewer(
         val hasSaved: Boolean,
     )
+
+    companion object {
+        fun from(result: PlaceDetailResult): PlaceDetailResponse =
+            PlaceDetailResponse(
+                PlaceDetail(
+                    id = result.id,
+                    name = result.name,
+                    categories = result.categories,
+                    imageUrls = result.imageUrls,
+                    address = result.address,
+                    location = Location(latitude = result.latitude, longitude = result.longitude),
+                    openStatus = result.openStatus.name,
+                    openingHoursText = result.openingHoursText,
+                    reviewSummary =
+                        ReviewSummary(
+                            averageRating = result.reviewSummary.averageRating,
+                            totalCount = result.reviewSummary.totalCount,
+                            reviews =
+                                result.reviewSummary.reviews.map {
+                                    Review(
+                                        id = it.id,
+                                        author =
+                                            Author(
+                                                id = it.authorId,
+                                                nickname = it.authorNickname,
+                                                profileImageUrl = it.authorProfileImageUrl,
+                                            ),
+                                        rating = it.rating,
+                                        content = it.content,
+                                        createdAt = it.createdAt,
+                                        relativeTime = it.relativeTime,
+                                        photoUrls = it.photoUrls,
+                                    )
+                                },
+                        ),
+                    viewer = Viewer(hasSaved = result.viewerHasSaved),
+                ),
+            )
+    }
 }
