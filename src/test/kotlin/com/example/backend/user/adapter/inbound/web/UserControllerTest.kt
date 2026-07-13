@@ -26,14 +26,14 @@ class UserControllerTest
         @Test
         fun `유저 생성 후 목록에 포함된다`() {
             mockMvc
-                .post("/api/users", """{"nickname":"hello"}""")
+                .post("/api/v1/users", """{"nickname":"hello"}""")
                 .andExpect(status().isCreated)
                 .andExpect(jsonPath("$.code").value(2000))
                 .andExpect(jsonPath("$.data.id").exists())
                 .andExpect(jsonPath("$.data.nickname").value("hello"))
 
             mockMvc
-                .perform(get("/api/users"))
+                .perform(get("/api/v1/users"))
                 .andExpect(status().isOk)
                 .andExpect(jsonPath("$.code").value(2000))
                 .andExpect(jsonPath("$.data[0].nickname").value("hello"))
@@ -42,7 +42,7 @@ class UserControllerTest
         @Test
         fun `닉네임이 비면 400과 에러 응답`() {
             mockMvc
-                .post("/api/users", """{"nickname":""}""")
+                .post("/api/v1/users", """{"nickname":""}""")
                 .andExpect(status().isBadRequest)
                 .andExpect(jsonPath("$.code").value(4002))
                 .andExpect(jsonPath("$.data").doesNotExist())

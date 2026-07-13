@@ -24,4 +24,10 @@ enum class ErrorCode(
     NOT_FOUND(404, 4040, "요청한 리소스를 찾을 수 없습니다."),
     METHOD_NOT_ALLOWED(405, 4050, "허용되지 않은 HTTP 메서드입니다."),
     INTERNAL_ERROR(500, 5000, "서버 오류가 발생했습니다."),
+
+    // ── 코스(course) ──
+    COURSE_NOT_FOUND(404, 4041, "코스를 찾을 수 없습니다."),
+
+    // ── 사용자(user) ──
+    USER_NOT_FOUND(404, 4042, "사용자를 찾을 수 없습니다."),
 }
