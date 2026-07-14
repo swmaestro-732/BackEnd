@@ -43,3 +43,5 @@ out/
 .omc/
 .remember/
 .serena/
+# Claude Code 개인 설정 — 스킬(.claude/skills)은 공유, 로컬 권한 설정은 개인별
+.claude/settings.local.json
