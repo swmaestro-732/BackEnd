@@ -49,6 +49,17 @@ class RecommendedTagControllerTest
         }
 
         @Test
+        fun `mock=true면 DB와 무관하게 모킹 태그를 내려준다`() {
+            mockMvc
+                .perform(get("/api/v1/recommended-tags?placeIds=100&limit=3&mock=true"))
+                .andExpect(status().isOk)
+                .andExpect(jsonPath("$.code").value(2000))
+                .andExpect(jsonPath("$.data.tags[0]").value("감성카페"))
+                .andExpect(jsonPath("$.data.tags[1]").value("통창뷰"))
+                .andExpect(jsonPath("$.data.tags.length()").value(3))
+        }
+
+        @Test
         fun `limit이 범위를 벗어나면 4002와 fieldErrors`() {
             mockMvc
                 .perform(get("/api/v1/recommended-tags?limit=0"))
