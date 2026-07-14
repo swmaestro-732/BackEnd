@@ -49,14 +49,26 @@ class RecommendedTagControllerTest
         }
 
         @Test
-        fun `mock=true면 DB와 무관하게 모킹 태그를 내려준다`() {
+        fun `mock=true면 DB와 무관하게 장소 기반 모킹 태그를 내려준다`() {
+            // 픽스처에 없는 placeId(999)로도 모킹 응답이 나와야 한다 — 빈 DB 프론트 개발용 폴백
             mockMvc
-                .perform(get("/api/v1/recommended-tags?placeIds=100&limit=3&mock=true"))
+                .perform(get("/api/v1/recommended-tags?placeIds=999&limit=3&mock=true"))
                 .andExpect(status().isOk)
                 .andExpect(jsonPath("$.code").value(2000))
                 .andExpect(jsonPath("$.data.tags[0]").value("감성카페"))
                 .andExpect(jsonPath("$.data.tags[1]").value("통창뷰"))
                 .andExpect(jsonPath("$.data.tags.length()").value(3))
+        }
+
+        @Test
+        fun `mock=true에 placeIds가 없으면 모킹 인기 태그를 내려준다`() {
+            mockMvc
+                .perform(get("/api/v1/recommended-tags?limit=2&mock=true"))
+                .andExpect(status().isOk)
+                .andExpect(jsonPath("$.code").value(2000))
+                .andExpect(jsonPath("$.data.tags[0]").value("데이트"))
+                .andExpect(jsonPath("$.data.tags[1]").value("맛집투어"))
+                .andExpect(jsonPath("$.data.tags.length()").value(2))
         }
 
         @Test
