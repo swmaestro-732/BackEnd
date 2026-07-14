@@ -67,6 +67,17 @@ class HexagonalArchitectureTest {
     }
 
     @Test
+    fun `어댑터는 서비스 구현체가 아니라 포트에 의존한다`() {
+        noClasses()
+            .that()
+            .resideInAPackage("..adapter..")
+            .should()
+            .dependOnClassesThat()
+            .resideInAPackage("..application.service..")
+            .check(classes)
+    }
+
+    @Test
     fun `common 은 도메인을 참조하지 않는다`() {
         noClasses()
             .that()
