@@ -43,3 +43,6 @@ out/
 .omc/
 .remember/
 .serena/
+
+# .ai 위키 심링크 (../.ai)
+.ai
