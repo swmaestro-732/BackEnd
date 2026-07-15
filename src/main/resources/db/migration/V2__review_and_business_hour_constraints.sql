@@ -1,19 +1,17 @@
 -- 릴리스 리뷰(BackEnd#21 CodeRabbit) 반영: 주석으로만 있던 제약을 DB 레벨로 강제한다.
 
--- 동시성 인덱스 생성 전에 기존 중복을 정리하되, 가장 나중에 적재된 값을 남긴다.
+-- 중복 정리와 UNIQUE 제약 추가 사이에 새 쓰기가 들어오지 않도록 마이그레이션 트랜잭션 동안 쓰기를 잠근다.
+LOCK TABLE place_business_hours IN SHARE ROW EXCLUSIVE MODE;
+
+-- 기존 중복은 가장 나중에 적재된 값을 남기고 정리한다.
 DELETE FROM place_business_hours AS older
 USING place_business_hours AS newer
 WHERE older.place_id = newer.place_id
   AND older.day_of_week = newer.day_of_week
   AND older.id < newer.id;
 
--- 영업시간 조회·쓰기를 오래 차단하지 않고 유일 인덱스를 생성한 뒤 제약으로 연결한다.
-CREATE UNIQUE INDEX CONCURRENTLY uq_place_business_hours_place_day
-    ON place_business_hours (place_id, day_of_week);
-
 ALTER TABLE place_business_hours
-    ADD CONSTRAINT uq_place_business_hours_place_day
-    UNIQUE USING INDEX uq_place_business_hours_place_day;
+    ADD CONSTRAINT uq_place_business_hours_place_day UNIQUE (place_id, day_of_week);
 
 -- rating 은 1~5 (기존에는 주석으로만 명시). 범위 밖 값이 저장되면 평균 평점이 조용히 왜곡된다.
 ALTER TABLE place_reviews
