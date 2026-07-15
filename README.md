@@ -32,7 +32,7 @@ pre-commit install               # commit-msg·pre-commit 훅 자동 설치
 
 ### 3-1. 브랜치 전략 (gitflow)
 
-```
+```text
 feat/* ─▶ develop ─▶ main
 ```
 
@@ -84,3 +84,42 @@ feat/* ─▶ develop ─▶ main
    - 진행 중 refresh가 있으면 취소·대기 후 최신 이미지로 재시작
 
 인프라(ECR·ASG·배포 IAM)는 [`swmaestro-732/Infra`](https://github.com/swmaestro-732/Infra) 레포에서 관리한다.
+
+## 5. 아키텍처 (DDD + 헥사고날, 모듈러 모놀리스)
+
+**멀티모듈은 쓰지 않고**, 도메인(bounded context)별로 패키지를 나눈 뒤 각 도메인 안을 헥사고날로 구성한다. 나중에 특정 도메인을 MSA로 떼기 쉽게(extraction-ready) 경계를 유지한다.
+
+```text
+com.example.backend
+├─ bootstrap/                 # 조립 루트: 앱 진입점, config(Security/OpenAPI), 전역 예외핸들러
+├─ common/                    # 도메인 무관 기술 공통(response/util 등) + area(지역 공통 참조 타입). 도메인 개념 금지.
+├─ user/                      # 도메인(= bounded context). 각 도메인 내부를 헥사고날로 구성.
+│  ├─ domain/model/           # 순수 도메인 (Spring·Exposed 의존 X). 애그리거트·불변식.
+│  ├─ application/
+│  │  ├─ port/inbound/        # 유스케이스 계약 (UserUseCase)
+│  │  ├─ port/outbound/       # 영속성 계약 (UserPersistencePort)
+│  │  ├─ service/             # 유스케이스 구현 (트랜잭션 경계)
+│  │  └─ dto/                 # Command/Result — 애플리케이션 경계 타입(도메인 비노출)
+│  └─ adapter/
+│     ├─ inbound/web/         # 컨트롤러 + request/·response/ DTO
+│     └─ outbound/persistence/ # Exposed 테이블 + 포트 구현체(도메인↔행 매핑)
+├─ place/                     # 도메인 (스켈레톤 — user 템플릿으로 확장). 장소 리뷰 테이블도 이 도메인 persistence 에.
+├─ course/                    # 도메인 (스켈레톤). 코스 리뷰 테이블도 이 도메인 persistence 에.
+└─ bff/                       # 화면 조합(BFF): 여러 도메인의 inbound 포트를 조합하는 화면(홈/저장/마이 등)만 모음
+```
+
+도메인은 user/place/course 3개이며 각 도메인 내부는 헥사고날로 구성한다.
+리뷰는 별도 도메인이 아니라 대상 도메인에 속한다 — 장소 리뷰(place_reviews 등)는 `place`, 코스 리뷰(course_reviews 등)는 `course` 의 `adapter/outbound/persistence/` 에 둔다.
+**BFF는 화면별로 쪼개지 않고 단일 `bff` 패키지 하나**로 모은다 — 여러 도메인을 조합해야 하는 화면(홈·저장·마이 등)의 컨트롤러+조합서비스만 두고, 도메인의 `application.port.inbound`만 호출한다(테이블·도메인 로직 없음). 단일 도메인으로 끝나는 화면(지도=place 등)은 BFF가 아니라 해당 도메인에 둔다.
+`user` 가 동작하는 레퍼런스 구현이고, place/course + bff 는 user 템플릿으로 채워갈 스켈레톤이다.
+`area`(지역)는 팀 결정에 따라 특정 도메인이 아니라 `common/area` 에 두고 여러 도메인이 공유 참조한다.
+
+**의존 규칙** (adapter → application → domain 한 방향):
+- 도메인·애플리케이션은 어댑터(웹·DB)를 모르고 포트(인터페이스)로만 소통 → 도메인은 프레임워크 없이 단위 테스트 가능(`UserTest`).
+- **도메인 간 호출은 Port로만**: 한 도메인은 상대 도메인의 `application.port.inbound`(공개 API)만 참조하고, 조회는 `adapter/outbound/<도메인>`의 내부 어댑터가 상대 inbound 포트를 호출한다. 알림은 도메인 이벤트. MSA 확장 시 이 어댑터만 원격 호출로 교체.
+- **BFF 예외**: `bff`(홈·저장·마이 등 화면 조합)는 화면단위 조합을 위해 도메인의 inbound 포트에 의존할 수 있다.
+- **DB 규율**: 크로스 도메인 FK·JOIN 금지, 트랜잭션 경계는 도메인 안에서만.
+
+**경계 강제**: 위 규칙을 **ArchUnit 테스트**(`HexagonalArchitectureTest`)로 검증한다 — 위반 시 CI 실패. 크로스 도메인 격리·common→도메인 비참조 규칙 포함.
+
+- `in`은 Kotlin 예약어라 하위 패키지는 `inbound`/`outbound`로 명명한다.

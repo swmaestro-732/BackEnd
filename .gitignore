@@ -43,3 +43,8 @@ out/
 .omc/
 .remember/
 .serena/
+# Claude Code 로컬 디렉터리(개인 권한 설정·스킬 설치본) — 원본은 .ai 위키
+.claude/settings.local.json
+
+# .ai 위키 심링크 (../.ai)
+.ai
