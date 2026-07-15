@@ -1,5 +1,7 @@
 package com.example.backend.architecture
 
+import com.tngtech.archunit.core.domain.JavaClass.Predicates.resideInAnyPackage
+import com.tngtech.archunit.core.domain.JavaClass.Predicates.resideOutsideOfPackage
 import com.tngtech.archunit.core.importer.ClassFileImporter
 import com.tngtech.archunit.core.importer.ImportOption
 import com.tngtech.archunit.lang.syntax.ArchRuleDefinition.noClasses
@@ -96,18 +98,19 @@ class HexagonalArchitectureTest {
     @Test
     fun `BFF 는 도메인의 inbound 포트만 참조한다`() {
         for (target in listOf("user", "place", "course")) {
+            val targetInternals =
+                resideInAnyPackage(
+                    "..$target.domain..",
+                    "..$target.adapter..",
+                    "..$target.application..",
+                ).and(resideOutsideOfPackage("..$target.application.port.inbound.."))
+
             noClasses()
                 .that()
                 .resideInAPackage("..bff..")
                 .should()
-                .dependOnClassesThat()
-                .resideInAnyPackage(
-                    "..$target.domain..",
-                    "..$target.adapter..",
-                    "..$target.application.service..",
-                    "..$target.application.dto..",
-                    "..$target.application.port.outbound..",
-                ).check(classes)
+                .dependOnClassesThat(targetInternals)
+                .check(classes)
         }
     }
 
