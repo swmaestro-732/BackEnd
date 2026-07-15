@@ -5,6 +5,7 @@ import com.example.backend.common.response.ApiResponse
 import com.example.backend.common.response.ErrorCode
 import org.slf4j.LoggerFactory
 import org.springframework.http.ResponseEntity
+import org.springframework.http.converter.HttpMessageNotReadableException
 import org.springframework.web.bind.MethodArgumentNotValidException
 import org.springframework.web.bind.annotation.ExceptionHandler
 import org.springframework.web.bind.annotation.RestControllerAdvice
@@ -47,6 +48,11 @@ class GlobalExceptionHandler {
             }
         return respond(ErrorCode.VALIDATION_FAILED, fieldErrors = fieldErrors)
     }
+
+    /** 요청 본문 파싱 실패(JSON 손상, 필수 필드 누락, enum 값 오류 등) → 400. */
+    @ExceptionHandler(HttpMessageNotReadableException::class)
+    fun handleUnreadableBody(e: HttpMessageNotReadableException): ResponseEntity<ApiResponse<Nothing?>> =
+        respond(ErrorCode.INVALID_INPUT, "요청 본문 형식이 올바르지 않습니다.")
 
     /** 잘못된 요청 인자 → 400. */
     @ExceptionHandler(IllegalArgumentException::class)
