@@ -25,7 +25,8 @@ class RecommendedTagService(
             } else {
                 courseTagQueryPort.findTagNamesByPlaceIds(placeIds, limit)
             }
-        if (placeBased.size >= limit) return placeBased.take(limit)
+        // 이미 limit을 채웠으면 인기 태그 조회를 생략한다 (쿼리가 LIMIT을 걸어 size > limit 은 없음)
+        if (placeBased.size >= limit) return placeBased
         return (placeBased + courseTagQueryPort.findPopularTagNames(limit))
             .distinct()
             .take(limit)

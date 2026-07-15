@@ -47,6 +47,20 @@ class PlaceControllerTest
         }
 
         @Test
+        fun `mock=true면 DB와 무관하게 모킹 페이로드를 내려준다`() {
+            // 픽스처에 없는 id(999)로도 모킹 응답이 나와야 한다 — 빈 DB 프론트 개발용 폴백
+            mockMvc
+                .perform(get("/api/v1/places/999?mock=true"))
+                .andExpect(status().isOk)
+                .andExpect(jsonPath("$.code").value(2000))
+                .andExpect(jsonPath("$.data.place.id").value(999))
+                .andExpect(jsonPath("$.data.place.name").value("어니언 성수"))
+                .andExpect(jsonPath("$.data.place.categories.length()").value(2))
+                .andExpect(jsonPath("$.data.place.reviewSummary.totalCount").value(128))
+                .andExpect(jsonPath("$.data.place.reviewSummary.reviews.length()").value(2))
+        }
+
+        @Test
         fun `없는 장소면 4040 에러`() {
             mockMvc
                 .perform(get("/api/v1/places/999999"))
