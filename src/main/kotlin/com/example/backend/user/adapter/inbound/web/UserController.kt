@@ -1,5 +1,6 @@
 package com.example.backend.user.adapter.inbound.web
 
+import com.example.backend.common.mock.MockErrors
 import com.example.backend.common.response.ApiResponse
 import com.example.backend.user.adapter.inbound.web.request.CreateUserRequest
 import com.example.backend.user.adapter.inbound.web.response.UserProfileResponse
@@ -12,6 +13,7 @@ import org.springframework.web.bind.annotation.PathVariable
 import org.springframework.web.bind.annotation.PostMapping
 import org.springframework.web.bind.annotation.RequestBody
 import org.springframework.web.bind.annotation.RequestMapping
+import org.springframework.web.bind.annotation.RequestParam
 import org.springframework.web.bind.annotation.ResponseStatus
 import org.springframework.web.bind.annotation.RestController
 
@@ -30,7 +32,11 @@ class UserController(
     @GetMapping("/{userId}")
     fun getProfile(
         @PathVariable userId: Long,
-    ): ApiResponse<UserProfileResponse> = ApiResponse.success(UserProfileResponse.from(userUseCase.getProfile(userId)))
+        @RequestParam(required = false) mockError: Int?,
+    ): ApiResponse<UserProfileResponse> {
+        MockErrors.throwIfRequested(mockError)
+        return ApiResponse.success(UserProfileResponse.from(userUseCase.getProfile(userId)))
+    }
 
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
