@@ -7,6 +7,7 @@ import org.slf4j.LoggerFactory
 import org.springframework.http.ResponseEntity
 import org.springframework.http.converter.HttpMessageNotReadableException
 import org.springframework.web.bind.MethodArgumentNotValidException
+import org.springframework.web.bind.MissingServletRequestParameterException
 import org.springframework.web.bind.annotation.ExceptionHandler
 import org.springframework.web.bind.annotation.RestControllerAdvice
 import org.springframework.web.method.annotation.HandlerMethodValidationException
@@ -54,7 +55,11 @@ class GlobalExceptionHandler {
     fun handleUnreadableBody(e: HttpMessageNotReadableException): ResponseEntity<ApiResponse<Nothing?>> =
         respond(ErrorCode.INVALID_INPUT, "요청 본문 형식이 올바르지 않습니다.")
 
-    /** 잘못된 요청 인자 → 400. */
+    /**
+     * 잘못된 요청 인자 → 400.
+     * 메시지가 그대로 클라이언트에 노출되므로, `require(...)` 로 던질 때는
+     * 반드시 사용자에게 보여줄 한국어 문구를 담아야 한다(예: "유효하지 않은 커서입니다.").
+     */
     @ExceptionHandler(IllegalArgumentException::class)
     fun handleBadRequest(e: IllegalArgumentException): ResponseEntity<ApiResponse<Nothing?>> =
         respond(ErrorCode.INVALID_INPUT, e.message)
@@ -64,10 +69,18 @@ class GlobalExceptionHandler {
     fun handleTypeMismatch(e: MethodArgumentTypeMismatchException): ResponseEntity<ApiResponse<Nothing?>> =
         respond(ErrorCode.INVALID_INPUT, "요청 파라미터 형식이 올바르지 않습니다: ${e.name}")
 
-    /** 조회 실패 등 → 404. */
+    /** 필수 요청 파라미터 누락(required = true) → 400. */
+    @ExceptionHandler(MissingServletRequestParameterException::class)
+    fun handleMissingParam(e: MissingServletRequestParameterException): ResponseEntity<ApiResponse<Nothing?>> =
+        respond(ErrorCode.INVALID_INPUT, "필수 요청 파라미터가 누락되었습니다: ${e.parameterName}")
+
+    /**
+     * 조회 실패 등 → 404.
+     * `first()`/`single()` 등 표준 라이브러리가 던지는 영어 메시지가 노출되지 않도록
+     * [ErrorCode.NOT_FOUND]의 고정 메시지를 사용한다(리소스별 문구가 필요하면 [BusinessException]으로).
+     */
     @ExceptionHandler(NoSuchElementException::class)
-    fun handleNotFound(e: NoSuchElementException): ResponseEntity<ApiResponse<Nothing?>> =
-        respond(ErrorCode.NOT_FOUND, e.message)
+    fun handleNotFound(e: NoSuchElementException): ResponseEntity<ApiResponse<Nothing?>> = respond(ErrorCode.NOT_FOUND)
 
     /** 그 외 → 500. 원인 추적을 위해 스택트레이스를 남긴다. */
     @ExceptionHandler(Exception::class)

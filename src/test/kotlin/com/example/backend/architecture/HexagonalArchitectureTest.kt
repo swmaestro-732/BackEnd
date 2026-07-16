@@ -1,5 +1,7 @@
 package com.example.backend.architecture
 
+import com.tngtech.archunit.core.domain.JavaClass.Predicates.resideInAnyPackage
+import com.tngtech.archunit.core.domain.JavaClass.Predicates.resideOutsideOfPackage
 import com.tngtech.archunit.core.importer.ClassFileImporter
 import com.tngtech.archunit.core.importer.ImportOption
 import com.tngtech.archunit.lang.syntax.ArchRuleDefinition.noClasses
@@ -67,6 +69,17 @@ class HexagonalArchitectureTest {
     }
 
     @Test
+    fun `어댑터는 서비스 구현체가 아니라 포트에 의존한다`() {
+        noClasses()
+            .that()
+            .resideInAPackage("..adapter..")
+            .should()
+            .dependOnClassesThat()
+            .resideInAPackage("..application.service..")
+            .check(classes)
+    }
+
+    @Test
     fun `common 은 도메인을 참조하지 않는다`() {
         noClasses()
             .that()
@@ -81,11 +94,30 @@ class HexagonalArchitectureTest {
             ).check(classes)
     }
 
+    /** BFF 는 화면 조합을 위해 도메인에 의존하되, 공개 API(inbound 포트) 밖의 내부는 참조할 수 없다. */
+    @Test
+    fun `BFF 는 도메인의 inbound 포트만 참조한다`() {
+        for (target in listOf("user", "place", "course")) {
+            val targetInternals =
+                resideInAnyPackage(
+                    "..$target.domain..",
+                    "..$target.adapter..",
+                    "..$target.application..",
+                ).and(resideOutsideOfPackage("..$target.application.port.inbound.."))
+
+            noClasses()
+                .that()
+                .resideInAPackage("..bff..")
+                .should()
+                .dependOnClassesThat(targetInternals)
+                .check(classes)
+        }
+    }
+
     /**
      * 크로스 도메인 격리 — 한 도메인은 다른 도메인의 내부(domain/adapter/service/dto/outbound 포트)에
      * 의존할 수 없고, 오직 상대 도메인의 application.port.inbound(공개 API)만 참조할 수 있다.
-     * 현재 스캐폴드에는 크로스 도메인 호출이 없어 규칙은 공허참으로 통과한다.
-     * (BFF 패키지 bff 는 이 규칙 밖이며 도메인 inbound 포트 의존이 허용된다.)
+     * (BFF 패키지 bff 는 이 규칙 밖이며 위의 전용 규칙이 담당한다.)
      */
     @Test
     fun `도메인은 다른 도메인의 inbound 포트만 참조한다`() {
