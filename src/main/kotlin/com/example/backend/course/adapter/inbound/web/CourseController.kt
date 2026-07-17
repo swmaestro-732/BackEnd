@@ -4,10 +4,10 @@ import com.example.backend.common.exception.BusinessException
 import com.example.backend.common.mock.MockErrors
 import com.example.backend.common.response.ApiResponse
 import com.example.backend.common.response.ErrorCode
-import com.example.backend.course.adapter.inbound.web.request.CreateCourseRequest
 import com.example.backend.course.adapter.inbound.web.response.CourseDetailResponse
-import com.example.backend.course.adapter.inbound.web.response.CreateCourseResponse
 import com.example.backend.course.application.port.inbound.CourseUseCase
+import com.example.backend.course.application.port.inbound.dto.CreateCourseRequest
+import com.example.backend.course.application.port.inbound.dto.CreateCourseResponse
 import jakarta.validation.Valid
 import org.springframework.http.HttpStatus
 import org.springframework.web.bind.annotation.GetMapping

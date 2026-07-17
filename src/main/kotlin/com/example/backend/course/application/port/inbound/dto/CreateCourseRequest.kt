@@ -1,4 +1,4 @@
-package com.example.backend.course.adapter.inbound.web.request
+package com.example.backend.course.application.port.inbound.dto
 
 import com.example.backend.course.domain.model.CourseVisibility
 import jakarta.validation.Valid
