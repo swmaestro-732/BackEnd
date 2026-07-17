@@ -78,7 +78,7 @@ class PlaceDetailScreenController {
                                         rating = 5,
                                         content = "팡도르가 정말 맛있어요. 통창 자리 뷰도 최고. 웨이팅은 조금 있었어요.",
                                         createdAt = Instant.parse("2026-07-08T04:20:00Z"),
-                                        relativeTime = "3일 전",
+                                        relativeTime = "9일 전",
                                         photoUrls = emptyList(),
                                     ),
                                     PlaceReviewResponse(
@@ -92,7 +92,7 @@ class PlaceDetailScreenController {
                                         rating = 4,
                                         content = "빵이 다양하고 공간이 넓어요.",
                                         createdAt = Instant.parse("2026-07-06T09:00:00Z"),
-                                        relativeTime = "5일 전",
+                                        relativeTime = "11일 전",
                                         photoUrls = emptyList(),
                                     ),
                                 ),
