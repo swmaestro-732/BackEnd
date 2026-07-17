@@ -1,6 +1,6 @@
 package com.example.backend.place.adapter.inbound.web.response
 
-import com.example.backend.place.application.dto.PlaceDetailResult
+import com.example.backend.place.application.port.inbound.dto.PlaceDetailResult
 import java.time.Instant
 
 /**

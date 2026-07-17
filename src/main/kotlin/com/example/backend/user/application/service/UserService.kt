@@ -2,10 +2,10 @@ package com.example.backend.user.application.service
 
 import com.example.backend.common.exception.BusinessException
 import com.example.backend.common.response.ErrorCode
-import com.example.backend.user.application.dto.CreateUserCommand
-import com.example.backend.user.application.dto.UserProfileResult
-import com.example.backend.user.application.dto.UserResult
 import com.example.backend.user.application.port.inbound.UserUseCase
+import com.example.backend.user.application.port.inbound.dto.CreateUserCommand
+import com.example.backend.user.application.port.inbound.dto.UserProfileResult
+import com.example.backend.user.application.port.inbound.dto.UserResult
 import com.example.backend.user.application.port.outbound.UserPersistencePort
 import com.example.backend.user.domain.model.User
 import org.springframework.stereotype.Service

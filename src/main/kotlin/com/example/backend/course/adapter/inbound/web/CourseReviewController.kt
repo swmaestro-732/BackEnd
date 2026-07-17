@@ -3,10 +3,10 @@ package com.example.backend.course.adapter.inbound.web
 import com.example.backend.common.mock.MockErrors
 import com.example.backend.common.response.ApiResponse
 import com.example.backend.course.adapter.inbound.web.response.CourseReviewListResponse
-import com.example.backend.course.application.dto.CourseReviewQuery
-import com.example.backend.course.application.dto.CourseReviewSort
-import com.example.backend.course.application.dto.SortDirection
 import com.example.backend.course.application.port.inbound.CourseReviewUseCase
+import com.example.backend.course.application.port.inbound.dto.CourseReviewQuery
+import com.example.backend.course.application.port.inbound.dto.CourseReviewSort
+import com.example.backend.course.application.port.inbound.dto.SortDirection
 import org.springframework.web.bind.annotation.GetMapping
 import org.springframework.web.bind.annotation.PathVariable
 import org.springframework.web.bind.annotation.RequestMapping

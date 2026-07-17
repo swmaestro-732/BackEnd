@@ -1,7 +1,7 @@
 package com.example.backend.course.application.port.inbound
 
-import com.example.backend.course.application.dto.CourseReviewPageResult
-import com.example.backend.course.application.dto.CourseReviewQuery
+import com.example.backend.course.application.port.inbound.dto.CourseReviewPageResult
+import com.example.backend.course.application.port.inbound.dto.CourseReviewQuery
 
 /**
  * 인바운드 포트 — 코스 리뷰 목록 조회(정렬·페이지네이션).

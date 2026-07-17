@@ -1,4 +1,4 @@
-package com.example.backend.course.application.dto
+package com.example.backend.course.application.port.inbound.dto
 
 /** 코스 리뷰 정렬 기준(field). 방향은 [SortDirection] 으로 따로 지정한다. */
 enum class CourseReviewSort {

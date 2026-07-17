@@ -1,6 +1,6 @@
 package com.example.backend.place.application.port.inbound
 
-import com.example.backend.place.application.dto.PlaceDetailResult
+import com.example.backend.place.application.port.inbound.dto.PlaceDetailResult
 
 /** 인바운드 포트 — 장소 조회 유스케이스. */
 interface PlaceQueryUseCase {

@@ -2,8 +2,8 @@ package com.example.backend.place.application.service
 
 import com.example.backend.common.exception.BusinessException
 import com.example.backend.common.response.ErrorCode
-import com.example.backend.place.application.dto.PlaceDetailResult
 import com.example.backend.place.application.port.inbound.PlaceQueryUseCase
+import com.example.backend.place.application.port.inbound.dto.PlaceDetailResult
 import com.example.backend.place.application.port.outbound.PlaceQueryPort
 import com.example.backend.place.domain.model.PlaceBusinessStatus
 import com.example.backend.user.application.port.inbound.UserSummaryUseCase
