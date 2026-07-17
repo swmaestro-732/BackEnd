@@ -1,4 +1,4 @@
-package com.example.backend.course.application.dto
+package com.example.backend.course.application.port.inbound.dto
 
 import java.time.OffsetDateTime
 

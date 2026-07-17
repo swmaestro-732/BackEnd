@@ -2,14 +2,14 @@ package com.example.backend.course.application.service
 
 import com.example.backend.common.exception.BusinessException
 import com.example.backend.common.response.ErrorCode
-import com.example.backend.course.application.dto.CourseReviewPageResult
-import com.example.backend.course.application.dto.CourseReviewQuery
-import com.example.backend.course.application.dto.CourseReviewResult
-import com.example.backend.course.application.dto.CourseReviewSort
-import com.example.backend.course.application.dto.CourseReviewTagResult
-import com.example.backend.course.application.dto.RatingCountResult
-import com.example.backend.course.application.dto.SortDirection
 import com.example.backend.course.application.port.inbound.CourseReviewUseCase
+import com.example.backend.course.application.port.inbound.dto.CourseReviewPageResult
+import com.example.backend.course.application.port.inbound.dto.CourseReviewQuery
+import com.example.backend.course.application.port.inbound.dto.CourseReviewResult
+import com.example.backend.course.application.port.inbound.dto.CourseReviewSort
+import com.example.backend.course.application.port.inbound.dto.CourseReviewTagResult
+import com.example.backend.course.application.port.inbound.dto.RatingCountResult
+import com.example.backend.course.application.port.inbound.dto.SortDirection
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
 import java.time.OffsetDateTime
