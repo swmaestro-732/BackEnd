@@ -49,5 +49,5 @@ data class CreateCoursePlaceRequest(
     @field:Size(max = 200)
     val caption: String?,
     @field:Size(min = 1)
-    val imageUrls: List<String>,
+    val imageUrls: List<@NotBlank String>,
 )
