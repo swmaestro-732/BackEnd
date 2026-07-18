@@ -4,10 +4,10 @@ import com.example.backend.common.exception.BusinessException
 import com.example.backend.common.mock.MockErrors
 import com.example.backend.common.response.ApiResponse
 import com.example.backend.common.response.ErrorCode
+import com.example.backend.course.adapter.inbound.web.request.CreateCourseRequest
 import com.example.backend.course.adapter.inbound.web.response.CourseDetailResponse
+import com.example.backend.course.adapter.inbound.web.response.CreateCourseResponse
 import com.example.backend.course.application.port.inbound.CourseUseCase
-import com.example.backend.course.application.port.inbound.dto.CreateCourseRequest
-import com.example.backend.course.application.port.inbound.dto.CreateCourseResponse
 import jakarta.validation.Valid
 import org.springframework.http.HttpStatus
 import org.springframework.web.bind.annotation.GetMapping
@@ -48,9 +48,10 @@ class CourseController(
      * 코스 생성(모킹). 발행(isPublished=true)과 임시저장(false)을 함께 처리한다.
      *
      * 검증
-     * - 필드 형식·범위는 Bean Validation([CreateCourseRequest]) → 400 + fieldErrors.
-     * - 발행 코스는 장소가 1곳 이상이어야 한다(임시저장은 "아직 장소 없음" 허용 — 디자인 임시저장 목록).
-     * - places 의 orderNo 는 중복될 수 없다.
+     * - 필드 형식·범위(title·tags·places 등)는 Bean Validation([CreateCourseRequest]) → 400 VALIDATION_FAILED + fieldErrors.
+     * - 아래 교차 필드·비즈니스 규칙은 애노테이션으로 표현할 수 없어 직접 검증한다 → 400 INVALID_INPUT.
+     *   - 발행 코스는 장소가 1곳 이상이어야 한다(임시저장은 "아직 장소 없음" 허용 — 디자인 임시저장 목록).
+     *   - places 의 orderNo 는 중복될 수 없다.
      */
     @PostMapping("/courses")
     @ResponseStatus(HttpStatus.CREATED)
@@ -74,15 +75,9 @@ class CourseController(
         ) {
             throw BusinessException(ErrorCode.INVALID_INPUT, "장소 순서(orderNo)가 중복되었습니다.")
         }
-        if (request.tags.any { it.isBlank() || it.length > MAX_TAG_LENGTH }) {
-            throw BusinessException(ErrorCode.INVALID_INPUT, "태그는 비어 있을 수 없고 ${MAX_TAG_LENGTH}자 이하여야 합니다.")
-        }
     }
 
     private companion object {
-        /** tags 테이블 name varchar(50) 과 동일한 제한. */
-        const val MAX_TAG_LENGTH = 50
-
         /** 모킹 고정 id — 코스 상세 목 데이터(courseId=1)와 이어지도록 항상 1을 반환한다. */
         const val MOCK_COURSE_ID = 1L
     }
