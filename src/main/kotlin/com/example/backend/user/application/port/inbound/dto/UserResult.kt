@@ -1,4 +1,4 @@
-package com.example.backend.user.application.dto
+package com.example.backend.user.application.port.inbound.dto
 
 import com.example.backend.user.domain.model.User
 

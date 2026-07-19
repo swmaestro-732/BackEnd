@@ -1,4 +1,4 @@
-package com.example.backend.course.application.dto
+package com.example.backend.course.application.port.inbound.dto
 
 /**
  * 유스케이스 출력 — 코스 상세. 도메인 모델을 밖으로 노출하지 않기 위한 애플리케이션 경계 타입.

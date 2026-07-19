@@ -1,6 +1,6 @@
 package com.example.backend.user.adapter.inbound.web.response
 
-import com.example.backend.user.application.dto.UserResult
+import com.example.backend.user.application.port.inbound.dto.UserResult
 
 /** 웹 응답 DTO. 유스케이스 결과([UserResult])를 직렬화 형태로 변환한다. */
 data class UserResponse(

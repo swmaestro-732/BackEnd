@@ -1,13 +1,9 @@
 package com.example.backend.course.domain.model
 
-import com.example.backend.common.persistence.CodedEnum
-
-/** 코스 상태. code 는 DB 저장 계약 — 변경 금지. */
-enum class CourseStatus(
-    override val code: Short,
-) : CodedEnum {
-    ACTIVE(0),
-    HIDDEN(1),
-    SUSPENDED(2),
-    DELETED(3),
+/** 코스 상태. enum 이름이 DB 저장 계약 — 상수 이름 변경 금지(값 추가는 무방). */
+enum class CourseStatus {
+    ACTIVE,
+    HIDDEN,
+    SUSPENDED,
+    DELETED,
 }

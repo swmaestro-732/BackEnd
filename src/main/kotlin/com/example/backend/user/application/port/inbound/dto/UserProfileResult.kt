@@ -1,4 +1,4 @@
-package com.example.backend.user.application.dto
+package com.example.backend.user.application.port.inbound.dto
 
 /**
  * 유스케이스 출력 — 사용자 프로필. 코스 상세의 작성자 카드 등 여러 화면에서 재사용한다.

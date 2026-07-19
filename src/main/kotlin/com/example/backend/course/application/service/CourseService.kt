@@ -2,12 +2,12 @@ package com.example.backend.course.application.service
 
 import com.example.backend.common.exception.BusinessException
 import com.example.backend.common.response.ErrorCode
-import com.example.backend.course.application.dto.CourseDetailResult
-import com.example.backend.course.application.dto.CoursePlaceImageResult
-import com.example.backend.course.application.dto.CoursePlaceResult
-import com.example.backend.course.application.dto.CourseStatsResult
-import com.example.backend.course.application.dto.CourseViewerResult
 import com.example.backend.course.application.port.inbound.CourseUseCase
+import com.example.backend.course.application.port.inbound.dto.CourseDetailResult
+import com.example.backend.course.application.port.inbound.dto.CoursePlaceImageResult
+import com.example.backend.course.application.port.inbound.dto.CoursePlaceResult
+import com.example.backend.course.application.port.inbound.dto.CourseStatsResult
+import com.example.backend.course.application.port.inbound.dto.CourseViewerResult
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
 

@@ -30,4 +30,7 @@ enum class ErrorCode(
 
     // ── 사용자(user) ──
     USER_NOT_FOUND(404, 4042, "사용자를 찾을 수 없습니다."),
+
+    // ── 장소(place) ──
+    PLACE_NOT_FOUND(404, 4043, "장소를 찾을 수 없습니다."),
 }

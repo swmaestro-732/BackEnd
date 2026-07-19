@@ -1,10 +1,10 @@
 package com.example.backend.course.adapter.inbound.web.response
 
-import com.example.backend.course.application.dto.CourseDetailResult
-import com.example.backend.course.application.dto.CoursePlaceImageResult
-import com.example.backend.course.application.dto.CoursePlaceResult
-import com.example.backend.course.application.dto.CourseStatsResult
-import com.example.backend.course.application.dto.CourseViewerResult
+import com.example.backend.course.application.port.inbound.dto.CourseDetailResult
+import com.example.backend.course.application.port.inbound.dto.CoursePlaceImageResult
+import com.example.backend.course.application.port.inbound.dto.CoursePlaceResult
+import com.example.backend.course.application.port.inbound.dto.CourseStatsResult
+import com.example.backend.course.application.port.inbound.dto.CourseViewerResult
 
 /**
  * 웹 응답 DTO. 유스케이스 결과([CourseDetailResult])를 직렬화 형태로 변환한다.

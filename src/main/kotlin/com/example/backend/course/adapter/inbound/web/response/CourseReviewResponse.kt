@@ -1,9 +1,9 @@
 package com.example.backend.course.adapter.inbound.web.response
 
-import com.example.backend.course.application.dto.CourseReviewPageResult
-import com.example.backend.course.application.dto.CourseReviewResult
-import com.example.backend.course.application.dto.CourseReviewTagResult
-import com.example.backend.course.application.dto.RatingCountResult
+import com.example.backend.course.application.port.inbound.dto.CourseReviewPageResult
+import com.example.backend.course.application.port.inbound.dto.CourseReviewResult
+import com.example.backend.course.application.port.inbound.dto.CourseReviewTagResult
+import com.example.backend.course.application.port.inbound.dto.RatingCountResult
 import java.time.OffsetDateTime
 
 /**

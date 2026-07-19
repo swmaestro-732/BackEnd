@@ -1,8 +1,8 @@
 package com.example.backend.user.application.port.inbound
 
-import com.example.backend.user.application.dto.CreateUserCommand
-import com.example.backend.user.application.dto.UserProfileResult
-import com.example.backend.user.application.dto.UserResult
+import com.example.backend.user.application.port.inbound.dto.CreateUserCommand
+import com.example.backend.user.application.port.inbound.dto.UserProfileResult
+import com.example.backend.user.application.port.inbound.dto.UserResult
 
 /**
  * 인바운드 포트 — 애플리케이션이 바깥(웹 등)에 제공하는 유스케이스 계약.
