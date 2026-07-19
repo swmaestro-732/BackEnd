@@ -34,8 +34,8 @@ data class ApiResponse<T>(
             message: String? = null,
         ): ApiResponse<T> = ApiResponse(code = SUCCESS_CODE, message = message, data = data)
 
-        /** 본문 없는 성공(204 등). */
-        fun ok(): ApiResponse<Nothing?> = ApiResponse(code = SUCCESS_CODE, message = null)
+        /** 본문 없는 성공(204 등). 안내 문구가 필요하면 [message] 를 채운다. */
+        fun ok(message: String? = null): ApiResponse<Nothing?> = ApiResponse(code = SUCCESS_CODE, message = message)
 
         fun error(
             errorCode: ErrorCode,
