@@ -25,7 +25,6 @@ data class CoursePlaceResult(
     val placeId: Long,
     val orderNo: Int,
     val caption: String?,
-    val subcaption: String?,
     /** 다음 장소까지 도보 이동 시간(분). 마지막 장소면 null. */
     val walkingMinutesToNext: Int?,
     val images: List<CoursePlaceImageResult>,

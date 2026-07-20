@@ -8,6 +8,7 @@ internal object SavedPlaceTable : Table("saved_places") {
     val userId = long("user_id")
     val placeId = long("place_id") // cross-domain(place): FK 없음
     val category = varchar("category", 50).nullable()
+    val visited = bool("visited")
     val createdAt = timestamp("created_at")
     override val primaryKey = PrimaryKey(id)
 }

@@ -53,7 +53,6 @@ class CourseService : CourseUseCase {
                                     placeId = 101L,
                                     orderNo = 1,
                                     caption = "어니언 성수",
-                                    subcaption = "통창 자리가 명당이에요. 비 오는 날 앉으면 뷰가 최고.",
                                     walkingMinutesToNext = 6,
                                     images =
                                         listOf(
@@ -74,7 +73,6 @@ class CourseService : CourseUseCase {
                                     placeId = 102L,
                                     orderNo = 2,
                                     caption = "대림창고 갤러리",
-                                    subcaption = "안쪽 전시 공간 꼭 들러보세요.",
                                     walkingMinutesToNext = 3,
                                     images =
                                         listOf(
@@ -90,7 +88,6 @@ class CourseService : CourseUseCase {
                                     placeId = 103L,
                                     orderNo = 3,
                                     caption = "센터커피 성수",
-                                    subcaption = "원두 향이 좋아요. 2층 창가 추천.",
                                     walkingMinutesToNext = 5,
                                     images =
                                         listOf(
@@ -106,7 +103,6 @@ class CourseService : CourseUseCase {
                                     placeId = 104L,
                                     orderNo = 4,
                                     caption = "카페 할아버지공장",
-                                    subcaption = "마무리로 딱. 넓어서 웨이팅 걱정 없어요.",
                                     walkingMinutesToNext = null,
                                     images =
                                         listOf(

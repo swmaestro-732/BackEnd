@@ -66,7 +66,6 @@ data class CoursePlaceResponse(
     val placeId: Long,
     val orderNo: Int,
     val caption: String?,
-    val subcaption: String?,
     val walkingMinutesToNext: Int?,
     val images: List<CoursePlaceImageResponse>,
 ) {
@@ -77,7 +76,6 @@ data class CoursePlaceResponse(
                 placeId = result.placeId,
                 orderNo = result.orderNo,
                 caption = result.caption,
-                subcaption = result.subcaption,
                 walkingMinutesToNext = result.walkingMinutesToNext,
                 images = result.images.map(CoursePlaceImageResponse::from),
             )

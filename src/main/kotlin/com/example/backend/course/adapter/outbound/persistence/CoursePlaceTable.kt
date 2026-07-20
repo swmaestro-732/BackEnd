@@ -8,6 +8,5 @@ internal object CoursePlaceTable : Table("course_places") {
     val placeId = long("place_id") // cross-domain(place): FK 없음
     val orderNo = short("order_no")
     val caption = varchar("caption", 200).nullable()
-    val subcaption = text("subcaption").nullable()
     override val primaryKey = PrimaryKey(id)
 }
