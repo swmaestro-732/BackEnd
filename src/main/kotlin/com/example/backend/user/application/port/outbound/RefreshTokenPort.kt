@@ -2,11 +2,11 @@ package com.example.backend.user.application.port.outbound
 
 import java.time.Instant
 
-/** DB에 저장된 불투명 refresh token. */
+/** DB에 저장된 불투명 refresh token digest. */
 data class RefreshTokenRecord(
     val id: Long,
     val userId: Long,
-    val token: String,
+    val tokenHash: String,
     val expiresAt: Instant,
     val revoked: Boolean,
     val createdAt: Instant,

@@ -61,7 +61,8 @@ data class User private constructor(
             socialProvider: SocialProvider? = null,
             socialId: String? = null,
         ): User {
-            require((socialProvider == null) == (socialId == null)) {
+            // 소셜 provider 와 socialId 는 한 쌍 — 함께 있거나 함께 없어야 한다(둘 중 하나만 있으면 size == 1).
+            require(listOfNotNull(socialProvider, socialId).size != 1) {
                 "소셜 provider 와 socialId 는 함께 있거나 함께 없어야 합니다."
             }
             return User(

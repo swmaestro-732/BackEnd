@@ -21,8 +21,9 @@ import org.springframework.test.web.servlet.result.MockMvcResultMatchers.status
         [
             "TRUNCATE TABLE users RESTART IDENTITY CASCADE",
             "INSERT INTO users (nickname) VALUES ('인증테스트유저')",
-            "INSERT INTO refresh_tokens (user_id, token, expires_at) " +
-                "VALUES (1, 'stage3-refresh-token', now() + interval '14 days')",
+            "INSERT INTO refresh_tokens (user_id, token_hash, expires_at) " +
+                "VALUES (1, 'cac0fa7ee4d7e749b37053c07f7eae4194c38025ffb999f794dd5e7825b6019f', " +
+                "now() + interval '14 days')",
         ],
     executionPhase = Sql.ExecutionPhase.BEFORE_TEST_METHOD,
 )

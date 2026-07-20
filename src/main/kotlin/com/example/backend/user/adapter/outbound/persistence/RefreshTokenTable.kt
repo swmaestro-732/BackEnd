@@ -7,7 +7,7 @@ import org.jetbrains.exposed.v1.datetime.timestamp
 internal object RefreshTokenTable : Table("refresh_tokens") {
     val id = long("id").autoIncrement()
     val userId = long("user_id")
-    val token = varchar("token", 255)
+    val tokenHash = varchar("token_hash", 255)
     val expiresAt = timestamp("expires_at")
     val revoked = bool("revoked")
     val createdAt = timestamp("created_at")
