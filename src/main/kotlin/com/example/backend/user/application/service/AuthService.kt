@@ -62,6 +62,7 @@ class AuthService(
                     profileImageUrl = command.profileImageUrl,
                     socialProvider = identity.provider,
                     socialId = identity.socialId,
+                    handle = command.handle,
                 ),
             )
         val userId = checkNotNull(saved.id) { "영속화된 User 는 id 를 가진다." }
@@ -72,7 +73,7 @@ class AuthService(
                 SignupUserResult(
                     id = userId,
                     nickname = saved.nickname,
-                    handle = command.handle,
+                    handle = checkNotNull(saved.handle) { "저장된 User 는 handle 을 가진다." },
                     profileImageUrl = saved.profileImageUrl,
                 ),
         )

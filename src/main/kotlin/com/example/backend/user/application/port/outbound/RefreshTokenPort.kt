@@ -21,4 +21,6 @@ interface RefreshTokenPort {
 
     /** 실제로 폐기된 행이 있으면 true, 이미 폐기됐거나 없으면 false. */
     fun revoke(token: String): Boolean
+
+    fun revokeAllByUser(userId: Long)
 }

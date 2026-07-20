@@ -59,6 +59,14 @@ class RefreshTokenPersistenceAdapter(
             it[RefreshTokenTable.revoked] = true
         } > 0
 
+    override fun revokeAllByUser(userId: Long) {
+        RefreshTokenTable.update({
+            (RefreshTokenTable.userId eq userId) and (RefreshTokenTable.revoked eq false)
+        }) {
+            it[RefreshTokenTable.revoked] = true
+        }
+    }
+
     private fun hash(token: String): String =
         MessageDigest
             .getInstance("SHA-256")
