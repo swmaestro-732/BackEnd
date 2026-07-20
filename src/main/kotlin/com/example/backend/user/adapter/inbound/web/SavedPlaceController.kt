@@ -8,6 +8,7 @@ import jakarta.validation.constraints.Max
 import jakarta.validation.constraints.Min
 import org.springframework.http.HttpStatus
 import org.springframework.web.bind.annotation.GetMapping
+import org.springframework.web.bind.annotation.PatchMapping
 import org.springframework.web.bind.annotation.PathVariable
 import org.springframework.web.bind.annotation.PostMapping
 import org.springframework.web.bind.annotation.RequestMapping
@@ -23,6 +24,10 @@ import java.time.Instant
  * - [list] 저장 장소 조회(`GET /api/v1/my/saved-places`): **모킹 API**. 노션 필드 명세 미작성 상태라
  *   저장 레코드 스키마(saved_places)·디자인(저장함 · 장소 탭)에서 필드를 도출했다.
  *   api-spec.md 설계 노트대로 저장 레코드(ID 위주)를 반환한다 — 화면 조합은 service 담당.
+ * - [visit] 저장 장소 방문 처리(`PATCH /api/v1/my/saved-places/{savedPlaceId}`): **모킹 API**.
+ *   노션 필드 명세 미작성 상태라 디자인(저장함 · 장소 · 방문 표시 스와이프 흐름)에서 도출 —
+ *   요청 본문 없이 방문 처리하고 data 없이 메시지만 반환한다(단방향, 되돌리기 흐름 없음).
+ *   경로 변수는 장소 id가 아니라 **저장 레코드 id**([SavedPlaceListResponse.SavedPlaceItem.id])다.
  *
  * 실제 구현 시 인바운드 포트(UseCase) 연동으로 교체하고 [MockErrors] 호출을 제거한다.
  * `mockError` 파라미터로 모킹 에러를 주입할 수 있다(예: `?mockError=4040`).
@@ -38,6 +43,19 @@ class SavedPlaceController {
     ): ApiResponse<Nothing?> {
         MockErrors.throwIfRequested(mockError)
         return ApiResponse.ok("장소가 저장되었습니다.")
+    }
+
+    /**
+     * 저장 장소 방문 처리(모킹). 미방문 탭 카드 스와이프 → "방문한 곳으로 표시할까요?" 확인 후 호출 —
+     * 방문 탭으로 옮기고 지도에 방문 표시를 남긴다. 장소 저장(save)과 동일하게 data 없이 메시지만 반환한다.
+     */
+    @PatchMapping("/{savedPlaceId}")
+    fun visit(
+        @PathVariable savedPlaceId: Long,
+        @RequestParam(required = false) mockError: Int?,
+    ): ApiResponse<Nothing?> {
+        MockErrors.throwIfRequested(mockError)
+        return ApiResponse.ok("방문이 완료되었습니다.")
     }
 
     /**
