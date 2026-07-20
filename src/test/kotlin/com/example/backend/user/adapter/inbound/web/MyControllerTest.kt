@@ -9,12 +9,13 @@ import org.springframework.test.web.servlet.MockMvc
 import org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete
 import org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get
 import org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch
-import org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post
+import org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put
 import org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath
 import org.springframework.test.web.servlet.result.MockMvcResultMatchers.status
 
 /**
- * User 도메인 인증·세션·프로필 모킹 API(`/api/v1/my` 하위) 검증. 목 데이터라 DB 픽스처가 필요 없다.
+ * 현재 사용자("나") 기준 리소스 모킹 API(`/api/v1/my`) 검증. 목 데이터라 DB 픽스처가 필요 없다.
+ * 프로필 GET/PATCH/DELETE + 팔로잉 PUT/DELETE.
  */
 @AutoConfigureMockMvc
 class MyControllerTest
@@ -23,108 +24,31 @@ class MyControllerTest
         private val mockMvc: MockMvc,
     ) : IntegrationTestBase() {
         @Test
-        fun `소셜 로그인은 토큰과 신규 여부를 내려준다`() {
+        fun `내 프로필 조회는 카운트 포함 프로필을 내려준다`() {
             mockMvc
-                .perform(
-                    post("/api/v1/my/social-login")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content("""{"provider":"KAKAO","idToken":"kakao-token"}"""),
-                ).andExpect(status().isOk)
-                .andExpect(jsonPath("$.code").value(2000))
-                .andExpect(jsonPath("$.data.accessToken").isNotEmpty)
-                .andExpect(jsonPath("$.data.refreshToken").isNotEmpty)
-                .andExpect(jsonPath("$.data.isNewUser").value(false))
-        }
-
-        @Test
-        fun `회원가입은 토큰과 생성된 유저를 내려준다`() {
-            mockMvc
-                .perform(
-                    post("/api/v1/my/signup")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content("""{"nickname":"지호","handle":"@jiho","profileImageUrl":null}"""),
-                ).andExpect(status().isOk)
-                .andExpect(jsonPath("$.code").value(2000))
-                .andExpect(jsonPath("$.data.accessToken").isNotEmpty)
-                .andExpect(jsonPath("$.data.user.nickname").value("지호"))
-                .andExpect(jsonPath("$.data.user.handle").value("@jiho"))
-        }
-
-        @Test
-        fun `회원가입 닉네임이 공백이면 4002와 fieldErrors`() {
-            mockMvc
-                .perform(
-                    post("/api/v1/my/signup")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content("""{"nickname":"","handle":"@x"}"""),
-                ).andExpect(status().isBadRequest)
-                .andExpect(jsonPath("$.code").value(4002))
-                .andExpect(jsonPath("$.fieldErrors[0].field").value("nickname"))
-        }
-
-        @Test
-        fun `토큰 재발급은 새 토큰을 내려준다`() {
-            mockMvc
-                .perform(
-                    post("/api/v1/my/token-reissue")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content("""{"refreshToken":"mock-refresh-token"}"""),
-                ).andExpect(status().isOk)
-                .andExpect(jsonPath("$.code").value(2000))
-                .andExpect(jsonPath("$.data.accessToken").isNotEmpty)
-        }
-
-        @Test
-        fun `로그아웃은 본문 없는 성공을 내려준다`() {
-            mockMvc
-                .perform(post("/api/v1/my/logout"))
+                .perform(get("/api/v1/my"))
                 .andExpect(status().isOk)
                 .andExpect(jsonPath("$.code").value(2000))
-                .andExpect(jsonPath("$.data").doesNotExist())
-        }
-
-        @Test
-        fun `아이디 사용 가능 여부 - 일반 값은 사용 가능`() {
-            mockMvc
-                .perform(get("/api/v1/my/login-id/availability").param("loginId", "hyunwoo"))
-                .andExpect(status().isOk)
-                .andExpect(jsonPath("$.code").value(2000))
-                .andExpect(jsonPath("$.data.available").value(true))
-        }
-
-        @Test
-        fun `아이디 사용 가능 여부 - 예약어는 사용 불가`() {
-            mockMvc
-                .perform(get("/api/v1/my/login-id/availability").param("loginId", "admin"))
-                .andExpect(status().isOk)
-                .andExpect(jsonPath("$.data.available").value(false))
-        }
-
-        @Test
-        fun `프로필 조회는 카운트 포함 프로필을 내려준다`() {
-            mockMvc
-                .perform(get("/api/v1/my/7"))
-                .andExpect(status().isOk)
-                .andExpect(jsonPath("$.code").value(2000))
-                .andExpect(jsonPath("$.data.id").value(7))
+                .andExpect(jsonPath("$.data.id").isNumber)
+                .andExpect(jsonPath("$.data.nickname").isNotEmpty)
                 .andExpect(jsonPath("$.data.followersCnt").isNumber)
                 .andExpect(jsonPath("$.data.coursesCnt").isNumber)
         }
 
         @Test
-        fun `프로필 조회 mockError=4040이면 404`() {
+        fun `내 프로필 조회 mockError=4040이면 404`() {
             mockMvc
-                .perform(get("/api/v1/my/7").param("mockError", "4040"))
+                .perform(get("/api/v1/my").param("mockError", "4040"))
                 .andExpect(status().isNotFound)
                 .andExpect(jsonPath("$.code").value(4040))
                 .andExpect(jsonPath("$.data").doesNotExist())
         }
 
         @Test
-        fun `프로필 수정은 넘어온 필드를 반영한다`() {
+        fun `내 프로필 수정은 넘어온 필드를 반영한다`() {
             mockMvc
                 .perform(
-                    patch("/api/v1/my/profile")
+                    patch("/api/v1/my")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""{"nickname":"새닉네임"}"""),
                 ).andExpect(status().isOk)
@@ -133,10 +57,10 @@ class MyControllerTest
         }
 
         @Test
-        fun `프로필 수정 닉네임을 빈 문자열로 보내면 4002`() {
+        fun `내 프로필 수정 닉네임을 빈 문자열로 보내면 4002`() {
             mockMvc
                 .perform(
-                    patch("/api/v1/my/profile")
+                    patch("/api/v1/my")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""{"nickname":""}"""),
                 ).andExpect(status().isBadRequest)
@@ -151,5 +75,31 @@ class MyControllerTest
                 .andExpect(status().isOk)
                 .andExpect(jsonPath("$.code").value(2000))
                 .andExpect(jsonPath("$.data").doesNotExist())
+        }
+
+        @Test
+        fun `팔로우는 팔로우 상태와 팔로워 수를 내려준다`() {
+            mockMvc
+                .perform(put("/api/v1/my/followings/10"))
+                .andExpect(status().isOk)
+                .andExpect(jsonPath("$.code").value(2000))
+                .andExpect(jsonPath("$.data.isFollowing").value(true))
+                .andExpect(jsonPath("$.data.followersCnt").isNumber)
+        }
+
+        @Test
+        fun `언팔로우는 해제 상태를 내려준다`() {
+            mockMvc
+                .perform(delete("/api/v1/my/followings/10"))
+                .andExpect(status().isOk)
+                .andExpect(jsonPath("$.data.isFollowing").value(false))
+        }
+
+        @Test
+        fun `팔로우 mockError=4040이면 404`() {
+            mockMvc
+                .perform(put("/api/v1/my/followings/10").param("mockError", "4040"))
+                .andExpect(status().isNotFound)
+                .andExpect(jsonPath("$.code").value(4040))
         }
     }
