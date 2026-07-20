@@ -115,7 +115,7 @@ class MyController {
     /** 프로필 수정(모킹). 넘어온 필드만 반영한 결과를 내려준다. */
     @PatchMapping("/profile")
     fun updateProfile(
-        @RequestBody request: UpdateProfileRequest,
+        @Valid @RequestBody request: UpdateProfileRequest,
         @RequestParam(required = false) mockError: Int?,
     ): ApiResponse<MyProfileResponse> {
         MockErrors.throwIfRequested(mockError)

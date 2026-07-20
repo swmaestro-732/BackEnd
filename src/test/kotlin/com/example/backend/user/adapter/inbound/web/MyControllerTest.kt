@@ -133,6 +133,18 @@ class MyControllerTest
         }
 
         @Test
+        fun `프로필 수정 닉네임을 빈 문자열로 보내면 4002`() {
+            mockMvc
+                .perform(
+                    patch("/api/v1/my/profile")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""{"nickname":""}"""),
+                ).andExpect(status().isBadRequest)
+                .andExpect(jsonPath("$.code").value(4002))
+                .andExpect(jsonPath("$.fieldErrors[0].field").value("nickname"))
+        }
+
+        @Test
         fun `회원 탈퇴는 본문 없는 성공을 내려준다`() {
             mockMvc
                 .perform(delete("/api/v1/my"))
