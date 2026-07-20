@@ -8,4 +8,5 @@ data class JwtProperties(
     val secret: String,
     val accessTtl: Duration,
     val refreshTtl: Duration,
+    val registrationTtl: Duration,
 )

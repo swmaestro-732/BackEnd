@@ -2,9 +2,12 @@ package com.example.backend.bootstrap.config
 
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
+import org.springframework.security.authentication.AnonymousAuthenticationToken
+import org.springframework.security.authorization.AuthorizationDecision
 import org.springframework.security.config.annotation.web.builders.HttpSecurity
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity
 import org.springframework.security.config.http.SessionCreationPolicy
+import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationToken
 import org.springframework.security.web.SecurityFilterChain
 
 /**
@@ -27,8 +30,17 @@ class SecurityConfig {
                 it
                     // 첫 매치 우선: 현재 사용자("나") 기준 API 는 JWT 인증 필수.
                     .requestMatchers("/api/v1/my/**")
-                    .authenticated()
-                    .requestMatchers(
+                    .access { authentication, _ ->
+                        val resolved = authentication.get()
+                        AuthorizationDecision(
+                            resolved.isAuthenticated &&
+                                resolved !is AnonymousAuthenticationToken &&
+                                (
+                                    resolved !is JwtAuthenticationToken ||
+                                        resolved.token.getClaimAsString("purpose") == "access"
+                                ),
+                        )
+                    }.requestMatchers(
                         "/actuator/health",
                         "/api/**",
                         // 화면 조합(BFF) 엔드포인트

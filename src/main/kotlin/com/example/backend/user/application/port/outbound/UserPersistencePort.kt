@@ -1,5 +1,6 @@
 package com.example.backend.user.application.port.outbound
 
+import com.example.backend.user.domain.model.SocialProvider
 import com.example.backend.user.domain.model.User
 
 /**
@@ -11,4 +12,12 @@ interface UserPersistencePort {
 
     /** 저장 후 식별자가 부여된 User 를 반환한다. */
     fun save(user: User): User
+
+    fun findBySocial(
+        provider: SocialProvider,
+        socialId: String,
+    ): User?
+
+    /** 소셜 계정 정보와 함께 저장 후 식별자가 부여된 User 를 반환한다. */
+    fun saveWithSocial(user: User): User
 }

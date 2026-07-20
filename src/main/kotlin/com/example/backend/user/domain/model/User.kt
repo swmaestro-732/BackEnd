@@ -11,21 +11,62 @@ package com.example.backend.user.domain.model
 data class User private constructor(
     val id: Long?,
     val nickname: String,
+    val profileImageUrl: String?,
+    val socialProvider: SocialProvider?,
+    val socialId: String?,
 ) {
     companion object {
         const val MAX_NICKNAME_LENGTH = 20
 
         /** 신규 생성 — 도메인 불변식을 검증한다. */
-        fun create(nickname: String): User {
+        fun create(
+            nickname: String,
+            profileImageUrl: String? = null,
+        ): User {
             require(nickname.isNotBlank()) { "닉네임은 비어 있을 수 없습니다." }
             require(nickname.length <= MAX_NICKNAME_LENGTH) { "닉네임은 최대 ${MAX_NICKNAME_LENGTH}자입니다." }
-            return User(id = null, nickname = nickname)
+            return User(
+                id = null,
+                nickname = nickname,
+                profileImageUrl = profileImageUrl,
+                socialProvider = null,
+                socialId = null,
+            )
+        }
+
+        /** 소셜 회원 신규 생성. 소셜 제공자와 식별자는 항상 함께 존재한다. */
+        fun createWithSocial(
+            nickname: String,
+            profileImageUrl: String?,
+            socialProvider: SocialProvider,
+            socialId: String,
+        ): User {
+            require(nickname.isNotBlank()) { "닉네임은 비어 있을 수 없습니다." }
+            require(nickname.length <= MAX_NICKNAME_LENGTH) { "닉네임은 최대 ${MAX_NICKNAME_LENGTH}자입니다." }
+            require(socialId.isNotBlank()) { "소셜 식별자는 비어 있을 수 없습니다." }
+            return User(
+                id = null,
+                nickname = nickname,
+                profileImageUrl = profileImageUrl,
+                socialProvider = socialProvider,
+                socialId = socialId,
+            )
         }
 
         /** 영속 저장소에서 복원(이미 검증된 데이터). */
         fun reconstitute(
             id: Long,
             nickname: String,
-        ): User = User(id = id, nickname = nickname)
+            profileImageUrl: String? = null,
+            socialProvider: SocialProvider? = null,
+            socialId: String? = null,
+        ): User =
+            User(
+                id = id,
+                nickname = nickname,
+                profileImageUrl = profileImageUrl,
+                socialProvider = socialProvider,
+                socialId = socialId,
+            )
     }
 }

@@ -11,7 +11,7 @@ import org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post
 import org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath
 import org.springframework.test.web.servlet.result.MockMvcResultMatchers.status
 
-/** 인증/세션 모킹 API(`/api/v1/auth` 하위) 검증. 목 데이터라 DB 픽스처가 필요 없다. */
+/** 인증/세션 mock 폴백(`/api/v1/auth` 하위) 검증. 목 데이터라 DB 픽스처가 필요 없다. */
 @AutoConfigureMockMvc
 class AuthControllerTest
     @Autowired
@@ -22,7 +22,7 @@ class AuthControllerTest
         fun `소셜 로그인은 토큰과 신규 여부를 내려준다`() {
             mockMvc
                 .perform(
-                    post("/api/v1/auth/social-login")
+                    post("/api/v1/auth/social-login?mock=true")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""{"provider":"KAKAO","idToken":"kakao-token"}"""),
                 ).andExpect(status().isOk)
@@ -35,9 +35,11 @@ class AuthControllerTest
         fun `회원가입은 토큰과 생성된 유저를 내려준다`() {
             mockMvc
                 .perform(
-                    post("/api/v1/auth/signup")
+                    post("/api/v1/auth/signup?mock=true")
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content("""{"nickname":"지호","handle":"@jiho","profileImageUrl":null}"""),
+                        .content(
+                            """{"registrationToken":"mock-registration-token","nickname":"지호","handle":"@jiho","profileImageUrl":null}""",
+                        ),
                 ).andExpect(status().isOk)
                 .andExpect(jsonPath("$.code").value(2000))
                 .andExpect(jsonPath("$.data.accessToken").isNotEmpty)
@@ -48,9 +50,9 @@ class AuthControllerTest
         fun `회원가입 닉네임이 공백이면 4002와 fieldErrors`() {
             mockMvc
                 .perform(
-                    post("/api/v1/auth/signup")
+                    post("/api/v1/auth/signup?mock=true")
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content("""{"nickname":"","handle":"@x"}"""),
+                        .content("""{"registrationToken":"mock-registration-token","nickname":"","handle":"@x"}"""),
                 ).andExpect(status().isBadRequest)
                 .andExpect(jsonPath("$.code").value(4002))
                 .andExpect(jsonPath("$.fieldErrors[0].field").value("nickname"))

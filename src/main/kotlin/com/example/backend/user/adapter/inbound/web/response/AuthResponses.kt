@@ -1,13 +1,31 @@
 package com.example.backend.user.adapter.inbound.web.response
 
-/** 모킹 응답 DTO — 소셜 로그인. isNewUser=true면 클라이언트는 회원가입(프로필 설정)으로 분기한다. */
-data class SocialLoginResponse(
-    val accessToken: String,
-    val refreshToken: String,
-    val isNewUser: Boolean,
-)
+import com.example.backend.user.application.port.inbound.dto.LoginResult
+import com.example.backend.user.application.port.inbound.dto.SignupResult
+import com.fasterxml.jackson.annotation.JsonInclude
 
-/** 모킹 응답 DTO — 회원가입 완료(토큰 + 생성된 유저 요약). */
+/** 소셜 로그인 응답. isNewUser=true면 registrationToken 으로 회원가입을 진행한다. */
+data class SocialLoginResponse(
+    @get:JsonInclude(JsonInclude.Include.NON_NULL)
+    val accessToken: String? = null,
+    @get:JsonInclude(JsonInclude.Include.NON_NULL)
+    val refreshToken: String? = null,
+    val isNewUser: Boolean,
+    @get:JsonInclude(JsonInclude.Include.NON_NULL)
+    val registrationToken: String? = null,
+) {
+    companion object {
+        fun from(result: LoginResult): SocialLoginResponse =
+            SocialLoginResponse(
+                accessToken = result.accessToken,
+                refreshToken = result.refreshToken,
+                isNewUser = result.isNewUser,
+                registrationToken = result.registrationToken,
+            )
+    }
+}
+
+/** 회원가입 완료 응답(토큰 + 생성된 유저 요약). */
 data class SignupResponse(
     val accessToken: String,
     val refreshToken: String,
@@ -19,6 +37,21 @@ data class SignupResponse(
         val handle: String,
         val profileImageUrl: String?,
     )
+
+    companion object {
+        fun from(result: SignupResult): SignupResponse =
+            SignupResponse(
+                accessToken = result.accessToken,
+                refreshToken = result.refreshToken,
+                user =
+                    SignupUser(
+                        id = result.user.id,
+                        nickname = result.user.nickname,
+                        handle = result.user.handle,
+                        profileImageUrl = result.user.profileImageUrl,
+                    ),
+            )
+    }
 }
 
 /** 모킹 응답 DTO — accessToken 재발급. */

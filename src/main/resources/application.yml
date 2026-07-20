@@ -26,6 +26,7 @@ jwt:
   secret: ${JWT_SECRET:dev-insecure-secret-change-me-please-32bytes-minimum-000}
   access-ttl: PT30M
   refresh-ttl: P14D
+  registration-ttl: PT10M
 
 oauth:
   kakao:
