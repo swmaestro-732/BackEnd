@@ -19,8 +19,9 @@ import org.springframework.web.bind.annotation.RestController
 /**
  * 인바운드 어댑터 — 현재 로그인 사용자("나") 기준 리소스 (노션 명세 · User). **모킹 API**.
  *
- * `/api/v1/my` 는 "나"를 나타내는 단일 리소스다: `GET`(내 프로필)·`PATCH`(수정)·`DELETE`(탈퇴).
- * 팔로우는 "내 팔로잉" 컬렉션(`/my/followings/{userId}`)으로 표현한다(다른 사용자 리소스 자체는 `/users`).
+ * `/api/v1/my` 는 "나" 기준 리소스다: 프로필은 `GET`·`PATCH /my/profile`,
+ * 회원 탈퇴는 `DELETE /my`(계정 자체 삭제). 팔로우는 "내 팔로잉" 컬렉션(`/my/followings/{userId}`).
+ * 다른 사용자 리소스 자체는 `/users`.
  * 컨트롤러에서 목 데이터를 직접 반환한다. 실제 구현 시 인바운드 포트(UseCase) 연동으로 교체하고
  * [MockErrors] 호출을 제거한다. `mockError` 파라미터로 모킹 에러를 주입할 수 있다(예: `?mockError=4040`).
  */
@@ -28,7 +29,7 @@ import org.springframework.web.bind.annotation.RestController
 @RequestMapping("/api/v1/my")
 class MyController {
     /** 내 프로필 조회(모킹). */
-    @GetMapping
+    @GetMapping("/profile")
     fun getMyProfile(
         @RequestParam(required = false) mockError: Int?,
     ): ApiResponse<MyProfileResponse> {
@@ -37,7 +38,7 @@ class MyController {
     }
 
     /** 내 프로필 수정(모킹). 넘어온 필드만 반영한 결과를 내려준다. */
-    @PatchMapping
+    @PatchMapping("/profile")
     fun updateMyProfile(
         @Valid @RequestBody request: UpdateProfileRequest,
         @RequestParam(required = false) mockError: Int?,

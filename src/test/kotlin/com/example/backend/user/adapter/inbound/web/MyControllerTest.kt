@@ -26,7 +26,7 @@ class MyControllerTest
         @Test
         fun `내 프로필 조회는 카운트 포함 프로필을 내려준다`() {
             mockMvc
-                .perform(get("/api/v1/my"))
+                .perform(get("/api/v1/my/profile"))
                 .andExpect(status().isOk)
                 .andExpect(jsonPath("$.code").value(2000))
                 .andExpect(jsonPath("$.data.id").isNumber)
@@ -38,7 +38,7 @@ class MyControllerTest
         @Test
         fun `내 프로필 조회 mockError=4040이면 404`() {
             mockMvc
-                .perform(get("/api/v1/my").param("mockError", "4040"))
+                .perform(get("/api/v1/my/profile").param("mockError", "4040"))
                 .andExpect(status().isNotFound)
                 .andExpect(jsonPath("$.code").value(4040))
                 .andExpect(jsonPath("$.data").doesNotExist())
@@ -48,7 +48,7 @@ class MyControllerTest
         fun `내 프로필 수정은 넘어온 필드를 반영한다`() {
             mockMvc
                 .perform(
-                    patch("/api/v1/my")
+                    patch("/api/v1/my/profile")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""{"nickname":"새닉네임"}"""),
                 ).andExpect(status().isOk)
@@ -60,7 +60,7 @@ class MyControllerTest
         fun `내 프로필 수정 닉네임을 빈 문자열로 보내면 4002`() {
             mockMvc
                 .perform(
-                    patch("/api/v1/my")
+                    patch("/api/v1/my/profile")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""{"nickname":""}"""),
                 ).andExpect(status().isBadRequest)
