@@ -112,6 +112,7 @@ class AuthController(
     ): ApiResponse<TokenResponse> {
         MockErrors.throwIfRequested(mockError)
         if (mock) {
+            ensureMockAvailable()
             return ApiResponse.success(
                 TokenResponse(
                     accessToken = authUseCase.issueDevAccessToken(),

@@ -32,6 +32,28 @@ class AuthControllerTest
         }
 
         @Test
+        fun `요청 본문의 enum 값이 잘못되면 4001`() {
+            mockMvc
+                .perform(
+                    post("/api/v1/auth/social-login?mock=true")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""{"provider":"NAVER","idToken":"x"}"""),
+                ).andExpect(status().isBadRequest)
+                .andExpect(jsonPath("$.code").value(4001))
+        }
+
+        @Test
+        fun `요청 본문이 깨진 JSON이면 4001`() {
+            mockMvc
+                .perform(
+                    post("/api/v1/auth/social-login?mock=true")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""{"provider":"KAKAO", }"""),
+                ).andExpect(status().isBadRequest)
+                .andExpect(jsonPath("$.code").value(4001))
+        }
+
+        @Test
         fun `회원가입은 토큰과 생성된 유저를 내려준다`() {
             mockMvc
                 .perform(

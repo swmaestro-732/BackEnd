@@ -71,6 +71,8 @@ tasks.withType<Test> {
 // 메인 test: 아키텍처(ArchUnit) 테스트는 제외 — 전용 archTest 에서만 실행(이중 실행 방지).
 tasks.test {
     filter { excludeTestsMatching("com.example.backend.architecture.*") }
+    // JWT 시크릿은 코드 기본값 없이 env 주입 — 테스트는 전용 더미(운영용 아님).
+    environment("JWT_SECRET", "test-only-jwt-secret-not-for-production-0123456789")
     finalizedBy(tasks.jacocoTestReport) // 테스트 후 커버리지 리포트 생성
 }
 

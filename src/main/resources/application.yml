@@ -23,7 +23,8 @@ management:
       show-details: never
 
 jwt:
-  secret: ${JWT_SECRET:dev-insecure-secret-change-me-please-32bytes-minimum-000}
+  # 서명 시크릿은 반드시 env(JWT_SECRET, 32바이트+)로 주입한다. 코드에 사용 가능한 기본값을 두지 않는다(fail-fast).
+  secret: ${JWT_SECRET:}
   access-ttl: PT30M
   refresh-ttl: P14D
   registration-ttl: PT10M
