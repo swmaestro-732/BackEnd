@@ -17,3 +17,9 @@ ALTER TABLE course_places
 -- 카테고리 미선택 임시저장(draft) 코스가 있어 nullable(기존 행 백필 없음).
 ALTER TABLE courses
     ADD COLUMN category VARCHAR(50);
+
+-- course_places.walking_time: 다음 장소까지 도보 소요 시간 표시 텍스트(예: "도보 11분").
+-- 근거: 코스 동선 화면의 장소 간 이동 시간 표시 — 서버가 계산해 표시용 문자열로 저장.
+-- 코스 마지막 장소는 다음 이동이 없으므로 nullable.
+ALTER TABLE course_places
+    ADD COLUMN walking_time VARCHAR(50);
