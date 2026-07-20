@@ -3,8 +3,8 @@ package com.example.backend.course.application.service
 import com.example.backend.common.exception.BusinessException
 import com.example.backend.common.response.ErrorCode
 import com.example.backend.course.application.port.inbound.CourseReviewUseCase
+import com.example.backend.course.application.port.inbound.dto.CourseReviewCommand
 import com.example.backend.course.application.port.inbound.dto.CourseReviewPageResult
-import com.example.backend.course.application.port.inbound.dto.CourseReviewQuery
 import com.example.backend.course.application.port.inbound.dto.CourseReviewResult
 import com.example.backend.course.application.port.inbound.dto.CourseReviewSort
 import com.example.backend.course.application.port.inbound.dto.CourseReviewTagResult
@@ -29,19 +29,19 @@ import kotlin.math.round
 class CourseReviewService : CourseReviewUseCase {
     override fun getReviews(
         courseId: Long,
-        query: CourseReviewQuery,
+        command: CourseReviewCommand,
     ): CourseReviewPageResult {
         val all =
             MOCK_REVIEWS[courseId]
                 ?: throw BusinessException(ErrorCode.COURSE_NOT_FOUND, "코스를 찾을 수 없습니다: id=$courseId")
-        val sorted = all.sortedWith(comparator(query.sort, query.order))
+        val sorted = all.sortedWith(comparator(command.sort, command.order))
 
-        val startIndex = startIndexAfter(query.cursor, sorted)
+        val startIndex = startIndexAfter(command.cursor, sorted)
         val pageItems =
             if (startIndex >= sorted.size) {
                 emptyList()
             } else {
-                sorted.subList(startIndex, minOf(startIndex + query.size, sorted.size))
+                sorted.subList(startIndex, minOf(startIndex + command.size, sorted.size))
             }
 
         val hasNext = startIndex + pageItems.size < sorted.size

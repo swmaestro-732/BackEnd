@@ -1,7 +1,7 @@
 package com.example.backend.course.application.port.inbound
 
+import com.example.backend.course.application.port.inbound.dto.CourseReviewCommand
 import com.example.backend.course.application.port.inbound.dto.CourseReviewPageResult
-import com.example.backend.course.application.port.inbound.dto.CourseReviewQuery
 
 /**
  * 인바운드 포트 — 코스 리뷰 목록 조회(정렬·페이지네이션).
@@ -10,6 +10,6 @@ import com.example.backend.course.application.port.inbound.dto.CourseReviewQuery
 interface CourseReviewUseCase {
     fun getReviews(
         courseId: Long,
-        query: CourseReviewQuery,
+        command: CourseReviewCommand,
     ): CourseReviewPageResult
 }

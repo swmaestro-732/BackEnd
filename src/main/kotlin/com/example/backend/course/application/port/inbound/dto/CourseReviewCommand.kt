@@ -20,7 +20,7 @@ enum class SortDirection {
  * cursor 는 직전 응답의 nextCursor 를 그대로 넘기는 불투명 토큰이다(첫 페이지는 null).
  * 잘못된 값은 [IllegalArgumentException] 으로 막아 400 으로 응답한다.
  */
-data class CourseReviewQuery(
+data class CourseReviewCommand(
     val sort: CourseReviewSort = CourseReviewSort.LATEST,
     val order: SortDirection = SortDirection.DESC,
     val cursor: String? = null,
