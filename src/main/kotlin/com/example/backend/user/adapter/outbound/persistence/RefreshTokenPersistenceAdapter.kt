@@ -51,9 +51,10 @@ class RefreshTokenPersistenceAdapter(
                 )
             }
 
-    override fun revoke(token: String) {
-        RefreshTokenTable.update({ RefreshTokenTable.token eq token }) {
+    override fun revoke(token: String): Boolean =
+        RefreshTokenTable.update({
+            (RefreshTokenTable.token eq token) and (RefreshTokenTable.revoked eq false)
+        }) {
             it[RefreshTokenTable.revoked] = true
-        }
-    }
+        } > 0
 }

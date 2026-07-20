@@ -19,5 +19,6 @@ interface RefreshTokenPort {
     /** 존재하고 폐기되지 않았으며 만료되지 않은 토큰만 반환한다. */
     fun findValid(token: String): RefreshTokenRecord?
 
-    fun revoke(token: String)
+    /** 실제로 폐기된 행이 있으면 true, 이미 폐기됐거나 없으면 false. */
+    fun revoke(token: String): Boolean
 }

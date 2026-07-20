@@ -133,6 +133,7 @@ class AuthController(
     ): ApiResponse<Nothing?> {
         MockErrors.throwIfRequested(mockError)
         if (mock) {
+            ensureMockAvailable()
             return ApiResponse.ok()
         }
         val refreshToken = request?.refreshToken ?: throw BusinessException(ErrorCode.INVALID_INPUT)

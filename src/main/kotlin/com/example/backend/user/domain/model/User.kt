@@ -60,13 +60,17 @@ data class User private constructor(
             profileImageUrl: String? = null,
             socialProvider: SocialProvider? = null,
             socialId: String? = null,
-        ): User =
-            User(
+        ): User {
+            require((socialProvider == null) == (socialId == null)) {
+                "소셜 provider 와 socialId 는 함께 있거나 함께 없어야 합니다."
+            }
+            return User(
                 id = id,
                 nickname = nickname,
                 profileImageUrl = profileImageUrl,
                 socialProvider = socialProvider,
                 socialId = socialId,
             )
+        }
     }
 }

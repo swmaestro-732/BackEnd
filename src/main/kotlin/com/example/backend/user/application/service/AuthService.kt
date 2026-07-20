@@ -84,7 +84,9 @@ class AuthService(
             refreshTokenPort.findValid(refreshToken)
                 ?: throw BusinessException(ErrorCode.INVALID_REFRESH_TOKEN)
 
-        refreshTokenPort.revoke(refreshToken)
+        if (!refreshTokenPort.revoke(refreshToken)) {
+            throw BusinessException(ErrorCode.INVALID_REFRESH_TOKEN)
+        }
         return TokenPair(
             accessToken = authTokenPort.issueAccessToken(current.userId),
             refreshToken = refreshTokenPort.issue(current.userId),

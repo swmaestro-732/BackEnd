@@ -49,14 +49,10 @@ class JwtConfig(
 
         val issuerValidator = JwtValidators.createDefaultWithIssuer(kakaoOauthProperties.issuer)
         val validator =
-            if (kakaoOauthProperties.clientId.isBlank()) {
-                issuerValidator
-            } else {
-                DelegatingOAuth2TokenValidator(
-                    issuerValidator,
-                    audienceValidator(kakaoOauthProperties.clientId),
-                )
-            }
+            DelegatingOAuth2TokenValidator(
+                issuerValidator,
+                audienceValidator(kakaoOauthProperties.clientId),
+            )
         decoder.setJwtValidator(validator)
         return decoder
     }
