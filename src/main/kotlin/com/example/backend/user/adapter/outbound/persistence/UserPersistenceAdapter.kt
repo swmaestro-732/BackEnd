@@ -80,6 +80,13 @@ class UserPersistenceAdapter(
         }
     }
 
+    override fun existsByNickname(nickname: String): Boolean =
+        UserTable
+            .selectAll()
+            .where { (UserTable.nickname eq nickname) and UserTable.deletedAt.isNull() }
+            .empty()
+            .not()
+
     override fun existsByHandle(handle: String): Boolean =
         UserTable
             .selectAll()

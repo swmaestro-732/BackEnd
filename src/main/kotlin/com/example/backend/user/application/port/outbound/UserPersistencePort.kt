@@ -32,6 +32,8 @@ interface UserPersistencePort {
 
     fun softDelete(userId: Long)
 
+    fun existsByNickname(nickname: String): Boolean
+
     fun existsByHandle(handle: String): Boolean
 
     fun findBySocial(

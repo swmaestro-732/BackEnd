@@ -6,6 +6,7 @@ import com.example.backend.user.application.port.inbound.UserUseCase
 import com.example.backend.user.application.port.inbound.dto.CreateUserCommand
 import com.example.backend.user.application.port.inbound.dto.UserProfileResult
 import com.example.backend.user.application.port.inbound.dto.UserResult
+import com.example.backend.user.application.port.outbound.FollowPersistencePort
 import com.example.backend.user.application.port.outbound.UserPersistencePort
 import com.example.backend.user.domain.model.User
 import org.springframework.stereotype.Service
@@ -20,6 +21,7 @@ import org.springframework.transaction.annotation.Transactional
 @Transactional(readOnly = true)
 class UserService(
     private val userPersistencePort: UserPersistencePort,
+    private val followPersistencePort: FollowPersistencePort,
 ) : UserUseCase {
     override fun list(): List<UserResult> = userPersistencePort.findAll().map(UserResult::from)
 
@@ -29,28 +31,23 @@ class UserService(
         return UserResult.from(saved)
     }
 
-    /**
-     * MOCK(SCRUM-223): 프로필(handle·profileImageUrl)은 아직 도메인/스키마에 없어 고정 데이터를 반환한다.
-     * 실제 구현 시 User 도메인·스키마 확장 후 아웃바운드 포트로 조회하도록 교체한다.
-     */
-    override fun getProfile(userId: Long): UserProfileResult =
-        MOCK_PROFILES[userId]
-            ?: throw BusinessException(ErrorCode.USER_NOT_FOUND, "사용자를 찾을 수 없습니다: id=$userId")
-
-    private companion object {
-        /** id=1 만 성공 데이터, 나머지는 404 */
-        val MOCK_PROFILES: Map<Long, UserProfileResult> =
-            mapOf(
-                1L to
-                    UserProfileResult(
-                        id = 1L,
-                        nickname = "지호님",
-                        handle = "jiho_routes",
-                        profileImageUrl =
-                            "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQi7ZSFKA2brmDYt72J8vLDQxgOJKxs-lj4tavhXo_pEA&s=10",
-                        isFollowing = false,
-                        isFollower = true,
-                    ),
-            )
+    override fun getProfile(
+        userId: Long,
+        viewerId: Long?,
+    ): UserProfileResult {
+        val row =
+            userPersistencePort.findProfile(userId)
+                ?: throw BusinessException(ErrorCode.USER_NOT_FOUND, "사용자를 찾을 수 없습니다: id=$userId")
+        return UserProfileResult(
+            id = row.id,
+            nickname = row.nickname,
+            handle = row.handle,
+            profileImageUrl = row.profileImageUrl,
+            isFollowing = viewerId?.let { followPersistencePort.isFollowing(it, userId) } ?: false,
+            isFollower = viewerId?.let { followPersistencePort.isFollowing(userId, it) } ?: false,
+            followersCnt = row.followersCnt,
+            followingsCnt = row.followingsCnt,
+            coursesCnt = row.coursesCnt,
+        )
     }
 }
