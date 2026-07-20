@@ -21,3 +21,14 @@ management:
   endpoint:
     health:
       show-details: never
+
+jwt:
+  secret: ${JWT_SECRET:dev-insecure-secret-change-me-please-32bytes-minimum-000}
+  access-ttl: PT30M
+  refresh-ttl: P14D
+
+oauth:
+  kakao:
+    client-id: ${KAKAO_CLIENT_ID:}
+    jwks-uri: https://kauth.kakao.com/.well-known/jwks.json
+    issuer: https://kauth.kakao.com
