@@ -36,8 +36,14 @@ data class SignupRequest(
     val likeTagIds: List<Long>? = null,
 )
 
-/** 모킹 요청 DTO — accessToken 재발급. */
+/** accessToken·refreshToken 재발급 요청 DTO. */
 data class TokenReissueRequest(
+    @field:NotBlank
+    val refreshToken: String,
+)
+
+/** 로그아웃 요청 DTO. */
+data class LogoutRequest(
     @field:NotBlank
     val refreshToken: String,
 )

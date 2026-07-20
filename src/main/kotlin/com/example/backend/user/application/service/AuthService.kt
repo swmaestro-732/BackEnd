@@ -8,6 +8,7 @@ import com.example.backend.user.application.port.inbound.dto.SignupCommand
 import com.example.backend.user.application.port.inbound.dto.SignupResult
 import com.example.backend.user.application.port.inbound.dto.SignupUserResult
 import com.example.backend.user.application.port.inbound.dto.SocialLoginCommand
+import com.example.backend.user.application.port.inbound.dto.TokenPair
 import com.example.backend.user.application.port.outbound.AuthTokenPort
 import com.example.backend.user.application.port.outbound.RefreshTokenPort
 import com.example.backend.user.application.port.outbound.SocialVerificationPort
@@ -76,6 +77,24 @@ class AuthService(
                     profileImageUrl = saved.profileImageUrl,
                 ),
         )
+    }
+
+    @Transactional
+    override fun reissue(refreshToken: String): TokenPair {
+        val current =
+            refreshTokenPort.findValid(refreshToken)
+                ?: throw BusinessException(ErrorCode.INVALID_REFRESH_TOKEN)
+
+        refreshTokenPort.revoke(refreshToken)
+        return TokenPair(
+            accessToken = authTokenPort.issueAccessToken(current.userId),
+            refreshToken = refreshTokenPort.issue(current.userId),
+        )
+    }
+
+    @Transactional
+    override fun logout(refreshToken: String) {
+        refreshTokenPort.revoke(refreshToken)
     }
 
     override fun issueDevAccessToken(): String = authTokenPort.issueAccessToken(DEV_USER_ID)

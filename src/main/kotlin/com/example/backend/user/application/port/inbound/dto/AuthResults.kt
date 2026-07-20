@@ -7,6 +7,11 @@ data class LoginResult(
     val registrationToken: String? = null,
 )
 
+data class TokenPair(
+    val accessToken: String,
+    val refreshToken: String,
+)
+
 data class SignupResult(
     val accessToken: String,
     val refreshToken: String,

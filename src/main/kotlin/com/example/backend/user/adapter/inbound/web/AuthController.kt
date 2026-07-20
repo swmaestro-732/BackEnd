@@ -5,6 +5,7 @@ import com.example.backend.common.exception.BusinessException
 import com.example.backend.common.mock.MockErrors
 import com.example.backend.common.response.ApiResponse
 import com.example.backend.common.response.ErrorCode
+import com.example.backend.user.adapter.inbound.web.request.LogoutRequest
 import com.example.backend.user.adapter.inbound.web.request.SignupRequest
 import com.example.backend.user.adapter.inbound.web.request.SocialLoginRequest
 import com.example.backend.user.adapter.inbound.web.request.TokenReissueRequest
@@ -102,24 +103,39 @@ class AuthController(
         return ApiResponse.success(SignupResponse.from(result))
     }
 
-    /** accessToken 재발급(모킹). */
+    /** refresh token 회전으로 accessToken·refreshToken 재발급. */
     @PostMapping("/token-reissue")
     fun reissueToken(
         @Valid @RequestBody request: TokenReissueRequest,
+        @RequestParam(defaultValue = "false") mock: Boolean,
         @RequestParam(required = false) mockError: Int?,
     ): ApiResponse<TokenResponse> {
         MockErrors.throwIfRequested(mockError)
-        return ApiResponse.success(
-            TokenResponse(accessToken = MOCK_ACCESS_TOKEN, refreshToken = MOCK_REFRESH_TOKEN),
-        )
+        if (mock) {
+            return ApiResponse.success(
+                TokenResponse(
+                    accessToken = authUseCase.issueDevAccessToken(),
+                    refreshToken = MOCK_REFRESH_TOKEN,
+                ),
+            )
+        }
+        val result = authUseCase.reissue(request.refreshToken)
+        return ApiResponse.success(TokenResponse(result.accessToken, result.refreshToken))
     }
 
-    /** 로그아웃(모킹). 본문 없는 성공. */
+    /** refresh token 폐기. 이미 없는 토큰도 성공하는 멱등 요청. */
     @PostMapping("/logout")
     fun logout(
+        @Valid @RequestBody(required = false) request: LogoutRequest?,
+        @RequestParam(defaultValue = "false") mock: Boolean,
         @RequestParam(required = false) mockError: Int?,
     ): ApiResponse<Nothing?> {
         MockErrors.throwIfRequested(mockError)
+        if (mock) {
+            return ApiResponse.ok()
+        }
+        val refreshToken = request?.refreshToken ?: throw BusinessException(ErrorCode.INVALID_INPUT)
+        authUseCase.logout(refreshToken)
         return ApiResponse.ok()
     }
 
@@ -140,7 +156,6 @@ class AuthController(
     }
 
     private companion object {
-        const val MOCK_ACCESS_TOKEN = "mock-access-token"
         const val MOCK_REFRESH_TOKEN = "mock-refresh-token"
         const val DEV_USER_ID = 1L
 

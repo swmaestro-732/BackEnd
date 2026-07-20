@@ -3,7 +3,9 @@ package com.example.backend.user.adapter.outbound.persistence
 import com.example.backend.bootstrap.security.JwtProperties
 import com.example.backend.user.application.port.outbound.RefreshTokenPort
 import com.example.backend.user.application.port.outbound.RefreshTokenRecord
+import org.jetbrains.exposed.v1.core.and
 import org.jetbrains.exposed.v1.core.eq
+import org.jetbrains.exposed.v1.core.greater
 import org.jetbrains.exposed.v1.jdbc.insert
 import org.jetbrains.exposed.v1.jdbc.selectAll
 import org.jetbrains.exposed.v1.jdbc.update
@@ -30,11 +32,14 @@ class RefreshTokenPersistenceAdapter(
         return token
     }
 
-    override fun find(token: String): RefreshTokenRecord? =
+    override fun findValid(token: String): RefreshTokenRecord? =
         RefreshTokenTable
             .selectAll()
-            .where { RefreshTokenTable.token eq token }
-            .singleOrNull()
+            .where {
+                (RefreshTokenTable.token eq token) and
+                    (RefreshTokenTable.revoked eq false) and
+                    (RefreshTokenTable.expiresAt greater clock.instant().toKotlinInstant())
+            }.singleOrNull()
             ?.let {
                 RefreshTokenRecord(
                     id = it[RefreshTokenTable.id],
@@ -45,11 +50,6 @@ class RefreshTokenPersistenceAdapter(
                     createdAt = it[RefreshTokenTable.createdAt].toJavaInstant(),
                 )
             }
-
-    override fun validate(token: String): Boolean {
-        val refreshToken = find(token) ?: return false
-        return !refreshToken.revoked && refreshToken.expiresAt.isAfter(clock.instant())
-    }
 
     override fun revoke(token: String) {
         RefreshTokenTable.update({ RefreshTokenTable.token eq token }) {

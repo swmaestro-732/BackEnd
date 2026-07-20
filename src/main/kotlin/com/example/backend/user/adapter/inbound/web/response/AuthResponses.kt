@@ -54,7 +54,7 @@ data class SignupResponse(
     }
 }
 
-/** 모킹 응답 DTO — accessToken 재발급. */
+/** accessToken·refreshToken 재발급 응답 DTO. */
 data class TokenResponse(
     val accessToken: String,
     val refreshToken: String,

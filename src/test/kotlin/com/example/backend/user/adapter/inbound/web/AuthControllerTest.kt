@@ -62,7 +62,7 @@ class AuthControllerTest
         fun `토큰 재발급은 새 토큰을 내려준다`() {
             mockMvc
                 .perform(
-                    post("/api/v1/auth/token-reissue")
+                    post("/api/v1/auth/token-reissue?mock=true")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""{"refreshToken":"mock-refresh-token"}"""),
                 ).andExpect(status().isOk)
@@ -72,7 +72,7 @@ class AuthControllerTest
         @Test
         fun `로그아웃은 본문 없는 성공을 내려준다`() {
             mockMvc
-                .perform(post("/api/v1/auth/logout"))
+                .perform(post("/api/v1/auth/logout?mock=true"))
                 .andExpect(status().isOk)
                 .andExpect(jsonPath("$.code").value(2000))
                 .andExpect(jsonPath("$.data").doesNotExist())
