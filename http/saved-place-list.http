@@ -1,0 +1,14 @@
+### 저장 장소 조회 — 고정 목 응답(최신 저장순 전체, nextCursor=null/hasNext=false)
+GET http://localhost:8080/api/v1/my/saved-places
+
+### 파라미터 포함 호출 — 계약 확인용으로 받기만 하고 무시(동일한 고정 응답)
+GET http://localhost:8080/api/v1/my/saved-places?visited=true&category=CAFE&size=2&cursor=Mg
+
+### 검증 실패 — size 범위 초과 (400 / 4002 VALIDATION_FAILED)
+GET http://localhost:8080/api/v1/my/saved-places?size=100
+
+### 검증 실패 — 없는 카테고리 enum (400 / 4001 INVALID_INPUT)
+GET http://localhost:8080/api/v1/my/saved-places?category=데이트
+
+### 모킹 에러 주입 — 404 / 4040 NOT_FOUND
+GET http://localhost:8080/api/v1/my/saved-places?mockError=4040
