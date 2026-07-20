@@ -29,17 +29,16 @@ class AuthService(
     @Transactional
     override fun socialLogin(command: SocialLoginCommand): LoginResult {
         val identity = socialVerificationPort.verify(command.provider, command.idToken)
-        val user = userPersistencePort.findBySocial(identity.provider, identity.socialId)
-        if (user == null) {
-            return LoginResult(
-                isNewUser = true,
-                registrationToken =
-                    authTokenPort.issueRegistrationToken(
-                        provider = identity.provider,
-                        socialId = identity.socialId,
-                    ),
-            )
-        }
+        val user =
+            userPersistencePort.findBySocial(identity.provider, identity.socialId)
+                ?: return LoginResult(
+                    isNewUser = true,
+                    registrationToken =
+                        authTokenPort.issueRegistrationToken(
+                            provider = identity.provider,
+                            socialId = identity.socialId,
+                        ),
+                )
 
         val userId = checkNotNull(user.id) { "영속화된 User 는 id 를 가진다." }
         return LoginResult(
@@ -52,7 +51,7 @@ class AuthService(
     @Transactional
     override fun signup(command: SignupCommand): SignupResult {
         val identity = authTokenPort.parseRegistrationToken(command.registrationToken)
-        if (userPersistencePort.findBySocial(identity.provider, identity.socialId) != null) {
+        userPersistencePort.findBySocial(identity.provider, identity.socialId)?.let {
             throw BusinessException(ErrorCode.SOCIAL_ACCOUNT_ALREADY_REGISTERED)
         }
 
