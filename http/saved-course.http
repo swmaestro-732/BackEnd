@@ -1,0 +1,42 @@
+### 코스 저장 (정상) — 바디는 저장할 폴더 id
+POST http://localhost:8080/api/v1/my/saved-courses/1
+Content-Type: application/json
+
+{
+  "folderId": 1
+}
+
+### 검증 실패 — 400 / 4002 VALIDATION_FAILED + fieldErrors (folderId 누락)
+POST http://localhost:8080/api/v1/my/saved-courses/1
+Content-Type: application/json
+
+{}
+
+### 모킹 에러 주입 — 404 / 4041 COURSE_NOT_FOUND
+POST http://localhost:8080/api/v1/my/saved-courses/999?mockError=4041
+Content-Type: application/json
+
+{
+  "folderId": 1
+}
+
+### 저장 코스 조회 (정상) — 저장 레코드(ID 위주) 반환
+GET http://localhost:8080/api/v1/my/saved-courses
+
+### 저장 코스 조회 — 필터·페이지네이션(계약 확인용, 응답은 고정)
+GET http://localhost:8080/api/v1/my/saved-courses?folderId=1&size=10
+
+### 검증 실패 — 400 / 4002 (size 범위 초과)
+GET http://localhost:8080/api/v1/my/saved-courses?size=100
+
+### 모킹 에러 주입 — 404 / 4040 NOT_FOUND
+GET http://localhost:8080/api/v1/my/saved-courses?mockError=4040
+
+### 저장함 · 코스 탭 화면 조합 (BFF, 정상)
+GET http://localhost:8080/service/v1/my/saved-courses
+
+### 저장함 · 코스 탭 화면 조합 — 폴더·완주 필터(계약 확인용, 응답은 고정)
+GET http://localhost:8080/service/v1/my/saved-courses?folderId=1&completed=false&size=10
+
+### 모킹 에러 주입 — 404 / 4040 NOT_FOUND
+GET http://localhost:8080/service/v1/my/saved-courses?mockError=4040
