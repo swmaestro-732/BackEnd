@@ -25,7 +25,11 @@ import kotlin.time.toKotlinInstant
 class UserPersistenceAdapter(
     private val clock: Clock,
 ) : UserPersistencePort {
-    override fun findAll(): List<User> = UserTable.selectAll().map(::toDomain)
+    override fun findAll(): List<User> =
+        UserTable
+            .selectAll()
+            .where { UserTable.deletedAt.isNull() }
+            .map(::toDomain)
 
     override fun findById(id: Long): User? =
         UserTable
@@ -80,17 +84,19 @@ class UserPersistenceAdapter(
         }
     }
 
+    // nickname·handle 은 전역 UNIQUE(탈퇴자 포함)이므로 중복검사도 전역으로 본다.
+    // (탈퇴자의 값도 예약 유지 — DB 제약과 앱 검사 범위를 일치시켜 UNIQUE 위반 500 을 방지.)
     override fun existsByNickname(nickname: String): Boolean =
         UserTable
             .selectAll()
-            .where { (UserTable.nickname eq nickname) and UserTable.deletedAt.isNull() }
+            .where { UserTable.nickname eq nickname }
             .empty()
             .not()
 
     override fun existsByHandle(handle: String): Boolean =
         UserTable
             .selectAll()
-            .where { (UserTable.handle eq handle) and UserTable.deletedAt.isNull() }
+            .where { UserTable.handle eq handle }
             .empty()
             .not()
 
