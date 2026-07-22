@@ -20,14 +20,6 @@ import java.time.Instant
 
 /**
  * 인바운드 어댑터 — 저장 코스(노션 명세 · User · user-course). **모킹 API**.
- *
- * - [save] 코스 저장(`POST /api/v1/my/saved-courses/{courseId}`): 노션 필드 명세 미작성 상태라
- *   디자인(코스 상세 → 저장하기 · 폴더 선택 시트)에서 도출 — 폴더를 골라 저장하고([SaveCourseRequest]),
- *   장소 저장과 동일하게 data 없이 메시지만 반환한다.
- * - [list] 저장 코스 조회(`GET /api/v1/my/saved-courses`): 노션 필드 명세 미작성 상태라
- *   저장 레코드 스키마(saved_courses)·디자인(저장함 · 코스 탭)에서 도출.
- *   api-spec.md 설계 노트대로 저장 레코드(ID 위주)를 반환한다 — 화면 조합은 service 담당.
- *
  * 실제 구현 시 인바운드 포트(UseCase) 연동으로 교체하고 [MockErrors] 호출을 제거한다.
  * `mockError` 파라미터로 모킹 에러를 주입할 수 있다(예: `?mockError=4041`).
  */

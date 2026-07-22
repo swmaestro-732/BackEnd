@@ -20,7 +20,8 @@ data class SavedCourseListResponse(
     data class SavedCourseItem(
         // 저장 레코드 id (코스 id 아님)
         val id: Long,
-        val folderId: Long,
+        // 저장된 폴더 id — null 이면 폴더 미분류(saved_courses.folder_id NULL 허용)
+        val folderId: Long?,
         val courseId: Long,
         val savedAt: Instant,
     )

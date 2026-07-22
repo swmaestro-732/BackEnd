@@ -33,7 +33,8 @@ data class SavedCourseScreenItemResponse(
     // 저장 레코드 id (코스 id 아님)
     val id: Long,
     val courseId: Long,
-    val folderId: Long,
+    // 저장된 폴더 id — null 이면 폴더 미분류(saved_courses.folder_id NULL 허용)
+    val folderId: Long?,
     val savedAt: Instant,
     // 완주 여부 — 안 가봄/완주 칩 구분. "3월 12일 완주" 날짜 표기는 completedAt 을 클라이언트가 포맷
     val completed: Boolean,
