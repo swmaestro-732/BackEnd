@@ -46,7 +46,3 @@ ALTER TABLE saved_courses
 -- 기존 카운터(likes_cnt·comments_cnt·saves_cnt)와 동일하게 0 기본값 비정규화 집계.
 ALTER TABLE courses
     ADD COLUMN tracings_cnt INT NOT NULL DEFAULT 0;
-
--- users.username → handle 이름 변경: 계정 식별용 핸들 의미를 컬럼명에 반영.
-ALTER TABLE users
-    RENAME COLUMN username TO handle;
