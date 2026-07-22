@@ -27,6 +27,7 @@ enum class ErrorCode(
     NOT_FOUND(404, 4040, "요청한 리소스를 찾을 수 없습니다."),
     METHOD_NOT_ALLOWED(405, 4050, "허용되지 않은 HTTP 메서드입니다."),
     SOCIAL_ACCOUNT_ALREADY_REGISTERED(409, 4090, "이미 가입된 소셜 계정입니다."),
+    UNSUPPORTED_MEDIA_TYPE(415, 4150, "지원하지 않는 파일 형식입니다."),
     INTERNAL_ERROR(500, 5000, "서버 오류가 발생했습니다."),
 
     // ── 코스(course) ──

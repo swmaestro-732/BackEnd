@@ -47,6 +47,9 @@ dependencies {
     // 로컬 bootRun 시 docker-compose.yml 자동 기동 + DataSource 자동 연결. (운영 빌드엔 미포함)
     developmentOnly("org.springframework.boot:spring-boot-docker-compose")
     implementation("org.postgresql:postgresql")
+    // AWS SDK v2 (raw — spring-cloud-aws 는 아직 Boot 4.x 지원이 뒤처져 있음). S3Presigner 는 s3 모듈 소속.
+    implementation(platform("software.amazon.awssdk:bom:2.49.0"))
+    implementation("software.amazon.awssdk:s3")
     testImplementation("org.springframework.boot:spring-boot-starter-flyway-test")
     testImplementation("org.springframework.boot:spring-boot-starter-jdbc-test")
     testImplementation("org.springframework.boot:spring-boot-starter-security-test")
@@ -73,6 +76,12 @@ tasks.test {
     filter { excludeTestsMatching("com.example.backend.architecture.*") }
     // JWT 시크릿은 코드 기본값 없이 env 주입 — 테스트는 전용 더미(운영용 아님).
     environment("JWT_SECRET", "test-only-jwt-secret-not-for-production-0123456789")
+    // S3 프리사인은 네트워크 호출 없이 로컬 서명만 계산하지만, 버킷명은 비어 있으면 SDK가 거부한다.
+    environment("S3_MEDIA_BUCKET", "test-media-bucket")
+    environment("S3_MEDIA_CDN_URL", "https://cdn.test.example.com")
+    // DefaultCredentialsProvider 가 EC2 인스턴스 메타데이터까지 폴백하며 네트워크를 타지 않도록 더미 고정 자격증명 주입.
+    environment("AWS_ACCESS_KEY_ID", "test-access-key")
+    environment("AWS_SECRET_ACCESS_KEY", "test-secret-key")
     finalizedBy(tasks.jacocoTestReport) // 테스트 후 커버리지 리포트 생성
 }
 
