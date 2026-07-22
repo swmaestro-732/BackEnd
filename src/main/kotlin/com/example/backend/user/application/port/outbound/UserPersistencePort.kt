@@ -30,7 +30,7 @@ interface UserPersistencePort {
 
     fun update(user: User)
 
-    fun softDelete(userId: Long)
+    fun softDelete(user: User)
 
     fun existsByNickname(nickname: String): Boolean
 

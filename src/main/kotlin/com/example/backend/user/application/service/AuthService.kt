@@ -54,6 +54,12 @@ class AuthService(
         userPersistencePort.findBySocial(identity.provider, identity.socialId)?.let {
             throw BusinessException(ErrorCode.SOCIAL_ACCOUNT_ALREADY_REGISTERED)
         }
+        if (userPersistencePort.existsByNickname(command.nickname)) {
+            throw BusinessException(ErrorCode.NICKNAME_ALREADY_TAKEN)
+        }
+        if (userPersistencePort.existsByHandle(command.handle)) {
+            throw BusinessException(ErrorCode.HANDLE_ALREADY_TAKEN)
+        }
 
         val saved =
             userPersistencePort.saveWithSocial(

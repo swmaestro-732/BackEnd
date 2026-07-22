@@ -20,6 +20,7 @@ class UserTest {
         assertNull(user.profileImageUrl)
         assertNull(user.socialProvider)
         assertNull(user.socialId)
+        assertEquals(UserStatus.ACTIVE, user.status)
     }
 
     @Test
@@ -51,6 +52,7 @@ class UserTest {
         assertEquals("https://example.com/profile.jpg", user.profileImageUrl)
         assertEquals(SocialProvider.KAKAO, user.socialProvider)
         assertEquals("social-id", user.socialId)
+        assertEquals(UserStatus.ACTIVE, user.status)
     }
 
     @Test
@@ -105,6 +107,37 @@ class UserTest {
         assertThrows<IllegalArgumentException> {
             User.createWithSocial("hello", null, SocialProvider.KAKAO, " ")
         }
+    }
+
+    @Test
+    fun `withdraw 는 활성 사용자를 탈퇴 상태로 전이한다`() {
+        val withdrawn = existingUser().withdraw()
+
+        assertEquals(UserStatus.WITHDRAWN, withdrawn.status)
+    }
+
+    @Test
+    fun `withdraw 는 이미 탈퇴한 사용자면 예외를 던진다`() {
+        val user =
+            User.reconstitute(
+                id = 1,
+                nickname = "탈퇴사용자",
+                status = UserStatus.WITHDRAWN,
+            )
+
+        assertThrows<IllegalArgumentException> { user.withdraw() }
+    }
+
+    @Test
+    fun `UserStatus fromCode 는 코드에 맞는 상태를 반환한다`() {
+        UserStatus.entries.forEach { status ->
+            assertEquals(status, UserStatus.fromCode(status.code))
+        }
+    }
+
+    @Test
+    fun `UserStatus fromCode 는 알 수 없는 코드면 예외를 던진다`() {
+        assertThrows<IllegalArgumentException> { UserStatus.fromCode(99) }
     }
 
     @Test

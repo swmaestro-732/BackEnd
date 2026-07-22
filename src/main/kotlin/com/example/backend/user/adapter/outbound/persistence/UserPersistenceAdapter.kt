@@ -4,6 +4,7 @@ import com.example.backend.user.application.port.outbound.UserPersistencePort
 import com.example.backend.user.application.port.outbound.UserProfileRow
 import com.example.backend.user.domain.model.SocialProvider
 import com.example.backend.user.domain.model.User
+import com.example.backend.user.domain.model.UserStatus
 import org.jetbrains.exposed.v1.core.ResultRow
 import org.jetbrains.exposed.v1.core.and
 import org.jetbrains.exposed.v1.core.eq
@@ -77,10 +78,11 @@ class UserPersistenceAdapter(
         }
     }
 
-    override fun softDelete(userId: Long) {
-        UserTable.update({ (UserTable.id eq userId) and UserTable.deletedAt.isNull() }) {
+    override fun softDelete(user: User) {
+        val id = checkNotNull(user.id) { "영속화된 User 는 id 를 가진다." }
+        UserTable.update({ (UserTable.id eq id) and UserTable.deletedAt.isNull() }) {
             it[deletedAt] = clock.instant().toKotlinInstant()
-            it[status] = STATUS_WITHDRAWN
+            it[status] = user.status.code
         }
     }
 
@@ -142,9 +144,6 @@ class UserPersistenceAdapter(
             profileImageUrl = row[UserTable.profileImageUrl],
             socialProvider = row[UserTable.socialProvider]?.let(SocialProvider::valueOf),
             socialId = row[UserTable.socialId],
+            status = UserStatus.fromCode(row[UserTable.status]),
         )
-
-    private companion object {
-        const val STATUS_WITHDRAWN: Short = 3
-    }
 }

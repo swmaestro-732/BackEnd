@@ -65,7 +65,10 @@ class MyService(
 
     @Transactional
     override fun withdraw(userId: Long) {
-        userPersistencePort.softDelete(userId)
+        val user =
+            userPersistencePort.findById(userId)
+                ?: throw BusinessException(ErrorCode.USER_NOT_FOUND, "사용자를 찾을 수 없습니다: id=$userId")
+        userPersistencePort.softDelete(user.withdraw())
         refreshTokenPort.revokeAllByUser(userId)
     }
 

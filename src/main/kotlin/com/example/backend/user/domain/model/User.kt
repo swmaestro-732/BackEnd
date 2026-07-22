@@ -15,6 +15,7 @@ data class User private constructor(
     val profileImageUrl: String?,
     val socialProvider: SocialProvider?,
     val socialId: String?,
+    val status: UserStatus,
 ) {
     companion object {
         const val MAX_NICKNAME_LENGTH = 20
@@ -34,6 +35,7 @@ data class User private constructor(
                 profileImageUrl = profileImageUrl,
                 socialProvider = null,
                 socialId = null,
+                status = UserStatus.ACTIVE,
             )
         }
 
@@ -59,6 +61,7 @@ data class User private constructor(
                 profileImageUrl = profileImageUrl,
                 socialProvider = socialProvider,
                 socialId = socialId,
+                status = UserStatus.ACTIVE,
             )
         }
 
@@ -69,6 +72,7 @@ data class User private constructor(
             profileImageUrl: String? = null,
             socialProvider: SocialProvider? = null,
             socialId: String? = null,
+            status: UserStatus = UserStatus.ACTIVE,
             handle: String? = null,
         ): User {
             // 소셜 provider 와 socialId 는 한 쌍 — 함께 있거나 함께 없어야 한다(둘 중 하나만 있으면 size == 1).
@@ -82,6 +86,7 @@ data class User private constructor(
                 profileImageUrl = profileImageUrl,
                 socialProvider = socialProvider,
                 socialId = socialId,
+                status = status,
             )
         }
     }
@@ -105,5 +110,11 @@ data class User private constructor(
             handle = newHandle,
             profileImageUrl = profileImageUrl ?: this.profileImageUrl,
         )
+    }
+
+    /** 회원 탈퇴 — 활성 상태에서만 가능한 도메인 전이. */
+    fun withdraw(): User {
+        require(status == UserStatus.ACTIVE) { "활성 상태의 사용자만 탈퇴할 수 있습니다." }
+        return copy(status = UserStatus.WITHDRAWN)
     }
 }
