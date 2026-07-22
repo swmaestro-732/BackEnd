@@ -5,6 +5,8 @@ import org.junit.jupiter.api.Test
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc
 import org.springframework.http.MediaType
+import org.springframework.security.test.context.support.WithAnonymousUser
+import org.springframework.security.test.context.support.WithMockUser
 import org.springframework.test.web.servlet.MockMvc
 import org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete
 import org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get
@@ -18,6 +20,7 @@ import org.springframework.test.web.servlet.result.MockMvcResultMatchers.status
  * 프로필 GET/PATCH/DELETE + 팔로잉 PUT/DELETE.
  */
 @AutoConfigureMockMvc
+@WithMockUser
 class MyControllerTest
     @Autowired
     constructor(
@@ -101,5 +104,13 @@ class MyControllerTest
                 .perform(put("/api/v1/my/followings/10").param("mockError", "4040"))
                 .andExpect(status().isNotFound)
                 .andExpect(jsonPath("$.code").value(4040))
+        }
+
+        @Test
+        @WithAnonymousUser
+        fun `인증 없으면 401`() {
+            mockMvc
+                .perform(get("/api/v1/my/profile"))
+                .andExpect(status().isUnauthorized)
         }
     }

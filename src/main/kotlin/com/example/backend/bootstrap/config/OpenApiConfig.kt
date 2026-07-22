@@ -12,7 +12,7 @@ import org.springframework.context.annotation.Configuration
  * OpenAPI(Swagger) 문서 메타데이터 + JWT(Bearer) 인증 스키마.
  * Swagger UI: /swagger-ui.html · OpenAPI JSON: /v3/api-docs
  * Swagger UI 의 Authorize 버튼에 JWT 를 넣으면 요청에 `Authorization: Bearer <token>` 가 실린다.
- * (실제 토큰 검증 로직은 별개 — 추후 인증 도입 시 SecurityConfig 에서 처리)
+ * 실제 토큰 검증은 SecurityConfig 의 OAuth2 Resource Server 가 처리한다.
  */
 @Configuration
 class OpenApiConfig {

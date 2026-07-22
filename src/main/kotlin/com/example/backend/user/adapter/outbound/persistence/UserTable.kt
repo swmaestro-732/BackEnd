@@ -12,6 +12,8 @@ internal object UserTable : Table("users") {
     val id = long("id").autoIncrement()
     val nickname = varchar("nickname", 20)
     val profileImageUrl = text("profile_image_url").nullable()
+    val socialProvider = varchar("social_provider", 20).nullable()
+    val socialId = varchar("social_id", 255).nullable()
     val deletedAt = timestamp("deleted_at").nullable()
     override val primaryKey = PrimaryKey(id)
 }

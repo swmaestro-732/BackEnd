@@ -4,7 +4,7 @@ import com.example.backend.common.mock.MockErrors
 import com.example.backend.common.response.ApiResponse
 import com.example.backend.course.adapter.inbound.web.response.CourseReviewListResponse
 import com.example.backend.course.application.port.inbound.CourseReviewUseCase
-import com.example.backend.course.application.port.inbound.dto.CourseReviewQuery
+import com.example.backend.course.application.port.inbound.dto.CourseReviewCommand
 import com.example.backend.course.application.port.inbound.dto.CourseReviewSort
 import com.example.backend.course.application.port.inbound.dto.SortDirection
 import org.springframework.web.bind.annotation.GetMapping
@@ -39,7 +39,7 @@ class CourseReviewController(
         @RequestParam(required = false) mockError: Int?,
     ): ApiResponse<CourseReviewListResponse> {
         MockErrors.throwIfRequested(mockError)
-        val query = CourseReviewQuery(sort = sort, order = order, cursor = cursor, size = size)
-        return ApiResponse.success(CourseReviewListResponse.from(courseReviewUseCase.getReviews(courseId, query)))
+        val command = CourseReviewCommand(sort = sort, order = order, cursor = cursor, size = size)
+        return ApiResponse.success(CourseReviewListResponse.from(courseReviewUseCase.getReviews(courseId, command)))
     }
 }
