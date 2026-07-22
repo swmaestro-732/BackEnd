@@ -1,0 +1,62 @@
+## 내 프로필·팔로우·탈퇴 (/api/v1/my, /api/v1/users) — JWT 인증 필요
+# 먼저 auth.http 의 "소셜 로그인 (mock)" 을 실행해 {{accessToken}} 을 채운다(user id=1).
+# 실 데이터(users 시드)가 없으면 실경로는 404/4042 → ?mock=true 로 고정 목 응답을 확인할 수 있다.
+
+### 내 프로필 조회 (mock) — 시드 없이 목 프로필
+GET http://localhost:8080/api/v1/my/profile?mock=true
+Authorization: Bearer {{accessToken}}
+
+### 내 프로필 조회 (실) — users id=1 시드 필요, 없으면 404/4042
+GET http://localhost:8080/api/v1/my/profile
+Authorization: Bearer {{accessToken}}
+
+### 무토큰 — 401
+GET http://localhost:8080/api/v1/my/profile
+
+### 내 프로필 수정 — 넘긴 필드만 반영. nickname/handle 중복이면 409(4091/4092)
+PATCH http://localhost:8080/api/v1/my/profile
+Authorization: Bearer {{accessToken}}
+Content-Type: application/json
+
+{
+  "nickname": "새닉네임",
+  "handle": "new_handle",
+  "profileImageUrl": "https://example.com/me.jpg"
+}
+
+### 프로필 수정 검증 실패 — 빈 닉네임 400/4002
+PATCH http://localhost:8080/api/v1/my/profile
+Authorization: Bearer {{accessToken}}
+Content-Type: application/json
+
+{
+  "nickname": ""
+}
+
+### 팔로우 — 대상(userId=2)을 내 팔로잉에 추가(멱등). 대상 팔로워 수 반환
+PUT http://localhost:8080/api/v1/my/followings/2
+Authorization: Bearer {{accessToken}}
+
+### 언팔로우
+DELETE http://localhost:8080/api/v1/my/followings/2
+Authorization: Bearer {{accessToken}}
+
+### 자기 자신 팔로우 — 400 / 4001
+PUT http://localhost:8080/api/v1/my/followings/1
+Authorization: Bearer {{accessToken}}
+
+### 없는 대상 팔로우 — 404 / 4042
+PUT http://localhost:8080/api/v1/my/followings/999
+Authorization: Bearer {{accessToken}}
+
+### 타인 프로필 조회 (공개 경로) — 뷰어 토큰 있으면 isFollowing/isFollower 반영. 없는 유저 404/4042
+GET http://localhost:8080/api/v1/users/2
+Authorization: Bearer {{accessToken}}
+
+### 회원 탈퇴 — soft delete + refresh 토큰 폐기. 이후 /my/profile 은 404/4042
+DELETE http://localhost:8080/api/v1/my
+Authorization: Bearer {{accessToken}}
+
+### 모킹 에러 주입 — 404 / 4040
+GET http://localhost:8080/api/v1/my/profile?mockError=4040
+Authorization: Bearer {{accessToken}}
