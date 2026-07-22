@@ -2,12 +2,14 @@ package com.example.backend.user.adapter.inbound.web
 
 import com.example.backend.bootstrap.security.JwtTokenProvider
 import com.example.backend.support.IntegrationTestBase
+import org.hamcrest.Matchers.containsInAnyOrder
 import org.junit.jupiter.api.Test
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc
 import org.springframework.http.HttpHeaders
 import org.springframework.http.MediaType
 import org.springframework.test.context.jdbc.Sql
+import org.springframework.test.context.jdbc.SqlMergeMode
 import org.springframework.test.web.servlet.MockMvc
 import org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get
 import org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post
@@ -21,7 +23,8 @@ import org.springframework.test.web.servlet.result.MockMvcResultMatchers.status
             "TRUNCATE TABLE follows, refresh_tokens, users RESTART IDENTITY CASCADE",
             "INSERT INTO users (nickname, handle) VALUES ('나테스트', 'me_handle')",
             "INSERT INTO users (nickname, handle) VALUES ('상대테스트', 'target_handle')",
-            "INSERT INTO follows (follower_id, following_id) VALUES (1, 2)",
+            "INSERT INTO users (nickname, handle, status, deleted_at) " +
+                "VALUES ('탈퇴테스트', 'withdrawn_handle', 3, now())",
         ],
     executionPhase = Sql.ExecutionPhase.BEFORE_TEST_METHOD,
 )
@@ -52,6 +55,19 @@ class UserControllerTest
         }
 
         @Test
+        fun `유저 목록은 탈퇴한 사용자를 제외한다`() {
+            mockMvc
+                .perform(get("/api/v1/users"))
+                .andExpect(status().isOk)
+                .andExpect(jsonPath("$.code").value(2000))
+                .andExpect(jsonPath("$.data.length()").value(2))
+                .andExpect(
+                    jsonPath("$.data[*].nickname")
+                        .value(containsInAnyOrder("나테스트", "상대테스트")),
+                )
+        }
+
+        @Test
         @Sql(
             statements = ["TRUNCATE TABLE follows, refresh_tokens, users RESTART IDENTITY CASCADE"],
             executionPhase = Sql.ExecutionPhase.BEFORE_TEST_METHOD,
@@ -66,6 +82,11 @@ class UserControllerTest
         }
 
         @Test
+        @SqlMergeMode(SqlMergeMode.MergeMode.MERGE)
+        @Sql(
+            statements = ["INSERT INTO follows (follower_id, following_id) VALUES (1, 2)"],
+            executionPhase = Sql.ExecutionPhase.BEFORE_TEST_METHOD,
+        )
         fun `팔로우 중인 사용자의 프로필을 조회하면 팔로우 상태를 내려준다`() {
             mockMvc
                 .perform(
@@ -75,6 +96,24 @@ class UserControllerTest
                 .andExpect(jsonPath("$.code").value(2000))
                 .andExpect(jsonPath("$.data.id").value(2))
                 .andExpect(jsonPath("$.data.isFollowing").value(true))
+        }
+
+        @Test
+        @SqlMergeMode(SqlMergeMode.MergeMode.MERGE)
+        @Sql(
+            statements = ["INSERT INTO follows (follower_id, following_id) VALUES (2, 1)"],
+            executionPhase = Sql.ExecutionPhase.BEFORE_TEST_METHOD,
+        )
+        fun `나를 팔로우 중인 사용자의 프로필을 조회하면 팔로워 상태를 내려준다`() {
+            mockMvc
+                .perform(
+                    get("/api/v1/users/2")
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer ${tokenFor(1)}"),
+                ).andExpect(status().isOk)
+                .andExpect(jsonPath("$.code").value(2000))
+                .andExpect(jsonPath("$.data.id").value(2))
+                .andExpect(jsonPath("$.data.isFollowing").value(false))
+                .andExpect(jsonPath("$.data.isFollower").value(true))
         }
 
         @Test
