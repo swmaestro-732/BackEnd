@@ -24,6 +24,7 @@ internal object CourseTable : Table("courses") {
     val likesCnt = integer("likes_cnt")
     val commentsCnt = integer("comments_cnt")
     val savesCnt = integer("saves_cnt")
+    val tracingsCnt = integer("tracings_cnt")
     val forkedFromId = long("forked_from_id").nullable() // 포크 원본 course (같은 도메인)
     override val primaryKey = PrimaryKey(id)
 }

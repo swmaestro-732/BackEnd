@@ -23,3 +23,30 @@ ALTER TABLE courses
 -- 코스 마지막 장소는 다음 이동이 없으므로 nullable.
 ALTER TABLE course_places
     ADD COLUMN walking_time VARCHAR(50);
+
+-- saved_courses.folder_id nullable 전환: 폴더를 지정하지 않은 코스 저장 허용 —
+-- NULL이면 폴더 미분류 상태를 뜻한다.
+ALTER TABLE saved_courses
+    ALTER COLUMN folder_id DROP NOT NULL;
+
+-- saved_courses.user_id 추가: folder_id가 NULL(폴더 미분류)인 행도 소유자를 식별해야 한다.
+-- 같은 도메인(users) 참조이므로 FK를 건다 — 기존 행은 폴더의 user_id로 백필 후 NOT NULL 전환.
+ALTER TABLE saved_courses
+    ADD COLUMN user_id BIGINT REFERENCES users (id);
+
+UPDATE saved_courses sc
+SET user_id = f.user_id
+FROM saved_course_folders f
+WHERE sc.folder_id = f.id;
+
+ALTER TABLE saved_courses
+    ALTER COLUMN user_id SET NOT NULL;
+
+-- courses.tracings_cnt: 코스 트레이싱(따라가기) 횟수 카운터 —
+-- 기존 카운터(likes_cnt·comments_cnt·saves_cnt)와 동일하게 0 기본값 비정규화 집계.
+ALTER TABLE courses
+    ADD COLUMN tracings_cnt INT NOT NULL DEFAULT 0;
+
+-- users.username → handle 이름 변경: 계정 식별용 핸들 의미를 컬럼명에 반영.
+ALTER TABLE users
+    RENAME COLUMN username TO handle;
