@@ -36,7 +36,7 @@ class CourseReviewController {
     fun getReviews(
         @PathVariable courseId: Long,
         @RequestParam(required = false) sort: CourseReviewSort = CourseReviewSort.LATEST,
-        @RequestParam(required = false) order: SortDirection = SortDirection.ASC,
+        @RequestParam(required = false) order: SortDirection = SortDirection.DESC,
         @RequestParam(required = false) cursor: String?,
         @RequestParam(required = false) @Min(1) @Max(50) size: Int = 10,
         @RequestParam(required = false) mockError: Int?,
