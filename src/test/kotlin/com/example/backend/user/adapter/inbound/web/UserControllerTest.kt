@@ -126,8 +126,14 @@ class UserControllerTest
                 .andExpect(jsonPath("$.code").value(4042))
         }
 
+        @SqlMergeMode(SqlMergeMode.MergeMode.MERGE)
+        @Sql(
+            statements = ["INSERT INTO follows (follower_id, following_id) VALUES (1, 2)"],
+            executionPhase = Sql.ExecutionPhase.BEFORE_TEST_METHOD,
+        )
         @Test
         fun `비로그인 사용자는 프로필을 조회하면 팔로우 상태가 거짓이다`() {
+            // (1→2) 팔로우가 있어도 뷰어(인증) 없으면 관계는 항상 false 여야 한다.
             mockMvc
                 .perform(get("/api/v1/users/2"))
                 .andExpect(status().isOk)
