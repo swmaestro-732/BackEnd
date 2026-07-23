@@ -29,6 +29,7 @@ data class CreateCourseRequest(
     @field:Size(max = 200)
     val title: String,
     val description: String?,
+    val thumbnailUrl: String?,
     val tags: List<
         @NotBlank
         @Size(max = MAX_TAG_LENGTH)
