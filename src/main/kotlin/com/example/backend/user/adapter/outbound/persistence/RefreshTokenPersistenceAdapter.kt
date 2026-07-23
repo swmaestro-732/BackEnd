@@ -10,6 +10,7 @@ import org.jetbrains.exposed.v1.jdbc.insert
 import org.jetbrains.exposed.v1.jdbc.selectAll
 import org.jetbrains.exposed.v1.jdbc.update
 import org.springframework.stereotype.Repository
+import java.security.MessageDigest
 import java.time.Clock
 import java.util.UUID
 import kotlin.time.toJavaInstant
@@ -26,7 +27,7 @@ class RefreshTokenPersistenceAdapter(
         val expiresAt = clock.instant().plus(jwtProperties.refreshTtl).toKotlinInstant()
         RefreshTokenTable.insert {
             it[RefreshTokenTable.userId] = userId
-            it[RefreshTokenTable.token] = token
+            it[RefreshTokenTable.tokenHash] = hash(token)
             it[RefreshTokenTable.expiresAt] = expiresAt
         }
         return token
@@ -36,7 +37,7 @@ class RefreshTokenPersistenceAdapter(
         RefreshTokenTable
             .selectAll()
             .where {
-                (RefreshTokenTable.token eq token) and
+                (RefreshTokenTable.tokenHash eq hash(token)) and
                     (RefreshTokenTable.revoked eq false) and
                     (RefreshTokenTable.expiresAt greater clock.instant().toKotlinInstant())
             }.singleOrNull()
@@ -44,7 +45,7 @@ class RefreshTokenPersistenceAdapter(
                 RefreshTokenRecord(
                     id = it[RefreshTokenTable.id],
                     userId = it[RefreshTokenTable.userId],
-                    token = it[RefreshTokenTable.token],
+                    tokenHash = it[RefreshTokenTable.tokenHash],
                     expiresAt = it[RefreshTokenTable.expiresAt].toJavaInstant(),
                     revoked = it[RefreshTokenTable.revoked],
                     createdAt = it[RefreshTokenTable.createdAt].toJavaInstant(),
@@ -53,8 +54,22 @@ class RefreshTokenPersistenceAdapter(
 
     override fun revoke(token: String): Boolean =
         RefreshTokenTable.update({
-            (RefreshTokenTable.token eq token) and (RefreshTokenTable.revoked eq false)
+            (RefreshTokenTable.tokenHash eq hash(token)) and (RefreshTokenTable.revoked eq false)
         }) {
             it[RefreshTokenTable.revoked] = true
         } > 0
+
+    override fun revokeAllByUser(userId: Long) {
+        RefreshTokenTable.update({
+            (RefreshTokenTable.userId eq userId) and (RefreshTokenTable.revoked eq false)
+        }) {
+            it[RefreshTokenTable.revoked] = true
+        }
+    }
+
+    private fun hash(token: String): String =
+        MessageDigest
+            .getInstance("SHA-256")
+            .digest(token.toByteArray())
+            .joinToString("") { "%02x".format(it) }
 }

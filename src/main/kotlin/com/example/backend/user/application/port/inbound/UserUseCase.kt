@@ -14,5 +14,8 @@ interface UserUseCase {
     fun create(command: CreateUserCommand): UserResult
 
     /** 단건 프로필 조회 — 코스 상세의 작성자 카드 등에서 사용. */
-    fun getProfile(userId: Long): UserProfileResult
+    fun getProfile(
+        userId: Long,
+        viewerId: Long?,
+    ): UserProfileResult
 }

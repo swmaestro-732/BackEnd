@@ -1,5 +1,6 @@
 package com.example.backend.user.adapter.inbound.web
 
+import com.example.backend.bootstrap.security.CurrentUserId
 import com.example.backend.common.mock.MockErrors
 import com.example.backend.common.response.ApiResponse
 import com.example.backend.user.adapter.inbound.web.request.CreateUserRequest
@@ -32,10 +33,11 @@ class UserController(
     @GetMapping("/{userId}")
     fun getProfile(
         @PathVariable userId: Long,
+        @CurrentUserId viewerId: Long?,
         @RequestParam(required = false) mockError: Int?,
     ): ApiResponse<UserProfileResponse> {
         MockErrors.throwIfRequested(mockError)
-        return ApiResponse.success(UserProfileResponse.from(userUseCase.getProfile(userId)))
+        return ApiResponse.success(UserProfileResponse.from(userUseCase.getProfile(userId, viewerId)))
     }
 
     @PostMapping

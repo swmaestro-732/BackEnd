@@ -2,11 +2,11 @@ package com.example.backend.user.application.port.outbound
 
 import java.time.Instant
 
-/** DB에 저장된 불투명 refresh token. */
+/** DB에 저장된 불투명 refresh token digest. */
 data class RefreshTokenRecord(
     val id: Long,
     val userId: Long,
-    val token: String,
+    val tokenHash: String,
     val expiresAt: Instant,
     val revoked: Boolean,
     val createdAt: Instant,
@@ -21,4 +21,6 @@ interface RefreshTokenPort {
 
     /** 실제로 폐기된 행이 있으면 true, 이미 폐기됐거나 없으면 false. */
     fun revoke(token: String): Boolean
+
+    fun revokeAllByUser(userId: Long)
 }

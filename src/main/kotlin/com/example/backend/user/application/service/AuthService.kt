@@ -54,6 +54,12 @@ class AuthService(
         userPersistencePort.findBySocial(identity.provider, identity.socialId)?.let {
             throw BusinessException(ErrorCode.SOCIAL_ACCOUNT_ALREADY_REGISTERED)
         }
+        if (userPersistencePort.existsByNickname(command.nickname)) {
+            throw BusinessException(ErrorCode.NICKNAME_ALREADY_TAKEN)
+        }
+        if (userPersistencePort.existsByHandle(command.handle)) {
+            throw BusinessException(ErrorCode.HANDLE_ALREADY_TAKEN)
+        }
 
         val saved =
             userPersistencePort.saveWithSocial(
@@ -62,6 +68,7 @@ class AuthService(
                     profileImageUrl = command.profileImageUrl,
                     socialProvider = identity.provider,
                     socialId = identity.socialId,
+                    handle = command.handle,
                 ),
             )
         val userId = checkNotNull(saved.id) { "영속화된 User 는 id 를 가진다." }
@@ -72,7 +79,7 @@ class AuthService(
                 SignupUserResult(
                     id = userId,
                     nickname = saved.nickname,
-                    handle = command.handle,
+                    handle = checkNotNull(saved.handle) { "저장된 User 는 handle 을 가진다." },
                     profileImageUrl = saved.profileImageUrl,
                 ),
         )
@@ -97,6 +104,8 @@ class AuthService(
     override fun logout(refreshToken: String) {
         refreshTokenPort.revoke(refreshToken)
     }
+
+    override fun isLoginIdTaken(loginId: String): Boolean = userPersistencePort.existsByHandle(loginId)
 
     override fun issueDevAccessToken(): String = authTokenPort.issueAccessToken(DEV_USER_ID)
 

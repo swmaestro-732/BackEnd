@@ -141,14 +141,15 @@ class AuthController(
         return ApiResponse.ok()
     }
 
-    /** 아이디(핸들) 사용 가능 여부(모킹). 예약어는 사용 불가로 내려 현실감 있게. */
+    /** 아이디(핸들) 사용 가능 여부. 예약어와 이미 사용 중인 값은 제외한다. */
     @GetMapping("/login-id/availability")
     fun checkLoginIdAvailability(
         @RequestParam @NotBlank loginId: String,
         @RequestParam(required = false) mockError: Int?,
     ): ApiResponse<AvailabilityResponse> {
         MockErrors.throwIfRequested(mockError)
-        return ApiResponse.success(AvailabilityResponse(available = loginId.lowercase() !in RESERVED_LOGIN_IDS))
+        val available = loginId.lowercase() !in RESERVED_LOGIN_IDS && !authUseCase.isLoginIdTaken(loginId)
+        return ApiResponse.success(AvailabilityResponse(available = available))
     }
 
     private fun ensureMockAvailable() {
@@ -161,7 +162,7 @@ class AuthController(
         const val MOCK_REFRESH_TOKEN = "mock-refresh-token"
         const val DEV_USER_ID = 1L
 
-        /** 사용 불가로 내려줄 예약어(모킹) — 실제 중복 검사 대신. */
+        /** 사용 불가로 내려줄 예약어. */
         val RESERVED_LOGIN_IDS = setOf("admin", "courmy", "test")
     }
 }

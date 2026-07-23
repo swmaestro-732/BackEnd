@@ -6,10 +6,13 @@ import com.example.backend.user.application.port.inbound.dto.UserProfileResult
 data class UserProfileResponse(
     val id: Long,
     val nickname: String,
-    val handle: String,
-    val profileImageUrl: String,
+    val handle: String?,
+    val profileImageUrl: String?,
     val isFollowing: Boolean,
     val isFollower: Boolean,
+    val followersCnt: Int,
+    val followingsCnt: Int,
+    val coursesCnt: Int,
 ) {
     companion object {
         fun from(result: UserProfileResult): UserProfileResponse =
@@ -20,6 +23,9 @@ data class UserProfileResponse(
                 profileImageUrl = result.profileImageUrl,
                 isFollowing = result.isFollowing,
                 isFollower = result.isFollower,
+                followersCnt = result.followersCnt,
+                followingsCnt = result.followingsCnt,
+                coursesCnt = result.coursesCnt,
             )
     }
 }

@@ -11,7 +11,12 @@ import org.jetbrains.exposed.v1.datetime.timestamp
 internal object UserTable : Table("users") {
     val id = long("id").autoIncrement()
     val nickname = varchar("nickname", 20)
+    val handle = varchar("handle", 30).nullable()
     val profileImageUrl = text("profile_image_url").nullable()
+    val followersCnt = integer("followers_cnt")
+    val followingsCnt = integer("followings_cnt")
+    val coursesCnt = integer("courses_cnt")
+    val status = short("status")
     val socialProvider = varchar("social_provider", 20).nullable()
     val socialId = varchar("social_id", 255).nullable()
     val deletedAt = timestamp("deleted_at").nullable()
