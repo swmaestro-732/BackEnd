@@ -2,6 +2,7 @@ package com.example.backend.common.persistence.postgis
 
 import com.example.backend.place.adapter.outbound.persistence.PlaceTable
 import com.example.backend.place.domain.model.PlaceBusinessStatus
+import com.example.backend.place.domain.model.PlaceCategory
 import com.example.backend.place.domain.model.PlaceStatus
 import com.example.backend.support.IntegrationTestBase
 import org.jetbrains.exposed.v1.core.eq
@@ -85,7 +86,7 @@ class PostGisFunctionsTest : IntegrationTestBase() {
         PlaceTable.insert {
             it[status] = PlaceStatus.ACTIVE
             it[PlaceTable.name] = name
-            it[category] = "CAFE"
+            it[category] = PlaceCategory.CAFE
             it[location] = point
             it[address] = "서울특별시 성동구 성수동"
             it[businessStatus] = PlaceBusinessStatus.OPEN

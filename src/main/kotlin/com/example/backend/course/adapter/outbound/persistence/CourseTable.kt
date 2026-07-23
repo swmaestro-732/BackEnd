@@ -1,5 +1,6 @@
 package com.example.backend.course.adapter.outbound.persistence
 
+import com.example.backend.course.domain.model.CourseCategory
 import com.example.backend.course.domain.model.CourseStatus
 import com.example.backend.course.domain.model.CourseVisibility
 import org.jetbrains.exposed.v1.core.Table
@@ -15,6 +16,7 @@ internal object CourseTable : Table("courses") {
     val userId = long("user_id") // cross-domain(user): FK 없음
     val title = varchar("title", 200)
     val description = text("description").nullable()
+    val category = enumerationByName<CourseCategory>("category", 50).nullable()
     val area = varchar("area", 100).nullable()
     val visitDate = date("visit_date").nullable()
     val isPublished = bool("is_published")
@@ -22,6 +24,7 @@ internal object CourseTable : Table("courses") {
     val likesCnt = integer("likes_cnt")
     val commentsCnt = integer("comments_cnt")
     val savesCnt = integer("saves_cnt")
+    val tracingsCnt = integer("tracings_cnt")
     val forkedFromId = long("forked_from_id").nullable() // 포크 원본 course (같은 도메인)
     override val primaryKey = PrimaryKey(id)
 }

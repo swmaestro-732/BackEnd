@@ -21,8 +21,12 @@ enum class ErrorCode(
     // ── 공통 ──
     INVALID_INPUT(400, 4001, "잘못된 요청입니다."),
     VALIDATION_FAILED(400, 4002, "입력값 검증에 실패했습니다."),
+    SOCIAL_AUTHENTICATION_FAILED(401, 4010, "소셜 인증에 실패했습니다."),
+    INVALID_REGISTRATION_TOKEN(401, 4011, "유효하지 않은 회원가입 토큰입니다."),
+    INVALID_REFRESH_TOKEN(401, 4012, "유효하지 않은 리프레시 토큰입니다."),
     NOT_FOUND(404, 4040, "요청한 리소스를 찾을 수 없습니다."),
     METHOD_NOT_ALLOWED(405, 4050, "허용되지 않은 HTTP 메서드입니다."),
+    SOCIAL_ACCOUNT_ALREADY_REGISTERED(409, 4090, "이미 가입된 소셜 계정입니다."),
     INTERNAL_ERROR(500, 5000, "서버 오류가 발생했습니다."),
 
     // ── 코스(course) ──
@@ -30,6 +34,8 @@ enum class ErrorCode(
 
     // ── 사용자(user) ──
     USER_NOT_FOUND(404, 4042, "사용자를 찾을 수 없습니다."),
+    NICKNAME_ALREADY_TAKEN(409, 4091, "이미 사용 중인 닉네임입니다."),
+    HANDLE_ALREADY_TAKEN(409, 4092, "이미 사용 중인 핸들입니다."),
 
     // ── 장소(place) ──
     PLACE_NOT_FOUND(404, 4043, "장소를 찾을 수 없습니다."),
