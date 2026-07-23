@@ -6,8 +6,12 @@ import com.example.backend.common.response.ApiResponse
 import com.example.backend.common.response.ErrorCode
 import com.example.backend.course.adapter.inbound.web.request.CreateCourseRequest
 import com.example.backend.course.adapter.inbound.web.response.CourseDetailResponse
+import com.example.backend.course.adapter.inbound.web.response.CoursePlaceImageResponse
+import com.example.backend.course.adapter.inbound.web.response.CoursePlaceResponse
+import com.example.backend.course.adapter.inbound.web.response.CourseResponse
+import com.example.backend.course.adapter.inbound.web.response.CourseStatsResponse
+import com.example.backend.course.adapter.inbound.web.response.CourseViewerResponse
 import com.example.backend.course.adapter.inbound.web.response.CreateCourseResponse
-import com.example.backend.course.application.port.inbound.CourseUseCase
 import jakarta.validation.Valid
 import org.springframework.http.HttpStatus
 import org.springframework.web.bind.annotation.GetMapping
@@ -20,28 +24,29 @@ import org.springframework.web.bind.annotation.ResponseStatus
 import org.springframework.web.bind.annotation.RestController
 
 /**
- * 인바운드 어댑터 — 코스(노션 명세 · Course).
+ * 인바운드 어댑터 — 코스(노션 명세 · Course). **모킹 API**.
  *
- * - [getDetail] 코스 상세(`GET /api/v1/courses/{courseId}`): 실구현. HTTP 요청을 인바운드 포트([CourseUseCase])
- *   호출로 변환하고, Result → Response 로 매핑해 도메인/애플리케이션 타입을 밖으로 노출하지 않는다.
- * - [create] 코스 생성(`POST /api/v1/courses`): **모킹 API**. 필드는 디자인 목업(코스 만들기: 코스 정보 →
+ * - [getDetail] 코스 상세(`GET /api/v1/courses/{courseId}`): 컨트롤러에서 목 데이터를 직접 만들어 반환한다.
+ *   존재하는 코스는 id=1 뿐이며, 나머지는 404(COURSE_NOT_FOUND).
+ * - [create] 코스 생성(`POST /api/v1/courses`): 필드는 디자인 목업(코스 만들기: 코스 정보 →
  *   장소 담기 → 공개 설정)과 courses 스키마에서 도출해 합의했다(노션 명세 필드 미작성 상태).
- *   실제 구현 시 인바운드 포트(UseCase) 연동으로 교체하고 [MockErrors] 호출을 제거한다.
  *
+ * 실제 구현 시 인바운드 포트(UseCase) 연동으로 교체하고 [MockErrors] 호출을 제거한다.
  * `mockError` 파라미터로 모킹 에러를 주입할 수 있다(예: `?mockError=4041`).
  */
 @RestController
 @RequestMapping("/api/v1")
-class CourseController(
-    private val courseUseCase: CourseUseCase,
-) {
+class CourseController {
     @GetMapping("/courses/{courseId}")
     fun getDetail(
         @PathVariable courseId: Long,
         @RequestParam(required = false) mockError: Int?,
     ): ApiResponse<CourseDetailResponse> {
         MockErrors.throwIfRequested(mockError)
-        return ApiResponse.success(CourseDetailResponse.from(courseUseCase.getDetail(courseId)))
+        if (courseId != 1L) {
+            throw BusinessException(ErrorCode.COURSE_NOT_FOUND, "코스를 찾을 수 없습니다: id=$courseId")
+        }
+        return ApiResponse.success(MOCK_DETAIL)
     }
 
     /**
@@ -80,5 +85,85 @@ class CourseController(
     private companion object {
         /** 모킹 고정 id — 코스 상세 목 데이터(courseId=1)와 이어지도록 항상 1을 반환한다. */
         const val MOCK_COURSE_ID = 1L
+
+        fun image(token: String) = "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9Gc$token&s=10"
+
+        fun img(
+            token: String,
+            orderNo: Int,
+        ) = CoursePlaceImageResponse(imageUrl = image(token), orderNo = orderNo)
+
+        /**
+         * 코스 상세 목 — 디자인(코스 상세)의 예시 반영. 화면 조합 목([com.example.backend.bff.adapter.inbound.web.CourseDetailScreenController])과
+         * 같은 코스(비 오는 날 성수 감성 카페 코스)로 값을 맞춰 두었다. caption 은 장소명.
+         */
+        val MOCK_DETAIL: CourseDetailResponse =
+            CourseDetailResponse(
+                course =
+                    CourseResponse(
+                        id = "1",
+                        title = "비 오는 날 성수 감성 카페 코스",
+                        coverImageUrl = image("THb4AHDBpbwjQOwLbBj3pgro4xFRpvBdRRZDTcbVmMkg"),
+                        themes = listOf("데이트"),
+                        description =
+                            "비가 오면 더 예쁜 성수 카페만 골라 담았어요. 전부 도보로 이어지고, " +
+                                "장소마다 제 팁을 남겨뒀으니 참고하세요 🌧️",
+                        stats =
+                            CourseStatsResponse(
+                                placeCount = 4,
+                                walkingMinutes = 20,
+                                tracingCountLabel = "1.2k",
+                            ),
+                        authorId = 1L,
+                        places =
+                            listOf(
+                                CoursePlaceResponse(
+                                    id = 1L,
+                                    placeId = 101L,
+                                    orderNo = 1,
+                                    caption = "어니언 성수",
+                                    walkingMinutesToNext = 6,
+                                    images =
+                                        listOf(
+                                            img("THIxFwvmFDIDNW9rHdqN1wRMZjFTQwfEmgO-O4kBM5nA", 0),
+                                            img("Qri_COfUpGil6k79RTh7vRhzDdP08yEcUmXIHnvn7Hfw", 1),
+                                        ),
+                                ),
+                                CoursePlaceResponse(
+                                    id = 2L,
+                                    placeId = 102L,
+                                    orderNo = 2,
+                                    caption = "대림창고 갤러리",
+                                    walkingMinutesToNext = 3,
+                                    images = listOf(img("SYjLV1q0A21vyJJ_N3LlUSp3HwiDDouEZRzcVhJb8KJw", 0)),
+                                ),
+                                CoursePlaceResponse(
+                                    id = 3L,
+                                    placeId = 103L,
+                                    orderNo = 3,
+                                    caption = "센터커피 성수",
+                                    walkingMinutesToNext = 5,
+                                    images = listOf(img("TMRMGDnfUqzsxQXY1TOrhMtWZ8-otKbsLPlfnIkvDfUw", 0)),
+                                ),
+                                CoursePlaceResponse(
+                                    id = 4L,
+                                    placeId = 104L,
+                                    orderNo = 4,
+                                    caption = "카페 할아버지공장",
+                                    walkingMinutesToNext = null,
+                                    images =
+                                        listOf(
+                                            img("Qr6pSHzsT4DD0ieT5VQ__SVo2ErRODzDyViWmZeXHGlA", 0),
+                                            img("R_3CDZ5UcouOOEkvGYQVI2emgnCGRIzRysaKhwNlq-kw", 1),
+                                        ),
+                                ),
+                            ),
+                        viewer =
+                            CourseViewerResponse(
+                                hasSaved = false,
+                                hasStartedCourse = false,
+                            ),
+                    ),
+            )
     }
 }

@@ -1,47 +1,27 @@
 package com.example.backend.course.adapter.inbound.web.response
 
-import com.example.backend.course.application.port.inbound.dto.CourseReviewPageResult
-import com.example.backend.course.application.port.inbound.dto.CourseReviewResult
-import com.example.backend.course.application.port.inbound.dto.CourseReviewTagResult
-import com.example.backend.course.application.port.inbound.dto.RatingCountResult
 import java.time.OffsetDateTime
 
 /**
- * 웹 응답 DTO — 코스 리뷰 한 페이지. 유스케이스 결과([CourseReviewPageResult])를 직렬화 형태로 변환한다.
+ * 웹 응답 DTO — 코스 리뷰 한 페이지.
  * averageRating/totalCount 는 코스 전체 집계, nextCursor/hasNext 는 커서 페이지 메타다.
  */
 data class CourseReviewListResponse(
     val averageRating: Double,
     val totalCount: Int,
     val ratingDistribution: List<RatingCountResponse>,
+    /** 조회자가 이 코스를 완주(트레이싱 완료)했는지. 리뷰 작성 가능 여부 노출 등에 사용. */
     val hasCompletedCourse: Boolean,
     val nextCursor: String?,
     val hasNext: Boolean,
     val reviews: List<CourseReviewResponse>,
-) {
-    companion object {
-        fun from(result: CourseReviewPageResult): CourseReviewListResponse =
-            CourseReviewListResponse(
-                averageRating = result.averageRating,
-                totalCount = result.totalCount,
-                ratingDistribution = result.ratingDistribution.map(RatingCountResponse::from),
-                hasCompletedCourse = result.hasCompletedCourse,
-                nextCursor = result.nextCursor,
-                hasNext = result.hasNext,
-                reviews = result.reviews.map(CourseReviewResponse::from),
-            )
-    }
-}
+)
 
+/** 별점별 리뷰 개수. 5~1점 각각 항상 존재(해당 별점이 없으면 count=0). */
 data class RatingCountResponse(
     val rating: Int,
     val count: Int,
-) {
-    companion object {
-        fun from(result: RatingCountResult): RatingCountResponse =
-            RatingCountResponse(rating = result.rating, count = result.count)
-    }
-}
+)
 
 data class CourseReviewResponse(
     val id: String,
@@ -52,28 +32,10 @@ data class CourseReviewResponse(
     val relativeTime: String,
     val photoUrls: List<String>,
     val tags: List<CourseReviewTagResponse>,
-) {
-    companion object {
-        fun from(result: CourseReviewResult): CourseReviewResponse =
-            CourseReviewResponse(
-                id = result.id,
-                authorId = result.authorId,
-                rating = result.rating,
-                content = result.content,
-                createdAt = result.createdAt,
-                relativeTime = result.relativeTime,
-                photoUrls = result.photoUrls,
-                tags = result.tags.map(CourseReviewTagResponse::from),
-            )
-    }
-}
+)
 
+/** 리뷰 태그 — label(예: "구성이 알차요") + icon 키워드(예: "packed", 프론트가 아이콘으로 매핑). */
 data class CourseReviewTagResponse(
     val label: String,
     val icon: String,
-) {
-    companion object {
-        fun from(result: CourseReviewTagResult): CourseReviewTagResponse =
-            CourseReviewTagResponse(label = result.label, icon = result.icon)
-    }
-}
+)

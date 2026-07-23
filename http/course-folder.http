@@ -1,0 +1,33 @@
+### 코스 저장 폴더 생성 (정상)
+POST http://localhost:8080/api/v1/my/course-folders
+Content-Type: application/json
+
+{
+  "name": "성수 데이트 코스",
+  "description": "비 오는 날 가기 좋은 성수 코스 모음",
+  "isPrivate": false
+}
+
+### 검증 실패 — 400 / 4002 VALIDATION_FAILED + fieldErrors (name 빈값·20자 초과)
+POST http://localhost:8080/api/v1/my/course-folders
+Content-Type: application/json
+
+{
+  "name": ""
+}
+
+### 모킹 에러 주입 — 500 / 5000 INTERNAL_ERROR
+POST http://localhost:8080/api/v1/my/course-folders?mockError=5000
+Content-Type: application/json
+
+{
+  "name": "성수 데이트 코스",
+  "description": null,
+  "isPrivate": true
+}
+
+### 코스 폴더 목록 조회 (정상)
+GET http://localhost:8080/api/v1/my/course-folders
+
+### 모킹 에러 주입 — 404 / 4040 NOT_FOUND
+GET http://localhost:8080/api/v1/my/course-folders?mockError=4040
