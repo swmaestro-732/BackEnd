@@ -3,8 +3,10 @@ package com.example.backend.bootstrap.exception
 import com.example.backend.common.exception.BusinessException
 import com.example.backend.common.response.ApiResponse
 import com.example.backend.common.response.ErrorCode
+import org.jetbrains.exposed.v1.exceptions.ExposedSQLException
 import org.slf4j.LoggerFactory
 import org.springframework.http.ResponseEntity
+import org.springframework.http.converter.HttpMessageNotReadableException
 import org.springframework.web.bind.MethodArgumentNotValidException
 import org.springframework.web.bind.MissingServletRequestParameterException
 import org.springframework.web.bind.annotation.ExceptionHandler
@@ -49,6 +51,11 @@ class GlobalExceptionHandler {
         return respond(ErrorCode.VALIDATION_FAILED, fieldErrors = fieldErrors)
     }
 
+    /** 요청 본문 파싱 실패(JSON 손상, 필수 필드 누락, enum 값 오류 등) → 400. */
+    @ExceptionHandler(HttpMessageNotReadableException::class)
+    fun handleUnreadableBody(e: HttpMessageNotReadableException): ResponseEntity<ApiResponse<Nothing?>> =
+        respond(ErrorCode.INVALID_INPUT, "요청 본문 형식이 올바르지 않습니다.")
+
     /**
      * 잘못된 요청 인자 → 400.
      * 메시지가 그대로 클라이언트에 노출되므로, `require(...)` 로 던질 때는
@@ -76,6 +83,24 @@ class GlobalExceptionHandler {
     @ExceptionHandler(NoSuchElementException::class)
     fun handleNotFound(e: NoSuchElementException): ResponseEntity<ApiResponse<Nothing?>> = respond(ErrorCode.NOT_FOUND)
 
+    /** DB UNIQUE 위반 중 제약 대상을 식별할 수 있는 사용자 중복만 409로 변환한다. */
+    @ExceptionHandler(ExposedSQLException::class)
+    fun handleSqlException(e: ExposedSQLException): ResponseEntity<ApiResponse<Nothing?>> {
+        if (e.sqlState == UNIQUE_VIOLATION_SQL_STATE) {
+            val message = e.message?.lowercase().orEmpty()
+            val errorCode =
+                when {
+                    "handle" in message -> ErrorCode.HANDLE_ALREADY_TAKEN
+                    "nickname" in message -> ErrorCode.NICKNAME_ALREADY_TAKEN
+                    else -> null
+                }
+            if (errorCode != null) {
+                return respond(errorCode)
+            }
+        }
+        return handleUnexpected(e)
+    }
+
     /** 그 외 → 500. 원인 추적을 위해 스택트레이스를 남긴다. */
     @ExceptionHandler(Exception::class)
     fun handleUnexpected(e: Exception): ResponseEntity<ApiResponse<Nothing?>> {
@@ -89,4 +114,8 @@ class GlobalExceptionHandler {
         fieldErrors: List<ApiResponse.FieldError>? = null,
     ): ResponseEntity<ApiResponse<Nothing?>> =
         ResponseEntity.status(errorCode.status).body(ApiResponse.error(errorCode, message, fieldErrors))
+
+    private companion object {
+        const val UNIQUE_VIOLATION_SQL_STATE = "23505"
+    }
 }

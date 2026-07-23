@@ -79,6 +79,18 @@ class HexagonalArchitectureTest {
             .check(classes)
     }
 
+    /**
+     * 포트 계약 DTO는 application.port.inbound(.dto)에 둔다 — application.dto 재도입 차단.
+     * application.dto에 두면 크로스 도메인·bff가 참조할 수 없어(위 규칙들) 재사용 시 빌드가 깨진다.
+     */
+    @Test
+    fun `application_dto 패키지를 두지 않는다`() {
+        noClasses()
+            .should()
+            .resideInAPackage("..application.dto..")
+            .check(classes)
+    }
+
     @Test
     fun `common 은 도메인을 참조하지 않는다`() {
         noClasses()
@@ -136,7 +148,6 @@ class HexagonalArchitectureTest {
                         "..$target.domain..",
                         "..$target.adapter..",
                         "..$target.application.service..",
-                        "..$target.application.dto..",
                         "..$target.application.port.outbound..",
                     ).check(classes)
             }
