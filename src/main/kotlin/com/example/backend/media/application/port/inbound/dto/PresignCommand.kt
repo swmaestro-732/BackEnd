@@ -4,4 +4,5 @@ data class PresignCommand(
     val userId: Long,
     val purpose: UploadPurpose,
     val contentType: String,
+    val contentLength: Long,
 )

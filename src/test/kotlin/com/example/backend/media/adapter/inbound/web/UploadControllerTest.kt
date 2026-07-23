@@ -26,7 +26,7 @@ class UploadControllerTest
                 .perform(
                     post("/api/v1/uploads/presign")
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content("""{"purpose":"PROFILE","contentType":"image/jpeg"}"""),
+                        .content("""{"purpose":"PROFILE","contentType":"image/jpeg","contentLength":1024}"""),
                 ).andExpect(status().isUnauthorized)
         }
 
@@ -37,7 +37,7 @@ class UploadControllerTest
                     post("/api/v1/uploads/presign")
                         .header(HttpHeaders.AUTHORIZATION, "Bearer ${jwtTokenProvider.issueAccessToken(1L)}")
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content("""{"purpose":"PROFILE","contentType":"image/jpeg"}"""),
+                        .content("""{"purpose":"PROFILE","contentType":"image/jpeg","contentLength":1024}"""),
                 ).andExpect(status().isOk)
                 .andExpect(jsonPath("$.code").value(2000))
                 .andExpect(jsonPath("$.data.key").value(matchesPattern("profile/1/[0-9a-f-]{36}\\.jpg")))
@@ -52,7 +52,7 @@ class UploadControllerTest
                     post("/api/v1/uploads/presign")
                         .header(HttpHeaders.AUTHORIZATION, "Bearer ${jwtTokenProvider.issueAccessToken(1L)}")
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content("""{"purpose":"PROFILE","contentType":"application/pdf"}"""),
+                        .content("""{"purpose":"PROFILE","contentType":"application/pdf","contentLength":1024}"""),
                 ).andExpect(status().isUnsupportedMediaType)
                 .andExpect(jsonPath("$.code").value(4150))
         }
@@ -64,8 +64,44 @@ class UploadControllerTest
                     post("/api/v1/uploads/presign")
                         .header(HttpHeaders.AUTHORIZATION, "Bearer ${jwtTokenProvider.issueAccessToken(1L)}")
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content("""{"contentType":"image/jpeg"}"""),
+                        .content("""{"contentType":"image/jpeg","contentLength":1024}"""),
                 ).andExpect(status().isBadRequest)
                 .andExpect(jsonPath("$.code").value(4002))
+        }
+
+        @Test
+        fun `contentLength가 없으면 필드 검증 에러를 내려준다`() {
+            mockMvc
+                .perform(
+                    post("/api/v1/uploads/presign")
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer ${jwtTokenProvider.issueAccessToken(1L)}")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""{"purpose":"PROFILE","contentType":"image/jpeg"}"""),
+                ).andExpect(status().isBadRequest)
+                .andExpect(jsonPath("$.code").value(4002))
+        }
+
+        @Test
+        fun `contentLength가 0 이하이면 필드 검증 에러를 내려준다`() {
+            mockMvc
+                .perform(
+                    post("/api/v1/uploads/presign")
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer ${jwtTokenProvider.issueAccessToken(1L)}")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""{"purpose":"PROFILE","contentType":"image/jpeg","contentLength":0}"""),
+                ).andExpect(status().isBadRequest)
+                .andExpect(jsonPath("$.code").value(4002))
+        }
+
+        @Test
+        fun `contentLength가 최대치를 초과하면 413을 내려준다`() {
+            mockMvc
+                .perform(
+                    post("/api/v1/uploads/presign")
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer ${jwtTokenProvider.issueAccessToken(1L)}")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""{"purpose":"PROFILE","contentType":"image/jpeg","contentLength":10485761}"""),
+                ).andExpect(status().isPayloadTooLarge)
+                .andExpect(jsonPath("$.code").value(4130))
         }
     }

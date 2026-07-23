@@ -30,11 +30,27 @@ class S3MediaStorageAdapterTest {
 
     @Test
     fun `presignedPutUrl은 서명 쿼리 파라미터가 포함된 URL을 반환한다`() {
-        val url = adapter.presignedPutUrl("profile/1/uuid.jpg", "image/jpeg")
+        val url = adapter.presignedPutUrl("profile/1/uuid.jpg", "image/jpeg", 1024)
 
         assertTrue(url.contains("dummy-bucket"))
         assertTrue(url.contains("profile/1/uuid.jpg"))
         assertTrue(url.contains("X-Amz-Signature"))
+    }
+
+    @Test
+    fun `presignedPutUrl은 content-length와 content-type을 서명 헤더에 포함한다`() {
+        val url = adapter.presignedPutUrl("profile/1/uuid.jpg", "image/jpeg", 1024)
+
+        val signedHeaders =
+            Regex("X-Amz-SignedHeaders=([^&]+)")
+                .find(url)
+                ?.groupValues
+                ?.get(1)
+                ?.lowercase()
+                .orEmpty()
+
+        assertTrue(signedHeaders.contains("content-length"))
+        assertTrue(signedHeaders.contains("content-type"))
     }
 
     @Test
