@@ -3,6 +3,7 @@ package com.example.backend.user.adapter.inbound.web
 import com.example.backend.bootstrap.security.JwtTokenProvider
 import com.example.backend.support.IntegrationTestBase
 import com.example.backend.user.domain.model.SocialProvider
+import com.jayway.jsonpath.JsonPath
 import org.hamcrest.Matchers.not
 import org.junit.jupiter.api.Test
 import org.springframework.beans.factory.annotation.Autowired
@@ -53,14 +54,25 @@ class AuthTokenFlowTest
 
         @Test
         fun `refresh token 재발급 시 토큰을 회전하고 기존 토큰 재사용을 거부한다`() {
+            val body =
+                mockMvc
+                    .perform(reissueRequest())
+                    .andExpect(status().isOk)
+                    .andExpect(jsonPath("$.code").value(2000))
+                    .andExpect(jsonPath("$.data.accessToken").isNotEmpty)
+                    .andExpect(jsonPath("$.data.refreshToken").isNotEmpty)
+                    .andExpect(jsonPath("$.data.refreshToken").value(not(REFRESH_TOKEN)))
+                    .andReturn()
+                    .response.contentAsString
+            val rotated: String = JsonPath.read(body, "$.data.refreshToken")
+
+            // 회전된 새 refresh token 은 실제로 재발급에 사용할 수 있어야 한다(새 digest 저장까지 검증).
             mockMvc
-                .perform(reissueRequest())
+                .perform(reissueRequestWith(rotated))
                 .andExpect(status().isOk)
                 .andExpect(jsonPath("$.code").value(2000))
-                .andExpect(jsonPath("$.data.accessToken").isNotEmpty)
-                .andExpect(jsonPath("$.data.refreshToken").isNotEmpty)
-                .andExpect(jsonPath("$.data.refreshToken").value(not(REFRESH_TOKEN)))
 
+            // 기존(회전 전) 토큰 재사용은 거부한다.
             mockMvc
                 .perform(reissueRequest())
                 .andExpect(status().isUnauthorized)
@@ -98,10 +110,12 @@ class AuthTokenFlowTest
                 .andExpect(jsonPath("$.data.id").value(USER_ID))
         }
 
-        private fun reissueRequest() =
+        private fun reissueRequest() = reissueRequestWith(REFRESH_TOKEN)
+
+        private fun reissueRequestWith(refreshToken: String) =
             post("/api/v1/auth/token-reissue")
                 .contentType(MediaType.APPLICATION_JSON)
-                .content("""{"refreshToken":"$REFRESH_TOKEN"}""")
+                .content("""{"refreshToken":"$refreshToken"}""")
 
         private fun logoutRequest() =
             post("/api/v1/auth/logout")
