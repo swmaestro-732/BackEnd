@@ -14,13 +14,15 @@ GET http://localhost:8080/api/v1/courses/99999
 ### 모킹 에러 주입 — mockError 코드로 에러 응답 강제 (예: 404 / 4041 코스 없음)
 GET http://localhost:8080/api/v1/courses/1?mockError=4041
 
-### 코스 생성 — 발행 (정상)
+### 코스 생성 — 발행 (정상, 실구현) — 인증 필수(토큰의 subject 가 작성자).
 POST http://localhost:8080/api/v1/courses
 Content-Type: application/json
+Authorization: Bearer {{accessToken}}
 
 {
   "title": "성수 비 오는 날 코스",
   "description": "비 오는 날에도 예쁜 성수 카페만 골라 도보로 이어지는 코스예요.",
+  "thumbnailUrl": "https://cdn.courmy.app/c1/cover.jpg",
   "tags": ["성수", "데이트", "비 오는 날", "감성"],
   "visibility": "PUBLIC",
   "isPublished": true,
@@ -40,17 +42,36 @@ Content-Type: application/json
   ]
 }
 
+### 코스 생성 — 임시저장 (정상) — 장소·커버 없이도 저장, category 는 null(발행 시 도출)
+POST http://localhost:8080/api/v1/courses
+Content-Type: application/json
+Authorization: Bearer {{accessToken}}
+
+{
+  "title": "작성 중인 코스",
+  "description": null,
+  "thumbnailUrl": null,
+  "tags": [],
+  "visibility": "PRIVATE",
+  "isPublished": false,
+  "places": []
+}
+
 ### 400 / 4001 INVALID_INPUT — 비즈니스 규칙 위반·본문 파싱 실패
 # 발생 경우:
-# - 발행(isPublished=true)인데 places 비어 있음  ← 아래 예시
+# - 발행(isPublished=true)인데 places 2곳 미만  ← 아래 예시(0곳)
+# - 발행인데 thumbnailUrl(커버) 없음
+# - 발행인데 장소 사진(imageUrls) 0장 (임시저장은 0장 허용)
 # - places 의 orderNo 중복
 # - JSON 손상, 필수 필드 누락(title 등), 타입 오류, visibility 오타(EVERYONE 등)
 POST http://localhost:8080/api/v1/courses
 Content-Type: application/json
+Authorization: Bearer {{accessToken}}
 
 {
   "title": "장소 없는 발행 코스",
   "description": null,
+  "thumbnailUrl": "https://cdn.courmy.app/c1/cover.jpg",
   "tags": [],
   "visibility": "PUBLIC",
   "isPublished": true,
@@ -64,9 +85,10 @@ Content-Type: application/json
 # - caption 200자 초과
 # - placeId 0 이하
 # - orderNo 0 미만(음수)
-# - imageUrls 0장(최소 1장, 상한 없음)
+# - imageUrls 원소가 공백 문자열(@NotBlank) — 장수 제한은 도메인(발행 시 1장 이상)
 POST http://localhost:8080/api/v1/courses
 Content-Type: application/json
+Authorization: Bearer {{accessToken}}
 
 {
   "title": "",

@@ -1,5 +1,6 @@
 package com.example.backend.course.application.port.outbound
 
+import com.example.backend.course.domain.model.Course
 import com.example.backend.course.domain.model.CourseCategory
 import com.example.backend.course.domain.model.CourseStatus
 import com.example.backend.course.domain.model.CourseVisibility
@@ -11,7 +12,7 @@ data class CourseDetailRow(
     val title: String,
     val coverImageUrl: String?,
     val description: String?,
-    /** 코스 카테고리(응답 themes 의 출처). 미선택 draft 는 null. */
+    /** 코스 카테고리(응답 theme 의 출처). 미선택 draft 는 null. */
     val category: CourseCategory?,
     val tracingsCnt: Int,
     val status: CourseStatus,
@@ -34,11 +35,15 @@ data class CoursePlaceImageRow(
 )
 
 /**
- * 아웃바운드 포트 — 코스 상세 조회에 필요한 읽기 모델 계약.
- * 구현체(Exposed 어댑터)는 adapter/outbound/persistence 에 위치한다.
+ * 아웃바운드 포트 — 코스 애그리거트 영속(조회·생성). 구현체(Exposed 어댑터)는 adapter/outbound/persistence 에 위치한다.
+ * user 도메인 [com.example.backend.user.application.port.outbound.UserPersistencePort] 와 동일하게
+ * 한 포트에서 읽기·쓰기를 함께 다루고, 저장은 도메인 애그리거트([Course])를 받는다.
  */
-interface CourseQueryPort {
+interface CoursePersistencePort {
     fun findCourseDetail(courseId: Long): CourseDetailRow?
 
     fun findPlaces(courseId: Long): List<CoursePlaceRow>
+
+    /** 코스 애그리거트(코스·장소·이미지·태그)를 한 트랜잭션으로 저장하고 새 코스 id 를 반환한다. */
+    fun save(course: Course): Long
 }
