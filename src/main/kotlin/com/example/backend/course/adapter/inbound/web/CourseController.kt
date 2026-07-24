@@ -4,17 +4,19 @@ import com.example.backend.bootstrap.security.CurrentUserId
 import com.example.backend.common.mock.MockErrors
 import com.example.backend.common.response.ApiResponse
 import com.example.backend.course.adapter.inbound.web.request.CreateCourseRequest
+import com.example.backend.course.adapter.inbound.web.request.EditCourseRequest
 import com.example.backend.course.adapter.inbound.web.response.CourseDetailResponse
+import com.example.backend.course.adapter.inbound.web.response.CourseIdResponse
 import com.example.backend.course.adapter.inbound.web.response.CoursePlaceImageResponse
 import com.example.backend.course.adapter.inbound.web.response.CoursePlaceResponse
 import com.example.backend.course.adapter.inbound.web.response.CourseResponse
 import com.example.backend.course.adapter.inbound.web.response.CourseStatsResponse
 import com.example.backend.course.adapter.inbound.web.response.CourseViewerResponse
-import com.example.backend.course.adapter.inbound.web.response.CreateCourseResponse
 import com.example.backend.course.application.port.inbound.CourseUseCase
 import jakarta.validation.Valid
 import org.springframework.http.HttpStatus
 import org.springframework.web.bind.annotation.GetMapping
+import org.springframework.web.bind.annotation.PatchMapping
 import org.springframework.web.bind.annotation.PathVariable
 import org.springframework.web.bind.annotation.PostMapping
 import org.springframework.web.bind.annotation.RequestBody
@@ -31,6 +33,8 @@ import org.springframework.web.bind.annotation.RestController
  * - [create] 코스 생성(`POST /api/v1/courses`): **실구현** — 인바운드 포트([CourseUseCase])로 저장한다.
  *   작성자 식별이 필요해 `@CurrentUserId`(JWT subject)로 userId 를 받는다 — 유효한 토큰이 있어야 동작하며,
  *   경로 자체의 인증 강제(SecurityConfig)는 후속 과제다.
+ * - [edit] 코스 편집(`PATCH /api/v1/courses/{courseId}`): **모킹 API** — 실제 저장 없이 받은 courseId 를
+ *   그대로 돌려준다. 실제 구현 시 인바운드 포트(UseCase) 연동으로 교체하고 [MockErrors] 호출을 제거한다.
  *
  * `mockError` 파라미터로 모킹 에러를 주입할 수 있다(예: `?mockError=4041`).
  */
@@ -68,10 +72,29 @@ class CourseController(
         @CurrentUserId userId: Long,
         @Valid @RequestBody request: CreateCourseRequest,
         @RequestParam(required = false) mockError: Int?,
-    ): ApiResponse<CreateCourseResponse> {
+    ): ApiResponse<CourseIdResponse> {
         MockErrors.throwIfRequested(mockError)
         val courseId = courseUseCase.create(request.toCommand(userId))
-        return ApiResponse.success(CreateCourseResponse(courseId = courseId))
+        return ApiResponse.success(CourseIdResponse(courseId = courseId))
+    }
+
+    /**
+     * 코스 편집(모킹 API). 코스 만들기와 같은 빌더 화면을 재사용하며, 편집한 코스 전체 상태를
+     * 되돌려 보내는 전체 치환 계약이다([EditCourseRequest]). 노션 "코스 편집" 페이지는 필드 미작성 상태라
+     * 코스 생성 요청과 동일한 필드로 도출했다.
+     *
+     * 모킹 단계에서는 실제 저장 없이 경로의 `courseId` 를 그대로 응답으로 돌려준다 —
+     * 프론트는 편집 후 코스 상세 API 재조회로 화면을 구성한다.
+     * 실제 구현 시 인바운드 포트(UseCase) 연동으로 교체하고 [MockErrors] 호출을 제거한다.
+     */
+    @PatchMapping("/courses/{courseId}")
+    fun edit(
+        @PathVariable courseId: Long,
+        @Valid @RequestBody request: EditCourseRequest,
+        @RequestParam(required = false) mockError: Int?,
+    ): ApiResponse<CourseIdResponse> {
+        MockErrors.throwIfRequested(mockError)
+        return ApiResponse.success(CourseIdResponse(courseId = courseId))
     }
 
     private companion object {
