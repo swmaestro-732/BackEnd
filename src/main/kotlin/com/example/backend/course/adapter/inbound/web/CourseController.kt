@@ -1,5 +1,6 @@
 package com.example.backend.course.adapter.inbound.web
 
+import com.example.backend.bootstrap.security.CurrentUserId
 import com.example.backend.common.exception.BusinessException
 import com.example.backend.common.mock.MockErrors
 import com.example.backend.common.response.ApiResponse
@@ -12,6 +13,7 @@ import com.example.backend.course.adapter.inbound.web.response.CourseResponse
 import com.example.backend.course.adapter.inbound.web.response.CourseStatsResponse
 import com.example.backend.course.adapter.inbound.web.response.CourseViewerResponse
 import com.example.backend.course.adapter.inbound.web.response.CreateCourseResponse
+import com.example.backend.course.application.port.inbound.CourseDetailUseCase
 import jakarta.validation.Valid
 import org.springframework.http.HttpStatus
 import org.springframework.web.bind.annotation.GetMapping
@@ -24,29 +26,34 @@ import org.springframework.web.bind.annotation.ResponseStatus
 import org.springframework.web.bind.annotation.RestController
 
 /**
- * 인바운드 어댑터 — 코스(노션 명세 · Course). **모킹 API**.
+ * 인바운드 어댑터 — 코스(노션 명세 · Course).
  *
- * - [getDetail] 코스 상세(`GET /api/v1/courses/{courseId}`): 컨트롤러에서 목 데이터를 직접 만들어 반환한다.
- *   존재하는 코스는 id=1 뿐이며, 나머지는 404(COURSE_NOT_FOUND).
- * - [create] 코스 생성(`POST /api/v1/courses`): 필드는 디자인 목업(코스 만들기: 코스 정보 →
+ * - [getDetail] 코스 상세(`GET /api/v1/courses/{courseId}`): **실구현** — 인바운드 포트([CourseDetailUseCase])로
+ *   DB 조회한다. 시드 데이터가 없는 개발 환경을 위해 `?mock=true` 폴백(기존 [MOCK_DETAIL])을 유지한다.
+ * - [create] 코스 생성(`POST /api/v1/courses`): **모킹 API**. 필드는 디자인 목업(코스 만들기: 코스 정보 →
  *   장소 담기 → 공개 설정)과 courses 스키마에서 도출해 합의했다(노션 명세 필드 미작성 상태).
  *
- * 실제 구현 시 인바운드 포트(UseCase) 연동으로 교체하고 [MockErrors] 호출을 제거한다.
  * `mockError` 파라미터로 모킹 에러를 주입할 수 있다(예: `?mockError=4041`).
  */
 @RestController
 @RequestMapping("/api/v1")
-class CourseController {
+class CourseController(
+    private val courseDetailUseCase: CourseDetailUseCase,
+) {
+    /**
+     * 코스 상세 조회. status=ACTIVE·미삭제 코스만 반환하며 PRIVATE 은 소유자만 조회 가능(그 외 404).
+     * `?mock=true` 면 DB 조회 없이 고정 목([MOCK_DETAIL])을 반환한다.
+     */
     @GetMapping("/courses/{courseId}")
     fun getDetail(
         @PathVariable courseId: Long,
+        @CurrentUserId viewerId: Long?,
+        @RequestParam(required = false) mock: Boolean = false,
         @RequestParam(required = false) mockError: Int?,
     ): ApiResponse<CourseDetailResponse> {
         MockErrors.throwIfRequested(mockError)
-        if (courseId != 1L) {
-            throw BusinessException(ErrorCode.COURSE_NOT_FOUND, "코스를 찾을 수 없습니다: id=$courseId")
-        }
-        return ApiResponse.success(MOCK_DETAIL)
+        if (mock) return ApiResponse.success(MOCK_DETAIL)
+        return ApiResponse.success(CourseDetailResponse.from(courseDetailUseCase.getDetail(courseId, viewerId)))
     }
 
     /**
@@ -104,7 +111,7 @@ class CourseController {
                         id = "1",
                         title = "비 오는 날 성수 감성 카페 코스",
                         coverImageUrl = image("THb4AHDBpbwjQOwLbBj3pgro4xFRpvBdRRZDTcbVmMkg"),
-                        themes = listOf("데이트"),
+                        theme = "데이트",
                         description =
                             "비가 오면 더 예쁜 성수 카페만 골라 담았어요. 전부 도보로 이어지고, " +
                                 "장소마다 제 팁을 남겨뒀으니 참고하세요 🌧️",

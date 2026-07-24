@@ -15,6 +15,7 @@ internal object CourseTable : Table("courses") {
     val deletedAt = timestamp("deleted_at").nullable()
     val userId = long("user_id") // cross-domain(user): FK 없음
     val title = varchar("title", 200)
+    val coverImageUrl = text("cover_image_url").nullable()
     val description = text("description").nullable()
     val category = enumerationByName<CourseCategory>("category", 50).nullable()
     val area = varchar("area", 100).nullable()
