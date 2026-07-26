@@ -1,6 +1,8 @@
 package com.example.backend.course.adapter.outbound.persistence
 
+import com.example.backend.course.domain.model.Course
 import com.example.backend.course.domain.model.CourseCategory
+import com.example.backend.course.domain.model.CoursePlace
 import com.example.backend.course.domain.model.CourseStatus
 import com.example.backend.course.domain.model.CourseVisibility
 import org.jetbrains.exposed.v1.core.dao.id.EntityID
@@ -9,12 +11,15 @@ import org.jetbrains.exposed.v1.dao.LongEntity
 import org.jetbrains.exposed.v1.dao.LongEntityClass
 import org.jetbrains.exposed.v1.datetime.date
 import org.jetbrains.exposed.v1.datetime.timestamp
+import kotlin.time.Clock
 
 // LongIdTable 이 id(EntityID<Long>, "id" 컬럼)와 primaryKey 를 제공한다 → DAO(CourseEntity)·DSL 공용.
+// created_at·updated_at·카운터에 클라이언트 기본값을 둔다 — DAO(.new)는 batch insert 라 DB 전용 DEFAULT 를
+// 지원하지 않기 때문(없으면 BatchDataInconsistentException). 타임스탬프는 이 정의상 앱 생성이 된다.
 internal object CourseTable : LongIdTable("courses") {
     val status = enumerationByName<CourseStatus>("status", 32)
-    val createdAt = timestamp("created_at")
-    val updatedAt = timestamp("updated_at")
+    val createdAt = timestamp("created_at").clientDefault { Clock.System.now() }
+    val updatedAt = timestamp("updated_at").clientDefault { Clock.System.now() }
     val deletedAt = timestamp("deleted_at").nullable()
     val userId = long("user_id") // cross-domain(user): FK 없음
     val title = varchar("title", 200)
@@ -25,10 +30,10 @@ internal object CourseTable : LongIdTable("courses") {
     val visitDate = date("visit_date").nullable()
     val isPublished = bool("is_published")
     val visibility = enumerationByName<CourseVisibility>("visibility", 32)
-    val likesCnt = integer("likes_cnt")
-    val commentsCnt = integer("comments_cnt")
-    val savesCnt = integer("saves_cnt")
-    val tracingsCnt = integer("tracings_cnt")
+    val likesCnt = integer("likes_cnt").default(0)
+    val commentsCnt = integer("comments_cnt").default(0)
+    val savesCnt = integer("saves_cnt").default(0)
+    val tracingsCnt = integer("tracings_cnt").default(0)
     val forkedFromId = long("forked_from_id").nullable() // 포크 원본 course (같은 도메인)
 }
 
@@ -60,4 +65,37 @@ internal class CourseEntity(
     var savesCnt by CourseTable.savesCnt
     var tracingsCnt by CourseTable.tracingsCnt
     var forkedFromId by CourseTable.forkedFromId
+
+    /**
+     * DAO 엔티티를 도메인 [Course] 로 변환한다. courses 컬럼(생성된 id·DB 생성값 포함)은 엔티티가,
+     * 자식(tags·places)은 인자로 받아 조립한다 — 도메인은 자식의 생성 id 를 담지 않아 입력 애그리거트를 재사용한다.
+     * DB 생성값(created_at·updated_at·카운터)은 insert 후 [refresh] 로 적재된 뒤라야 정확하다.
+     */
+    fun toDomain(
+        tags: List<String>,
+        places: List<CoursePlace>,
+    ): Course =
+        Course.reconstitute(
+            id = id.value,
+            userId = userId,
+            status = status,
+            title = title,
+            description = description,
+            coverImageUrl = coverImageUrl,
+            category = category,
+            area = area,
+            visitDate = visitDate,
+            visibility = visibility,
+            isPublished = isPublished,
+            likesCnt = likesCnt,
+            commentsCnt = commentsCnt,
+            savesCnt = savesCnt,
+            tracingsCnt = tracingsCnt,
+            forkedFromId = forkedFromId,
+            createdAt = createdAt,
+            updatedAt = updatedAt,
+            deletedAt = deletedAt,
+            tags = tags,
+            places = places,
+        )
 }

@@ -39,7 +39,7 @@ import org.springframework.web.bind.annotation.RestController
  * `mockError` 파라미터로 모킹 에러를 주입할 수 있다(예: `?mockError=4041`).
  */
 @RestController
-@RequestMapping("/api/v1")
+@RequestMapping("/api/v1/courses")
 class CourseController(
     private val courseUseCase: CourseUseCase,
 ) {
@@ -47,7 +47,7 @@ class CourseController(
      * 코스 상세 조회. status=ACTIVE·미삭제 코스만 반환하며 PRIVATE 은 소유자만 조회 가능(그 외 404).
      * `?mock=true` 면 DB 조회 없이 고정 목([MOCK_DETAIL])을 반환한다.
      */
-    @GetMapping("/courses/{courseId}")
+    @GetMapping("/{courseId}")
     fun getDetail(
         @PathVariable courseId: Long,
         @CurrentUserId viewerId: Long?,
@@ -66,7 +66,7 @@ class CourseController(
      * - 필드 형식·범위(title·tags·places 등)는 Bean Validation([CreateCourseRequest]) → 400 VALIDATION_FAILED + fieldErrors.
      * - 교차 필드·비즈니스 규칙(발행 시 장소 1곳 이상, orderNo 중복 금지)은 [CourseUseCase] 가 검증한다 → 400 INVALID_INPUT.
      */
-    @PostMapping("/courses")
+    @PostMapping("")
     @ResponseStatus(HttpStatus.CREATED)
     fun create(
         @CurrentUserId userId: Long,
@@ -74,8 +74,8 @@ class CourseController(
         @RequestParam(required = false) mockError: Int?,
     ): ApiResponse<CourseIdResponse> {
         MockErrors.throwIfRequested(mockError)
-        val courseId = courseUseCase.create(request.toCommand(userId))
-        return ApiResponse.success(CourseIdResponse(courseId = courseId))
+        val course = courseUseCase.create(request.toCommand(userId))
+        return ApiResponse.success(CourseIdResponse(courseId = requireNotNull(course.id)))
     }
 
     /**
@@ -87,7 +87,7 @@ class CourseController(
      * 프론트는 편집 후 코스 상세 API 재조회로 화면을 구성한다.
      * 실제 구현 시 인바운드 포트(UseCase) 연동으로 교체하고 [MockErrors] 호출을 제거한다.
      */
-    @PatchMapping("/courses/{courseId}")
+    @PatchMapping("/{courseId}")
     fun edit(
         @PathVariable courseId: Long,
         @Valid @RequestBody request: EditCourseRequest,

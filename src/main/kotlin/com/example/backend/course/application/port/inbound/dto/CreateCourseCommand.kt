@@ -14,6 +14,7 @@ data class CreateCourseCommand(
     val tags: List<String>,
     val visibility: CourseVisibility,
     val isPublished: Boolean,
+    val forkedFromId: Long?,
     val places: List<CreateCoursePlaceCommand>,
 )
 

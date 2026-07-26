@@ -39,6 +39,9 @@ data class CreateCourseRequest(
     > = emptyList(),
     val visibility: CourseVisibility,
     val isPublished: Boolean,
+    /** 포크(다른 코스에서 복제) 원본 course id. 일반 생성이면 요청에 없거나 null. */
+    @field:Positive
+    val forkedFromId: Long? = null,
     @field:Valid
     val places: List<CreateCoursePlaceRequest> = emptyList(),
 ) {
@@ -51,6 +54,7 @@ data class CreateCourseRequest(
             tags = tags,
             visibility = visibility,
             isPublished = isPublished,
+            forkedFromId = forkedFromId,
             places =
                 places.map {
                     CreateCoursePlaceCommand(

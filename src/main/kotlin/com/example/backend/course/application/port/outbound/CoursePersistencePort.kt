@@ -44,6 +44,6 @@ interface CoursePersistencePort {
 
     fun findPlaces(courseId: Long): List<CoursePlaceRow>
 
-    /** 코스 애그리거트(코스·장소·이미지·태그)를 한 트랜잭션으로 저장하고 새 코스 id 를 반환한다. */
-    fun save(course: Course): Long
+    /** 코스 애그리거트(코스·장소·이미지·태그)를 한 트랜잭션으로 저장하고, 저장된 코스(생성 id·DB 생성값 포함)를 반환한다. */
+    fun save(course: Course): Course
 }

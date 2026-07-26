@@ -27,8 +27,9 @@ class CoursePersistenceAdapter(
 
     override fun findPlaces(courseId: Long): List<CoursePlaceRow> = coursePlaceRepository.findByCourseId(courseId)
 
-    override fun save(course: Course): Long {
-        val courseId = courseRepository.insert(course)
+    override fun save(course: Course): Course {
+        val courseEntity = courseRepository.insert(course)
+        val courseId = courseEntity.id.value
 
         course.places.forEach { place -> coursePlaceRepository.insert(courseId, place) }
 
@@ -36,6 +37,7 @@ class CoursePersistenceAdapter(
             courseTagRepository.link(courseId, tagRepository.findOrCreate(tagName))
         }
 
-        return courseId
+        // 자식(tags·places)은 방금 저장한 입력 애그리거트를 재사용해 조립한다(도메인은 자식의 생성 id 를 담지 않음).
+        return courseEntity.toDomain(course.tags, course.places)
     }
 }

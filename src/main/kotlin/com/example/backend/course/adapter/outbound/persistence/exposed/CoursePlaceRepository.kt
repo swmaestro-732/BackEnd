@@ -1,11 +1,11 @@
 package com.example.backend.course.adapter.outbound.persistence.exposed
 
+import com.example.backend.course.adapter.outbound.persistence.CoursePlaceEntity
 import com.example.backend.course.adapter.outbound.persistence.CoursePlaceTable
 import com.example.backend.course.application.port.outbound.CoursePlaceRow
 import com.example.backend.course.domain.model.CoursePlace
 import org.jetbrains.exposed.v1.core.SortOrder
 import org.jetbrains.exposed.v1.core.eq
-import org.jetbrains.exposed.v1.jdbc.insert
 import org.jetbrains.exposed.v1.jdbc.selectAll
 import org.springframework.stereotype.Repository
 
@@ -23,15 +23,14 @@ class CoursePlaceRepository(
         place: CoursePlace,
     ) {
         val coursePlaceId =
-            CoursePlaceTable
-                .insert {
-                    it[CoursePlaceTable.courseId] = courseId
-                    it[placeId] = place.placeId
-                    it[orderNo] = place.orderNo.toShort()
-                    it[caption] = place.caption
+            CoursePlaceEntity
+                .new {
+                    this.courseId = courseId
+                    placeId = place.placeId
+                    orderNo = place.orderNo.toShort()
+                    caption = place.caption
                     // walking_minutes 는 서버 자동 계산(후속) — 생성 시 null.
-                }[CoursePlaceTable.id]
-                .value
+                }.id.value
 
         place.imageUrls.forEachIndexed { index, url ->
             coursePlaceImageRepository.insert(coursePlaceId, url, index)

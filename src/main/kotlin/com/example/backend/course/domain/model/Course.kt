@@ -2,21 +2,38 @@ package com.example.backend.course.domain.model
 
 import com.example.backend.common.exception.BusinessException
 import com.example.backend.common.response.ErrorCode
+import kotlinx.datetime.LocalDate
+import kotlin.time.Instant
 
 /**
  * 코스 애그리거트 루트. 코스와 그에 담긴 장소([CoursePlace])·태그를 한 일관성 경계로 묶는다.
- * 생성은 [create] 팩토리로만 하며, 여기서 도메인 불변식을 강제한다(팩토리 우회는 [ConsistentCopyVisibility] 로 차단).
+ * 신규 생성은 [create] 팩토리로, 저장된 상태 복원(영속 계층 → 도메인)은 [reconstitute] 팩토리로만 한다.
+ * 팩토리 우회는 [ConsistentCopyVisibility] 로 차단한다(copy() 도 private).
+ *
+ * courses 테이블의 모든 컬럼을 필드로 보유한다. 생성 시점(insert 전)에 미정인 값은 nullable·기본값으로 두고,
+ * DB 가 채우는 값(id·created_at·updated_at·카운터 등)은 [reconstitute] 로 되돌려 받아 채운다.
  */
 @ConsistentCopyVisibility // copy() 도 private 으로 — 팩토리 우회 차단
 data class Course private constructor(
     val id: Long?,
     val userId: Long,
+    val status: CourseStatus,
     val title: String,
     val description: String?,
     val coverImageUrl: String?,
     val category: CourseCategory?,
+    val area: String?,
+    val visitDate: LocalDate?,
     val visibility: CourseVisibility,
     val isPublished: Boolean,
+    val likesCnt: Int,
+    val commentsCnt: Int,
+    val savesCnt: Int,
+    val tracingsCnt: Int,
+    val forkedFromId: Long?,
+    val createdAt: Instant?,
+    val updatedAt: Instant?,
+    val deletedAt: Instant?,
     val tags: List<String>,
     val places: List<CoursePlace>,
 ) {
@@ -31,6 +48,7 @@ data class Course private constructor(
             coverImageUrl: String?,
             visibility: CourseVisibility,
             isPublished: Boolean,
+            forkedFromId: Long?,
             tags: List<String>,
             places: List<CoursePlace>,
             placeCategoryByPlaceId: Map<Long, String>,
@@ -48,19 +66,84 @@ data class Course private constructor(
             if (places.map { it.orderNo }.toSet().size != places.size) {
                 throw BusinessException(ErrorCode.INVALID_INPUT, "장소 순서(orderNo)가 중복되었습니다.")
             }
+            // 생성 시점에 미정인 값은 pre-persist 기본값으로 둔다(id·타임스탬프는 DB 가, 카운터는 DB DEFAULT 가 채움).
             return Course(
                 id = null,
                 userId = userId,
+                status = CourseStatus.ACTIVE,
                 title = title,
                 description = description,
                 coverImageUrl = coverImageUrl,
                 category = deriveCategory(isPublished, places, placeCategoryByPlaceId),
+                area = null,
+                visitDate = null,
                 visibility = visibility,
                 isPublished = isPublished,
+                likesCnt = 0,
+                commentsCnt = 0,
+                savesCnt = 0,
+                tracingsCnt = 0,
+                forkedFromId = forkedFromId,
+                createdAt = null,
+                updatedAt = null,
+                deletedAt = null,
                 tags = tags.map(String::trim).filter(String::isNotBlank).distinct(),
                 places = places,
             )
         }
+
+        /**
+         * 영속 계층에서 읽어온 상태로 코스를 복원한다(insert 직후·조회 시). 이미 저장된 신뢰 값이라
+         * 불변식 재검증·카테고리 재도출을 하지 않고 그대로 싣는다 — [create] 와 달리 파생 없이 전부 주입한다.
+         * copy() 가 막혀 있어(팩토리 우회 차단) id·DB 생성값을 채운 [Course] 를 만드는 유일한 통로다.
+         */
+        @Suppress("LongParameterList")
+        fun reconstitute(
+            id: Long,
+            userId: Long,
+            status: CourseStatus,
+            title: String,
+            description: String?,
+            coverImageUrl: String?,
+            category: CourseCategory?,
+            area: String?,
+            visitDate: LocalDate?,
+            visibility: CourseVisibility,
+            isPublished: Boolean,
+            likesCnt: Int,
+            commentsCnt: Int,
+            savesCnt: Int,
+            tracingsCnt: Int,
+            forkedFromId: Long?,
+            createdAt: Instant?,
+            updatedAt: Instant?,
+            deletedAt: Instant?,
+            tags: List<String>,
+            places: List<CoursePlace>,
+        ): Course =
+            Course(
+                id = id,
+                userId = userId,
+                status = status,
+                title = title,
+                description = description,
+                coverImageUrl = coverImageUrl,
+                category = category,
+                area = area,
+                visitDate = visitDate,
+                visibility = visibility,
+                isPublished = isPublished,
+                likesCnt = likesCnt,
+                commentsCnt = commentsCnt,
+                savesCnt = savesCnt,
+                tracingsCnt = tracingsCnt,
+                forkedFromId = forkedFromId,
+                createdAt = createdAt,
+                updatedAt = updatedAt,
+                deletedAt = deletedAt,
+                tags = tags,
+                places = places,
+            )
 
         /**
          * 코스 카테고리 도출 규칙 — 발행 코스만 담은 장소들의 카테고리로 정한다(임시저장은 null).

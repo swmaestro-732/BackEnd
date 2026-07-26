@@ -1,11 +1,11 @@
 package com.example.backend.course.adapter.outbound.persistence.exposed
 
+import com.example.backend.course.adapter.outbound.persistence.CoursePlaceImageEntity
 import com.example.backend.course.adapter.outbound.persistence.CoursePlaceImageTable
 import com.example.backend.course.application.port.outbound.CoursePlaceImageRow
 import org.jetbrains.exposed.v1.core.ResultRow
 import org.jetbrains.exposed.v1.core.SortOrder
 import org.jetbrains.exposed.v1.core.inList
-import org.jetbrains.exposed.v1.jdbc.insert
 import org.jetbrains.exposed.v1.jdbc.selectAll
 import org.springframework.stereotype.Repository
 
@@ -19,10 +19,10 @@ class CoursePlaceImageRepository {
         imageUrl: String,
         orderNo: Int,
     ) {
-        CoursePlaceImageTable.insert {
-            it[CoursePlaceImageTable.coursePlaceId] = coursePlaceId
-            it[CoursePlaceImageTable.imageUrl] = imageUrl
-            it[CoursePlaceImageTable.orderNo] = orderNo.toShort()
+        CoursePlaceImageEntity.new {
+            this.coursePlaceId = coursePlaceId
+            this.imageUrl = imageUrl
+            this.orderNo = orderNo.toShort()
         }
     }
 

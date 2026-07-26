@@ -78,7 +78,7 @@ class CourseService(
     }
 
     @Transactional
-    override fun create(command: CreateCourseCommand): Long {
+    override fun create(command: CreateCourseCommand): Course {
         // 불변식 검증·카테고리 도출은 Course.create 애그리거트 팩토리가 수행한다.
         // 서비스는 카테고리 도출에 필요한 외부 데이터(place 카테고리)만 조회해 넘긴다(발행 코스만 필요).
         val placeCategories =
@@ -95,6 +95,7 @@ class CourseService(
                 coverImageUrl = command.coverImageUrl,
                 visibility = command.visibility,
                 isPublished = command.isPublished,
+                forkedFromId = command.forkedFromId,
                 tags = command.tags,
                 places =
                     command.places.map {
