@@ -14,6 +14,7 @@ import com.example.backend.user.application.port.outbound.RefreshTokenPort
 import com.example.backend.user.application.port.outbound.SocialVerificationPort
 import com.example.backend.user.application.port.outbound.UserPersistencePort
 import com.example.backend.user.domain.model.User
+import com.example.backend.user.domain.model.UserStatus
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
 
@@ -40,6 +41,8 @@ class AuthService(
                         ),
                 )
 
+        if (user.status != UserStatus.ACTIVE) throw BusinessException(ErrorCode.ACCOUNT_SUSPENDED)
+
         val userId = checkNotNull(user.id) { "영속화된 User 는 id 를 가진다." }
         return LoginResult(
             accessToken = authTokenPort.issueAccessToken(userId),
@@ -54,23 +57,36 @@ class AuthService(
         userPersistencePort.findBySocial(identity.provider, identity.socialId)?.let {
             throw BusinessException(ErrorCode.SOCIAL_ACCOUNT_ALREADY_REGISTERED)
         }
-        if (userPersistencePort.existsByNickname(command.nickname)) {
-            throw BusinessException(ErrorCode.NICKNAME_ALREADY_TAKEN)
-        }
-        if (userPersistencePort.existsByHandle(command.handle)) {
-            throw BusinessException(ErrorCode.HANDLE_ALREADY_TAKEN)
-        }
-
+        val withdrawn = userPersistencePort.findWithdrawnBySocial(identity.provider, identity.socialId)
         val saved =
-            userPersistencePort.saveWithSocial(
-                User.createWithSocial(
-                    nickname = command.nickname,
-                    profileImageUrl = command.profileImageUrl,
-                    socialProvider = identity.provider,
-                    socialId = identity.socialId,
-                    handle = command.handle,
-                ),
-            )
+            if (withdrawn != null) {
+                val excludeId = checkNotNull(withdrawn.id) { "영속화된 User 는 id 를 가진다." }
+                if (userPersistencePort.existsByNicknameExcludingUser(command.nickname, excludeId)) {
+                    throw BusinessException(ErrorCode.NICKNAME_ALREADY_TAKEN)
+                }
+                if (userPersistencePort.existsByHandleExcludingUser(command.handle, excludeId)) {
+                    throw BusinessException(ErrorCode.HANDLE_ALREADY_TAKEN)
+                }
+                userPersistencePort.reactivate(
+                    withdrawn.reactivate(command.nickname, command.handle, command.profileImageUrl),
+                )
+            } else {
+                if (userPersistencePort.existsByNickname(command.nickname)) {
+                    throw BusinessException(ErrorCode.NICKNAME_ALREADY_TAKEN)
+                }
+                if (userPersistencePort.existsByHandle(command.handle)) {
+                    throw BusinessException(ErrorCode.HANDLE_ALREADY_TAKEN)
+                }
+                userPersistencePort.saveWithSocial(
+                    User.createWithSocial(
+                        nickname = command.nickname,
+                        profileImageUrl = command.profileImageUrl,
+                        socialProvider = identity.provider,
+                        socialId = identity.socialId,
+                        handle = command.handle,
+                    ),
+                )
+            }
         val userId = checkNotNull(saved.id) { "영속화된 User 는 id 를 가진다." }
         return SignupResult(
             accessToken = authTokenPort.issueAccessToken(userId),
