@@ -117,4 +117,21 @@ data class User private constructor(
         require(status == UserStatus.ACTIVE) { "활성 상태의 사용자만 탈퇴할 수 있습니다." }
         return copy(status = UserStatus.WITHDRAWN)
     }
+
+    /** 재활성화 — 탈퇴한 사용자만 새 온보딩 프로필로 다시 활성화하는 도메인 전이. */
+    fun reactivate(
+        nickname: String,
+        handle: String,
+        profileImageUrl: String?,
+    ): User {
+        require(status == UserStatus.WITHDRAWN) { "탈퇴한 사용자만 재활성화할 수 있습니다." }
+        require(nickname.length <= MAX_NICKNAME_LENGTH) { "닉네임은 최대 ${MAX_NICKNAME_LENGTH}자입니다." }
+        require(handle.length <= MAX_HANDLE_LENGTH) { "핸들은 최대 ${MAX_HANDLE_LENGTH}자입니다." }
+        return copy(
+            status = UserStatus.ACTIVE,
+            nickname = nickname,
+            handle = handle,
+            profileImageUrl = profileImageUrl,
+        )
+    }
 }

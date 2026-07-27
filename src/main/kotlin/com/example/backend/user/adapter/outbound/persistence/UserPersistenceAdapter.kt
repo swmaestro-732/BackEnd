@@ -8,7 +8,9 @@ import com.example.backend.user.domain.model.UserStatus
 import org.jetbrains.exposed.v1.core.ResultRow
 import org.jetbrains.exposed.v1.core.and
 import org.jetbrains.exposed.v1.core.eq
+import org.jetbrains.exposed.v1.core.isNotNull
 import org.jetbrains.exposed.v1.core.isNull
+import org.jetbrains.exposed.v1.core.neq
 import org.jetbrains.exposed.v1.jdbc.insert
 import org.jetbrains.exposed.v1.jdbc.selectAll
 import org.jetbrains.exposed.v1.jdbc.update
@@ -115,6 +117,40 @@ class UserPersistenceAdapter(
             }.singleOrNull()
             ?.let(::toDomain)
 
+    override fun findWithdrawnBySocial(
+        provider: SocialProvider,
+        socialId: String,
+    ): User? =
+        UserTable
+            .selectAll()
+            .where {
+                (UserTable.socialProvider eq provider.name) and
+                    (UserTable.socialId eq socialId) and
+                    UserTable.deletedAt.isNotNull()
+            }.singleOrNull()
+            ?.let(::toDomain)
+
+    // 재활성화 대상(자기 자신)은 제외하고 검사한다 — 탈퇴 행이 예약한 값을 그대로 재사용하도록 허용.
+    override fun existsByNicknameExcludingUser(
+        nickname: String,
+        excludeUserId: Long,
+    ): Boolean =
+        UserTable
+            .selectAll()
+            .where { (UserTable.nickname eq nickname) and (UserTable.id neq excludeUserId) }
+            .empty()
+            .not()
+
+    override fun existsByHandleExcludingUser(
+        handle: String,
+        excludeUserId: Long,
+    ): Boolean =
+        UserTable
+            .selectAll()
+            .where { (UserTable.handle eq handle) and (UserTable.id neq excludeUserId) }
+            .empty()
+            .not()
+
     override fun saveWithSocial(user: User): User {
         val provider = checkNotNull(user.socialProvider) { "소셜 제공자가 필요합니다." }
         val socialId = checkNotNull(user.socialId) { "소셜 식별자가 필요합니다." }
@@ -133,6 +169,28 @@ class UserPersistenceAdapter(
             profileImageUrl = user.profileImageUrl,
             socialProvider = provider,
             socialId = socialId,
+        )
+    }
+
+    override fun reactivate(user: User): User {
+        val id = checkNotNull(user.id) { "영속화된 User 는 id 를 가진다." }
+        val provider = checkNotNull(user.socialProvider) { "소셜 제공자가 필요합니다." }
+        val socialId = checkNotNull(user.socialId) { "소셜 식별자가 필요합니다." }
+        UserTable.update({ UserTable.id eq id }) {
+            it[status] = user.status.code
+            it[deletedAt] = null
+            it[nickname] = user.nickname
+            it[handle] = user.handle
+            it[profileImageUrl] = user.profileImageUrl
+        }
+        return User.reconstitute(
+            id = id,
+            nickname = user.nickname,
+            handle = user.handle,
+            profileImageUrl = user.profileImageUrl,
+            socialProvider = provider,
+            socialId = socialId,
+            status = UserStatus.ACTIVE,
         )
     }
 
