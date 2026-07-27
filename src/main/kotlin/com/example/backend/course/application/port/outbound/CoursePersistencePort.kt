@@ -55,4 +55,11 @@ interface CoursePersistencePort {
      * 장소·이미지·태그 연결을 지운 뒤 요청 값으로 다시 심고, 갱신된 코스(DB 생성값 포함)를 반환한다(한 트랜잭션).
      */
     fun update(course: Course): Course
+
+    /**
+     * 코스를 소프트 삭제한다 — deleted_at·updated_at 을 찍고 status 를 DELETED 로 전이한다.
+     * 이미 삭제된 행(deleted_at IS NOT NULL)은 건드리지 않으며, 영향받은 행 수를 반환한다(이중 삭제 방어).
+     * 자식(장소·이미지·태그)은 지우지 않는다 — 모든 조회가 courses.deleted_at 로 걸러 도달 불가하다.
+     */
+    fun softDelete(courseId: Long): Int
 }

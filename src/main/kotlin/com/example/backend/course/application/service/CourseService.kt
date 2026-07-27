@@ -192,4 +192,24 @@ class CourseService(
         val newPlaceIds = newPlaces.sortedBy { it.orderNo }.map { it.placeId }
         return existingPlaceIds != newPlaceIds
     }
+
+    /**
+     * 코스 소프트 삭제. 존재·소유권을 검증한 뒤 deleted_at 스탬프만 찍는다(전체 치환·애그리거트 재구성 없음).
+     * 자식(장소·이미지·태그)은 그대로 두며, 모든 조회가 courses.deleted_at 로 걸러 도달 불가하다.
+     */
+    @Transactional
+    override fun delete(
+        userId: Long,
+        courseId: Long,
+    ) {
+        // 존재·소유권 검증 — 없거나(삭제 포함)·비활성·타인 소유면 존재를 드러내지 않도록 404(COURSE_NOT_FOUND).
+        val existing =
+            coursePersistencePort.findCourseDetail(courseId)
+                ?: throw BusinessException(ErrorCode.COURSE_NOT_FOUND, "코스를 찾을 수 없습니다: id=$courseId")
+        if (existing.status != CourseStatus.ACTIVE || existing.userId != userId) {
+            throw BusinessException(ErrorCode.COURSE_NOT_FOUND, "코스를 찾을 수 없습니다: id=$courseId")
+        }
+
+        coursePersistencePort.softDelete(courseId)
+    }
 }

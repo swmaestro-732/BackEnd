@@ -4,10 +4,12 @@ import com.example.backend.course.adapter.outbound.persistence.CourseEntity
 import com.example.backend.course.adapter.outbound.persistence.CourseTable
 import com.example.backend.course.application.port.outbound.CourseDetailRow
 import com.example.backend.course.domain.model.Course
+import com.example.backend.course.domain.model.CourseStatus
 import org.jetbrains.exposed.v1.core.and
 import org.jetbrains.exposed.v1.core.eq
 import org.jetbrains.exposed.v1.core.isNull
 import org.jetbrains.exposed.v1.jdbc.selectAll
+import org.jetbrains.exposed.v1.jdbc.update
 import org.springframework.stereotype.Repository
 import kotlin.time.Clock
 
@@ -49,6 +51,20 @@ class CourseRepository {
         entity.visibility = course.visibility
         entity.updatedAt = Clock.System.now()
         return entity.also { it.refresh(flush = true) }
+    }
+
+    /**
+     * deleted_at IS NULL 인 행에만 소프트 삭제 스탬프를 찍는다(deleted_at·updated_at 세팅, status=DELETED).
+     * WHERE 의 deleted_at IS NULL 가드 덕에 동시 이중 삭제가 와도 두 번째 호출은 0행이라 안전하다.
+     * 반환은 영향받은 행 수(0 또는 1).
+     */
+    fun softDelete(courseId: Long): Int {
+        val now = Clock.System.now()
+        return CourseTable.update({ (CourseTable.id eq courseId) and CourseTable.deletedAt.isNull() }) {
+            it[deletedAt] = now
+            it[status] = CourseStatus.DELETED
+            it[updatedAt] = now
+        }
     }
 
     /** deleted_at IS NULL 인 코스가 존재하는지만 확인한다(fork 원본 검증 등, 본문 미적재). */

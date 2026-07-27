@@ -10,6 +10,7 @@ import com.example.backend.course.adapter.inbound.web.response.CourseIdResponse
 import com.example.backend.course.application.port.inbound.CourseUseCase
 import jakarta.validation.Valid
 import org.springframework.http.HttpStatus
+import org.springframework.web.bind.annotation.DeleteMapping
 import org.springframework.web.bind.annotation.GetMapping
 import org.springframework.web.bind.annotation.PatchMapping
 import org.springframework.web.bind.annotation.PathVariable
@@ -32,6 +33,9 @@ import org.springframework.web.bind.annotation.RestController
  * - [edit] 코스 편집(`PATCH /api/v1/courses/{courseId}`): **실구현** — 인바운드 포트([CourseUseCase])로
  *   전체 치환 갱신한다. 작성자 식별이 필요해 `@CurrentUserId`(JWT subject)로 userId 를 받으며, 소유자만 편집 가능하다.
  *   시드/DB 없이 프론트가 붙어볼 수 있도록 `?mock=true` 면 갱신 없이 고정 목([CourseIdResponse.MOCK])을 반환한다.
+ * - [delete] 코스 삭제(`DELETE /api/v1/courses/{courseId}`): **실구현** — 인바운드 포트([CourseUseCase])로
+ *   소프트 삭제한다(deleted_at 스탬프·status=DELETED). 소유자만 삭제 가능하며(그 외 404), data 없이 안내 메시지만 내려준다.
+ *   시드/DB 없이 프론트가 붙어볼 수 있도록 `?mock=true` 면 삭제 없이 고정 성공 메시지를 반환한다.
  *
  * `mockError` 파라미터로 모킹 에러를 주입할 수 있다(예: `?mockError=4041`).
  */
@@ -98,5 +102,24 @@ class CourseController(
         if (mock) return ApiResponse.success(CourseIdResponse.MOCK)
         val course = courseUseCase.edit(request.toCommand(userId, courseId))
         return ApiResponse.success(CourseIdResponse(courseId = requireNotNull(course.id)))
+    }
+
+    /**
+     * 코스 삭제(소프트 삭제). 인바운드 포트([CourseUseCase])로 deleted_at 을 찍고 status 를 DELETED 로 전이한다.
+     * 소유자만 삭제할 수 있고(없음·비활성·타인 소유는 존재를 드러내지 않도록 404 COURSE_NOT_FOUND), 성공 시 data 없이
+     * 안내 메시지만 내려준다. 소유자 식별을 위해 `@CurrentUserId`(JWT subject)로 userId 를 받으므로 유효한 토큰이 필요하다.
+     * `?mock=true` 면 삭제 없이 고정 성공 메시지를 반환한다.
+     */
+    @DeleteMapping("/{courseId}")
+    fun delete(
+        @CurrentUserId userId: Long,
+        @PathVariable courseId: Long,
+        @RequestParam(required = false) mock: Boolean = false,
+        @RequestParam(required = false) mockError: Int?,
+    ): ApiResponse<Nothing?> {
+        MockErrors.throwIfRequested(mockError)
+        if (mock) return ApiResponse.ok("코스가 삭제되었습니다.")
+        courseUseCase.delete(userId, courseId)
+        return ApiResponse.ok("코스가 삭제되었습니다.")
     }
 }
