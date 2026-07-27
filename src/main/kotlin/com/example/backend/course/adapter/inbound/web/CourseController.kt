@@ -29,8 +29,9 @@ import org.springframework.web.bind.annotation.RestController
  *   작성자 식별이 필요해 `@CurrentUserId`(JWT subject)로 userId 를 받는다 — 유효한 토큰이 있어야 동작하며,
  *   경로 자체의 인증 강제(SecurityConfig)는 후속 과제다. 시드/DB 없이 프론트가 붙어볼 수 있도록
  *   `?mock=true` 면 저장 없이 고정 목([CourseIdResponse.MOCK], 코스 상세 목과 이어짐)을 반환한다.
- * - [edit] 코스 편집(`PATCH /api/v1/courses/{courseId}`): **모킹 API** — 실제 저장 없이 받은 courseId 를
- *   그대로 돌려준다. 실제 구현 시 인바운드 포트(UseCase) 연동으로 교체하고 [MockErrors] 호출을 제거한다.
+ * - [edit] 코스 편집(`PATCH /api/v1/courses/{courseId}`): **실구현** — 인바운드 포트([CourseUseCase])로
+ *   전체 치환 갱신한다. 작성자 식별이 필요해 `@CurrentUserId`(JWT subject)로 userId 를 받으며, 소유자만 편집 가능하다.
+ *   시드/DB 없이 프론트가 붙어볼 수 있도록 `?mock=true` 면 갱신 없이 고정 목([CourseIdResponse.MOCK])을 반환한다.
  *
  * `mockError` 파라미터로 모킹 에러를 주입할 수 있다(예: `?mockError=4041`).
  */
@@ -79,21 +80,23 @@ class CourseController(
     }
 
     /**
-     * 코스 편집(모킹 API). 코스 만들기와 같은 빌더 화면을 재사용하며, 편집한 코스 전체 상태를
-     * 되돌려 보내는 전체 치환 계약이다([EditCourseRequest]). 노션 "코스 편집" 페이지는 필드 미작성 상태라
-     * 코스 생성 요청과 동일한 필드로 도출했다.
-     *
-     * 모킹 단계에서는 실제 저장 없이 경로의 `courseId` 를 그대로 응답으로 돌려준다 —
-     * 프론트는 편집 후 코스 상세 API 재조회로 화면을 구성한다.
-     * 실제 구현 시 인바운드 포트(UseCase) 연동으로 교체하고 [MockErrors] 호출을 제거한다.
+     * 코스 편집. 코스 만들기와 같은 빌더 화면을 재사용하며, 편집한 코스 전체 상태를
+     * 되돌려 보내는 전체 치환 계약이다([EditCourseRequest]) — 보낸 필드로 코스·장소·태그를 덮어쓴다.
+     * 소유자만 편집할 수 있고(그 외 404), 발행 전환 시 검증은 생성과 동일하게 도메인이 수행한다.
+     * 응답은 courseId 만 반환하며, 프론트는 편집 후 코스 상세 API 재조회로 화면을 구성한다.
+     * `?mock=true` 면 DB 갱신 없이 고정 목([CourseIdResponse.MOCK])을 반환한다.
      */
     @PatchMapping("/{courseId}")
     fun edit(
+        @CurrentUserId userId: Long,
         @PathVariable courseId: Long,
         @Valid @RequestBody request: EditCourseRequest,
+        @RequestParam(required = false) mock: Boolean = false,
         @RequestParam(required = false) mockError: Int?,
     ): ApiResponse<CourseIdResponse> {
         MockErrors.throwIfRequested(mockError)
-        return ApiResponse.success(CourseIdResponse(courseId = courseId))
+        if (mock) return ApiResponse.success(CourseIdResponse.MOCK)
+        val course = courseUseCase.edit(request.toCommand(userId, courseId))
+        return ApiResponse.success(CourseIdResponse(courseId = requireNotNull(course.id)))
     }
 }

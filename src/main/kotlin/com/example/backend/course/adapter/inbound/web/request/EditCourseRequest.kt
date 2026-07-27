@@ -1,5 +1,7 @@
 package com.example.backend.course.adapter.inbound.web.request
 
+import com.example.backend.course.application.port.inbound.dto.CreateCoursePlaceCommand
+import com.example.backend.course.application.port.inbound.dto.EditCourseCommand
 import com.example.backend.course.domain.model.CourseVisibility
 import jakarta.validation.Valid
 import jakarta.validation.constraints.NotBlank
@@ -9,13 +11,13 @@ import jakarta.validation.constraints.Size
 private const val MAX_TAG_LENGTH = 50
 
 /**
- * 코스 편집 요청(모킹 API) — 웹 어댑터 DTO. 편집은 코스 만들기와 같은 빌더 화면을 재사용하므로
+ * 코스 편집 요청 — 웹 어댑터 DTO. 편집은 코스 만들기와 같은 빌더 화면을 재사용하므로
  * (코스 정보 → 장소 담기 → 공개 설정) 클라이언트가 편집 후 코스 전체 상태를 되돌려 보내는
  * **전체 치환(full replacement)** 계약이다 — 부분 패치가 아니라 보낸 필드로 코스를 덮어쓴다.
  * 필드 근거는 코스 생성([CreateCourseRequest])과 동일(노션 "코스 편집" 페이지는 필드 미작성 상태).
  *
  * 필드 형식·범위는 Bean Validation 으로 검증한다(→ 400 VALIDATION_FAILED + fieldErrors).
- * 교차 필드·비즈니스 규칙(발행 시 장소 최소 개수, orderNo 중복 금지)은 실구현 시 인바운드 포트가 검증한다.
+ * 교차 필드·비즈니스 규칙(발행 시 장소 최소 개수, orderNo 중복 금지)은 인바운드 포트(도메인)가 검증한다.
  *
  * - tags: 태그 이름 목록(추천 태그 응답과 동일하게 이름 문자열 기반).
  * - thumbnailUrl: 코스 커버 이미지(courses.cover_image_url).
@@ -38,4 +40,28 @@ data class EditCourseRequest(
     val isPublished: Boolean,
     @field:Valid
     val places: List<CreateCoursePlaceRequest> = emptyList(),
-)
+) {
+    fun toCommand(
+        userId: Long,
+        courseId: Long,
+    ): EditCourseCommand =
+        EditCourseCommand(
+            courseId = courseId,
+            userId = userId,
+            title = title,
+            description = description,
+            coverImageUrl = thumbnailUrl,
+            tags = tags,
+            visibility = visibility,
+            isPublished = isPublished,
+            places =
+                places.map {
+                    CreateCoursePlaceCommand(
+                        placeId = it.placeId,
+                        orderNo = it.orderNo,
+                        caption = it.caption,
+                        imageUrls = it.imageUrls,
+                    )
+                },
+        )
+}

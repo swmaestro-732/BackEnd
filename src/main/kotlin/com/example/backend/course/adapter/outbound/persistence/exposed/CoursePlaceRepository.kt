@@ -6,6 +6,8 @@ import com.example.backend.course.application.port.outbound.CoursePlaceRow
 import com.example.backend.course.domain.model.CoursePlace
 import org.jetbrains.exposed.v1.core.SortOrder
 import org.jetbrains.exposed.v1.core.eq
+import org.jetbrains.exposed.v1.jdbc.deleteWhere
+import org.jetbrains.exposed.v1.jdbc.select
 import org.jetbrains.exposed.v1.jdbc.selectAll
 import org.springframework.stereotype.Repository
 
@@ -35,6 +37,18 @@ class CoursePlaceRepository(
         place.imageUrls.forEachIndexed { index, url ->
             coursePlaceImageRepository.insert(coursePlaceId, url, index)
         }
+    }
+
+    /** 코스에 담긴 모든 장소와 그 이미지를 삭제한다(전체 치환 편집 전처리) — 이미지 삭제 후 장소를 지운다. */
+    fun deleteByCourseId(courseId: Long) {
+        val placeIds =
+            CoursePlaceTable
+                .select(CoursePlaceTable.id)
+                .where { CoursePlaceTable.courseId eq courseId }
+                .map { it[CoursePlaceTable.id].value }
+        if (placeIds.isEmpty()) return
+        coursePlaceImageRepository.deleteByCoursePlaceIds(placeIds)
+        CoursePlaceTable.deleteWhere { CoursePlaceTable.courseId eq courseId }
     }
 
     /** 코스의 장소들을 orderNo 오름차순으로, 각 장소의 이미지를 채워 반환한다. */

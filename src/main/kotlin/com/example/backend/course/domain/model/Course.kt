@@ -52,6 +52,67 @@ data class Course private constructor(
             tags: List<String>,
             places: List<CoursePlace>,
             placeCategoryByPlaceId: Map<Long, String>,
+        ): Course =
+            build(
+                id = null,
+                userId = userId,
+                title = title,
+                description = description,
+                coverImageUrl = coverImageUrl,
+                visibility = visibility,
+                isPublished = isPublished,
+                forkedFromId = forkedFromId,
+                tags = tags,
+                places = places,
+                category = deriveCategory(isPublished, places, placeCategoryByPlaceId),
+            )
+
+        /**
+         * 코스 편집(전체 치환). 이미 영속화된 코스([id])의 전체 상태를 요청 값으로 덮어쓴다.
+         * 불변식은 [create] 와 동일하다. 카테고리는 생성과 달리 **서비스가 이미 해석해** 넘긴다([category]) —
+         * 기존 카테고리가 있고 장소 구성이 그대로면 재도출 없이 유지하고, 그 외에만 [deriveCategory] 결과를 넘긴다.
+         * 소유권·존재 여부는 서비스가 사전 검증한다.
+         */
+        fun edit(
+            id: Long,
+            userId: Long,
+            title: String,
+            description: String?,
+            coverImageUrl: String?,
+            visibility: CourseVisibility,
+            isPublished: Boolean,
+            tags: List<String>,
+            places: List<CoursePlace>,
+            category: CourseCategory?,
+        ): Course =
+            build(
+                id = id,
+                userId = userId,
+                title = title,
+                description = description,
+                coverImageUrl = coverImageUrl,
+                visibility = visibility,
+                isPublished = isPublished,
+                // 편집은 fork 원본을 바꾸지 않는다(update 도 forked_from_id 를 쓰지 않음) — 재구성용으로 null.
+                forkedFromId = null,
+                tags = tags,
+                places = places,
+                category = category,
+            )
+
+        /** 생성·편집 공통 — 도메인 불변식을 강제해 애그리거트를 만든다(카테고리는 호출부가 도출·결정). */
+        private fun build(
+            id: Long?,
+            userId: Long,
+            title: String,
+            description: String?,
+            coverImageUrl: String?,
+            visibility: CourseVisibility,
+            isPublished: Boolean,
+            forkedFromId: Long?,
+            tags: List<String>,
+            places: List<CoursePlace>,
+            category: CourseCategory?,
         ): Course {
             require(title.isNotBlank()) { "제목은 비어 있을 수 없습니다." }
             if (isPublished && places.size < MIN_PUBLISHED_PLACES) {
@@ -68,13 +129,13 @@ data class Course private constructor(
             }
             // 생성 시점에 미정인 값은 pre-persist 기본값으로 둔다(id·타임스탬프는 DB 가, 카운터는 DB DEFAULT 가 채움).
             return Course(
-                id = null,
+                id = id,
                 userId = userId,
                 status = CourseStatus.ACTIVE,
                 title = title,
                 description = description,
                 coverImageUrl = coverImageUrl,
-                category = deriveCategory(isPublished, places, placeCategoryByPlaceId),
+                category = category,
                 area = null,
                 visitDate = null,
                 visibility = visibility,

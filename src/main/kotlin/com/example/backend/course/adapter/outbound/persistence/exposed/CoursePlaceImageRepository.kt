@@ -6,6 +6,7 @@ import com.example.backend.course.application.port.outbound.CoursePlaceImageRow
 import org.jetbrains.exposed.v1.core.ResultRow
 import org.jetbrains.exposed.v1.core.SortOrder
 import org.jetbrains.exposed.v1.core.inList
+import org.jetbrains.exposed.v1.jdbc.deleteWhere
 import org.jetbrains.exposed.v1.jdbc.selectAll
 import org.springframework.stereotype.Repository
 
@@ -24,6 +25,12 @@ class CoursePlaceImageRepository {
             this.imageUrl = imageUrl
             this.orderNo = orderNo.toShort()
         }
+    }
+
+    /** 주어진 course_place id 들의 이미지를 모두 삭제한다(전체 치환 편집 전처리). */
+    fun deleteByCoursePlaceIds(coursePlaceIds: List<Long>) {
+        if (coursePlaceIds.isEmpty()) return
+        CoursePlaceImageTable.deleteWhere { coursePlaceId inList coursePlaceIds }
     }
 
     /** 주어진 course_place id 들의 이미지를 orderNo 오름차순으로 묶어 반환한다. */

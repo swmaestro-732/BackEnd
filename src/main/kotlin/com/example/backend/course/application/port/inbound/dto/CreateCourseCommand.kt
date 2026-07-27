@@ -24,3 +24,20 @@ data class CreateCoursePlaceCommand(
     val caption: String?,
     val imageUrls: List<String>,
 )
+
+/**
+ * 코스 편집 명령(애플리케이션 경계 타입). 웹 요청(EditCourseRequest)에서 매핑된다.
+ * 편집은 전체 치환(full replacement)이라 코스 생성과 필드가 같고, 대상 코스 [courseId] 와
+ * 요청자 [userId](소유권 검증용)를 더 받는다. category 는 담은 장소들의 카테고리로 서비스가 도출한다.
+ */
+data class EditCourseCommand(
+    val courseId: Long,
+    val userId: Long,
+    val title: String,
+    val description: String?,
+    val coverImageUrl: String?,
+    val tags: List<String>,
+    val visibility: CourseVisibility,
+    val isPublished: Boolean,
+    val places: List<CreateCoursePlaceCommand>,
+)

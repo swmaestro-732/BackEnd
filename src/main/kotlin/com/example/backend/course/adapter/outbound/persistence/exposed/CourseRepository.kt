@@ -9,6 +9,7 @@ import org.jetbrains.exposed.v1.core.eq
 import org.jetbrains.exposed.v1.core.isNull
 import org.jetbrains.exposed.v1.jdbc.selectAll
 import org.springframework.stereotype.Repository
+import kotlin.time.Clock
 
 /**
  * courses 테이블 접근 리포지토리 — 코스 본문의 조회·삽입만 담당한다.
@@ -31,6 +32,24 @@ class CourseRepository {
                 visibility = course.visibility
                 forkedFromId = course.forkedFromId
             }.also { it.refresh(flush = true) }
+
+    /**
+     * 코스 본문을 전체 치환으로 갱신하고 updated_at 을 명시로 새로 채운다(장소·태그 연결은 어댑터가 별도 조율).
+     * 존재·소유권은 서비스가 사전 검증하므로 여기서는 id 로 적재해 필드만 덮어쓴다.
+     * 갱신값(updated_at 등)까지 반영된 엔티티를 반환한다(insert 와 동일하게 refresh 로 확정 상태를 되읽는다).
+     */
+    internal fun update(course: Course): CourseEntity {
+        val courseId = checkNotNull(course.id) { "영속화된 Course 는 id 를 가진다." }
+        val entity = CourseEntity.findById(courseId) ?: error("갱신할 코스를 찾을 수 없습니다: id=$courseId")
+        entity.title = course.title
+        entity.description = course.description
+        entity.coverImageUrl = course.coverImageUrl
+        entity.category = course.category
+        entity.isPublished = course.isPublished
+        entity.visibility = course.visibility
+        entity.updatedAt = Clock.System.now()
+        return entity.also { it.refresh(flush = true) }
+    }
 
     /** deleted_at IS NULL 인 코스가 존재하는지만 확인한다(fork 원본 검증 등, 본문 미적재). */
     fun existsById(courseId: Long): Boolean =

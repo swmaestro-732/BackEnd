@@ -49,4 +49,10 @@ interface CoursePersistencePort {
 
     /** 코스 애그리거트(코스·장소·이미지·태그)를 한 트랜잭션으로 저장하고, 저장된 코스(생성 id·DB 생성값 포함)를 반환한다. */
     fun save(course: Course): Course
+
+    /**
+     * 이미 영속화된 코스([Course.id] 필수)를 전체 치환한다 — 코스 본문을 갱신하고
+     * 장소·이미지·태그 연결을 지운 뒤 요청 값으로 다시 심고, 갱신된 코스(DB 생성값 포함)를 반환한다(한 트랜잭션).
+     */
+    fun update(course: Course): Course
 }
