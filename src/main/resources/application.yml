@@ -31,8 +31,8 @@ jwt:
 
 oauth:
   kakao:
-    # 카카오 앱 REST API 키. 로그인 client_id·로컬 검색 키가 모두 같은 REST API 키라 하나로 통일.
-    client-id: ${KAKAO_REST_API_KEY:}
+    # 로그인(OIDC)용 카카오 앱 client_id. 로컬(지도) 검색 키(kakao.local.rest-key)와 별개 앱/키.
+    client-id: ${KAKAO_CLIENT_ID:}
     jwks-uri: https://kauth.kakao.com/.well-known/jwks.json
     issuer: https://kauth.kakao.com
 
