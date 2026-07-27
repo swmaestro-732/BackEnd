@@ -60,7 +60,7 @@ data class TokenResponse(
     val refreshToken: String,
 )
 
-/** 아이디(핸들) 사용 가능 여부 응답. `GET /api/v1/users/availability` · (구) `/auth/login-id/availability`. */
+/** 아이디(핸들) 사용 가능 여부 응답. `GET /api/v1/users/availability` · (구) `GET /api/v1/auth/login-id/availability`. */
 data class AvailabilityResponse(
     val available: Boolean,
 )
