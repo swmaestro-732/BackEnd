@@ -1,6 +1,6 @@
 package com.example.backend.place.adapter.outbound.search
 
-import com.example.backend.bootstrap.config.NaverSearchProperties
+import com.example.backend.bootstrap.config.NaverProperties
 import com.example.backend.place.domain.model.ExternalPlaceSource
 import org.hamcrest.Matchers.containsString
 import org.junit.jupiter.api.Assertions.assertEquals
@@ -18,7 +18,7 @@ class NaverLocalSearchClientTest {
     private val client =
         NaverLocalSearchClient(
             naverRestClient = builder.build(),
-            naverSearchProperties = NaverSearchProperties(clientId = "id", clientSecret = "secret"),
+            naverProperties = NaverProperties(clientId = "id", clientSecret = "secret"),
         )
 
     @Test
@@ -62,7 +62,7 @@ class NaverLocalSearchClientTest {
         val blankClient =
             NaverLocalSearchClient(
                 naverRestClient = builder.build(),
-                naverSearchProperties = NaverSearchProperties(clientId = "", clientSecret = ""),
+                naverProperties = NaverProperties(clientId = "", clientSecret = ""),
             )
 
         val result = blankClient.search("어니언", null)

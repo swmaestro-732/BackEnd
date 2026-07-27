@@ -1,6 +1,6 @@
 package com.example.backend.place.adapter.outbound.search
 
-import com.example.backend.bootstrap.config.NaverSearchProperties
+import com.example.backend.bootstrap.config.NaverProperties
 import com.example.backend.common.geo.Coordinate
 import com.example.backend.place.application.port.outbound.NaverPlaceSearchPort
 import com.example.backend.place.domain.model.ExternalPlace
@@ -22,7 +22,7 @@ import org.springframework.web.client.RestClient
 class NaverLocalSearchClient(
     @param:Qualifier("naverRestClient")
     private val naverRestClient: RestClient,
-    private val naverSearchProperties: NaverSearchProperties,
+    private val naverProperties: NaverProperties,
 ) : NaverPlaceSearchPort {
     private val log = LoggerFactory.getLogger(javaClass)
 
@@ -30,7 +30,7 @@ class NaverLocalSearchClient(
         query: String,
         near: Coordinate?,
     ): List<ExternalPlace> {
-        if (naverSearchProperties.clientId.isBlank()) {
+        if (naverProperties.clientId.isBlank()) {
             log.warn("네이버 검색 clientId 가 비어 있어 검색을 건너뜁니다.")
             return emptyList()
         }
@@ -44,8 +44,8 @@ class NaverLocalSearchClient(
                             .queryParam("query", query)
                             .queryParam("display", DISPLAY)
                             .build()
-                    }.header("X-Naver-Client-Id", naverSearchProperties.clientId)
-                    .header("X-Naver-Client-Secret", naverSearchProperties.clientSecret)
+                    }.header("X-Naver-Client-Id", naverProperties.clientId)
+                    .header("X-Naver-Client-Secret", naverProperties.clientSecret)
                     .retrieve()
                     .body(NaverLocalResponse::class.java)
             response?.items.orEmpty().mapNotNull { it.toExternalPlace() }
