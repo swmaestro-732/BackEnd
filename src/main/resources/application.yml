@@ -34,3 +34,14 @@ oauth:
     client-id: ${KAKAO_CLIENT_ID:}
     jwks-uri: https://kauth.kakao.com/.well-known/jwks.json
     issuer: https://kauth.kakao.com
+
+# 외부 지도 연동(SCRUM-387). 키가 없으면 각 기능은 빈 결과/null 로 fail-soft.
+naver:
+  search:
+    client-id: ${NAVER_SEARCH_CLIENT_ID:}
+    client-secret: ${NAVER_SEARCH_CLIENT_SECRET:}
+kakao:
+  local:
+    rest-key: ${KAKAO_REST_API_KEY:}
+tmap:
+  app-key: ${TMAP_APP_KEY:}
