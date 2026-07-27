@@ -1,7 +1,6 @@
 package com.example.backend.user.adapter.inbound.web
 
 import com.example.backend.bootstrap.security.CurrentUserId
-import com.example.backend.common.mock.MockErrors
 import com.example.backend.common.response.ApiResponse
 import com.example.backend.user.adapter.inbound.web.request.CreateUserRequest
 import com.example.backend.user.adapter.inbound.web.response.AvailabilityResponse
@@ -36,11 +35,8 @@ class UserController(
     fun getProfile(
         @PathVariable userId: Long,
         @CurrentUserId viewerId: Long?,
-        @RequestParam(required = false) mockError: Int?,
-    ): ApiResponse<UserProfileResponse> {
-        MockErrors.throwIfRequested(mockError)
-        return ApiResponse.success(UserProfileResponse.from(userUseCase.getProfile(userId, viewerId)))
-    }
+    ): ApiResponse<UserProfileResponse> =
+        ApiResponse.success(UserProfileResponse.from(userUseCase.getProfile(userId, viewerId)))
 
     /**
      * 핸들(아이디) 사용 가능 여부. `GET /api/v1/users/availability?handle=`.
@@ -49,11 +45,8 @@ class UserController(
     @GetMapping("/availability")
     fun checkHandleAvailability(
         @RequestParam @NotBlank handle: String,
-        @RequestParam(required = false) mockError: Int?,
-    ): ApiResponse<AvailabilityResponse> {
-        MockErrors.throwIfRequested(mockError)
-        return ApiResponse.success(AvailabilityResponse(available = userUseCase.isHandleAvailable(handle)))
-    }
+    ): ApiResponse<AvailabilityResponse> =
+        ApiResponse.success(AvailabilityResponse(available = userUseCase.isHandleAvailable(handle)))
 
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)

@@ -30,5 +30,18 @@ data class MyProfileResponse(
                 followingsCnt = result.followingsCnt,
                 coursesCnt = result.coursesCnt,
             )
+
+        fun mock(): MyProfileResponse =
+            MyProfileResponse(
+                id = 1L,
+                nickname = "현우님",
+                handle = "@hyunwoo",
+                profileImageUrl = "https://cdn.example.com/users/1.jpg",
+                isFollowing = false,
+                isFollower = false,
+                followersCnt = 128,
+                followingsCnt = 88,
+                coursesCnt = 12,
+            )
     }
 }

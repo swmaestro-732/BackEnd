@@ -1,7 +1,6 @@
 package com.example.backend.user.adapter.inbound.web
 
 import com.example.backend.bootstrap.security.CurrentUserId
-import com.example.backend.common.mock.MockErrors
 import com.example.backend.common.response.ApiResponse
 import com.example.backend.user.adapter.inbound.web.request.UpdateProfileRequest
 import com.example.backend.user.adapter.inbound.web.response.FollowResponse
@@ -36,10 +35,8 @@ class MyController(
     fun getMyProfile(
         @CurrentUserId userId: Long,
         @RequestParam(defaultValue = "false") mock: Boolean,
-        @RequestParam(required = false) mockError: Int?,
     ): ApiResponse<MyProfileResponse> {
-        MockErrors.throwIfRequested(mockError)
-        if (mock) return ApiResponse.success(mockProfile())
+        if (mock) return ApiResponse.success(MyProfileResponse.mock())
         return ApiResponse.success(MyProfileResponse.from(myUseCase.getMyProfile(userId)))
     }
 
@@ -49,11 +46,9 @@ class MyController(
         @CurrentUserId userId: Long,
         @Valid @RequestBody request: UpdateProfileRequest,
         @RequestParam(defaultValue = "false") mock: Boolean,
-        @RequestParam(required = false) mockError: Int?,
     ): ApiResponse<MyProfileResponse> {
-        MockErrors.throwIfRequested(mockError)
         if (mock) {
-            val base = mockProfile()
+            val base = MyProfileResponse.mock()
             return ApiResponse.success(
                 base.copy(
                     nickname = request.nickname ?: base.nickname,
@@ -70,9 +65,7 @@ class MyController(
     fun withdraw(
         @CurrentUserId userId: Long,
         @RequestParam(defaultValue = "false") mock: Boolean,
-        @RequestParam(required = false) mockError: Int?,
     ): ApiResponse<Nothing?> {
-        MockErrors.throwIfRequested(mockError)
         if (!mock) myUseCase.withdraw(userId)
         return ApiResponse.ok()
     }
@@ -83,10 +76,8 @@ class MyController(
         @CurrentUserId followerId: Long,
         @PathVariable("userId") targetId: Long,
         @RequestParam(defaultValue = "false") mock: Boolean,
-        @RequestParam(required = false) mockError: Int?,
     ): ApiResponse<FollowResponse> {
-        MockErrors.throwIfRequested(mockError)
-        if (mock) return ApiResponse.success(FollowResponse(isFollowing = true, followersCnt = 129))
+        if (mock) return ApiResponse.success(FollowResponse.mock(isFollowing = true))
         return ApiResponse.success(FollowResponse.from(myUseCase.follow(followerId, targetId)))
     }
 
@@ -96,23 +87,8 @@ class MyController(
         @CurrentUserId followerId: Long,
         @PathVariable("userId") targetId: Long,
         @RequestParam(defaultValue = "false") mock: Boolean,
-        @RequestParam(required = false) mockError: Int?,
     ): ApiResponse<FollowResponse> {
-        MockErrors.throwIfRequested(mockError)
-        if (mock) return ApiResponse.success(FollowResponse(isFollowing = false, followersCnt = 128))
+        if (mock) return ApiResponse.success(FollowResponse.mock(isFollowing = false))
         return ApiResponse.success(FollowResponse.from(myUseCase.unfollow(followerId, targetId)))
     }
-
-    private fun mockProfile() =
-        MyProfileResponse(
-            id = 1L,
-            nickname = "현우님",
-            handle = "@hyunwoo",
-            profileImageUrl = "https://cdn.example.com/users/1.jpg",
-            isFollowing = false,
-            isFollower = false,
-            followersCnt = 128,
-            followingsCnt = 88,
-            coursesCnt = 12,
-        )
 }

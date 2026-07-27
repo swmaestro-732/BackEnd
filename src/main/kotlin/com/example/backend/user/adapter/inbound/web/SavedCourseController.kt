@@ -1,6 +1,5 @@
 package com.example.backend.user.adapter.inbound.web
 
-import com.example.backend.common.mock.MockErrors
 import com.example.backend.common.response.ApiResponse
 import com.example.backend.user.adapter.inbound.web.request.SaveCourseRequest
 import com.example.backend.user.adapter.inbound.web.response.SavedCourseListResponse
@@ -31,11 +30,7 @@ class SavedCourseController {
     fun save(
         @PathVariable courseId: Long,
         @Valid @RequestBody request: SaveCourseRequest,
-        @RequestParam(required = false) mockError: Int?,
-    ): ApiResponse<Nothing?> {
-        MockErrors.throwIfRequested(mockError)
-        return ApiResponse.ok("코스가 저장되었습니다.")
-    }
+    ): ApiResponse<Nothing?> = ApiResponse.ok("코스가 저장되었습니다.")
 
     /**
      * 저장 코스 조회(모킹). 항상 [MOCK_SAVED_COURSES] 전체를 최신 저장순 **고정 응답**으로 내려준다 —
@@ -51,11 +46,8 @@ class SavedCourseController {
         @RequestParam(required = false) folderId: Long?,
         @RequestParam(required = false) cursor: String?,
         @RequestParam(required = false) @Min(1) @Max(50) size: Int = 10,
-        @RequestParam(required = false) mockError: Int?,
-    ): ApiResponse<SavedCourseListResponse> {
-        MockErrors.throwIfRequested(mockError)
-
-        return ApiResponse.success(
+    ): ApiResponse<SavedCourseListResponse> =
+        ApiResponse.success(
             SavedCourseListResponse(
                 totalCount = MOCK_SAVED_COURSES.size,
                 nextCursor = null,
@@ -63,7 +55,6 @@ class SavedCourseController {
                 savedCourses = MOCK_SAVED_COURSES,
             ),
         )
-    }
 
     private companion object {
         /**

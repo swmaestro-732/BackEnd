@@ -1,6 +1,5 @@
 package com.example.backend.user.adapter.inbound.web
 
-import com.example.backend.common.mock.MockErrors
 import com.example.backend.common.response.ApiResponse
 import com.example.backend.user.adapter.inbound.web.request.CreateCourseFolderRequest
 import com.example.backend.user.adapter.inbound.web.response.CourseFolderListResponse
@@ -33,24 +32,17 @@ class CourseFolderController {
     @ResponseStatus(HttpStatus.CREATED)
     fun create(
         @Valid @RequestBody request: CreateCourseFolderRequest,
-        @RequestParam(required = false) mockError: Int?,
-    ): ApiResponse<CreateCourseFolderResponse> {
-        MockErrors.throwIfRequested(mockError)
-        return ApiResponse.success(CreateCourseFolderResponse(folderId = NEXT_FOLDER_ID), "폴더가 생성되었습니다.")
-    }
+    ): ApiResponse<CreateCourseFolderResponse> =
+        ApiResponse.success(CreateCourseFolderResponse(folderId = NEXT_FOLDER_ID), "폴더가 생성되었습니다.")
 
     @GetMapping
-    fun list(
-        @RequestParam(required = false) mockError: Int?,
-    ): ApiResponse<CourseFolderListResponse> {
-        MockErrors.throwIfRequested(mockError)
-        return ApiResponse.success(
+    fun list(): ApiResponse<CourseFolderListResponse> =
+        ApiResponse.success(
             CourseFolderListResponse(
                 totalCount = MOCK_FOLDERS.sumOf { it.savedCourseCount },
                 folders = MOCK_FOLDERS,
             ),
         )
-    }
 
     private companion object {
         /** 생성 모킹 고정 id — 목 폴더(1~3) 다음 번호. */

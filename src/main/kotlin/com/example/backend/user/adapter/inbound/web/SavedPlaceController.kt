@@ -1,6 +1,5 @@
 package com.example.backend.user.adapter.inbound.web
 
-import com.example.backend.common.mock.MockErrors
 import com.example.backend.common.response.ApiResponse
 import com.example.backend.user.adapter.inbound.web.response.SavedPlaceListResponse
 import com.example.backend.user.domain.model.SavedPlaceCategory
@@ -39,11 +38,7 @@ class SavedPlaceController {
     @ResponseStatus(HttpStatus.CREATED)
     fun save(
         @PathVariable placeId: Long,
-        @RequestParam(required = false) mockError: Int?,
-    ): ApiResponse<Nothing?> {
-        MockErrors.throwIfRequested(mockError)
-        return ApiResponse.ok("장소가 저장되었습니다.")
-    }
+    ): ApiResponse<Nothing?> = ApiResponse.ok("장소가 저장되었습니다.")
 
     /**
      * 저장 장소 방문 처리(모킹). 미방문 탭 카드 스와이프 → "방문한 곳으로 표시할까요?" 확인 후 호출 —
@@ -52,11 +47,7 @@ class SavedPlaceController {
     @PatchMapping("/{savedPlaceId}")
     fun visit(
         @PathVariable savedPlaceId: Long,
-        @RequestParam(required = false) mockError: Int?,
-    ): ApiResponse<Nothing?> {
-        MockErrors.throwIfRequested(mockError)
-        return ApiResponse.ok("방문이 완료되었습니다.")
-    }
+    ): ApiResponse<Nothing?> = ApiResponse.ok("방문이 완료되었습니다.")
 
     /**
      * 저장 장소 조회(모킹). 항상 [MOCK_SAVED_PLACES] 전체를 최신 저장순 **고정 응답**으로 내려준다 —
@@ -74,11 +65,8 @@ class SavedPlaceController {
         @RequestParam(required = false) category: SavedPlaceCategory?,
         @RequestParam(required = false) cursor: String?,
         @RequestParam(required = false) @Min(1) @Max(50) size: Int = 10,
-        @RequestParam(required = false) mockError: Int?,
-    ): ApiResponse<SavedPlaceListResponse> {
-        MockErrors.throwIfRequested(mockError)
-
-        return ApiResponse.success(
+    ): ApiResponse<SavedPlaceListResponse> =
+        ApiResponse.success(
             SavedPlaceListResponse(
                 totalCount = MOCK_SAVED_PLACES.size,
                 unvisitedCount = MOCK_SAVED_PLACES.count { !it.visited },
@@ -95,7 +83,6 @@ class SavedPlaceController {
                 savedPlaces = MOCK_SAVED_PLACES,
             ),
         )
-    }
 
     private companion object {
         /**
