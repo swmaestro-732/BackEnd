@@ -2,6 +2,7 @@ package com.example.backend.place.application.service
 
 import com.example.backend.place.application.port.inbound.PlaceQueryUseCase
 import com.example.backend.place.application.port.outbound.PlaceQueryPort
+import com.example.backend.place.domain.model.Place
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
 
@@ -10,6 +11,6 @@ import org.springframework.transaction.annotation.Transactional
 class PlaceQueryService(
     private val placeQueryPort: PlaceQueryPort,
 ) : PlaceQueryUseCase {
-    override fun findCategoryNames(placeIds: List<Long>): Map<Long, String> =
-        if (placeIds.isEmpty()) emptyMap() else placeQueryPort.findCategoryNames(placeIds)
+    override fun findPlacesById(placeIds: List<Long>): List<Place> =
+        if (placeIds.isEmpty()) emptyList() else placeQueryPort.findPlacesById(placeIds)
 }
