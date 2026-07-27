@@ -25,6 +25,8 @@ class CoursePersistenceAdapter(
 ) : CoursePersistencePort {
     override fun findCourseDetail(courseId: Long): CourseDetailRow? = courseRepository.findDetail(courseId)
 
+    override fun existsById(courseId: Long): Boolean = courseRepository.existsById(courseId)
+
     override fun findPlaces(courseId: Long): List<CoursePlaceRow> = coursePlaceRepository.findByCourseId(courseId)
 
     override fun save(course: Course): Course {

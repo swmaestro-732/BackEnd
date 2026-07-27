@@ -26,6 +26,7 @@ Authorization: Bearer {{accessToken}}
   "tags": ["성수", "데이트", "비 오는 날", "감성"],
   "visibility": "PUBLIC",
   "isPublished": true,
+  "forkedFromId": 2,
   "places": [
     {
       "placeId": 101,
@@ -39,6 +40,23 @@ Authorization: Bearer {{accessToken}}
       "caption": null,
       "imageUrls": ["https://cdn.courmy.app/c1/p2-1.jpg"]
     }
+  ]
+}
+
+### 코스 생성 — ?mock=true 폴백 (DB 저장 없이 고정 courseId=1 반환, 코스 상세 목과 이어짐)
+POST http://localhost:8080/api/v1/courses?mock=true
+Content-Type: application/json
+Authorization: Bearer {{accessToken}}
+
+{
+  "title": "성수 비 오는 날 코스",
+  "description": null,
+  "thumbnailUrl": null,
+  "tags": [],
+  "visibility": "PUBLIC",
+  "isPublished": true,
+  "places": [
+    {"placeId": 101, "orderNo": 0, "caption": null, "imageUrls": ["https://cdn.courmy.app/1.jpg"]}
   ]
 }
 

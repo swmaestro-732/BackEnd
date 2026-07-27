@@ -42,6 +42,9 @@ data class CoursePlaceImageRow(
 interface CoursePersistencePort {
     fun findCourseDetail(courseId: Long): CourseDetailRow?
 
+    /** 미삭제(deleted_at IS NULL) 코스가 존재하는지 확인한다(fork 원본 검증 등). */
+    fun existsById(courseId: Long): Boolean
+
     fun findPlaces(courseId: Long): List<CoursePlaceRow>
 
     /** 코스 애그리거트(코스·장소·이미지·태그)를 한 트랜잭션으로 저장하고, 저장된 코스(생성 id·DB 생성값 포함)를 반환한다. */

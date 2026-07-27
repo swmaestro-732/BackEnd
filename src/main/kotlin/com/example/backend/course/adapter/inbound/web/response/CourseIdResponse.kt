@@ -6,4 +6,12 @@ package com.example.backend.course.adapter.inbound.web.response
  */
 data class CourseIdResponse(
     val courseId: Long,
-)
+) {
+    companion object {
+        /**
+         * 코스 생성 `?mock=true` 폴백 응답. 코스 상세 목 데이터([com.example.backend.course.adapter.inbound.web.CourseController]
+         * 의 MOCK_DETAIL, courseId=1)와 이어지도록 항상 1을 반환한다. 실구현 전환 시 호출부와 함께 제거한다.
+         */
+        val MOCK = CourseIdResponse(courseId = 1L)
+    }
+}

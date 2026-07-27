@@ -79,11 +79,20 @@ class CourseService(
 
     @Transactional
     override fun create(command: CreateCourseCommand): Course {
+        // fork 원본 코스가 실제로 존재하는지 검증(없으면 404).
+        command.forkedFromId?.let { forkedFromId ->
+            if (!coursePersistencePort.existsById(forkedFromId)) {
+                throw BusinessException(ErrorCode.COURSE_NOT_FOUND, "원본 코스를 찾을 수 없습니다: id=$forkedFromId")
+            }
+        }
+
         // 불변식 검증·카테고리 도출은 Course.create 애그리거트 팩토리가 수행한다.
         // 서비스는 카테고리 도출에 필요한 외부 데이터(place 카테고리)만 조회해 넘긴다(발행 코스만 필요).
         val placeCategories =
             if (command.isPublished) {
-                placeQueryUseCase.findCategoryNames(command.places.map { it.placeId })
+                placeQueryUseCase
+                    .findPlacesById(command.places.map { it.placeId })
+                    .associate { it.id!! to it.category.name }
             } else {
                 emptyMap()
             }
