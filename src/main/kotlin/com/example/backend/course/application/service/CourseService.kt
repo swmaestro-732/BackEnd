@@ -95,7 +95,7 @@ class CourseService(
             if (command.isPublished) {
                 placeQueryUseCase
                     .findPlacesById(command.places.map { it.placeId })
-                    .associate { it.id!! to it.category.name }
+                    .associate { it.id to it.category }
             } else {
                 emptyMap()
             }
@@ -178,7 +178,7 @@ class CourseService(
         val placeCategories =
             placeQueryUseCase
                 .findPlacesById(places.map { it.placeId })
-                .associate { it.id!! to it.category.name }
+                .associate { it.id to it.category }
         return Course.deriveCategory(command.isPublished, places, placeCategories)
     }
 

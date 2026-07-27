@@ -1,8 +1,8 @@
 package com.example.backend.place.application.service
 
 import com.example.backend.place.application.port.inbound.PlaceQueryUseCase
+import com.example.backend.place.application.port.inbound.dto.PlaceSummary
 import com.example.backend.place.application.port.outbound.PlaceQueryPort
-import com.example.backend.place.domain.model.Place
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
 
@@ -11,6 +11,10 @@ import org.springframework.transaction.annotation.Transactional
 class PlaceQueryService(
     private val placeQueryPort: PlaceQueryPort,
 ) : PlaceQueryUseCase {
-    override fun findPlacesById(placeIds: List<Long>): List<Place> =
-        if (placeIds.isEmpty()) emptyList() else placeQueryPort.findPlacesById(placeIds)
+    override fun findPlacesById(placeIds: List<Long>): List<PlaceSummary> =
+        if (placeIds.isEmpty()) {
+            emptyList()
+        } else {
+            placeQueryPort.findPlacesById(placeIds).map { PlaceSummary(id = it.id!!, category = it.category.name) }
+        }
 }
