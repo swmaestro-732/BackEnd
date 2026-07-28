@@ -176,13 +176,15 @@ class UserPersistenceAdapter(
         val id = checkNotNull(user.id) { "영속화된 User 는 id 를 가진다." }
         val provider = checkNotNull(user.socialProvider) { "소셜 제공자가 필요합니다." }
         val socialId = checkNotNull(user.socialId) { "소셜 식별자가 필요합니다." }
-        UserTable.update({ UserTable.id eq id }) {
-            it[status] = user.status.code
-            it[deletedAt] = null
-            it[nickname] = user.nickname
-            it[handle] = user.handle
-            it[profileImageUrl] = user.profileImageUrl
-        }
+        val updated =
+            UserTable.update({ (UserTable.id eq id) and UserTable.deletedAt.isNotNull() }) {
+                it[status] = user.status.code
+                it[deletedAt] = null
+                it[nickname] = user.nickname
+                it[handle] = user.handle
+                it[profileImageUrl] = user.profileImageUrl
+            }
+        check(updated == 1) { "재활성화할 탈퇴 계정을 찾지 못했습니다(동시 재활성화 가능): id=$id" }
         return User.reconstitute(
             id = id,
             nickname = user.nickname,

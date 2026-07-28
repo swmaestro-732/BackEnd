@@ -125,6 +125,8 @@ data class User private constructor(
         profileImageUrl: String?,
     ): User {
         require(status == UserStatus.WITHDRAWN) { "탈퇴한 사용자만 재활성화할 수 있습니다." }
+        require(nickname.isNotBlank()) { "닉네임은 비어 있을 수 없습니다." }
+        require(handle.isNotBlank()) { "핸들은 비어 있을 수 없습니다." }
         require(nickname.length <= MAX_NICKNAME_LENGTH) { "닉네임은 최대 ${MAX_NICKNAME_LENGTH}자입니다." }
         require(handle.length <= MAX_HANDLE_LENGTH) { "핸들은 최대 ${MAX_HANDLE_LENGTH}자입니다." }
         return copy(

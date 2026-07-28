@@ -28,8 +28,9 @@ class PlaceSearchService(
         val naverResults = naverPlaceSearchPort.search(query, near)
         val kakaoResults = kakaoPlaceSearchPort.search(query, near)
 
-        val merged = naverResults.toMutableList()
-        for (candidate in kakaoResults) {
+        // 네이버 결과 내부 중복까지 제거하기 위해 네이버부터 순회한다(네이버 우선순위 유지).
+        val merged = mutableListOf<ExternalPlace>()
+        for (candidate in naverResults + kakaoResults) {
             if (merged.none { it.isSamePlace(candidate) }) {
                 merged.add(candidate)
             }

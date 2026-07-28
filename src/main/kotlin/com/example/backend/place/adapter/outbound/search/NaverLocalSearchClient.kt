@@ -30,8 +30,8 @@ class NaverLocalSearchClient(
         query: String,
         near: Coordinate?,
     ): List<ExternalPlace> {
-        if (naverProperties.clientId.isBlank()) {
-            log.warn("네이버 검색 clientId 가 비어 있어 검색을 건너뜁니다.")
+        if (naverProperties.clientId.isBlank() || naverProperties.clientSecret.isBlank()) {
+            log.warn("네이버 검색 clientId/clientSecret 이 비어 있어 검색을 건너뜁니다.")
             return emptyList()
         }
         return try {
