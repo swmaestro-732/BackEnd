@@ -1,4 +1,4 @@
-package com.example.backend.place.adapter.outbound.persistence.exposed
+package com.example.backend.place.adapter.outbound.persistence.exposed.repository
 
 import com.example.backend.place.adapter.outbound.persistence.PlaceEntity
 import com.example.backend.place.adapter.outbound.persistence.PlaceTable

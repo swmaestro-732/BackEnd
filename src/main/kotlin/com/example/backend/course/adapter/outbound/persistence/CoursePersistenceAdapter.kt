@@ -1,9 +1,9 @@
 package com.example.backend.course.adapter.outbound.persistence
 
-import com.example.backend.course.adapter.outbound.persistence.exposed.CoursePlaceRepository
-import com.example.backend.course.adapter.outbound.persistence.exposed.CourseRepository
-import com.example.backend.course.adapter.outbound.persistence.exposed.CourseTagRepository
-import com.example.backend.course.adapter.outbound.persistence.exposed.TagRepository
+import com.example.backend.course.adapter.outbound.persistence.exposed.repository.CoursePlaceRepository
+import com.example.backend.course.adapter.outbound.persistence.exposed.repository.CourseRepository
+import com.example.backend.course.adapter.outbound.persistence.exposed.repository.CourseTagRepository
+import com.example.backend.course.adapter.outbound.persistence.exposed.repository.TagRepository
 import com.example.backend.course.application.port.outbound.CourseDetailRow
 import com.example.backend.course.application.port.outbound.CoursePersistencePort
 import com.example.backend.course.application.port.outbound.CoursePlaceRow

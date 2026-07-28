@@ -1,4 +1,4 @@
-package com.example.backend.course.adapter.outbound.persistence.exposed
+package com.example.backend.course.adapter.outbound.persistence.exposed.repository
 
 import com.example.backend.course.adapter.outbound.persistence.TagTable
 import org.jetbrains.exposed.v1.jdbc.upsertReturning

@@ -1,6 +1,6 @@
 package com.example.backend.place.adapter.outbound.persistence
 
-import com.example.backend.place.adapter.outbound.persistence.exposed.PlaceRepository
+import com.example.backend.place.adapter.outbound.persistence.exposed.repository.PlaceRepository
 import com.example.backend.place.application.port.outbound.PlaceQueryPort
 import com.example.backend.place.domain.model.Place
 import org.springframework.stereotype.Component
