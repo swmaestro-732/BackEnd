@@ -12,6 +12,9 @@ import jakarta.validation.constraints.Size
 /** tags 테이블 name varchar(50) 과 동일한 제한. */
 private const val MAX_TAG_LENGTH = 50
 
+/** 코스 한 개에 담을 수 있는 장소 최대 개수. */
+private const val MAX_PLACES = 10
+
 /**
  * 코스 생성 요청(모킹 API) — 웹 어댑터 DTO. 디자인(코스 만들기 1단계: 코스 정보 → 장소 담기 → 공개 설정)과
  * courses/course_places/course_place_images 스키마에서 도출한 필드.
@@ -43,6 +46,7 @@ data class CreateCourseRequest(
     @field:Positive
     val forkedFromId: Long? = null,
     @field:Valid
+    @field:Size(max = MAX_PLACES)
     val places: List<CreateCoursePlaceRequest> = emptyList(),
 ) {
     fun toCommand(userId: Long): CreateCourseCommand =

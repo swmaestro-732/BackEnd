@@ -10,6 +10,8 @@ import com.example.backend.course.application.port.inbound.dto.CreateCourseComma
 import com.example.backend.course.application.port.inbound.dto.EditCourseCommand
 import com.example.backend.course.application.port.outbound.CourseDetailRow
 import com.example.backend.course.application.port.outbound.CoursePersistencePort
+import com.example.backend.course.application.port.outbound.CoursePlaceImageRow
+import com.example.backend.course.application.port.outbound.CoursePlaceRow
 import com.example.backend.course.domain.model.Course
 import com.example.backend.course.domain.model.CourseCategory
 import com.example.backend.course.domain.model.CoursePlace
@@ -142,6 +144,19 @@ class CourseService(
                     imageUrls = it.imageUrls,
                 )
             }
+
+        // 이미 게시된 코스는 장소 구성(place_id·순서·사진)을 바꿀 수 없고 캡션만 수정할 수 있다.
+        // (임시저장→발행 전환은 existing.isPublished 가 false 라 이 제약에서 자유롭다.)
+        if (existing.isPublished) {
+            val storedPlaces = coursePersistencePort.findPlaces(command.courseId)
+            if (placesStructureChanged(storedPlaces, places)) {
+                throw BusinessException(
+                    ErrorCode.PUBLISHED_COURSE_PLACES_IMMUTABLE,
+                    "게시된 코스는 장소를 추가·삭제·교체하거나 순서·사진을 바꿀 수 없습니다: id=${command.courseId}",
+                )
+            }
+        }
+
         val course =
             Course.edit(
                 id = command.courseId,
@@ -180,6 +195,27 @@ class CourseService(
                 .findPlacesById(places.map { it.placeId })
                 .associate { it.id to it.category }
         return Course.deriveCategory(command.isPublished, places, placeCategories)
+    }
+
+    /**
+     * 게시된 코스 편집에서 **캡션을 제외한** 장소 구성이 바뀌었는지 판정한다.
+     * place_id·순서(orderNo)·사진(imageUrls)이 저장본과 완전히 같아야 false(변경 없음)다.
+     * 저장본 이미지는 orderNo 오름차순으로 조회되므로 imageUrl 나열이 요청 imageUrls 순서와 그대로 대응한다.
+     */
+    private fun placesStructureChanged(
+        stored: List<CoursePlaceRow>,
+        newPlaces: List<CoursePlace>,
+    ): Boolean {
+        if (stored.size != newPlaces.size) return true
+        val storedSignature =
+            stored
+                .sortedBy { it.orderNo }
+                .map { Triple(it.placeId, it.orderNo, it.images.map(CoursePlaceImageRow::imageUrl)) }
+        val newSignature =
+            newPlaces
+                .sortedBy { it.orderNo }
+                .map { Triple(it.placeId, it.orderNo, it.imageUrls) }
+        return storedSignature != newSignature
     }
 
     /** 저장된 코스의 장소 구성이 요청과 다른지 판정한다 — 카테고리는 orderNo 순 placeId 나열에만 의존한다. */

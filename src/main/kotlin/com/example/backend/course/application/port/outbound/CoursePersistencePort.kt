@@ -17,6 +17,8 @@ data class CourseDetailRow(
     val tracingsCnt: Int,
     val status: CourseStatus,
     val visibility: CourseVisibility,
+    /** 발행 여부(true=게시, false=임시저장). 게시 코스 편집 시 장소 구성 변경 금지 판정에 쓰인다. */
+    val isPublished: Boolean,
 )
 
 /** 코스에 담긴 장소 읽기 모델(장소별 이미지 포함, orderNo 오름차순). */

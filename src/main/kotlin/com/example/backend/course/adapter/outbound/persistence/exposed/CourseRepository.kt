@@ -92,6 +92,7 @@ class CourseRepository {
                     tracingsCnt = it[CourseTable.tracingsCnt],
                     status = it[CourseTable.status],
                     visibility = it[CourseTable.visibility],
+                    isPublished = it[CourseTable.isPublished],
                 )
             }
 }
