@@ -1,5 +1,6 @@
 package com.example.backend.user.adapter.inbound.web
 
+import com.example.backend.bootstrap.mock.MockGuard
 import com.example.backend.bootstrap.security.CurrentUserId
 import com.example.backend.common.response.ApiResponse
 import com.example.backend.user.adapter.inbound.web.request.UpdateProfileRequest
@@ -29,6 +30,7 @@ import org.springframework.web.bind.annotation.RestController
 @RequestMapping("/api/v1/my")
 class MyController(
     private val myUseCase: MyUseCase,
+    private val mockGuard: MockGuard,
 ) {
     /** 내 프로필 조회. */
     @GetMapping("/profile")
@@ -36,7 +38,7 @@ class MyController(
         @CurrentUserId userId: Long,
         @RequestParam(defaultValue = "false") mock: Boolean,
     ): ApiResponse<MyProfileResponse> {
-        if (mock) return ApiResponse.success(MyProfileResponse.mock())
+        if (mock && mockGuard.isMockAllowed()) return ApiResponse.success(MyProfileResponse.mock())
         return ApiResponse.success(MyProfileResponse.from(myUseCase.getMyProfile(userId)))
     }
 
@@ -47,7 +49,7 @@ class MyController(
         @Valid @RequestBody request: UpdateProfileRequest,
         @RequestParam(defaultValue = "false") mock: Boolean,
     ): ApiResponse<MyProfileResponse> {
-        if (mock) {
+        if (mock && mockGuard.isMockAllowed()) {
             val base = MyProfileResponse.mock()
             return ApiResponse.success(
                 base.copy(
@@ -66,7 +68,7 @@ class MyController(
         @CurrentUserId userId: Long,
         @RequestParam(defaultValue = "false") mock: Boolean,
     ): ApiResponse<Nothing?> {
-        if (!mock) myUseCase.withdraw(userId)
+        if (!(mock && mockGuard.isMockAllowed())) myUseCase.withdraw(userId)
         return ApiResponse.ok()
     }
 
@@ -77,7 +79,7 @@ class MyController(
         @PathVariable("userId") targetId: Long,
         @RequestParam(defaultValue = "false") mock: Boolean,
     ): ApiResponse<FollowResponse> {
-        if (mock) return ApiResponse.success(FollowResponse.mock(isFollowing = true))
+        if (mock && mockGuard.isMockAllowed()) return ApiResponse.success(FollowResponse.mock(isFollowing = true))
         return ApiResponse.success(FollowResponse.from(myUseCase.follow(followerId, targetId)))
     }
 
@@ -88,7 +90,7 @@ class MyController(
         @PathVariable("userId") targetId: Long,
         @RequestParam(defaultValue = "false") mock: Boolean,
     ): ApiResponse<FollowResponse> {
-        if (mock) return ApiResponse.success(FollowResponse.mock(isFollowing = false))
+        if (mock && mockGuard.isMockAllowed()) return ApiResponse.success(FollowResponse.mock(isFollowing = false))
         return ApiResponse.success(FollowResponse.from(myUseCase.unfollow(followerId, targetId)))
     }
 }
