@@ -2,7 +2,6 @@ package com.example.backend.user.adapter.inbound.web
 
 import com.example.backend.bootstrap.security.KakaoOauthProperties
 import com.example.backend.common.exception.BusinessException
-import com.example.backend.common.mock.MockErrors
 import com.example.backend.common.response.ApiResponse
 import com.example.backend.common.response.ErrorCode
 import com.example.backend.user.adapter.inbound.web.request.LogoutRequest
@@ -43,19 +42,11 @@ class AuthController(
     @PostMapping("/social-login")
     fun socialLogin(
         @Valid @RequestBody request: SocialLoginRequest,
-        @RequestParam(defaultValue = "false") mock: Boolean,
-        @RequestParam(required = false) mockError: Int?,
+        @RequestParam(required = false) mock: Boolean = false,
     ): ApiResponse<SocialLoginResponse> {
-        MockErrors.throwIfRequested(mockError)
         if (mock) {
             ensureMockAvailable()
-            return ApiResponse.success(
-                SocialLoginResponse(
-                    accessToken = authUseCase.issueDevAccessToken(),
-                    refreshToken = MOCK_REFRESH_TOKEN,
-                    isNewUser = false,
-                ),
-            )
+            return ApiResponse.success(SocialLoginResponse.mock(authUseCase.issueDevAccessToken()))
         }
         val result =
             authUseCase.socialLogin(
@@ -71,23 +62,16 @@ class AuthController(
     @PostMapping("/signup")
     fun signup(
         @Valid @RequestBody request: SignupRequest,
-        @RequestParam(defaultValue = "false") mock: Boolean,
-        @RequestParam(required = false) mockError: Int?,
+        @RequestParam(required = false) mock: Boolean = false,
     ): ApiResponse<SignupResponse> {
-        MockErrors.throwIfRequested(mockError)
         if (mock) {
             ensureMockAvailable()
             return ApiResponse.success(
-                SignupResponse(
-                    accessToken = authUseCase.issueDevAccessToken(),
-                    refreshToken = MOCK_REFRESH_TOKEN,
-                    user =
-                        SignupResponse.SignupUser(
-                            id = DEV_USER_ID,
-                            nickname = request.nickname,
-                            handle = request.handle,
-                            profileImageUrl = request.profileImageUrl,
-                        ),
+                SignupResponse.mock(
+                    authUseCase.issueDevAccessToken(),
+                    request.nickname,
+                    request.handle,
+                    request.profileImageUrl,
                 ),
             )
         }
@@ -107,18 +91,11 @@ class AuthController(
     @PostMapping("/token-reissue")
     fun reissueToken(
         @Valid @RequestBody request: TokenReissueRequest,
-        @RequestParam(defaultValue = "false") mock: Boolean,
-        @RequestParam(required = false) mockError: Int?,
+        @RequestParam(required = false) mock: Boolean = false,
     ): ApiResponse<TokenResponse> {
-        MockErrors.throwIfRequested(mockError)
         if (mock) {
             ensureMockAvailable()
-            return ApiResponse.success(
-                TokenResponse(
-                    accessToken = authUseCase.issueDevAccessToken(),
-                    refreshToken = MOCK_REFRESH_TOKEN,
-                ),
-            )
+            return ApiResponse.success(TokenResponse.mock(authUseCase.issueDevAccessToken()))
         }
         val result = authUseCase.reissue(request.refreshToken)
         return ApiResponse.success(TokenResponse(result.accessToken, result.refreshToken))
@@ -128,10 +105,8 @@ class AuthController(
     @PostMapping("/logout")
     fun logout(
         @Valid @RequestBody(required = false) request: LogoutRequest?,
-        @RequestParam(defaultValue = "false") mock: Boolean,
-        @RequestParam(required = false) mockError: Int?,
+        @RequestParam(required = false) mock: Boolean = false,
     ): ApiResponse<Nothing?> {
-        MockErrors.throwIfRequested(mockError)
         if (mock) {
             ensureMockAvailable()
             return ApiResponse.ok()
@@ -141,13 +116,16 @@ class AuthController(
         return ApiResponse.ok()
     }
 
-    /** 아이디(핸들) 사용 가능 여부. 예약어와 이미 사용 중인 값은 제외한다. */
+    /**
+     * 아이디(핸들) 사용 가능 여부. 예약어와 이미 사용 중인 값은 제외한다.
+     *
+     * Deprecated: 인증 플로우가 아니라 users 리소스 조회이므로 `GET /api/v1/users/availability?handle=` 로 대체한다.
+     * 신·구 병행 유지 중 — 클라이언트 전환 완료 후 이 엔드포인트와 [RESERVED_LOGIN_IDS]·[AuthUseCase.isLoginIdTaken] 를 제거한다.
+     */
     @GetMapping("/login-id/availability")
     fun checkLoginIdAvailability(
         @RequestParam @NotBlank loginId: String,
-        @RequestParam(required = false) mockError: Int?,
     ): ApiResponse<AvailabilityResponse> {
-        MockErrors.throwIfRequested(mockError)
         val available = loginId.lowercase() !in RESERVED_LOGIN_IDS && !authUseCase.isLoginIdTaken(loginId)
         return ApiResponse.success(AvailabilityResponse(available = available))
     }
@@ -159,9 +137,6 @@ class AuthController(
     }
 
     private companion object {
-        const val MOCK_REFRESH_TOKEN = "mock-refresh-token"
-        const val DEV_USER_ID = 1L
-
         /** 사용 불가로 내려줄 예약어. */
         val RESERVED_LOGIN_IDS = setOf("admin", "courmy", "test")
     }

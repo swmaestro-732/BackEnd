@@ -18,4 +18,23 @@ data class CourseFolderListResponse(
         // 폴더에 저장된 코스 개수 — 폴더 칩 배지("데이트 코스 5") · 저장 시트("코스 12")
         val savedCourseCount: Int,
     )
+
+    companion object {
+        /**
+         * 목 폴더 목록 — 디자인(저장함 · 코스 탭 폴더 칩)의 예시 반영. totalCount 는 폴더 합산.
+         * folderId·개수는 저장 코스 모킹([com.example.backend.user.adapter.inbound.web.SavedCourseController])의 목 레코드와 맞춰 두었다.
+         */
+        fun mock(): CourseFolderListResponse {
+            val folders =
+                listOf(
+                    FolderItem(id = 1, name = "데이트 코스", savedCourseCount = 2),
+                    FolderItem(id = 2, name = "주말 나들이", savedCourseCount = 1),
+                    FolderItem(id = 3, name = "혼자 걷기", savedCourseCount = 1),
+                )
+            return CourseFolderListResponse(
+                totalCount = folders.sumOf { it.savedCourseCount },
+                folders = folders,
+            )
+        }
+    }
 }
