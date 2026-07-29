@@ -18,6 +18,7 @@ import com.example.backend.course.domain.model.CoursePlace
 import com.example.backend.course.domain.model.CourseStatus
 import com.example.backend.course.domain.model.CourseVisibility
 import com.example.backend.place.application.port.inbound.PlaceQueryUseCase
+import com.example.backend.place.application.port.inbound.dto.PlaceSummary
 import com.example.backend.user.application.port.inbound.CourseInteractionUseCase
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
@@ -115,8 +116,7 @@ class CourseService(
         // 서비스는 카테고리 도출에 필요한 외부 데이터(place 카테고리)만 조회해 넘긴다(발행 코스만 필요).
         val placeCategories =
             if (command.isPublished) {
-                placeQueryUseCase
-                    .findPlacesById(command.places.map { it.placeId })
+                requirePlacesExist(command.places.map { it.placeId })
                     .associate { it.id to it.category }
             } else {
                 emptyMap()
@@ -211,10 +211,22 @@ class CourseService(
             return existing.category
         }
         val placeCategories =
-            placeQueryUseCase
-                .findPlacesById(places.map { it.placeId })
+            requirePlacesExist(places.map { it.placeId })
                 .associate { it.id to it.category }
         return Course.deriveCategory(command.isPublished, places, placeCategories)
+    }
+
+    /**
+     * 발행 코스가 참조하는 place_id 가 모두 실제로 존재하는지 검증하고, 조회한 장소 요약을 돌려준다.
+     */
+    private fun requirePlacesExist(placeIds: List<Long>): List<PlaceSummary> {
+        val requestedIds = placeIds.distinct()
+        val found = placeQueryUseCase.findPlacesById(requestedIds)
+        val missing = requestedIds.filterNot { id -> found.any { it.id == id } }
+        if (missing.isNotEmpty()) {
+            throw BusinessException(ErrorCode.PLACE_NOT_FOUND, "존재하지 않는 장소가 포함되어 있습니다: ids=$missing")
+        }
+        return found
     }
 
     /**
