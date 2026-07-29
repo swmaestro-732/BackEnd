@@ -10,6 +10,7 @@ import org.slf4j.LoggerFactory
 import org.springframework.beans.factory.annotation.Qualifier
 import org.springframework.stereotype.Component
 import org.springframework.web.client.RestClient
+import kotlin.math.cos
 
 /**
  * 네이버 지역 검색 API 어댑터.
@@ -48,7 +49,10 @@ class NaverLocalSearchClient(
                     .header("X-Naver-Client-Secret", naverProperties.clientSecret)
                     .retrieve()
                     .body(NaverLocalResponse::class.java)
-            response?.items.orEmpty().mapNotNull { it.toExternalPlace() }
+            val places = response?.items.orEmpty().mapNotNull { it.toExternalPlace() }
+            // 네이버 지역검색은 위치 바이어스 파라미터가 없어 전국 결과가 섞인다. near 가 주어지면
+            // 가까운 순으로 정렬해, 병합 시 네이버가 앞서더라도 먼 후보가 상단을 차지하지 않게 한다.
+            if (near != null) places.sortedBy { squaredDistanceTo(near, it.coordinate) } else places
         } catch (exception: Exception) {
             log.warn("네이버 지역 검색 호출 실패: query={}", query, exception)
             emptyList()
@@ -70,6 +74,19 @@ class NaverLocalSearchClient(
     }
 
     private fun stripHtml(value: String): String = HTML_TAG.replace(value, "").trim()
+
+    /**
+     * 정렬용 근사 제곱거리. 위도 1도와 경도 1도의 실제 거리 차이를 cos(위도)로 보정한다.
+     * 순서 비교에만 쓰므로 제곱근/지구반경 없이 충분하다.
+     */
+    private fun squaredDistanceTo(
+        origin: Coordinate,
+        target: Coordinate,
+    ): Double {
+        val dLat = target.latitude - origin.latitude
+        val dLng = (target.longitude - origin.longitude) * cos(Math.toRadians(origin.latitude))
+        return dLat * dLat + dLng * dLng
+    }
 
     /** 어댑터 내부 전용 원시 응답 DTO — 밖으로 노출하지 않는다. */
     private data class NaverLocalResponse(
