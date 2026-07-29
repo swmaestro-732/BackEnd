@@ -3,6 +3,7 @@ package com.example.backend.media.application.service
 import com.example.backend.bootstrap.config.MediaProperties
 import com.example.backend.common.exception.BusinessException
 import com.example.backend.common.response.ErrorCode
+import com.example.backend.media.application.event.OrphanMediaDeletionRequested
 import com.example.backend.media.application.port.inbound.dto.PresignCommand
 import com.example.backend.media.application.port.inbound.dto.UploadPurpose
 import com.example.backend.media.application.port.outbound.MediaStoragePort
@@ -10,10 +11,11 @@ import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertThrows
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
+import org.springframework.context.ApplicationEventPublisher
 import java.time.Duration
 
 class MediaServiceTest {
-    private val deletedKeys = mutableListOf<String>()
+    private val publishedEvents = mutableListOf<Any>()
 
     private val fakePort =
         object : MediaStoragePort {
@@ -25,10 +27,10 @@ class MediaServiceTest {
 
             override fun publicUrl(key: String): String = "https://cdn.example.com/$key"
 
-            override fun delete(key: String) {
-                deletedKeys.add(key)
-            }
+            override fun delete(key: String) = Unit
         }
+
+    private val eventPublisher = ApplicationEventPublisher { event -> publishedEvents.add(event) }
 
     private val mediaProperties =
         MediaProperties(
@@ -38,7 +40,7 @@ class MediaServiceTest {
             maxUploadBytes = 10_485_760,
         )
 
-    private val service = MediaService(fakePort, mediaProperties)
+    private val service = MediaService(fakePort, mediaProperties, eventPublisher)
 
     @Test
     fun `허용된 contentType이면 확장자를 매핑하고 profile 키 형식으로 발급한다`() {
@@ -134,18 +136,18 @@ class MediaServiceTest {
     }
 
     @Test
-    fun `deleteByUrl은 우리 CDN URL에서 key만 추출해 삭제한다`() {
+    fun `deleteByUrl은 우리 CDN URL에서 key를 추출해 삭제 이벤트를 발행한다`() {
         service.deleteByUrl("https://cdn.example.com/profile/1/uuid.jpg")
 
-        assertEquals(listOf("profile/1/uuid.jpg"), deletedKeys)
+        assertEquals(listOf(OrphanMediaDeletionRequested("profile/1/uuid.jpg")), publishedEvents)
     }
 
     @Test
-    fun `deleteByUrl은 null·빈값·외부 URL이면 삭제하지 않는다`() {
+    fun `deleteByUrl은 null·빈값·외부 URL이면 이벤트를 발행하지 않는다`() {
         service.deleteByUrl(null)
         service.deleteByUrl("   ")
         service.deleteByUrl("https://other.cdn.com/profile/1/uuid.jpg")
 
-        assertTrue(deletedKeys.isEmpty())
+        assertTrue(publishedEvents.isEmpty())
     }
 }

@@ -3,12 +3,13 @@ package com.example.backend.media.application.service
 import com.example.backend.bootstrap.config.MediaProperties
 import com.example.backend.common.exception.BusinessException
 import com.example.backend.common.response.ErrorCode
-import com.example.backend.common.support.runAfterCommit
+import com.example.backend.media.application.event.OrphanMediaDeletionRequested
 import com.example.backend.media.application.port.inbound.MediaCleanupUseCase
 import com.example.backend.media.application.port.inbound.PresignUploadUseCase
 import com.example.backend.media.application.port.inbound.dto.PresignCommand
 import com.example.backend.media.application.port.inbound.dto.PresignResult
 import com.example.backend.media.application.port.outbound.MediaStoragePort
+import org.springframework.context.ApplicationEventPublisher
 import org.springframework.stereotype.Service
 import java.util.UUID
 
@@ -16,6 +17,7 @@ import java.util.UUID
 class MediaService(
     private val mediaStoragePort: MediaStoragePort,
     private val mediaProperties: MediaProperties,
+    private val eventPublisher: ApplicationEventPublisher,
 ) : PresignUploadUseCase,
     MediaCleanupUseCase {
     override fun presign(command: PresignCommand): PresignResult {
@@ -43,9 +45,9 @@ class MediaService(
         val key = imageUrl.removePrefix(prefix)
         if (key.isBlank()) return
 
-        // 프로필 수정 등 트랜잭션 안에서 호출되면 커밋 성공 후에만 삭제한다(롤백 시 DB엔 옛 URL이
-        // 남는데 S3만 지워지는 정합성 붕괴 방지). 삭제 자체는 fail-soft(어댑터에서 예외 무시).
-        runAfterCommit { mediaStoragePort.delete(key) }
+        // 실제 삭제는 커밋 이후로 미룬다 — 이벤트 발행만 하고, 리스너가 AFTER_COMMIT 에 S3 를 삭제한다
+        // (롤백 시 DB엔 옛 URL이 남는데 S3만 지워지는 정합성 붕괴 방지).
+        eventPublisher.publishEvent(OrphanMediaDeletionRequested(key))
     }
 
     private companion object {
