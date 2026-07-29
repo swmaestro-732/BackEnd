@@ -71,7 +71,7 @@ class PostGisFunctionsTest : IntegrationTestBase() {
                 PlaceTable
                     .select(PlaceTable.id)
                     .where { PlaceTable.location.stDWithin(reference, meters = 100.0) }
-                    .map { it[PlaceTable.id] }
+                    .map { it[PlaceTable.id].value }
 
             assertTrue(nearPlaceId in matchedPlaceIds)
             assertFalse(farPlaceId in matchedPlaceIds)
@@ -83,14 +83,16 @@ class PostGisFunctionsTest : IntegrationTestBase() {
         name: String,
         point: GeoPoint,
     ): Long =
-        PlaceTable.insert {
-            it[status] = PlaceStatus.ACTIVE
-            it[PlaceTable.name] = name
-            it[category] = PlaceCategory.CAFE
-            it[location] = point
-            it[address] = "서울특별시 성동구 성수동"
-            it[businessStatus] = PlaceBusinessStatus.OPEN
-        }[PlaceTable.id]
+        PlaceTable
+            .insert {
+                it[status] = PlaceStatus.ACTIVE
+                it[PlaceTable.name] = name
+                it[category] = PlaceCategory.CAFE
+                it[location] = point
+                it[address] = "서울특별시 성동구 성수동"
+                it[businessStatus] = PlaceBusinessStatus.OPEN
+            }[PlaceTable.id]
+            .value
 
     private companion object {
         const val COORDINATE_TOLERANCE = 0.000001

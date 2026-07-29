@@ -1,14 +1,18 @@
 package com.example.backend.course.adapter.inbound.web.request
 
+import com.example.backend.course.application.port.inbound.dto.CreateCourseCommand
+import com.example.backend.course.application.port.inbound.dto.CreateCoursePlaceCommand
 import com.example.backend.course.domain.model.CourseVisibility
 import jakarta.validation.Valid
-import jakarta.validation.constraints.Min
 import jakarta.validation.constraints.NotBlank
 import jakarta.validation.constraints.Positive
 import jakarta.validation.constraints.Size
 
 /** tags 테이블 name varchar(50) 과 동일한 제한. */
 private const val MAX_TAG_LENGTH = 50
+
+/** 코스 한 개에 담을 수 있는 장소 최대 개수. */
+private const val MAX_PLACES = 10
 
 /**
  * 코스 생성 요청(모킹 API) — 웹 어댑터 DTO. 디자인(코스 만들기 1단계: 코스 정보 → 장소 담기 → 공개 설정)과
@@ -19,13 +23,14 @@ private const val MAX_TAG_LENGTH = 50
  * 컨트롤러가 직접 검증한다(→ 400 INVALID_INPUT).
  *
  * - tags: 태그 이름 목록. 추천 태그 응답(RecommendedTagsResponse)과 동일하게 이름 문자열 기반.
+ * - thumbnailUrl: 코스 커버 이미지(courses.cover_image_url).
+ * - category 는 요청에 없다 — 담은 장소들의 카테고리로 서비스가 도출한다(CourseCategory.fromPlaceCategoryNames).
  * - isPublished: true 면 발행("코스 저장하기"), false 면 임시저장(빌더 상단 "임시저장" 버튼).
  * - 도보 시간은 서버가 자동 계산하므로 요청에 없다(디자인 "도보 9분 · 경로 자동").
- *
- * 실구현 시 애플리케이션 경계 타입(CreateCourseCommand)으로 매핑하는 `toCommand()` 를 추가한다.
  */
 data class CreateCourseRequest(
-    @field:NotBlank
+    // 제목 필수 여부는 발행/임시저장에 따라 갈리는 비즈니스 규칙이라 도메인(Course)에서 검증한다
+    // (임시저장은 빈 제목 허용, 발행만 필수). 여기선 길이 제한(@Size)만 본다.
     @field:Size(max = 200)
     val title: String,
     val description: String?,
@@ -37,18 +42,31 @@ data class CreateCourseRequest(
     > = emptyList(),
     val visibility: CourseVisibility,
     val isPublished: Boolean,
-    @field:Valid
-    val places: List<CreateCoursePlaceRequest> = emptyList(),
-)
-
-/** 코스에 담는 장소 한 곳. 사진은 1장 이상 필수(상한 없음), orderNo 는 0부터 시작한다. */
-data class CreateCoursePlaceRequest(
+    /** 포크(다른 코스에서 복제) 원본 course id. 일반 생성이면 요청에 없거나 null. */
     @field:Positive
-    val placeId: Long,
-    @field:Min(0)
-    val orderNo: Int,
-    @field:Size(max = 200)
-    val caption: String?,
-    @field:Size(min = 1)
-    val imageUrls: List<@NotBlank String>,
-)
+    val forkedFromId: Long? = null,
+    @field:Valid
+    @field:Size(max = MAX_PLACES)
+    val places: List<CreateCoursePlaceRequest> = emptyList(),
+) {
+    fun toCommand(userId: Long): CreateCourseCommand =
+        CreateCourseCommand(
+            userId = userId,
+            title = title,
+            description = description,
+            coverImageUrl = thumbnailUrl,
+            tags = tags,
+            visibility = visibility,
+            isPublished = isPublished,
+            forkedFromId = forkedFromId,
+            places =
+                places.map {
+                    CreateCoursePlaceCommand(
+                        placeId = it.placeId,
+                        orderNo = it.orderNo,
+                        caption = it.caption,
+                        imageUrls = it.imageUrls,
+                    )
+                },
+        )
+}

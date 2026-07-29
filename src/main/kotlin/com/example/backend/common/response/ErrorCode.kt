@@ -31,7 +31,8 @@ enum class ErrorCode(
     PAYLOAD_TOO_LARGE(413, 4130, "업로드 가능한 파일 크기를 초과했습니다."),
     INTERNAL_ERROR(500, 5000, "서버 오류가 발생했습니다."),
 
-    // ── 코스(course) ──
+    // ── 코스(course) ── code 오름차순
+    PUBLISHED_COURSE_PLACES_IMMUTABLE(400, 4003, "게시된 코스의 장소 구성은 변경할 수 없습니다. 캡션만 수정할 수 있습니다."),
     COURSE_NOT_FOUND(404, 4041, "코스를 찾을 수 없습니다."),
 
     // ── 사용자(user) ──

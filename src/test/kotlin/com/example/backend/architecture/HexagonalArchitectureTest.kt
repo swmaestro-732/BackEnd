@@ -102,24 +102,28 @@ class HexagonalArchitectureTest {
                 "..user..",
                 "..place..",
                 "..course..",
-                "..bff..",
+                "..mobile..",
             ).check(classes)
     }
 
-    /** BFF 는 화면 조합을 위해 도메인에 의존하되, 공개 API(inbound 포트) 밖의 내부는 참조할 수 없다. */
+    /**
+     * BFF(mobile) 는 화면 조합을 위해 도메인에 의존하되, 공개 API(inbound 포트) 밖의 내부는 참조할 수 없다.
+     * 실도메인 패키지는 `com.example.backend.<domain>..` 으로 앵커링한다 — 비앵커 `..<domain>..` 은
+     * BFF 하위 도메인 패키지(`mobile.<domain>`)까지 매칭해, BFF 레이어 내부의 정상적인 상호 참조를 오탐한다.
+     */
     @Test
     fun `BFF 는 도메인의 inbound 포트만 참조한다`() {
         for (target in listOf("user", "place", "course")) {
             val targetInternals =
                 resideInAnyPackage(
-                    "..$target.domain..",
-                    "..$target.adapter..",
-                    "..$target.application..",
-                ).and(resideOutsideOfPackage("..$target.application.port.inbound.."))
+                    "com.example.backend.$target.domain..",
+                    "com.example.backend.$target.adapter..",
+                    "com.example.backend.$target.application..",
+                ).and(resideOutsideOfPackage("com.example.backend.$target.application.port.inbound.."))
 
             noClasses()
                 .that()
-                .resideInAPackage("..bff..")
+                .resideInAPackage("..mobile..")
                 .should()
                 .dependOnClassesThat(targetInternals)
                 .check(classes)
@@ -129,7 +133,10 @@ class HexagonalArchitectureTest {
     /**
      * 크로스 도메인 격리 — 한 도메인은 다른 도메인의 내부(domain/adapter/service/dto/outbound 포트)에
      * 의존할 수 없고, 오직 상대 도메인의 application.port.inbound(공개 API)만 참조할 수 있다.
-     * (BFF 패키지 bff 는 이 규칙 밖이며 위의 전용 규칙이 담당한다.)
+     * (BFF 패키지 mobile 은 이 규칙 밖이며 위의 전용 규칙이 담당한다.)
+     *
+     * 실도메인 패키지는 `com.example.backend.<domain>..` 으로 앵커링한다 — 비앵커 `..<domain>..` 은
+     * BFF 하위 도메인 패키지(`mobile.<domain>`)까지 매칭해, BFF 레이어를 실도메인으로 오인한다.
      */
     @Test
     fun `도메인은 다른 도메인의 inbound 포트만 참조한다`() {
@@ -141,14 +148,14 @@ class HexagonalArchitectureTest {
                 // 허용되는 건 target.application.port.inbound 뿐이다.
                 noClasses()
                     .that()
-                    .resideInAPackage("..$dependent..")
+                    .resideInAPackage("com.example.backend.$dependent..")
                     .should()
                     .dependOnClassesThat()
                     .resideInAnyPackage(
-                        "..$target.domain..",
-                        "..$target.adapter..",
-                        "..$target.application.service..",
-                        "..$target.application.port.outbound..",
+                        "com.example.backend.$target.domain..",
+                        "com.example.backend.$target.adapter..",
+                        "com.example.backend.$target.application.service..",
+                        "com.example.backend.$target.application.port.outbound..",
                     ).check(classes)
             }
         }
