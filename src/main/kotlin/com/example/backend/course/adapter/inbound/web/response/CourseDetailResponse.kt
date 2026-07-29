@@ -1,8 +1,6 @@
 package com.example.backend.course.adapter.inbound.web.response
 
 import com.example.backend.course.application.port.inbound.dto.CourseDetailResult
-import com.example.backend.course.application.port.inbound.dto.CoursePlaceImageResult
-import com.example.backend.course.application.port.inbound.dto.CoursePlaceResult
 import com.example.backend.course.domain.model.CourseVisibility
 
 /**
@@ -11,6 +9,8 @@ import com.example.backend.course.domain.model.CourseVisibility
  *
  * 표시 로직(도보 시간 합계·팔로우/따라가기 축약 라벨)은 이 계층의 [from] 매퍼가 담당한다 —
  * 애플리케이션 결과([CourseDetailResult])는 원시값만 넘겨준다.
+ * 하위 응답 DTO([CourseResponse]·[CourseStatsResponse]·[CoursePlaceResponse]·
+ * [CoursePlaceImageResponse]·[CourseViewerResponse])는 같은 패키지의 개별 파일로 나눠 둔다.
  */
 data class CourseDetailResponse(
     val course: CourseResponse,
@@ -102,93 +102,3 @@ data class CourseDetailResponse(
             )
     }
 }
-
-data class CourseResponse(
-    val id: String,
-    val title: String,
-    val coverImageUrl: String,
-    /** 코스 테마 = 카테고리(단일). 미선택 draft 는 null. */
-    val theme: String?,
-    val description: String,
-    /** 코스 공개 범위(PUBLIC·FOLLOWER·PRIVATE). enum 이름 그대로 직렬화된다. */
-    val visibility: CourseVisibility,
-    val stats: CourseStatsResponse,
-    val authorId: Long,
-    val places: List<CoursePlaceResponse>,
-    val viewer: CourseViewerResponse,
-) {
-    companion object {
-        fun from(result: CourseDetailResult): CourseResponse =
-            CourseResponse(
-                id = result.id.toString(),
-                title = result.title,
-                coverImageUrl = result.coverImageUrl,
-                theme = result.theme,
-                description = result.description,
-                visibility = result.visibility,
-                stats = CourseStatsResponse.from(result),
-                authorId = result.authorId,
-                places = result.places.map(CoursePlaceResponse::from),
-                viewer = CourseViewerResponse(result.hasSaved, result.hasStartedCourse),
-            )
-    }
-}
-
-/** 코스 요약 지표. tracingCount 는 따라가기 원시 카운트(축약은 프론트에서). */
-data class CourseStatsResponse(
-    val placeCount: Int,
-    val walkingMinutes: Int,
-    val tracingCount: Int,
-) {
-    companion object {
-        fun from(result: CourseDetailResult): CourseStatsResponse =
-            CourseStatsResponse(
-                placeCount = result.places.size,
-                walkingMinutes = result.places.sumOf { it.walkingMinutesToNext ?: 0 },
-                tracingCount = result.tracingsCnt,
-            )
-    }
-}
-
-/**
- * 코스에 담긴 장소(course_places 행).
- * id 는 course_place 식별자, placeId 는 place 도메인 식별자(별개). orderNo 는 코스 내 장소 순서.
- */
-data class CoursePlaceResponse(
-    val id: Long,
-    val placeId: Long,
-    val orderNo: Int,
-    val caption: String?,
-    /** 다음 장소까지 도보 이동 시간(분). 마지막 장소면 null. */
-    val walkingMinutesToNext: Int?,
-    val images: List<CoursePlaceImageResponse>,
-) {
-    companion object {
-        fun from(place: CoursePlaceResult): CoursePlaceResponse =
-            CoursePlaceResponse(
-                id = place.id,
-                placeId = place.placeId,
-                orderNo = place.orderNo,
-                caption = place.caption,
-                walkingMinutesToNext = place.walkingMinutesToNext,
-                images = place.images.map(CoursePlaceImageResponse::from),
-            )
-    }
-}
-
-/** 장소 사진(course_place_images 행). orderNo 는 해당 장소 안에서의 사진 순서. */
-data class CoursePlaceImageResponse(
-    val imageUrl: String,
-    val orderNo: Int,
-) {
-    companion object {
-        fun from(image: CoursePlaceImageResult): CoursePlaceImageResponse =
-            CoursePlaceImageResponse(image.imageUrl, image.orderNo)
-    }
-}
-
-/** 조회자 관점 상태(저장 여부/코스 시작 여부). */
-data class CourseViewerResponse(
-    val hasSaved: Boolean,
-    val hasStartedCourse: Boolean,
-)

@@ -16,7 +16,13 @@ class PlaceQueryService(
             emptyList()
         } else {
             placeQueryPort.findPlacesById(placeIds).map {
-                PlaceSummary(id = it.id!!, name = it.name, category = it.category.name)
+                PlaceSummary(
+                    id = it.id!!,
+                    name = it.name,
+                    category = it.category.name,
+                    latitude = it.location.latitude,
+                    longitude = it.location.longitude,
+                )
             }
         }
 }

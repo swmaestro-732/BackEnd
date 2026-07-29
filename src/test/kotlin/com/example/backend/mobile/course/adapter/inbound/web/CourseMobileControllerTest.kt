@@ -53,11 +53,15 @@ class CourseMobileControllerTest
                 .andExpect(jsonPath("$.data.course.places[0].walkingMinutesToNext").value(5))
                 .andExpect(jsonPath("$.data.course.places[0].categories[0]").value("CAFE"))
                 .andExpect(jsonPath("$.data.course.places[0].images[0].imageUrl").value("https://img/place-a.jpg"))
+                // 장소 좌표(place 도메인 location)가 지도 핀용으로 함께 내려온다 — 카페A: POINT(127.05 37.54)
+                .andExpect(jsonPath("$.data.course.places[0].location.latitude").value(37.54))
+                .andExpect(jsonPath("$.data.course.places[0].location.longitude").value(127.05))
                 .andExpect(jsonPath("$.data.course.places[1].placeId").value(2))
                 .andExpect(jsonPath("$.data.course.places[1].name").value("카페B"))
-                // 리뷰 요약은 아직 목 데이터로 채운다
-                .andExpect(jsonPath("$.data.reviewSummary.averageRating").value(4.3))
-                .andExpect(jsonPath("$.data.reviewSummary.totalCount").value(6))
+                .andExpect(jsonPath("$.data.course.places[1].location.latitude").value(37.55))
+                .andExpect(jsonPath("$.data.course.places[1].location.longitude").value(127.06))
+                // 리뷰 조회 유스케이스 도입 전까지 실 응답의 리뷰 요약은 null 이다(목 값 노출 금지)
+                .andExpect(jsonPath("$.data.reviewSummary").isEmpty)
         }
 
         @Test

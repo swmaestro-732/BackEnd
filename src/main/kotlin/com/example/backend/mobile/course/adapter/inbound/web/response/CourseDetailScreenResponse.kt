@@ -4,6 +4,7 @@ import com.example.backend.course.application.port.inbound.dto.CourseDetailResul
 import com.example.backend.course.application.port.inbound.dto.CoursePlaceImageResult
 import com.example.backend.course.application.port.inbound.dto.CoursePlaceResult
 import com.example.backend.mobile.course.application.port.inbound.dto.CourseDetailScreenResult
+import com.example.backend.mobile.place.adapter.inbound.web.response.PlaceLocationResponse
 import com.example.backend.place.application.port.inbound.dto.PlaceSummary
 import com.example.backend.user.application.port.inbound.dto.UserProfileResult
 import java.time.OffsetDateTime
@@ -13,21 +14,23 @@ import java.time.ZoneOffset
  * 웹 응답 DTO — 코스 상세 화면 조합(BFF). 프론트 화면 계약 형태.
  * 코스 상세([CourseDetailResult]) + 작성자 프로필([UserProfileResult]) + 장소 요약([PlaceSummary])을
  * 조합해 채운다. 표시 로직(도보 시간 합계·따라가기 축약 라벨·장소명/카테고리 결합)은 이 계층의 [from] 매퍼가 담당한다.
- * `reviewSummary` 는 아직 리뷰 조회 유스케이스가 없어 컨트롤러에서 목 데이터로 채운다(유스케이스 도입 시 교체).
+ * `reviewSummary` 는 아직 리뷰 조회 유스케이스가 없어 실 응답에서는 null 로 내려간다(유스케이스 도입 시 result 에서 매핑).
+ * 목([MOCK]) 응답에만 고정 예시를 채워 프론트가 형태를 확인할 수 있게 한다.
  */
 data class CourseDetailScreenResponse(
     val course: CourseScreenResponse,
-    val reviewSummary: ReviewSummaryResponse,
+    val reviewSummary: ReviewSummaryResponse?,
 ) {
     companion object {
         /**
          * 화면 조합 결과([CourseDetailScreenResult]) → 응답 매핑.
-         * `reviewSummary` 는 리뷰 조회 유스케이스가 없어 [MOCK] 의 값을 그대로 쓴다(유스케이스 도입 시 result 에서 매핑).
+         * `reviewSummary` 는 리뷰 조회 유스케이스가 없어 아직 null 이다 — 목 값([MOCK])을 실 응답에 노출하지 않는다
+         * (유스케이스 도입 시 result 에서 매핑).
          */
         fun from(result: CourseDetailScreenResult): CourseDetailScreenResponse =
             CourseDetailScreenResponse(
                 course = CourseScreenResponse.from(result.course, result.author, result.places),
-                reviewSummary = MOCK.reviewSummary,
+                reviewSummary = null,
             )
 
         private fun image(token: String) = "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9Gc$token&s=10"
@@ -84,6 +87,7 @@ data class CourseDetailScreenResponse(
                                     caption = "통창 자리가 명당이에요. 비 오는 날 앉으면 뷰가 최고.",
                                     walkingMinutesToNext = 6,
                                     categories = listOf("카페", "베이커리"),
+                                    location = PlaceLocationResponse(latitude = 37.5445, longitude = 127.0575),
                                     images =
                                         listOf(
                                             img("HIxFwvmFDIDNW9rHdqN1wRMZjFTQwfEmgO-O4kBM5nA", 0),
@@ -98,6 +102,7 @@ data class CourseDetailScreenResponse(
                                     caption = "안쪽 전시 공간 꼭 들러보세요.",
                                     walkingMinutesToNext = 3,
                                     categories = listOf("카페", "전시"),
+                                    location = PlaceLocationResponse(latitude = 37.5419, longitude = 127.0555),
                                     images = listOf(img("SYjLV1q0A21vyJJ_N3LlUSp3HwiDDouEZRzcVhJb8KJw", 0)),
                                 ),
                                 CoursePlaceScreenResponse(
@@ -109,6 +114,7 @@ data class CourseDetailScreenResponse(
                                     walkingMinutesToNext = 5,
                                     images = listOf(img("TMRMGDnfUqzsxQXY1TOrhMtWZ8-otKbsLPlfnIkvDfUw", 0)),
                                     categories = listOf("카페"),
+                                    location = PlaceLocationResponse(latitude = 37.5447, longitude = 127.0533),
                                 ),
                                 CoursePlaceScreenResponse(
                                     id = 4,
@@ -118,6 +124,7 @@ data class CourseDetailScreenResponse(
                                     caption = "마무리로 딱. 넓어서 웨이팅 걱정 없어요.",
                                     walkingMinutesToNext = null,
                                     categories = listOf("카페", "베이커리"),
+                                    location = PlaceLocationResponse(latitude = 37.5463, longitude = 127.0662),
                                     images =
                                         listOf(
                                             img("Qr6pSHzsT4DD0ieT5VQ__SVo2ErRODzDyViWmZeXHGlA", 0),
@@ -258,9 +265,10 @@ data class CourseStatsResponse(
 }
 
 /**
- * 코스에 담긴 장소(course_places 행) + 장소 도메인 메타(name·categories).
+ * 코스에 담긴 장소(course_places 행) + 장소 도메인 메타(name·categories·location).
  * id 는 course_place 식별자, placeId 는 place 도메인 식별자. caption·images·도보시간은 코스에서,
- * name·categories 는 장소 조회([PlaceSummary])에서 온다. 삭제된 장소면 place 요약이 없어 name=null·categories=[] 이 된다.
+ * name·categories·location 은 장소 조회([PlaceSummary])에서 온다.
+ * 삭제된 장소면 place 요약이 없어 name=null·categories=[]·location=null 이 된다(지도 핀을 못 찍는다).
  */
 data class CoursePlaceScreenResponse(
     val id: Long,
@@ -270,6 +278,8 @@ data class CoursePlaceScreenResponse(
     val caption: String?,
     val walkingMinutesToNext: Int?,
     val categories: List<String>,
+    /** 장소 좌표(지도 핀). 삭제된 장소는 요약이 없어 null. */
+    val location: PlaceLocationResponse?,
     val images: List<CoursePlaceImageResponse>,
 ) {
     companion object {
@@ -285,6 +295,7 @@ data class CoursePlaceScreenResponse(
                 caption = place.caption,
                 walkingMinutesToNext = place.walkingMinutesToNext,
                 categories = summary?.let { listOf(it.category) } ?: emptyList(),
+                location = summary?.let { PlaceLocationResponse(it.latitude, it.longitude) },
                 images = place.images.map(CoursePlaceImageResponse::from),
             )
     }
