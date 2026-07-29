@@ -25,7 +25,7 @@ import org.springframework.transaction.annotation.Transactional
 /**
  * 코스 유스케이스 — 상세 조회와 생성을 함께 담당한다.
  *
- * 조회(getDetail): status=ACTIVE·미삭제만 반환(그 외 404), PRIVATE 은 소유자만, FRIENDS 는 현재 PUBLIC 취급(후속).
+ * 조회(getDetail): status=ACTIVE·미삭제만 반환(그 외 404), PRIVATE 은 소유자만, FOLLOWER 는 소유자·팔로워만(그 외 404).
  * 생성(create): 발행/임시저장 공통. 불변식 검증과 카테고리 도출은 [Course] 애그리거트가 수행하고,
  * 서비스는 카테고리 도출에 필요한 place 카테고리(place 인바운드 포트)만 조회해 넘긴다.
  *
@@ -49,10 +49,9 @@ class CourseService(
         if (course.status != CourseStatus.ACTIVE) {
             throw BusinessException(ErrorCode.COURSE_NOT_FOUND, "코스를 찾을 수 없습니다: id=$courseId")
         }
-        if (course.visibility == CourseVisibility.PRIVATE && viewerId != course.userId) {
+        if (!isViewable(course.visibility, ownerId = course.userId, viewerId = viewerId)) {
             throw BusinessException(ErrorCode.COURSE_NOT_FOUND, "코스를 찾을 수 없습니다: id=$courseId")
         }
-        // 친구 공개 예외처리 필요
 
         val places =
             coursePersistencePort.findPlaces(courseId).map { place ->
@@ -74,6 +73,7 @@ class CourseService(
             coverImageUrl = course.coverImageUrl.orEmpty(),
             theme = course.category?.name,
             description = course.description.orEmpty(),
+            visibility = course.visibility,
             authorId = course.userId,
             tracingsCnt = course.tracingsCnt,
             places = places,
@@ -81,6 +81,26 @@ class CourseService(
             hasStartedCourse = viewer?.hasStartedCourse ?: false,
         )
     }
+
+    private fun isViewable(
+        visibility: CourseVisibility,
+        ownerId: Long,
+        viewerId: Long?,
+    ): Boolean =
+        when (visibility) {
+            CourseVisibility.PUBLIC -> {
+                true
+            }
+
+            CourseVisibility.FOLLOWER -> {
+                viewerId == ownerId ||
+                    (viewerId != null && courseInteractionUseCase.isFollowing(viewerId, ownerId))
+            }
+
+            CourseVisibility.PRIVATE -> {
+                viewerId == ownerId
+            }
+        }
 
     @Transactional
     override fun create(command: CreateCourseCommand): Course {

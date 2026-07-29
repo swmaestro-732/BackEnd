@@ -3,6 +3,7 @@ package com.example.backend.course.adapter.inbound.web.response
 import com.example.backend.course.application.port.inbound.dto.CourseDetailResult
 import com.example.backend.course.application.port.inbound.dto.CoursePlaceImageResult
 import com.example.backend.course.application.port.inbound.dto.CoursePlaceResult
+import com.example.backend.course.domain.model.CourseVisibility
 
 /**
  * 웹 응답 DTO — 코스 상세. 프론트 계약대로 최상위를 { "course": {...} } 로 감싼다
@@ -26,7 +27,7 @@ data class CourseDetailResponse(
 
         /**
          * 코스 상세 `?mock=true` 폴백 응답 — 디자인(코스 상세)의 예시 반영. 화면 조합 목
-         * ([com.example.backend.bff.adapter.inbound.web.CourseDetailScreenController])과 같은 코스
+         * ([com.example.backend.mobile.course.adapter.inbound.web.CourseDetailScreenController])과 같은 코스
          * (비 오는 날 성수 감성 카페 코스)로 값을 맞춰 두었다. caption 은 장소명.
          * 실구현 전환 시 호출부와 함께 제거한다.
          */
@@ -41,6 +42,7 @@ data class CourseDetailResponse(
                         description =
                             "비가 오면 더 예쁜 성수 카페만 골라 담았어요. 전부 도보로 이어지고, " +
                                 "장소마다 제 팁을 남겨뒀으니 참고하세요 🌧️",
+                        visibility = CourseVisibility.PUBLIC,
                         stats =
                             CourseStatsResponse(
                                 placeCount = 4,
@@ -108,6 +110,8 @@ data class CourseResponse(
     /** 코스 테마 = 카테고리(단일). 미선택 draft 는 null. */
     val theme: String?,
     val description: String,
+    /** 코스 공개 범위(PUBLIC·FOLLOWER·PRIVATE). enum 이름 그대로 직렬화된다. */
+    val visibility: CourseVisibility,
     val stats: CourseStatsResponse,
     val authorId: Long,
     val places: List<CoursePlaceResponse>,
@@ -121,6 +125,7 @@ data class CourseResponse(
                 coverImageUrl = result.coverImageUrl,
                 theme = result.theme,
                 description = result.description,
+                visibility = result.visibility,
                 stats = CourseStatsResponse.from(result),
                 authorId = result.authorId,
                 places = result.places.map(CoursePlaceResponse::from),

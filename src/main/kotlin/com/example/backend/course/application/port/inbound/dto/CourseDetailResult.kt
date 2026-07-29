@@ -1,5 +1,7 @@
 package com.example.backend.course.application.port.inbound.dto
 
+import com.example.backend.course.domain.model.CourseVisibility
+
 /**
  * 코스 상세 조회 결과(애플리케이션 계층 DTO). 웹 응답 매퍼가 표시 로직을 입힌다 —
  * tracingsCnt(원시값) → 축약 라벨, walkingMinutesToNext 합계 → stats.walkingMinutes 등은
@@ -12,6 +14,8 @@ data class CourseDetailResult(
     /** 코스 테마 = 카테고리(단일). 미선택 draft 는 null. */
     val theme: String?,
     val description: String,
+    /** 코스 공개 범위(PUBLIC·FOLLOWER·PRIVATE). */
+    val visibility: CourseVisibility,
     val authorId: Long,
     val tracingsCnt: Int,
     val places: List<CoursePlaceResult>,
