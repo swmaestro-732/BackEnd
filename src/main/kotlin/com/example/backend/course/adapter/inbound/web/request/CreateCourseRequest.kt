@@ -30,7 +30,8 @@ private const val MAX_PLACES = 10
  * - 도보 시간은 서버가 자동 계산하므로 요청에 없다(디자인 "도보 9분 · 경로 자동").
  */
 data class CreateCourseRequest(
-    @field:NotBlank
+    // 제목 필수 여부는 발행/임시저장에 따라 갈리는 비즈니스 규칙이라 도메인(Course)에서 검증한다
+    // (임시저장은 빈 제목 허용, 발행만 필수). 여기선 길이 제한(@Size)만 본다.
     @field:Size(max = 200)
     val title: String,
     val description: String?,

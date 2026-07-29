@@ -114,7 +114,10 @@ data class Course private constructor(
             places: List<CoursePlace>,
             category: CourseCategory?,
         ): Course {
-            require(title.isNotBlank()) { "제목은 비어 있을 수 없습니다." }
+            // 제목은 발행 코스만 필수다 — 임시저장(draft)은 제목 없이 저장할 수 있다(빌더 상단 "임시저장").
+            if (isPublished && title.isBlank()) {
+                throw BusinessException(ErrorCode.INVALID_INPUT, "코스를 발행하려면 제목이 필요합니다.")
+            }
             if (isPublished && places.size < MIN_PUBLISHED_PLACES) {
                 throw BusinessException(ErrorCode.INVALID_INPUT, "코스를 발행하려면 장소를 2곳 이상 담아야 합니다.")
             }
