@@ -18,9 +18,7 @@ class UserSummaryPersistenceAdapter : UserSummaryPort {
             .map {
                 UserSummaryUseCase.UserSummary(
                     id = it[UserTable.id],
-                    // 온보딩 완료(핸들 보유) 유저만 팔로우·작성자로 요약되므로 nickname 은 사실상 non-null.
-                    // 방어적으로 빈 문자열 폴백 — nullable 을 UserSummary 전체로 전파하지 않는다.
-                    nickname = it[UserTable.nickname] ?: "",
+                    nickname = it[UserTable.nickname],
                     profileImageUrl = it[UserTable.profileImageUrl],
                 )
             }

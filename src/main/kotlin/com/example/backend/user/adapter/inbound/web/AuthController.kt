@@ -5,12 +5,15 @@ import com.example.backend.common.exception.BusinessException
 import com.example.backend.common.response.ApiResponse
 import com.example.backend.common.response.ErrorCode
 import com.example.backend.user.adapter.inbound.web.request.LogoutRequest
+import com.example.backend.user.adapter.inbound.web.request.SignupRequest
 import com.example.backend.user.adapter.inbound.web.request.SocialLoginRequest
 import com.example.backend.user.adapter.inbound.web.request.TokenReissueRequest
 import com.example.backend.user.adapter.inbound.web.response.AvailabilityResponse
+import com.example.backend.user.adapter.inbound.web.response.SignupResponse
 import com.example.backend.user.adapter.inbound.web.response.SocialLoginResponse
 import com.example.backend.user.adapter.inbound.web.response.TokenResponse
 import com.example.backend.user.application.port.inbound.AuthUseCase
+import com.example.backend.user.application.port.inbound.dto.SignupCommand
 import com.example.backend.user.application.port.inbound.dto.SocialLoginCommand
 import jakarta.validation.Valid
 import jakarta.validation.constraints.NotBlank
@@ -24,11 +27,10 @@ import org.springframework.web.bind.annotation.RestController
 /**
  * 인바운드 어댑터 — 인증/세션 (노션 명세 · User/auth).
  *
- * 로그인·로그아웃·토큰 재발급 등 **인증 액션**은 `/api/v1/auth` 로 묶는다
+ * 로그인·회원가입·로그아웃·토큰 재발급 등 **인증 액션**은 `/api/v1/auth` 로 묶는다
  * (`/my` = 내가 기준인 리소스, `/users` = 유저 도메인 리소스와 구분).
- * social-login 은 로그인·가입을 하나로 합쳐 [AuthUseCase]로 실구현하며(온보딩은 PATCH /my/profile),
- * Kakao 설정이 없는 개발 환경에서는 `?mock=true`로 DB 저장 없는 폴백을 제공한다.
- * `mockError`는 모킹 에러 화면 작업을 위해 유지한다.
+ * social-login·signup 은 [AuthUseCase]로 실구현하며, Kakao 설정이 없는 개발 환경에서는
+ * `?mock=true`로 DB 저장 없는 폴백을 제공한다. `mockError`는 모킹 에러 화면 작업을 위해 유지한다.
  */
 @RestController
 @RequestMapping("/api/v1/auth")
@@ -36,7 +38,7 @@ class AuthController(
     private val authUseCase: AuthUseCase,
     private val kakaoOauthProperties: KakaoOauthProperties,
 ) {
-    /** 소셜 로그인(가입 통합). isNewUser=true 면 클라이언트가 온보딩(PATCH /my/profile)으로 이동한다. */
+    /** 소셜 로그인. isNewUser 면 클라이언트가 registrationToken 으로 회원가입을 진행한다. */
     @PostMapping("/social-login")
     fun socialLogin(
         @Valid @RequestBody request: SocialLoginRequest,
@@ -54,6 +56,35 @@ class AuthController(
                 ),
             )
         return ApiResponse.success(SocialLoginResponse.from(result))
+    }
+
+    /** 회원가입/프로필 설정. handle·areaCodes·likeTagIds 는 아직 저장하지 않는다. */
+    @PostMapping("/signup")
+    fun signup(
+        @Valid @RequestBody request: SignupRequest,
+        @RequestParam(required = false) mock: Boolean = false,
+    ): ApiResponse<SignupResponse> {
+        if (mock) {
+            ensureMockAvailable()
+            return ApiResponse.success(
+                SignupResponse.mock(
+                    authUseCase.issueDevAccessToken(),
+                    request.nickname,
+                    request.handle,
+                    request.profileImageUrl,
+                ),
+            )
+        }
+        val result =
+            authUseCase.signup(
+                SignupCommand(
+                    registrationToken = request.registrationToken,
+                    nickname = request.nickname,
+                    handle = request.handle,
+                    profileImageUrl = request.profileImageUrl,
+                ),
+            )
+        return ApiResponse.success(SignupResponse.from(result))
     }
 
     /** refresh token 회전으로 accessToken·refreshToken 재발급. */

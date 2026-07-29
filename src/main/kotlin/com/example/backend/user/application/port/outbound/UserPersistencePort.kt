@@ -6,7 +6,7 @@ import com.example.backend.user.domain.model.User
 /** 프로필 조회용 읽기 모델(카운터 캐시 포함). */
 data class UserProfileRow(
     val id: Long,
-    val nickname: String?,
+    val nickname: String,
     val handle: String?,
     val profileImageUrl: String?,
     val followersCnt: Int,

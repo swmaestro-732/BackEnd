@@ -10,7 +10,7 @@ import org.jetbrains.exposed.v1.datetime.timestamp
  */
 internal object UserTable : Table("users") {
     val id = long("id").autoIncrement()
-    val nickname = varchar("nickname", 20).nullable()
+    val nickname = varchar("nickname", 20)
     val handle = varchar("handle", 30).nullable()
     val profileImageUrl = text("profile_image_url").nullable()
     val followersCnt = integer("followers_cnt")

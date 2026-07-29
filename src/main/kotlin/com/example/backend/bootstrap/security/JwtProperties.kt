@@ -8,6 +8,7 @@ data class JwtProperties(
     val secret: String,
     val accessTtl: Duration,
     val refreshTtl: Duration,
+    val registrationTtl: Duration,
 ) {
     init {
         // 시크릿 미설정/취약 시 기동 실패(fail-fast) — 코드에 기본값을 두지 않고 반드시 env로 주입.

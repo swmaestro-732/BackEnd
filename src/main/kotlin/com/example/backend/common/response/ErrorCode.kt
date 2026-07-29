@@ -22,6 +22,7 @@ enum class ErrorCode(
     INVALID_INPUT(400, 4001, "잘못된 요청입니다."),
     VALIDATION_FAILED(400, 4002, "입력값 검증에 실패했습니다."),
     SOCIAL_AUTHENTICATION_FAILED(401, 4010, "소셜 인증에 실패했습니다."),
+    INVALID_REGISTRATION_TOKEN(401, 4011, "유효하지 않은 회원가입 토큰입니다."),
     INVALID_REFRESH_TOKEN(401, 4012, "유효하지 않은 리프레시 토큰입니다."),
     ACCOUNT_SUSPENDED(403, 4030, "정지된 계정입니다."),
     NOT_FOUND(404, 4040, "요청한 리소스를 찾을 수 없습니다."),
