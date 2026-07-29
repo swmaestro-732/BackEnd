@@ -36,7 +36,9 @@ data class CourseDetailResponse(
                                 walkingMinutes = 20,
                                 tracingCountLabel = "1.2k",
                             ),
-                        authorId = 1L,
+                        // courseId=1 의 작성자·장소는 저장함 목([SavedCourseScreenResponse] courseId=1 → jiho_routes(id=2))과
+                        // 장소 매핑([SavedPlaceListResponse]: 101 어니언 성수·104 대림창고 카페·105 센터커피 성수·107 자그마치)에 맞춘다.
+                        authorId = 2L,
                         places =
                             listOf(
                                 CoursePlaceResponse(
@@ -53,15 +55,15 @@ data class CourseDetailResponse(
                                 ),
                                 CoursePlaceResponse(
                                     id = 2L,
-                                    placeId = 102L,
+                                    placeId = 104L,
                                     orderNo = 2,
-                                    caption = "대림창고 갤러리",
+                                    caption = "대림창고 카페",
                                     walkingMinutesToNext = 3,
                                     images = listOf(img("SYjLV1q0A21vyJJ_N3LlUSp3HwiDDouEZRzcVhJb8KJw", 0)),
                                 ),
                                 CoursePlaceResponse(
                                     id = 3L,
-                                    placeId = 103L,
+                                    placeId = 105L,
                                     orderNo = 3,
                                     caption = "센터커피 성수",
                                     walkingMinutesToNext = 5,
@@ -69,9 +71,9 @@ data class CourseDetailResponse(
                                 ),
                                 CoursePlaceResponse(
                                     id = 4L,
-                                    placeId = 104L,
+                                    placeId = 107L,
                                     orderNo = 4,
-                                    caption = "카페 할아버지공장",
+                                    caption = "자그마치",
                                     walkingMinutesToNext = null,
                                     images =
                                         listOf(

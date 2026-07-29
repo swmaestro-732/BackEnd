@@ -1,5 +1,6 @@
 package com.example.backend.course.adapter.inbound.web.response
 
+import java.time.Duration
 import java.time.OffsetDateTime
 import java.time.ZoneOffset
 
@@ -29,10 +30,20 @@ data class CourseReviewListResponse(
             rating: Int,
             content: String,
             createdAt: OffsetDateTime,
-            relativeTime: String,
             photoUrls: List<String> = emptyList(),
             tags: List<CourseReviewTagResponse> = emptyList(),
-        ) = CourseReviewResponse(id, authorId, rating, content, createdAt, relativeTime, photoUrls, tags)
+        ) = CourseReviewResponse(id, authorId, rating, content, createdAt, relativeTimeOf(createdAt), photoUrls, tags)
+
+        /** createdAt 로부터 상대 시간 문자열을 계산한다 — 고정 문자열이 시간이 지나며 어긋나는 것을 막는다. */
+        private fun relativeTimeOf(createdAt: OffsetDateTime): String {
+            val minutes = Duration.between(createdAt, OffsetDateTime.now()).toMinutes().coerceAtLeast(0)
+            return when {
+                minutes < 1 -> "방금 전"
+                minutes < 60 -> "${minutes}분 전"
+                minutes < 60 * 24 -> "${minutes / 60}시간 전"
+                else -> "${minutes / (60 * 24)}일 전"
+            }
+        }
 
         private fun tag(
             label: String,
@@ -74,7 +85,6 @@ data class CourseReviewListResponse(
                     content =
                         "비 오는 날 딱이에요. 통창 자리 순서대로 도니 동선도 완벽했어요. 웨이팅도 거의 없었어요 🌧️",
                     createdAt = kst(2026, 7, 7, 13, 20),
-                    relativeTime = "4일 전",
                     photoUrls =
                         listOf(
                             image("Qri_COfUpGil6k79RTh7vRhzDdP08yEcUmXIHnvn7Hfw"),
@@ -88,7 +98,6 @@ data class CourseReviewListResponse(
                     rating = 4,
                     content = "코스 좋아요! 세 번째 카페가 조금 붐볐어요.",
                     createdAt = kst(2026, 7, 5, 18, 5),
-                    relativeTime = "6일 전",
                     tags = listOf(COMBO),
                 ),
                 review(
@@ -97,7 +106,6 @@ data class CourseReviewListResponse(
                     rating = 5,
                     content = "사진 찍기 좋은 곳만 모아놨네요. 데이트로 최고였어요.",
                     createdAt = kst(2026, 7, 3, 11, 0),
-                    relativeTime = "8일 전",
                     photoUrls = listOf(image("THIxFwvmFDIDNW9rHdqN1wRMZjFTQwfEmgO-O4kBM5nA")),
                     tags = listOf(COMBO, PACKED),
                 ),
@@ -107,7 +115,6 @@ data class CourseReviewListResponse(
                     rating = 3,
                     content = "코스 자체는 좋은데 주말엔 사람이 너무 많아요.",
                     createdAt = kst(2026, 7, 1, 9, 30),
-                    relativeTime = "10일 전",
                     tags = listOf(PACKED),
                 ),
                 review(
@@ -116,7 +123,6 @@ data class CourseReviewListResponse(
                     rating = 4,
                     content = "도보 동선이 편했어요. 팁 남겨주신 거 참고 많이 됐습니다.",
                     createdAt = kst(2026, 6, 28, 20, 15),
-                    relativeTime = "13일 전",
                     tags = listOf(EFFICIENT, WALKABLE),
                 ),
                 review(
@@ -125,7 +131,6 @@ data class CourseReviewListResponse(
                     rating = 5,
                     content = "재방문 의사 100%. 마지막 카페가 진짜 넓고 좋았어요.",
                     createdAt = kst(2026, 6, 25, 12, 0),
-                    relativeTime = "16일 전",
                     photoUrls = listOf(image("Qr6pSHzsT4DD0ieT5VQ__SVo2ErRODzDyViWmZeXHGlA")),
                     tags = listOf(SMOOTH, WALKABLE),
                 ),

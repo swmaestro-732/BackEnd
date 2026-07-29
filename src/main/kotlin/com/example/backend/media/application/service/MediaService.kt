@@ -9,6 +9,8 @@ import com.example.backend.media.application.port.inbound.dto.PresignCommand
 import com.example.backend.media.application.port.inbound.dto.PresignResult
 import com.example.backend.media.application.port.outbound.MediaStoragePort
 import org.springframework.stereotype.Service
+import org.springframework.transaction.support.TransactionSynchronization
+import org.springframework.transaction.support.TransactionSynchronizationManager
 import java.util.UUID
 
 @Service
@@ -40,7 +42,22 @@ class MediaService(
         val prefix = mediaProperties.cdnBaseUrl.trimEnd('/') + "/"
         if (!imageUrl.startsWith(prefix)) return
         val key = imageUrl.removePrefix(prefix)
-        if (key.isNotBlank()) mediaStoragePort.delete(key)
+        if (key.isBlank()) return
+
+        // 트랜잭션 안에서 호출되면(예: 프로필 수정) 커밋 성공 후에만 삭제한다.
+        // 롤백 시 DB엔 옛 이미지 URL이 남는데 S3 객체만 지워지는 정합성 붕괴를 막는다.
+        // 트랜잭션 밖 호출이면 즉시 삭제. 삭제 자체는 fail-soft(어댑터에서 예외 무시).
+        if (TransactionSynchronizationManager.isSynchronizationActive()) {
+            TransactionSynchronizationManager.registerSynchronization(
+                object : TransactionSynchronization {
+                    override fun afterCommit() {
+                        mediaStoragePort.delete(key)
+                    }
+                },
+            )
+        } else {
+            mediaStoragePort.delete(key)
+        }
     }
 
     private companion object {
