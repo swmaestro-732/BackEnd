@@ -6,7 +6,91 @@ package com.example.backend.course.adapter.inbound.web.response
  */
 data class CourseDetailResponse(
     val course: CourseResponse,
-)
+) {
+    companion object {
+        private fun image(token: String) = "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9Gc$token&s=10"
+
+        private fun img(
+            token: String,
+            orderNo: Int,
+        ) = CoursePlaceImageResponse(imageUrl = image(token), orderNo = orderNo)
+
+        /**
+         * 코스 상세 목 — 디자인(코스 상세)의 예시 반영. 화면 조합 목([com.example.backend.bff.adapter.inbound.web.CourseDetailScreenController])과
+         * 같은 코스(비 오는 날 성수 감성 카페 코스)로 값을 맞춰 두었다. caption 은 장소명.
+         */
+        fun mock(): CourseDetailResponse =
+            CourseDetailResponse(
+                course =
+                    CourseResponse(
+                        id = "1",
+                        title = "비 오는 날 성수 감성 카페 코스",
+                        coverImageUrl = image("THb4AHDBpbwjQOwLbBj3pgro4xFRpvBdRRZDTcbVmMkg"),
+                        themes = listOf("데이트"),
+                        description =
+                            "비가 오면 더 예쁜 성수 카페만 골라 담았어요. 전부 도보로 이어지고, " +
+                                "장소마다 제 팁을 남겨뒀으니 참고하세요 🌧️",
+                        stats =
+                            CourseStatsResponse(
+                                placeCount = 4,
+                                walkingMinutes = 20,
+                                tracingCountLabel = "1.2k",
+                            ),
+                        // courseId=1 의 작성자·장소는 저장함 목([SavedCourseScreenResponse] courseId=1 → jiho_routes(id=2))과
+                        // 장소 매핑([SavedPlaceListResponse]: 101 어니언 성수·104 대림창고 카페·105 센터커피 성수·107 자그마치)에 맞춘다.
+                        authorId = 2L,
+                        places =
+                            listOf(
+                                CoursePlaceResponse(
+                                    id = 1L,
+                                    placeId = 101L,
+                                    orderNo = 1,
+                                    caption = "어니언 성수",
+                                    walkingMinutesToNext = 6,
+                                    images =
+                                        listOf(
+                                            img("THIxFwvmFDIDNW9rHdqN1wRMZjFTQwfEmgO-O4kBM5nA", 0),
+                                            img("Qri_COfUpGil6k79RTh7vRhzDdP08yEcUmXIHnvn7Hfw", 1),
+                                        ),
+                                ),
+                                CoursePlaceResponse(
+                                    id = 2L,
+                                    placeId = 104L,
+                                    orderNo = 2,
+                                    caption = "대림창고 카페",
+                                    walkingMinutesToNext = 3,
+                                    images = listOf(img("SYjLV1q0A21vyJJ_N3LlUSp3HwiDDouEZRzcVhJb8KJw", 0)),
+                                ),
+                                CoursePlaceResponse(
+                                    id = 3L,
+                                    placeId = 105L,
+                                    orderNo = 3,
+                                    caption = "센터커피 성수",
+                                    walkingMinutesToNext = 5,
+                                    images = listOf(img("TMRMGDnfUqzsxQXY1TOrhMtWZ8-otKbsLPlfnIkvDfUw", 0)),
+                                ),
+                                CoursePlaceResponse(
+                                    id = 4L,
+                                    placeId = 107L,
+                                    orderNo = 4,
+                                    caption = "자그마치",
+                                    walkingMinutesToNext = null,
+                                    images =
+                                        listOf(
+                                            img("Qr6pSHzsT4DD0ieT5VQ__SVo2ErRODzDyViWmZeXHGlA", 0),
+                                            img("R_3CDZ5UcouOOEkvGYQVI2emgnCGRIzRysaKhwNlq-kw", 1),
+                                        ),
+                                ),
+                            ),
+                        viewer =
+                            CourseViewerResponse(
+                                hasSaved = false,
+                                hasStartedCourse = false,
+                            ),
+                    ),
+            )
+    }
+}
 
 data class CourseResponse(
     val id: String,

@@ -2,6 +2,7 @@ package com.example.backend.user.application.service
 
 import com.example.backend.common.exception.BusinessException
 import com.example.backend.common.response.ErrorCode
+import com.example.backend.media.application.port.inbound.MediaCleanupUseCase
 import com.example.backend.user.application.port.inbound.MyUseCase
 import com.example.backend.user.application.port.inbound.dto.FollowResult
 import com.example.backend.user.application.port.inbound.dto.UpdateProfileCommand
@@ -18,6 +19,7 @@ class MyService(
     private val userPersistencePort: UserPersistencePort,
     private val followPersistencePort: FollowPersistencePort,
     private val refreshTokenPort: RefreshTokenPort,
+    private val mediaCleanupUseCase: MediaCleanupUseCase,
 ) : MyUseCase {
     override fun getMyProfile(userId: Long): UserProfileResult {
         val row =
@@ -58,8 +60,13 @@ class MyService(
             throw BusinessException(ErrorCode.HANDLE_ALREADY_TAKEN)
         }
 
+        val oldImageUrl = user.profileImageUrl
         val updated = user.updateProfile(command.nickname, command.handle, command.profileImageUrl)
         userPersistencePort.update(updated)
+        // 프로필 이미지가 새 값으로 교체되면 참조 끊긴 옛 이미지(고아)를 정리한다(재사용 함수).
+        if (command.profileImageUrl != null && command.profileImageUrl != oldImageUrl) {
+            mediaCleanupUseCase.deleteByUrl(oldImageUrl)
+        }
         return getMyProfile(userId)
     }
 

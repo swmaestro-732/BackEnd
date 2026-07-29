@@ -9,13 +9,11 @@ import com.example.backend.bff.adapter.inbound.web.response.PlaceReviewSummaryRe
 import com.example.backend.bff.adapter.inbound.web.response.PlaceScreenResponse
 import com.example.backend.bff.adapter.inbound.web.response.PlaceViewerResponse
 import com.example.backend.common.exception.BusinessException
-import com.example.backend.common.mock.MockErrors
 import com.example.backend.common.response.ApiResponse
 import com.example.backend.common.response.ErrorCode
 import org.springframework.web.bind.annotation.GetMapping
 import org.springframework.web.bind.annotation.PathVariable
 import org.springframework.web.bind.annotation.RequestMapping
-import org.springframework.web.bind.annotation.RequestParam
 import org.springframework.web.bind.annotation.RestController
 import java.time.Instant
 
@@ -27,7 +25,7 @@ import java.time.Instant
  * `viewer.hasSaved`(user 소관)·"이 근처 코스"(course 소관)는 화면 조합이라 도메인 API가 아닌 여기에 둔다.
  * 기존 [com.example.backend.bff.adapter.inbound.web.CourseDetailScreenController] 와 동일하게
  * 컨트롤러에서 목 데이터를 직접 만들어 반환한다. 실제 구현 시 place + user + course inbound 포트 조합으로 교체한다.
- * `mockError` 파라미터로 모킹 에러를 주입할 수 있다(예: `?mockError=4040`).
+ * 모킹 에러(`?mockError=<code>`)는 전역 아스펙트([com.example.backend.bootstrap.mock.MockErrorAspect])가 주입한다.
  * 존재하지 않는 장소(id != 101)는 404(PLACE_NOT_FOUND).
  */
 @RestController
@@ -36,9 +34,7 @@ class PlaceDetailScreenController {
     @GetMapping("/places/{placeId}")
     fun getScreen(
         @PathVariable placeId: Long,
-        @RequestParam(required = false) mockError: Int?,
     ): ApiResponse<PlaceDetailScreenResponse> {
-        MockErrors.throwIfRequested(mockError)
         if (placeId != 101L) {
             throw BusinessException(ErrorCode.PLACE_NOT_FOUND, "장소를 찾을 수 없습니다: id=$placeId")
         }

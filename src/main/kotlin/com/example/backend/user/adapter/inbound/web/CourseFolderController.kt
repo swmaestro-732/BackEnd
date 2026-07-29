@@ -1,6 +1,5 @@
 package com.example.backend.user.adapter.inbound.web
 
-import com.example.backend.common.mock.MockErrors
 import com.example.backend.common.response.ApiResponse
 import com.example.backend.user.adapter.inbound.web.request.CreateCourseFolderRequest
 import com.example.backend.user.adapter.inbound.web.response.CourseFolderListResponse
@@ -23,8 +22,8 @@ import org.springframework.web.bind.annotation.RestController
  * - [list] 코스 폴더 목록 조회(`GET /api/v1/my/course-folders`): 디자인(저장함 · 코스 탭 폴더 칩,
  *   코스 상세 → 저장 시트 "내 폴더 N")에서 도출 — 폴더별 저장 코스 개수를 order_no 순으로 내려준다.
  *
- * 실제 구현 시 인바운드 포트(UseCase) 연동으로 교체하고 [MockErrors] 호출을 제거한다.
- * `mockError` 파라미터로 모킹 에러를 주입할 수 있다(예: `?mockError=4040`).
+ * 실제 구현 시 인바운드 포트(UseCase) 연동으로 교체한다. 모킹 에러(`?mockError=<code>`)는
+ * 전역 아스펙트([com.example.backend.bootstrap.mock.MockErrorAspect])가 주입한다.
  */
 @RestController
 @RequestMapping("/api/v1/my/course-folders")
@@ -33,38 +32,14 @@ class CourseFolderController {
     @ResponseStatus(HttpStatus.CREATED)
     fun create(
         @Valid @RequestBody request: CreateCourseFolderRequest,
-        @RequestParam(required = false) mockError: Int?,
-    ): ApiResponse<CreateCourseFolderResponse> {
-        MockErrors.throwIfRequested(mockError)
-        return ApiResponse.success(CreateCourseFolderResponse(folderId = NEXT_FOLDER_ID), "폴더가 생성되었습니다.")
-    }
+    ): ApiResponse<CreateCourseFolderResponse> =
+        ApiResponse.success(CreateCourseFolderResponse(folderId = NEXT_FOLDER_ID), "폴더가 생성되었습니다.")
 
     @GetMapping
-    fun list(
-        @RequestParam(required = false) mockError: Int?,
-    ): ApiResponse<CourseFolderListResponse> {
-        MockErrors.throwIfRequested(mockError)
-        return ApiResponse.success(
-            CourseFolderListResponse(
-                totalCount = MOCK_FOLDERS.sumOf { it.savedCourseCount },
-                folders = MOCK_FOLDERS,
-            ),
-        )
-    }
+    fun list(): ApiResponse<CourseFolderListResponse> = ApiResponse.success(CourseFolderListResponse.mock())
 
     private companion object {
         /** 생성 모킹 고정 id — 목 폴더(1~3) 다음 번호. */
         const val NEXT_FOLDER_ID = 4L
-
-        /**
-         * 목 폴더 — 디자인(저장함 · 코스 탭 폴더 칩)의 예시 반영.
-         * folderId·개수는 저장 코스 모킹([SavedCourseController])의 목 레코드와 맞춰 두었다.
-         */
-        val MOCK_FOLDERS: List<CourseFolderListResponse.FolderItem> =
-            listOf(
-                CourseFolderListResponse.FolderItem(id = 1, name = "데이트 코스", savedCourseCount = 2),
-                CourseFolderListResponse.FolderItem(id = 2, name = "주말 나들이", savedCourseCount = 1),
-                CourseFolderListResponse.FolderItem(id = 3, name = "혼자 걷기", savedCourseCount = 1),
-            )
     }
 }

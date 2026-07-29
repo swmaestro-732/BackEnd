@@ -45,3 +45,11 @@ kakao:
     rest-key: ${KAKAO_REST_API_KEY:}
 tmap:
   app-key: ${TMAP_APP_KEY:}
+
+aws:
+  region: ${AWS_REGION:ap-northeast-2}
+  s3:
+    bucket: ${S3_MEDIA_BUCKET:}
+    cdn-base-url: ${S3_MEDIA_CDN_URL:}
+    presign-ttl: PT5M
+    endpoint: ${S3_ENDPOINT:}   # 비어있으면 기본 AWS, LocalStack 등은 값 설정

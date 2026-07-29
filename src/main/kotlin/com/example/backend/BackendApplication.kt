@@ -1,6 +1,7 @@
 package com.example.backend
 
 import com.example.backend.bootstrap.config.KakaoLocalProperties
+import com.example.backend.bootstrap.config.MediaProperties
 import com.example.backend.bootstrap.config.NaverProperties
 import com.example.backend.bootstrap.config.TmapProperties
 import com.example.backend.bootstrap.security.JwtProperties
@@ -13,6 +14,7 @@ import org.springframework.boot.runApplication
 @EnableConfigurationProperties(
     JwtProperties::class,
     KakaoOauthProperties::class,
+    MediaProperties::class,
     NaverProperties::class,
     KakaoLocalProperties::class,
     TmapProperties::class,
