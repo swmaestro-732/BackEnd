@@ -273,7 +273,7 @@ class CourseControllerTest
                 .andExpect(jsonPath("$.data.course.authorId").value(OWNER_ID))
                 .andExpect(jsonPath("$.data.course.places.length()").value(2))
                 .andExpect(jsonPath("$.data.course.stats.walkingMinutes").value(5))
-                .andExpect(jsonPath("$.data.course.stats.tracingCountLabel").value("1.2k"))
+                .andExpect(jsonPath("$.data.course.stats.tracingCount").value(1200))
         }
 
         @Test

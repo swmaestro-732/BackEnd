@@ -1,0 +1,22 @@
+### 코스 상세 화면 조합 (BFF, 실구현) — 코스 상세 + 작성자 프로필 + 장소 이름·카테고리 조합
+# CourseUseCase.getDetail + UserUseCase.getProfile + PlaceQueryUseCase.findPlacesById 조합.
+# 비로그인 → viewer(hasSaved/hasStartedCourse) false, author 팔로우 관계(isFollowing/isFollower) false.
+GET http://localhost:8080/service/v1/courses/1
+
+### 코스 상세 화면 조합 — 로그인(뷰어) — viewer 상태·작성자 팔로우 관계가 조회자 기준으로 채워짐
+GET http://localhost:8080/service/v1/courses/1
+Authorization: Bearer {{accessToken}}
+
+### 코스 상세 화면 조합 — ?mock=true 폴백 (시드/DB 없이 고정 화면 목 반환)
+GET http://localhost:8080/service/v1/courses/1?mock=true
+
+### 코스 상세 화면 조합 — 없는 코스 → 404 / 4041 COURSE_NOT_FOUND
+GET http://localhost:8080/service/v1/courses/99999
+
+### 코스 상세 화면 조합 — 비공개(PRIVATE)·팔로워공개(FOLLOWER) 코스에 권한 없는 조회 → 404 / 4041
+# 존재를 드러내지 않도록 접근 불가 코스는 404. 소유자/팔로워면 정상 조회.
+GET http://localhost:8080/service/v1/courses/2
+Authorization: Bearer {{accessToken}}
+
+### 코스 상세 화면 조합 — mockError 주입 (예: 404 / 4041 코스 없음)
+GET http://localhost:8080/service/v1/courses/1?mockError=4041

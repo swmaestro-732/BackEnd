@@ -15,6 +15,8 @@ class PlaceQueryService(
         if (placeIds.isEmpty()) {
             emptyList()
         } else {
-            placeQueryPort.findPlacesById(placeIds).map { PlaceSummary(id = it.id!!, category = it.category.name) }
+            placeQueryPort.findPlacesById(placeIds).map {
+                PlaceSummary(id = it.id!!, name = it.name, category = it.category.name)
+            }
         }
 }

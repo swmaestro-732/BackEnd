@@ -27,7 +27,7 @@ data class CourseDetailResponse(
 
         /**
          * 코스 상세 `?mock=true` 폴백 응답 — 디자인(코스 상세)의 예시 반영. 화면 조합 목
-         * ([com.example.backend.mobile.course.adapter.inbound.web.CourseDetailScreenController])과 같은 코스
+         * ([com.example.backend.mobile.course.adapter.inbound.web.CourseMobileController])과 같은 코스
          * (비 오는 날 성수 감성 카페 코스)로 값을 맞춰 두었다. caption 은 장소명.
          * 실구현 전환 시 호출부와 함께 제거한다.
          */
@@ -47,7 +47,7 @@ data class CourseDetailResponse(
                             CourseStatsResponse(
                                 placeCount = 4,
                                 walkingMinutes = 20,
-                                tracingCountLabel = "1.2k",
+                                tracingCount = 1200,
                             ),
                         authorId = 1L,
                         places =
@@ -134,18 +134,18 @@ data class CourseResponse(
     }
 }
 
-/** 코스 요약 지표. tracingCountLabel 은 표시용 축약("1.2k"). */
+/** 코스 요약 지표. tracingCount 는 따라가기 원시 카운트(축약은 프론트에서). */
 data class CourseStatsResponse(
     val placeCount: Int,
     val walkingMinutes: Int,
-    val tracingCountLabel: String,
+    val tracingCount: Int,
 ) {
     companion object {
         fun from(result: CourseDetailResult): CourseStatsResponse =
             CourseStatsResponse(
                 placeCount = result.places.size,
                 walkingMinutes = result.places.sumOf { it.walkingMinutesToNext ?: 0 },
-                tracingCountLabel = abbreviateCount(result.tracingsCnt),
+                tracingCount = result.tracingsCnt,
             )
     }
 }
@@ -192,20 +192,3 @@ data class CourseViewerResponse(
     val hasSaved: Boolean,
     val hasStartedCourse: Boolean,
 )
-
-/** 카운트를 표시용으로 축약한다(예: 1200 → "1.2k", 1_500_000 → "1.5M"). 1000 미만은 그대로. */
-private fun abbreviateCount(count: Int): String {
-    fun oneDecimal(
-        value: Int,
-        unit: Int,
-    ): String {
-        val whole = value / unit
-        val tenth = (value % unit) * 10 / unit
-        return if (tenth == 0) "$whole" else "$whole.$tenth"
-    }
-    return when {
-        count < 1_000 -> count.toString()
-        count < 1_000_000 -> oneDecimal(count, 1_000) + "k"
-        else -> oneDecimal(count, 1_000_000) + "M"
-    }
-}
