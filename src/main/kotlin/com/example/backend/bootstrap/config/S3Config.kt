@@ -5,6 +5,7 @@ import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
 import software.amazon.awssdk.auth.credentials.DefaultCredentialsProvider
 import software.amazon.awssdk.regions.Region
+import software.amazon.awssdk.services.s3.S3Client
 import software.amazon.awssdk.services.s3.S3Configuration
 import software.amazon.awssdk.services.s3.presigner.S3Presigner
 import java.net.URI
@@ -23,6 +24,29 @@ class S3Config(
     fun s3Presigner(): S3Presigner {
         val builder =
             S3Presigner
+                .builder()
+                .region(Region.of(region))
+                .credentialsProvider(DefaultCredentialsProvider.create())
+
+        if (mediaProperties.endpoint.isNotBlank()) {
+            builder
+                .endpointOverride(URI.create(mediaProperties.endpoint))
+                .serviceConfiguration(
+                    S3Configuration
+                        .builder()
+                        .pathStyleAccessEnabled(true)
+                        .build(),
+                )
+        }
+
+        return builder.build()
+    }
+
+    /** 객체 삭제(고아 이미지 정리) 등 서버측 S3 작업용 [S3Client]. presigner 와 동일한 자격증명·엔드포인트 정책. */
+    @Bean
+    fun s3Client(): S3Client {
+        val builder =
+            S3Client
                 .builder()
                 .region(Region.of(region))
                 .credentialsProvider(DefaultCredentialsProvider.create())

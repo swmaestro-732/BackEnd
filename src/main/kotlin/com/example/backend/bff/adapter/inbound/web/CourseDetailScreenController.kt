@@ -13,13 +13,11 @@ import com.example.backend.bff.adapter.inbound.web.response.ReviewPreviewRespons
 import com.example.backend.bff.adapter.inbound.web.response.ReviewSummaryResponse
 import com.example.backend.bff.adapter.inbound.web.response.ReviewTagResponse
 import com.example.backend.common.exception.BusinessException
-import com.example.backend.common.mock.MockErrors
 import com.example.backend.common.response.ApiResponse
 import com.example.backend.common.response.ErrorCode
 import org.springframework.web.bind.annotation.GetMapping
 import org.springframework.web.bind.annotation.PathVariable
 import org.springframework.web.bind.annotation.RequestMapping
-import org.springframework.web.bind.annotation.RequestParam
 import org.springframework.web.bind.annotation.RestController
 import java.time.OffsetDateTime
 import java.time.ZoneOffset
@@ -31,7 +29,7 @@ import java.time.ZoneOffset
  *
  * 기존 [com.example.backend.place.adapter.inbound.web.PlaceController] 와 동일하게
  * 컨트롤러에서 목 데이터를 직접 만들어 반환한다. 실제 구현 시 도메인 inbound 포트 조합으로 교체한다.
- * `mockError` 파라미터로 모킹 에러를 주입할 수 있다(예: `?mockError=4040`).
+ * 모킹 에러(`?mockError=<code>`)는 전역 아스펙트([com.example.backend.bootstrap.mock.MockErrorAspect])가 주입한다.
  * 존재하지 않는 코스(id != 1)는 404(COURSE_NOT_FOUND).
  */
 @RestController
@@ -40,9 +38,7 @@ class CourseDetailScreenController {
     @GetMapping("/courses/{courseId}")
     fun getScreen(
         @PathVariable courseId: Long,
-        @RequestParam(required = false) mockError: Int?,
     ): ApiResponse<CourseDetailScreenResponse> {
-        MockErrors.throwIfRequested(mockError)
         if (courseId != 1L) {
             throw BusinessException(ErrorCode.COURSE_NOT_FOUND, "코스를 찾을 수 없습니다: id=$courseId")
         }

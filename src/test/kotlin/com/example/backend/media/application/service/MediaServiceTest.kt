@@ -13,6 +13,8 @@ import org.junit.jupiter.api.Test
 import java.time.Duration
 
 class MediaServiceTest {
+    private val deletedKeys = mutableListOf<String>()
+
     private val fakePort =
         object : MediaStoragePort {
             override fun presignedPutUrl(
@@ -22,6 +24,10 @@ class MediaServiceTest {
             ): String = "https://bucket.s3.amazonaws.com/$key?presigned"
 
             override fun publicUrl(key: String): String = "https://cdn.example.com/$key"
+
+            override fun delete(key: String) {
+                deletedKeys.add(key)
+            }
         }
 
     private val mediaProperties =
@@ -125,5 +131,21 @@ class MediaServiceTest {
             }
 
         assertEquals(ErrorCode.PAYLOAD_TOO_LARGE, exception.errorCode)
+    }
+
+    @Test
+    fun `deleteByUrl은 우리 CDN URL에서 key만 추출해 삭제한다`() {
+        service.deleteByUrl("https://cdn.example.com/profile/1/uuid.jpg")
+
+        assertEquals(listOf("profile/1/uuid.jpg"), deletedKeys)
+    }
+
+    @Test
+    fun `deleteByUrl은 null·빈값·외부 URL이면 삭제하지 않는다`() {
+        service.deleteByUrl(null)
+        service.deleteByUrl("   ")
+        service.deleteByUrl("https://other.cdn.com/profile/1/uuid.jpg")
+
+        assertTrue(deletedKeys.isEmpty())
     }
 }

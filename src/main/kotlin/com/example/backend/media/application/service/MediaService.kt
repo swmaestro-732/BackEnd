@@ -3,6 +3,7 @@ package com.example.backend.media.application.service
 import com.example.backend.bootstrap.config.MediaProperties
 import com.example.backend.common.exception.BusinessException
 import com.example.backend.common.response.ErrorCode
+import com.example.backend.media.application.port.inbound.MediaCleanupUseCase
 import com.example.backend.media.application.port.inbound.PresignUploadUseCase
 import com.example.backend.media.application.port.inbound.dto.PresignCommand
 import com.example.backend.media.application.port.inbound.dto.PresignResult
@@ -14,7 +15,8 @@ import java.util.UUID
 class MediaService(
     private val mediaStoragePort: MediaStoragePort,
     private val mediaProperties: MediaProperties,
-) : PresignUploadUseCase {
+) : PresignUploadUseCase,
+    MediaCleanupUseCase {
     override fun presign(command: PresignCommand): PresignResult {
         val ext =
             CONTENT_TYPE_EXTENSIONS[command.contentType]
@@ -30,6 +32,15 @@ class MediaService(
             uploadUrl = mediaStoragePort.presignedPutUrl(key, command.contentType, command.contentLength),
             imageUrl = mediaStoragePort.publicUrl(key),
         )
+    }
+
+    override fun deleteByUrl(imageUrl: String?) {
+        if (imageUrl.isNullOrBlank()) return
+        // 우리 CDN(cdnBaseUrl) 이 발급한 URL 만 삭제 대상 — 외부/목 URL 은 무시한다.
+        val prefix = mediaProperties.cdnBaseUrl.trimEnd('/') + "/"
+        if (!imageUrl.startsWith(prefix)) return
+        val key = imageUrl.removePrefix(prefix)
+        if (key.isNotBlank()) mediaStoragePort.delete(key)
     }
 
     private companion object {

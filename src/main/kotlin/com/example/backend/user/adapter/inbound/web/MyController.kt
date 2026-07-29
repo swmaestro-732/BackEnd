@@ -36,7 +36,7 @@ class MyController(
     @GetMapping("/profile")
     fun getMyProfile(
         @CurrentUserId userId: Long,
-        @RequestParam(defaultValue = "false") mock: Boolean,
+        @RequestParam(required = false) mock: Boolean = false,
     ): ApiResponse<MyProfileResponse> {
         if (mock && mockGuard.isMockAllowed()) return ApiResponse.success(MyProfileResponse.mock())
         return ApiResponse.success(MyProfileResponse.from(myUseCase.getMyProfile(userId)))
@@ -47,7 +47,7 @@ class MyController(
     fun updateMyProfile(
         @CurrentUserId userId: Long,
         @Valid @RequestBody request: UpdateProfileRequest,
-        @RequestParam(defaultValue = "false") mock: Boolean,
+        @RequestParam(required = false) mock: Boolean = false,
     ): ApiResponse<MyProfileResponse> {
         if (mock && mockGuard.isMockAllowed()) {
             val base = MyProfileResponse.mock()
@@ -66,7 +66,7 @@ class MyController(
     @DeleteMapping
     fun withdraw(
         @CurrentUserId userId: Long,
-        @RequestParam(defaultValue = "false") mock: Boolean,
+        @RequestParam(required = false) mock: Boolean = false,
     ): ApiResponse<Nothing?> {
         if (!(mock && mockGuard.isMockAllowed())) myUseCase.withdraw(userId)
         return ApiResponse.ok()
@@ -77,7 +77,7 @@ class MyController(
     fun follow(
         @CurrentUserId followerId: Long,
         @PathVariable("userId") targetId: Long,
-        @RequestParam(defaultValue = "false") mock: Boolean,
+        @RequestParam(required = false) mock: Boolean = false,
     ): ApiResponse<FollowResponse> {
         if (mock && mockGuard.isMockAllowed()) return ApiResponse.success(FollowResponse.mock(isFollowing = true))
         return ApiResponse.success(FollowResponse.from(myUseCase.follow(followerId, targetId)))
@@ -88,7 +88,7 @@ class MyController(
     fun unfollow(
         @CurrentUserId followerId: Long,
         @PathVariable("userId") targetId: Long,
-        @RequestParam(defaultValue = "false") mock: Boolean,
+        @RequestParam(required = false) mock: Boolean = false,
     ): ApiResponse<FollowResponse> {
         if (mock && mockGuard.isMockAllowed()) return ApiResponse.success(FollowResponse.mock(isFollowing = false))
         return ApiResponse.success(FollowResponse.from(myUseCase.unfollow(followerId, targetId)))

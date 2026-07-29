@@ -7,6 +7,7 @@ import org.junit.jupiter.api.Test
 import software.amazon.awssdk.auth.credentials.AwsBasicCredentials
 import software.amazon.awssdk.auth.credentials.StaticCredentialsProvider
 import software.amazon.awssdk.regions.Region
+import software.amazon.awssdk.services.s3.S3Client
 import software.amazon.awssdk.services.s3.presigner.S3Presigner
 import java.time.Duration
 
@@ -19,6 +20,14 @@ class S3MediaStorageAdapterTest {
             .credentialsProvider(StaticCredentialsProvider.create(AwsBasicCredentials.create("dummy", "dummy")))
             .build()
 
+    // presign 테스트에서는 사용되지 않는다(네트워크 호출 없이 빌드만). delete 는 fail-soft 라 통합 테스트 대상.
+    private val s3Client =
+        S3Client
+            .builder()
+            .region(Region.AP_NORTHEAST_2)
+            .credentialsProvider(StaticCredentialsProvider.create(AwsBasicCredentials.create("dummy", "dummy")))
+            .build()
+
     private val mediaProperties =
         MediaProperties(
             bucket = "dummy-bucket",
@@ -26,7 +35,7 @@ class S3MediaStorageAdapterTest {
             presignTtl = Duration.ofMinutes(5),
         )
 
-    private val adapter = S3MediaStorageAdapter(s3Presigner, mediaProperties)
+    private val adapter = S3MediaStorageAdapter(s3Presigner, s3Client, mediaProperties)
 
     @Test
     fun `presignedPutUrl은 서명 쿼리 파라미터가 포함된 URL을 반환한다`() {

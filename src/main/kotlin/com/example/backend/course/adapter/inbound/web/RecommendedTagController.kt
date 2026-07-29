@@ -29,7 +29,7 @@ class RecommendedTagController(
         @Min(1, message = "1 이상이어야 합니다")
         @Max(30, message = "30 이하여야 합니다")
         limit: Int,
-        @RequestParam(required = false, defaultValue = "false") mock: Boolean,
+        @RequestParam(required = false) mock: Boolean = false,
     ): ApiResponse<RecommendedTagsResponse> {
         if (mock) {
             val tags = if (placeIds.isNullOrEmpty()) POPULAR_TAGS else PLACE_BASED_TAGS

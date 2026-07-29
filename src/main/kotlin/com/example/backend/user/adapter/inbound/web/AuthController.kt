@@ -42,7 +42,7 @@ class AuthController(
     @PostMapping("/social-login")
     fun socialLogin(
         @Valid @RequestBody request: SocialLoginRequest,
-        @RequestParam(defaultValue = "false") mock: Boolean,
+        @RequestParam(required = false) mock: Boolean = false,
     ): ApiResponse<SocialLoginResponse> {
         if (mock) {
             ensureMockAvailable()
@@ -62,7 +62,7 @@ class AuthController(
     @PostMapping("/signup")
     fun signup(
         @Valid @RequestBody request: SignupRequest,
-        @RequestParam(defaultValue = "false") mock: Boolean,
+        @RequestParam(required = false) mock: Boolean = false,
     ): ApiResponse<SignupResponse> {
         if (mock) {
             ensureMockAvailable()
@@ -91,7 +91,7 @@ class AuthController(
     @PostMapping("/token-reissue")
     fun reissueToken(
         @Valid @RequestBody request: TokenReissueRequest,
-        @RequestParam(defaultValue = "false") mock: Boolean,
+        @RequestParam(required = false) mock: Boolean = false,
     ): ApiResponse<TokenResponse> {
         if (mock) {
             ensureMockAvailable()
@@ -105,7 +105,7 @@ class AuthController(
     @PostMapping("/logout")
     fun logout(
         @Valid @RequestBody(required = false) request: LogoutRequest?,
-        @RequestParam(defaultValue = "false") mock: Boolean,
+        @RequestParam(required = false) mock: Boolean = false,
     ): ApiResponse<Nothing?> {
         if (mock) {
             ensureMockAvailable()

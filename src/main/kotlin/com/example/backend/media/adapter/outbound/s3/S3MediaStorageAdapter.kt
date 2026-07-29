@@ -2,7 +2,9 @@ package com.example.backend.media.adapter.outbound.s3
 
 import com.example.backend.bootstrap.config.MediaProperties
 import com.example.backend.media.application.port.outbound.MediaStoragePort
+import org.slf4j.LoggerFactory
 import org.springframework.stereotype.Component
+import software.amazon.awssdk.services.s3.S3Client
 import software.amazon.awssdk.services.s3.model.PutObjectRequest
 import software.amazon.awssdk.services.s3.presigner.S3Presigner
 import software.amazon.awssdk.services.s3.presigner.model.PutObjectPresignRequest
@@ -10,8 +12,11 @@ import software.amazon.awssdk.services.s3.presigner.model.PutObjectPresignReques
 @Component
 class S3MediaStorageAdapter(
     private val s3Presigner: S3Presigner,
+    private val s3Client: S3Client,
     private val mediaProperties: MediaProperties,
 ) : MediaStoragePort {
+    private val log = LoggerFactory.getLogger(javaClass)
+
     override fun presignedPutUrl(
         key: String,
         contentType: String,
@@ -37,4 +42,12 @@ class S3MediaStorageAdapter(
     }
 
     override fun publicUrl(key: String): String = "${mediaProperties.cdnBaseUrl.trimEnd('/')}/$key"
+
+    override fun delete(key: String) {
+        try {
+            s3Client.deleteObject { it.bucket(mediaProperties.bucket).key(key) }
+        } catch (exception: Exception) {
+            log.warn("S3 객체 삭제 실패(무시): key={}", key, exception)
+        }
+    }
 }

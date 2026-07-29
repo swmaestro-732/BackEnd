@@ -10,4 +10,7 @@ interface MediaStoragePort {
 
     /** 업로드 완료 후 클라이언트가 사용할 공개(CDN) URL. */
     fun publicUrl(key: String): String
+
+    /** 키에 해당하는 객체를 삭제한다. 없는 객체·실패는 흐름을 막지 않는다(fail-soft). */
+    fun delete(key: String)
 }

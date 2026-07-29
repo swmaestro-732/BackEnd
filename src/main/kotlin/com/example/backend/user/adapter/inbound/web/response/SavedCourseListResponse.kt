@@ -25,4 +25,47 @@ data class SavedCourseListResponse(
         val courseId: Long,
         val savedAt: Instant,
     )
+
+    companion object {
+        /**
+         * 목 저장 레코드 — 디자인(저장함 · 코스 · 리스트)의 예시 목록 반영. 최신 저장순 고정 응답.
+         * folderId 는 코스 폴더 모킹([com.example.backend.user.adapter.inbound.web.CourseFolderController]: 1 데이트 코스, 2 주말 나들이, 3 혼자 걷기)과,
+         * courseId=1 은 코스 상세 목(비 오는 날 성수 감성 카페 코스)과 맞춰 두었다.
+         */
+        fun mock(): SavedCourseListResponse {
+            val savedCourses =
+                listOf(
+                    SavedCourseItem(
+                        id = 4,
+                        folderId = 1,
+                        courseId = 4, // 성수 골목 소품샵 산책
+                        savedAt = Instant.parse("2026-07-18T10:40:00Z"),
+                    ),
+                    SavedCourseItem(
+                        id = 3,
+                        folderId = 1,
+                        courseId = 1, // 비 오는 날 성수 감성 카페 코스
+                        savedAt = Instant.parse("2026-07-15T13:05:00Z"),
+                    ),
+                    SavedCourseItem(
+                        id = 2,
+                        folderId = 2,
+                        courseId = 2, // 주말 연남 느긋한 브런치 산책
+                        savedAt = Instant.parse("2026-07-13T08:30:00Z"),
+                    ),
+                    SavedCourseItem(
+                        id = 1,
+                        folderId = 3,
+                        courseId = 3, // 한남동 갤러리 하나씩 도장깨기 (내가 만든 코스, 3월 12일 완주)
+                        savedAt = Instant.parse("2026-03-10T02:00:00Z"),
+                    ),
+                )
+            return SavedCourseListResponse(
+                totalCount = savedCourses.size,
+                nextCursor = null,
+                hasNext = false,
+                savedCourses = savedCourses,
+            )
+        }
+    }
 }
