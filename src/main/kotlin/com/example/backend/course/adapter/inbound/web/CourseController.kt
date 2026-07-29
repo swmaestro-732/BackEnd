@@ -1,7 +1,6 @@
 package com.example.backend.course.adapter.inbound.web
 
 import com.example.backend.bootstrap.security.CurrentUserId
-import com.example.backend.common.mock.MockErrors
 import com.example.backend.common.response.ApiResponse
 import com.example.backend.course.adapter.inbound.web.request.CreateCourseRequest
 import com.example.backend.course.adapter.inbound.web.request.EditCourseRequest
@@ -37,7 +36,7 @@ import org.springframework.web.bind.annotation.RestController
  *   소프트 삭제한다(deleted_at 스탬프·status=DELETED). 소유자만 삭제 가능하며(그 외 404), data 없이 안내 메시지만 내려준다.
  *   시드/DB 없이 프론트가 붙어볼 수 있도록 `?mock=true` 면 삭제 없이 고정 성공 메시지를 반환한다.
  *
- * `mockError` 파라미터로 모킹 에러를 주입할 수 있다(예: `?mockError=4041`).
+ * 모킹 에러(`?mockError=<code>`)는 전역 아스펙트([com.example.backend.bootstrap.mock.MockErrorAspect])가 주입한다.
  */
 @RestController
 @RequestMapping("/api/v1/courses")
@@ -53,9 +52,7 @@ class CourseController(
         @PathVariable courseId: Long,
         @CurrentUserId viewerId: Long?,
         @RequestParam(required = false) mock: Boolean = false,
-        @RequestParam(required = false) mockError: Int?,
     ): ApiResponse<CourseDetailResponse> {
-        MockErrors.throwIfRequested(mockError)
         if (mock) return ApiResponse.success(CourseDetailResponse.MOCK)
         return ApiResponse.success(CourseDetailResponse.from(courseUseCase.getDetail(courseId, viewerId)))
     }
@@ -75,9 +72,7 @@ class CourseController(
         @CurrentUserId userId: Long,
         @Valid @RequestBody request: CreateCourseRequest,
         @RequestParam(required = false) mock: Boolean = false,
-        @RequestParam(required = false) mockError: Int?,
     ): ApiResponse<CourseIdResponse> {
-        MockErrors.throwIfRequested(mockError)
         if (mock) return ApiResponse.success(CourseIdResponse.MOCK)
         val course = courseUseCase.create(request.toCommand(userId))
         return ApiResponse.success(CourseIdResponse(courseId = requireNotNull(course.id)))
@@ -96,9 +91,7 @@ class CourseController(
         @PathVariable courseId: Long,
         @Valid @RequestBody request: EditCourseRequest,
         @RequestParam(required = false) mock: Boolean = false,
-        @RequestParam(required = false) mockError: Int?,
     ): ApiResponse<CourseIdResponse> {
-        MockErrors.throwIfRequested(mockError)
         if (mock) return ApiResponse.success(CourseIdResponse.MOCK)
         val course = courseUseCase.edit(request.toCommand(userId, courseId))
         return ApiResponse.success(CourseIdResponse(courseId = requireNotNull(course.id)))
@@ -115,9 +108,7 @@ class CourseController(
         @CurrentUserId userId: Long,
         @PathVariable courseId: Long,
         @RequestParam(required = false) mock: Boolean = false,
-        @RequestParam(required = false) mockError: Int?,
     ): ApiResponse<Nothing?> {
-        MockErrors.throwIfRequested(mockError)
         if (mock) return ApiResponse.ok("코스가 삭제되었습니다.")
         courseUseCase.delete(userId, courseId)
         return ApiResponse.ok("코스가 삭제되었습니다.")

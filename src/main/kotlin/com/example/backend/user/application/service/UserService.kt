@@ -50,4 +50,12 @@ class UserService(
             coursesCnt = row.coursesCnt,
         )
     }
+
+    override fun isHandleAvailable(handle: String): Boolean =
+        handle.lowercase() !in RESERVED_HANDLES && !userPersistencePort.existsByHandle(handle)
+
+    private companion object {
+        /** 사용 불가로 내려줄 예약 핸들(도메인 정책). */
+        val RESERVED_HANDLES = setOf("admin", "courmy", "test")
+    }
 }

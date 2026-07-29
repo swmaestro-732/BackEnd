@@ -1,6 +1,5 @@
 package com.example.backend.mobile.user.adapter.inbound.web
 
-import com.example.backend.common.mock.MockErrors
 import com.example.backend.common.response.ApiResponse
 import com.example.backend.mobile.place.adapter.inbound.web.response.PlaceLocationResponse
 import com.example.backend.mobile.user.adapter.inbound.web.response.SavedPlaceCategoryCountResponse
@@ -25,8 +24,8 @@ import java.time.Instant
  *
  * 항상 고정 목 응답을 내려준다 — 쿼리 파라미터(필터·페이지네이션)는 API 계약 확인용으로 받기만 하고
  * 동작은 실구현에서 지원한다(저장 장소 도메인 모킹과 동일 컨벤션).
- * 실제 구현 시 user + place inbound 포트 조합으로 교체하고 [MockErrors] 호출을 제거한다.
- * `mockError` 파라미터로 모킹 에러를 주입할 수 있다(예: `?mockError=4040`).
+ * 실제 구현 시 user + place inbound 포트 조합으로 교체한다.
+ * 모킹 에러(`?mockError=<code>`)는 전역 아스펙트([com.example.backend.bootstrap.mock.MockErrorAspect])가 주입한다.
  */
 @RestController
 @RequestMapping("/service/v1")
@@ -47,11 +46,8 @@ class SavedPlaceScreenController {
         @RequestParam(required = false) @DecimalMin("-180.0") @DecimalMax("180.0") userLng: Double?,
         @RequestParam(required = false) cursor: String?,
         @RequestParam(required = false) @Min(1) @Max(50) size: Int = 10,
-        @RequestParam(required = false) mockError: Int?,
-    ): ApiResponse<SavedPlaceScreenResponse> {
-        MockErrors.throwIfRequested(mockError)
-
-        return ApiResponse.success(
+    ): ApiResponse<SavedPlaceScreenResponse> =
+        ApiResponse.success(
             SavedPlaceScreenResponse(
                 totalCount = MOCK_ITEMS.size,
                 unvisitedCount = MOCK_ITEMS.count { !it.visited },
@@ -68,7 +64,6 @@ class SavedPlaceScreenController {
                 savedPlaces = MOCK_ITEMS,
             ),
         )
-    }
 
     private companion object {
         fun image(id: String) = "https://images.unsplash.com/$id?w=600&q=80&auto=format&fit=crop"

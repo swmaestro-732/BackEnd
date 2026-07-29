@@ -1,6 +1,5 @@
 package com.example.backend.mobile.user.adapter.inbound.web
 
-import com.example.backend.common.mock.MockErrors
 import com.example.backend.common.response.ApiResponse
 import com.example.backend.mobile.place.adapter.inbound.web.response.PlaceLocationResponse
 import com.example.backend.mobile.user.adapter.inbound.web.response.CourseAuthorSummaryResponse
@@ -35,11 +34,8 @@ class SavedCourseScreenController {
         @RequestParam(required = false) completed: Boolean = false,
         @RequestParam(required = false) cursor: String?,
         @RequestParam(required = false) @Min(1) @Max(50) size: Int = 10,
-        @RequestParam(required = false) mockError: Int?,
-    ): ApiResponse<SavedCourseScreenResponse> {
-        MockErrors.throwIfRequested(mockError)
-
-        return ApiResponse.success(
+    ): ApiResponse<SavedCourseScreenResponse> =
+        ApiResponse.success(
             SavedCourseScreenResponse(
                 totalCount = MOCK_ITEMS.size,
                 uncompletedCount = MOCK_ITEMS.count { !it.completed },
@@ -50,7 +46,6 @@ class SavedCourseScreenController {
                 savedCourses = MOCK_ITEMS,
             ),
         )
-    }
 
     private companion object {
         fun image(id: String) = "https://images.unsplash.com/$id?w=600&q=80&auto=format&fit=crop"

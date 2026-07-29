@@ -13,5 +13,8 @@ data class FollowResponse(
                 isFollowing = result.isFollowing,
                 followersCnt = result.followersCnt,
             )
+
+        fun mock(isFollowing: Boolean): FollowResponse =
+            FollowResponse(isFollowing = isFollowing, followersCnt = if (isFollowing) 129 else 128)
     }
 }

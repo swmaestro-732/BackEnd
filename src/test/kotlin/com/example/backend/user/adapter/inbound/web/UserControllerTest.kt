@@ -142,6 +142,25 @@ class UserControllerTest
                 .andExpect(jsonPath("$.data.isFollowing").value(false))
         }
 
+        @Test
+        fun `핸들 사용 가능 여부 - 미사용 값은 가능, 사용중·예약어는 불가`() {
+            mockMvc
+                .perform(get("/api/v1/users/availability").param("handle", "newbie"))
+                .andExpect(status().isOk)
+                .andExpect(jsonPath("$.code").value(2000))
+                .andExpect(jsonPath("$.data.available").value(true))
+
+            mockMvc
+                .perform(get("/api/v1/users/availability").param("handle", "me_handle"))
+                .andExpect(status().isOk)
+                .andExpect(jsonPath("$.data.available").value(false))
+
+            mockMvc
+                .perform(get("/api/v1/users/availability").param("handle", "admin"))
+                .andExpect(status().isOk)
+                .andExpect(jsonPath("$.data.available").value(false))
+        }
+
         private fun MockMvc.post(
             url: String,
             body: String,

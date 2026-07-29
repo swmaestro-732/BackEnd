@@ -1,6 +1,5 @@
 package com.example.backend.user.adapter.inbound.web
 
-import com.example.backend.common.mock.MockErrors
 import com.example.backend.common.response.ApiResponse
 import com.example.backend.user.adapter.inbound.web.response.SavedPlaceListResponse
 import com.example.backend.user.domain.model.SavedPlaceCategory
@@ -15,7 +14,6 @@ import org.springframework.web.bind.annotation.RequestMapping
 import org.springframework.web.bind.annotation.RequestParam
 import org.springframework.web.bind.annotation.ResponseStatus
 import org.springframework.web.bind.annotation.RestController
-import java.time.Instant
 
 /**
  * 인바운드 어댑터 — 저장 장소(노션 명세 · User · user-place).
@@ -29,8 +27,8 @@ import java.time.Instant
  *   요청 본문 없이 방문 처리하고 data 없이 메시지만 반환한다(단방향, 되돌리기 흐름 없음).
  *   경로 변수는 장소 id가 아니라 **저장 레코드 id**([SavedPlaceListResponse.SavedPlaceItem.id])다.
  *
- * 실제 구현 시 인바운드 포트(UseCase) 연동으로 교체하고 [MockErrors] 호출을 제거한다.
- * `mockError` 파라미터로 모킹 에러를 주입할 수 있다(예: `?mockError=4040`).
+ * 실제 구현 시 인바운드 포트(UseCase) 연동으로 교체한다. 모킹 에러(`?mockError=<code>`)는
+ * 전역 아스펙트([com.example.backend.bootstrap.mock.MockErrorAspect])가 주입한다.
  */
 @RestController
 @RequestMapping("/api/v1/my/saved-places")
@@ -39,11 +37,7 @@ class SavedPlaceController {
     @ResponseStatus(HttpStatus.CREATED)
     fun save(
         @PathVariable placeId: Long,
-        @RequestParam(required = false) mockError: Int?,
-    ): ApiResponse<Nothing?> {
-        MockErrors.throwIfRequested(mockError)
-        return ApiResponse.ok("장소가 저장되었습니다.")
-    }
+    ): ApiResponse<Nothing?> = ApiResponse.ok("장소가 저장되었습니다.")
 
     /**
      * 저장 장소 방문 처리(모킹). 미방문 탭 카드 스와이프 → "방문한 곳으로 표시할까요?" 확인 후 호출 —
@@ -52,14 +46,10 @@ class SavedPlaceController {
     @PatchMapping("/{savedPlaceId}")
     fun visit(
         @PathVariable savedPlaceId: Long,
-        @RequestParam(required = false) mockError: Int?,
-    ): ApiResponse<Nothing?> {
-        MockErrors.throwIfRequested(mockError)
-        return ApiResponse.ok("방문이 완료되었습니다.")
-    }
+    ): ApiResponse<Nothing?> = ApiResponse.ok("방문이 완료되었습니다.")
 
     /**
-     * 저장 장소 조회(모킹). 항상 [MOCK_SAVED_PLACES] 전체를 최신 저장순 **고정 응답**으로 내려준다 —
+     * 저장 장소 조회(모킹). 항상 [SavedPlaceListResponse.mock] 전체를 최신 저장순 **고정 응답**으로 내려준다 —
      * 쿼리 파라미터는 API 계약 확인용으로 받기만 하고 동작(필터·페이지네이션)은 실구현에서 지원한다.
      *
      * 쿼리 파라미터
@@ -74,72 +64,5 @@ class SavedPlaceController {
         @RequestParam(required = false) category: SavedPlaceCategory?,
         @RequestParam(required = false) cursor: String?,
         @RequestParam(required = false) @Min(1) @Max(50) size: Int = 10,
-        @RequestParam(required = false) mockError: Int?,
-    ): ApiResponse<SavedPlaceListResponse> {
-        MockErrors.throwIfRequested(mockError)
-
-        return ApiResponse.success(
-            SavedPlaceListResponse(
-                totalCount = MOCK_SAVED_PLACES.size,
-                unvisitedCount = MOCK_SAVED_PLACES.count { !it.visited },
-                visitedCount = MOCK_SAVED_PLACES.count { it.visited },
-                categoryCounts =
-                    MOCK_SAVED_PLACES
-                        .mapNotNull { it.category }
-                        .groupingBy { it }
-                        .eachCount()
-                        .map { (category, count) -> SavedPlaceListResponse.CategoryCount(category, count) }
-                        .sortedByDescending { it.count },
-                nextCursor = null,
-                hasNext = false,
-                savedPlaces = MOCK_SAVED_PLACES,
-            ),
-        )
-    }
-
-    private companion object {
-        /**
-         * 목 저장 레코드 — 디자인(저장함 · 장소 · 리스트)의 예시 목록 반영.
-         * placeId 는 장소 검색 모킹([com.example.backend.place.adapter.inbound.web.PlaceController])의
-         * 목 장소 id 와 맞춰 두었다(101 어니언 성수, 104 대림창고 카페, 105 센터커피 성수).
-         */
-        val MOCK_SAVED_PLACES: List<SavedPlaceListResponse.SavedPlaceItem> =
-            listOf(
-                SavedPlaceListResponse.SavedPlaceItem(
-                    id = 5,
-                    placeId = 108, // 평화양조장
-                    category = SavedPlaceCategory.BAR,
-                    visited = false,
-                    savedAt = Instant.parse("2026-07-17T09:20:00Z"),
-                ),
-                SavedPlaceListResponse.SavedPlaceItem(
-                    id = 4,
-                    placeId = 107, // 자그마치
-                    category = SavedPlaceCategory.CULTURE,
-                    visited = false,
-                    savedAt = Instant.parse("2026-07-15T13:05:00Z"),
-                ),
-                SavedPlaceListResponse.SavedPlaceItem(
-                    id = 3,
-                    placeId = 105, // 센터커피 성수
-                    category = SavedPlaceCategory.CAFE,
-                    visited = false,
-                    savedAt = Instant.parse("2026-07-12T05:30:00Z"),
-                ),
-                SavedPlaceListResponse.SavedPlaceItem(
-                    id = 2,
-                    placeId = 104, // 대림창고 카페
-                    category = SavedPlaceCategory.CAFE,
-                    visited = true,
-                    savedAt = Instant.parse("2026-07-08T11:00:00Z"),
-                ),
-                SavedPlaceListResponse.SavedPlaceItem(
-                    id = 1,
-                    placeId = 101, // 어니언 성수
-                    category = SavedPlaceCategory.CAFE,
-                    visited = true,
-                    savedAt = Instant.parse("2026-07-05T02:15:00Z"),
-                ),
-            )
-    }
+    ): ApiResponse<SavedPlaceListResponse> = ApiResponse.success(SavedPlaceListResponse.mock())
 }
