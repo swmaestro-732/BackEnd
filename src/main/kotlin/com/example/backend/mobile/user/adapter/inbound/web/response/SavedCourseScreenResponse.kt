@@ -1,5 +1,6 @@
-package com.example.backend.bff.adapter.inbound.web.response
+package com.example.backend.mobile.user.adapter.inbound.web.response
 
+import com.example.backend.mobile.place.adapter.inbound.web.response.PlaceLocationResponse
 import java.time.Instant
 
 /**

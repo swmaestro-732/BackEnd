@@ -1,4 +1,4 @@
-package com.example.backend.bff.adapter.inbound.web
+package com.example.backend.mobile.place.adapter.inbound.web
 
 import com.example.backend.support.IntegrationTestBase
 import org.junit.jupiter.api.Test

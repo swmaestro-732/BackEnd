@@ -1,17 +1,17 @@
-package com.example.backend.bff.adapter.inbound.web
+package com.example.backend.mobile.place.adapter.inbound.web
 
-import com.example.backend.bff.adapter.inbound.web.response.NearbyCourseResponse
-import com.example.backend.bff.adapter.inbound.web.response.PlaceDetailScreenResponse
-import com.example.backend.bff.adapter.inbound.web.response.PlaceLocationResponse
-import com.example.backend.bff.adapter.inbound.web.response.PlaceReviewAuthorResponse
-import com.example.backend.bff.adapter.inbound.web.response.PlaceReviewResponse
-import com.example.backend.bff.adapter.inbound.web.response.PlaceReviewSummaryResponse
-import com.example.backend.bff.adapter.inbound.web.response.PlaceScreenResponse
-import com.example.backend.bff.adapter.inbound.web.response.PlaceViewerResponse
 import com.example.backend.common.exception.BusinessException
 import com.example.backend.common.mock.MockErrors
 import com.example.backend.common.response.ApiResponse
 import com.example.backend.common.response.ErrorCode
+import com.example.backend.mobile.place.adapter.inbound.web.response.NearbyCourseResponse
+import com.example.backend.mobile.place.adapter.inbound.web.response.PlaceDetailScreenResponse
+import com.example.backend.mobile.place.adapter.inbound.web.response.PlaceLocationResponse
+import com.example.backend.mobile.place.adapter.inbound.web.response.PlaceReviewAuthorResponse
+import com.example.backend.mobile.place.adapter.inbound.web.response.PlaceReviewResponse
+import com.example.backend.mobile.place.adapter.inbound.web.response.PlaceReviewSummaryResponse
+import com.example.backend.mobile.place.adapter.inbound.web.response.PlaceScreenResponse
+import com.example.backend.mobile.place.adapter.inbound.web.response.PlaceViewerResponse
 import org.springframework.web.bind.annotation.GetMapping
 import org.springframework.web.bind.annotation.PathVariable
 import org.springframework.web.bind.annotation.RequestMapping
@@ -25,7 +25,7 @@ import java.time.Instant
  * 개별 도메인 API(`/api/v1/...`)와 구분해 화면 조합 경로(`/service/v1/...`)로 노출한다(코스 상세 선례와 동일 원칙).
  *
  * `viewer.hasSaved`(user 소관)·"이 근처 코스"(course 소관)는 화면 조합이라 도메인 API가 아닌 여기에 둔다.
- * 기존 [com.example.backend.bff.adapter.inbound.web.CourseDetailScreenController] 와 동일하게
+ * 기존 [com.example.backend.mobile.place.adapter.inbound.web.CourseDetailScreenController] 와 동일하게
  * 컨트롤러에서 목 데이터를 직접 만들어 반환한다. 실제 구현 시 place + user + course inbound 포트 조합으로 교체한다.
  * `mockError` 파라미터로 모킹 에러를 주입할 수 있다(예: `?mockError=4040`).
  * 존재하지 않는 장소(id != 101)는 404(PLACE_NOT_FOUND).

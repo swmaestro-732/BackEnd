@@ -1,12 +1,12 @@
-package com.example.backend.bff.adapter.inbound.web
+package com.example.backend.mobile.user.adapter.inbound.web
 
-import com.example.backend.bff.adapter.inbound.web.response.PlaceLocationResponse
-import com.example.backend.bff.adapter.inbound.web.response.SavedPlaceCategoryCountResponse
-import com.example.backend.bff.adapter.inbound.web.response.SavedPlaceScreenItemResponse
-import com.example.backend.bff.adapter.inbound.web.response.SavedPlaceScreenResponse
-import com.example.backend.bff.adapter.inbound.web.response.SavedPlaceSummaryResponse
 import com.example.backend.common.mock.MockErrors
 import com.example.backend.common.response.ApiResponse
+import com.example.backend.mobile.place.adapter.inbound.web.response.PlaceLocationResponse
+import com.example.backend.mobile.user.adapter.inbound.web.response.SavedPlaceCategoryCountResponse
+import com.example.backend.mobile.user.adapter.inbound.web.response.SavedPlaceScreenItemResponse
+import com.example.backend.mobile.user.adapter.inbound.web.response.SavedPlaceScreenResponse
+import com.example.backend.mobile.user.adapter.inbound.web.response.SavedPlaceSummaryResponse
 import jakarta.validation.constraints.DecimalMax
 import jakarta.validation.constraints.DecimalMin
 import jakarta.validation.constraints.Max
@@ -39,7 +39,7 @@ class SavedPlaceScreenController {
      * - cursor: 직전 응답의 nextCursor(첫 페이지는 생략). 응답은 `nextCursor=null`/`hasNext=false` 고정.
      * - size: 페이지 크기(기본 10, 1~50). 범위를 벗어나면 400.
      */
-    @GetMapping("/my/saved-places")
+    @GetMapping("/places/save")
     fun getScreen(
         @RequestParam(required = false) visited: Boolean = false,
         @RequestParam(required = false) category: String?,

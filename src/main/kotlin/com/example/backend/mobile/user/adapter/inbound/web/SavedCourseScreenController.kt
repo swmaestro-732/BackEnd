@@ -1,14 +1,14 @@
-package com.example.backend.bff.adapter.inbound.web
+package com.example.backend.mobile.user.adapter.inbound.web
 
-import com.example.backend.bff.adapter.inbound.web.response.CourseAuthorSummaryResponse
-import com.example.backend.bff.adapter.inbound.web.response.CourseFolderCountResponse
-import com.example.backend.bff.adapter.inbound.web.response.PlaceLocationResponse
-import com.example.backend.bff.adapter.inbound.web.response.SavedCoursePlacePinResponse
-import com.example.backend.bff.adapter.inbound.web.response.SavedCourseScreenItemResponse
-import com.example.backend.bff.adapter.inbound.web.response.SavedCourseScreenResponse
-import com.example.backend.bff.adapter.inbound.web.response.SavedCourseSummaryResponse
 import com.example.backend.common.mock.MockErrors
 import com.example.backend.common.response.ApiResponse
+import com.example.backend.mobile.place.adapter.inbound.web.response.PlaceLocationResponse
+import com.example.backend.mobile.user.adapter.inbound.web.response.CourseAuthorSummaryResponse
+import com.example.backend.mobile.user.adapter.inbound.web.response.CourseFolderCountResponse
+import com.example.backend.mobile.user.adapter.inbound.web.response.SavedCoursePlacePinResponse
+import com.example.backend.mobile.user.adapter.inbound.web.response.SavedCourseScreenItemResponse
+import com.example.backend.mobile.user.adapter.inbound.web.response.SavedCourseScreenResponse
+import com.example.backend.mobile.user.adapter.inbound.web.response.SavedCourseSummaryResponse
 import jakarta.validation.constraints.Max
 import jakarta.validation.constraints.Min
 import org.springframework.web.bind.annotation.GetMapping
@@ -29,7 +29,7 @@ class SavedCourseScreenController {
      * - cursor: 직전 응답의 nextCursor(첫 페이지는 생략). 응답은 `nextCursor=null`/`hasNext=false` 고정.
      * - size: 페이지 크기(기본 10, 1~50). 범위를 벗어나면 400.
      */
-    @GetMapping("/my/saved-courses")
+    @GetMapping("/courses/save")
     fun getScreen(
         @RequestParam(required = false) folderId: Long?,
         @RequestParam(required = false) completed: Boolean = false,

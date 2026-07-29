@@ -1,4 +1,4 @@
-package com.example.backend.bff.adapter.inbound.web.response
+package com.example.backend.mobile.course.adapter.inbound.web.response
 
 import java.time.OffsetDateTime
 
