@@ -145,6 +145,28 @@ class AuthServiceTest {
     }
 
     @Test
+    fun `정지가 아닌 비활성(PENDING) 계정은 소셜 로그인 시 ACCOUNT_INACTIVE 로 거부한다`() {
+        userPersistencePort.bySocial =
+            User.reconstitute(
+                id = 43L,
+                nickname = "대기유저",
+                handle = "pending_handle",
+                socialProvider = identity.provider,
+                socialId = identity.socialId,
+                status = UserStatus.PENDING,
+            )
+
+        val ex =
+            assertThrows<BusinessException> {
+                service.socialLogin(SocialLoginCommand(provider = SocialProvider.KAKAO, idToken = "kakao-token"))
+            }
+
+        assertEquals(ErrorCode.ACCOUNT_INACTIVE, ex.errorCode)
+        assertFalse(authTokenPort.accessTokenIssued)
+        assertFalse(refreshTokenPort.refreshTokenIssued)
+    }
+
+    @Test
     fun `정지된 계정은 토큰 재발급 시 ACCOUNT_SUSPENDED 로 거부하고 새 토큰을 발급하지 않는다`() {
         refreshTokenPort.valid =
             RefreshTokenRecord(

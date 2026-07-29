@@ -41,7 +41,7 @@ class AuthService(
                         ),
                 )
 
-        if (user.status != UserStatus.ACTIVE) throw BusinessException(ErrorCode.ACCOUNT_SUSPENDED)
+        ensureActive(user)
 
         val userId = checkNotNull(user.id) { "영속화된 User 는 id 를 가진다." }
         return LoginResult(
@@ -112,7 +112,7 @@ class AuthService(
         val user =
             userPersistencePort.findById(current.userId)
                 ?: throw BusinessException(ErrorCode.INVALID_REFRESH_TOKEN)
-        if (user.status != UserStatus.ACTIVE) throw BusinessException(ErrorCode.ACCOUNT_SUSPENDED)
+        ensureActive(user)
 
         if (!refreshTokenPort.revoke(refreshToken)) {
             throw BusinessException(ErrorCode.INVALID_REFRESH_TOKEN)
@@ -131,6 +131,26 @@ class AuthService(
     override fun isLoginIdTaken(loginId: String): Boolean = userPersistencePort.existsByHandle(loginId)
 
     override fun issueDevAccessToken(): String = authTokenPort.issueAccessToken(DEV_USER_ID)
+
+    /**
+     * 로그인·토큰 재발급 가능한 상태인지 확인한다. 탈퇴/삭제는 deletedAt 필터로 이 지점에 도달하지 않으나,
+     * exhaustive when 으로 모든 상태를 명시해 새 상태가 추가되면 컴파일이 막아 누락을 방지한다.
+     */
+    private fun ensureActive(user: User) {
+        when (user.status) {
+            UserStatus.ACTIVE -> {
+                Unit
+            }
+
+            UserStatus.SUSPENDED -> {
+                throw BusinessException(ErrorCode.ACCOUNT_SUSPENDED)
+            }
+
+            UserStatus.PENDING, UserStatus.WITHDRAWN, UserStatus.DELETED -> {
+                throw BusinessException(ErrorCode.ACCOUNT_INACTIVE)
+            }
+        }
+    }
 
     private companion object {
         const val DEV_USER_ID = 1L
