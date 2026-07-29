@@ -54,33 +54,6 @@ class AuthControllerTest
         }
 
         @Test
-        fun `회원가입은 토큰과 생성된 유저를 내려준다`() {
-            mockMvc
-                .perform(
-                    post("/api/v1/auth/signup?mock=true")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(
-                            """{"registrationToken":"mock-registration-token","nickname":"지호","handle":"@jiho","profileImageUrl":null}""",
-                        ),
-                ).andExpect(status().isOk)
-                .andExpect(jsonPath("$.code").value(2000))
-                .andExpect(jsonPath("$.data.accessToken").isNotEmpty)
-                .andExpect(jsonPath("$.data.user.nickname").value("지호"))
-        }
-
-        @Test
-        fun `회원가입 닉네임이 공백이면 4002와 fieldErrors`() {
-            mockMvc
-                .perform(
-                    post("/api/v1/auth/signup?mock=true")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content("""{"registrationToken":"mock-registration-token","nickname":"","handle":"@x"}"""),
-                ).andExpect(status().isBadRequest)
-                .andExpect(jsonPath("$.code").value(4002))
-                .andExpect(jsonPath("$.fieldErrors[0].field").value("nickname"))
-        }
-
-        @Test
         fun `토큰 재발급은 새 토큰을 내려준다`() {
             mockMvc
                 .perform(

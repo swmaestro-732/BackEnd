@@ -27,7 +27,6 @@ jwt:
   secret: ${JWT_SECRET:}
   access-ttl: PT30M
   refresh-ttl: P14D
-  registration-ttl: PT10M
 
 oauth:
   kakao:

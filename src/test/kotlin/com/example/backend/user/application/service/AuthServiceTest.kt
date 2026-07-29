@@ -15,6 +15,9 @@ import com.example.backend.user.domain.model.User
 import com.example.backend.user.domain.model.UserStatus
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
+import org.junit.jupiter.api.Assertions.assertNotNull
+import org.junit.jupiter.api.Assertions.assertNull
+import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 import java.time.Instant
@@ -38,6 +41,9 @@ class AuthServiceTest {
         object : UserPersistencePort {
             var bySocial: User? = null
             var byId: User? = null
+            var withdrawn: User? = null
+            var savedWithSocial: User? = null
+            var reactivated: User? = null
 
             override fun findAll(): List<User> = emptyList()
 
@@ -63,7 +69,7 @@ class AuthServiceTest {
             override fun findWithdrawnBySocial(
                 provider: SocialProvider,
                 socialId: String,
-            ): User? = null
+            ): User? = withdrawn
 
             override fun existsByNicknameExcludingUser(
                 nickname: String,
@@ -75,9 +81,24 @@ class AuthServiceTest {
                 excludeUserId: Long,
             ): Boolean = false
 
-            override fun saveWithSocial(user: User): User = user
+            // 신규 최소계정 저장 — 영속화된 것처럼 id 를 부여해 돌려준다(createWithSocial 은 id=null).
+            override fun saveWithSocial(user: User): User {
+                savedWithSocial = user
+                return User.reconstitute(
+                    id = 100L,
+                    nickname = user.nickname,
+                    handle = user.handle,
+                    profileImageUrl = user.profileImageUrl,
+                    socialProvider = user.socialProvider,
+                    socialId = user.socialId,
+                    status = user.status,
+                )
+            }
 
-            override fun reactivate(user: User): User = user
+            override fun reactivate(user: User): User {
+                reactivated = user
+                return user
+            }
         }
 
     private val authTokenPort =
@@ -88,13 +109,6 @@ class AuthServiceTest {
                 accessTokenIssued = true
                 return "access-token"
             }
-
-            override fun issueRegistrationToken(
-                provider: SocialProvider,
-                socialId: String,
-            ): String = "registration-token"
-
-            override fun parseRegistrationToken(token: String): SocialIdentity = identity
         }
 
     private val refreshTokenPort =
@@ -170,5 +184,73 @@ class AuthServiceTest {
         assertEquals(ErrorCode.ACCOUNT_SUSPENDED, ex.errorCode)
         assertFalse(authTokenPort.accessTokenIssued)
         assertFalse(refreshTokenPort.refreshTokenIssued)
+    }
+
+    @Test
+    fun `온보딩 완료(핸들 보유) 기존 계정은 로그인하고 isNewUser 는 false`() {
+        userPersistencePort.bySocial =
+            User.reconstitute(
+                id = 7L,
+                nickname = "현우",
+                handle = "hyunwoo",
+                socialProvider = identity.provider,
+                socialId = identity.socialId,
+                status = UserStatus.ACTIVE,
+            )
+
+        val result = service.socialLogin(SocialLoginCommand(provider = SocialProvider.KAKAO, idToken = "kakao-token"))
+
+        assertFalse(result.isNewUser)
+        assertEquals("access-token", result.accessToken)
+        assertTrue(authTokenPort.accessTokenIssued)
+    }
+
+    @Test
+    fun `핸들 미설정(온보딩 미완료) 기존 계정은 isNewUser 가 true`() {
+        userPersistencePort.bySocial =
+            User.reconstitute(
+                id = 7L,
+                nickname = null,
+                handle = null,
+                socialProvider = identity.provider,
+                socialId = identity.socialId,
+                status = UserStatus.ACTIVE,
+            )
+
+        val result = service.socialLogin(SocialLoginCommand(provider = SocialProvider.KAKAO, idToken = "kakao-token"))
+
+        assertTrue(result.isNewUser)
+    }
+
+    @Test
+    fun `신규 소셜 계정은 최소계정(핸들 없음)을 만들고 isNewUser 는 true`() {
+        // bySocial=null, withdrawn=null → 신규 생성
+        val result = service.socialLogin(SocialLoginCommand(provider = SocialProvider.KAKAO, idToken = "kakao-token"))
+
+        assertTrue(result.isNewUser)
+        assertNotNull(userPersistencePort.savedWithSocial)
+        assertNull(userPersistencePort.savedWithSocial?.handle)
+        assertNull(userPersistencePort.savedWithSocial?.nickname)
+    }
+
+    @Test
+    fun `탈퇴 후 재로그인은 최소상태로 재활성화하고 isNewUser 는 true`() {
+        userPersistencePort.withdrawn =
+            User.reconstitute(
+                id = 9L,
+                nickname = "옛닉",
+                handle = "old_handle",
+                socialProvider = identity.provider,
+                socialId = identity.socialId,
+                status = UserStatus.WITHDRAWN,
+            )
+
+        val result = service.socialLogin(SocialLoginCommand(provider = SocialProvider.KAKAO, idToken = "kakao-token"))
+
+        assertTrue(result.isNewUser)
+        assertNotNull(userPersistencePort.reactivated)
+        // reactivate() 는 온보딩 리셋 — 핸들·닉네임이 비워진다.
+        assertNull(userPersistencePort.reactivated?.handle)
+        assertNull(userPersistencePort.reactivated?.nickname)
     }
 }

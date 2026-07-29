@@ -4,9 +4,6 @@ import com.example.backend.common.exception.BusinessException
 import com.example.backend.common.response.ErrorCode
 import com.example.backend.user.application.port.inbound.AuthUseCase
 import com.example.backend.user.application.port.inbound.dto.LoginResult
-import com.example.backend.user.application.port.inbound.dto.SignupCommand
-import com.example.backend.user.application.port.inbound.dto.SignupResult
-import com.example.backend.user.application.port.inbound.dto.SignupUserResult
 import com.example.backend.user.application.port.inbound.dto.SocialLoginCommand
 import com.example.backend.user.application.port.inbound.dto.TokenPair
 import com.example.backend.user.application.port.outbound.AuthTokenPort
@@ -30,74 +27,39 @@ class AuthService(
     @Transactional
     override fun socialLogin(command: SocialLoginCommand): LoginResult {
         val identity = socialVerificationPort.verify(command.provider, command.idToken)
-        val user =
-            userPersistencePort.findBySocial(identity.provider, identity.socialId)
-                ?: return LoginResult(
-                    isNewUser = true,
-                    registrationToken =
-                        authTokenPort.issueRegistrationToken(
-                            provider = identity.provider,
-                            socialId = identity.socialId,
-                        ),
-                )
 
-        if (user.status != UserStatus.ACTIVE) throw BusinessException(ErrorCode.ACCOUNT_SUSPENDED)
-
-        val userId = checkNotNull(user.id) { "영속화된 User 는 id 를 가진다." }
-        return LoginResult(
-            accessToken = authTokenPort.issueAccessToken(userId),
-            refreshToken = refreshTokenPort.issue(userId),
-            isNewUser = false,
-        )
-    }
-
-    @Transactional
-    override fun signup(command: SignupCommand): SignupResult {
-        val identity = authTokenPort.parseRegistrationToken(command.registrationToken)
-        userPersistencePort.findBySocial(identity.provider, identity.socialId)?.let {
-            throw BusinessException(ErrorCode.SOCIAL_ACCOUNT_ALREADY_REGISTERED)
+        // 기존 활성 계정이 있으면 로그인. handle 미설정이면 온보딩을 마치지 못한 계정이므로 isNewUser=true.
+        userPersistencePort.findBySocial(identity.provider, identity.socialId)?.let { existing ->
+            if (existing.status != UserStatus.ACTIVE) throw BusinessException(ErrorCode.ACCOUNT_SUSPENDED)
+            val userId = checkNotNull(existing.id) { "영속화된 User 는 id 를 가진다." }
+            return LoginResult(
+                accessToken = authTokenPort.issueAccessToken(userId),
+                refreshToken = refreshTokenPort.issue(userId),
+                isNewUser = existing.handle == null,
+            )
         }
+
+        // 없거나 탈퇴 상태면 최소 계정(nickname·handle 모두 null)만 만들고 바로 토큰 발급 → 온보딩으로.
         val withdrawn = userPersistencePort.findWithdrawnBySocial(identity.provider, identity.socialId)
         val saved =
             if (withdrawn != null) {
-                val excludeId = checkNotNull(withdrawn.id) { "영속화된 User 는 id 를 가진다." }
-                if (userPersistencePort.existsByNicknameExcludingUser(command.nickname, excludeId)) {
-                    throw BusinessException(ErrorCode.NICKNAME_ALREADY_TAKEN)
-                }
-                if (userPersistencePort.existsByHandleExcludingUser(command.handle, excludeId)) {
-                    throw BusinessException(ErrorCode.HANDLE_ALREADY_TAKEN)
-                }
-                userPersistencePort.reactivate(
-                    withdrawn.reactivate(command.nickname, command.handle, command.profileImageUrl),
-                )
+                userPersistencePort.reactivate(withdrawn.reactivate())
             } else {
-                if (userPersistencePort.existsByNickname(command.nickname)) {
-                    throw BusinessException(ErrorCode.NICKNAME_ALREADY_TAKEN)
-                }
-                if (userPersistencePort.existsByHandle(command.handle)) {
-                    throw BusinessException(ErrorCode.HANDLE_ALREADY_TAKEN)
-                }
                 userPersistencePort.saveWithSocial(
                     User.createWithSocial(
-                        nickname = command.nickname,
-                        profileImageUrl = command.profileImageUrl,
+                        nickname = null,
+                        profileImageUrl = null,
                         socialProvider = identity.provider,
                         socialId = identity.socialId,
-                        handle = command.handle,
+                        handle = null,
                     ),
                 )
             }
         val userId = checkNotNull(saved.id) { "영속화된 User 는 id 를 가진다." }
-        return SignupResult(
+        return LoginResult(
             accessToken = authTokenPort.issueAccessToken(userId),
             refreshToken = refreshTokenPort.issue(userId),
-            user =
-                SignupUserResult(
-                    id = userId,
-                    nickname = saved.nickname,
-                    handle = checkNotNull(saved.handle) { "저장된 User 는 handle 을 가진다." },
-                    profileImageUrl = saved.profileImageUrl,
-                ),
+            isNewUser = true,
         )
     }
 

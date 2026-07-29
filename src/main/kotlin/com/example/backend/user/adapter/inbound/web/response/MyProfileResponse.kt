@@ -8,7 +8,7 @@ import com.example.backend.user.application.port.inbound.dto.UserProfileResult
  */
 data class MyProfileResponse(
     val id: Long,
-    val nickname: String,
+    val nickname: String?,
     val handle: String?,
     val profileImageUrl: String?,
     val followersCnt: Int,

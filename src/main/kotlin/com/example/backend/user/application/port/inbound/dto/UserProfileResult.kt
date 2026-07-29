@@ -7,7 +7,7 @@ package com.example.backend.user.application.port.inbound.dto
  */
 data class UserProfileResult(
     val id: Long,
-    val nickname: String,
+    val nickname: String?,
     val handle: String?,
     val profileImageUrl: String?,
     /** 조회자가 이 사용자를 팔로우하는지(내가 → 대상). */

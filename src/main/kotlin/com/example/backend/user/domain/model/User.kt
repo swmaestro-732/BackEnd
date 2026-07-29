@@ -10,7 +10,7 @@ package com.example.backend.user.domain.model
 @ConsistentCopyVisibility // copy() 도 private 으로 — 팩토리 우회 차단
 data class User private constructor(
     val id: Long?,
-    val nickname: String,
+    val nickname: String?,
     val handle: String?,
     val profileImageUrl: String?,
     val socialProvider: SocialProvider?,
@@ -41,14 +41,16 @@ data class User private constructor(
 
         /** 소셜 회원 신규 생성. 소셜 제공자와 식별자는 항상 함께 존재한다. */
         fun createWithSocial(
-            nickname: String,
+            nickname: String? = null,
             profileImageUrl: String?,
             socialProvider: SocialProvider,
             socialId: String,
             handle: String? = null,
         ): User {
-            require(nickname.isNotBlank()) { "닉네임은 비어 있을 수 없습니다." }
-            require(nickname.length <= MAX_NICKNAME_LENGTH) { "닉네임은 최대 ${MAX_NICKNAME_LENGTH}자입니다." }
+            if (nickname != null) {
+                require(nickname.isNotBlank()) { "닉네임은 비어 있을 수 없습니다." }
+                require(nickname.length <= MAX_NICKNAME_LENGTH) { "닉네임은 최대 ${MAX_NICKNAME_LENGTH}자입니다." }
+            }
             if (handle != null) {
                 require(handle.isNotBlank()) { "핸들은 비어 있을 수 없습니다." }
                 require(handle.length <= MAX_HANDLE_LENGTH) { "핸들은 최대 ${MAX_HANDLE_LENGTH}자입니다." }
@@ -68,7 +70,7 @@ data class User private constructor(
         /** 영속 저장소에서 복원(이미 검증된 데이터). */
         fun reconstitute(
             id: Long,
-            nickname: String,
+            nickname: String? = null,
             profileImageUrl: String? = null,
             socialProvider: SocialProvider? = null,
             socialId: String? = null,
@@ -99,8 +101,10 @@ data class User private constructor(
     ): User {
         val newNickname = nickname ?: this.nickname
         val newHandle = handle ?: this.handle
-        require(newNickname.isNotBlank()) { "닉네임은 비어 있을 수 없습니다." }
-        require(newNickname.length <= MAX_NICKNAME_LENGTH) { "닉네임은 최대 ${MAX_NICKNAME_LENGTH}자입니다." }
+        if (newNickname != null) {
+            require(newNickname.isNotBlank()) { "닉네임은 비어 있을 수 없습니다." }
+            require(newNickname.length <= MAX_NICKNAME_LENGTH) { "닉네임은 최대 ${MAX_NICKNAME_LENGTH}자입니다." }
+        }
         if (newHandle != null) {
             require(newHandle.isNotBlank()) { "핸들은 비어 있을 수 없습니다." }
             require(newHandle.length <= MAX_HANDLE_LENGTH) { "핸들은 최대 ${MAX_HANDLE_LENGTH}자입니다." }
@@ -118,22 +122,17 @@ data class User private constructor(
         return copy(status = UserStatus.WITHDRAWN)
     }
 
-    /** 재활성화 — 탈퇴한 사용자만 새 온보딩 프로필로 다시 활성화하는 도메인 전이. */
-    fun reactivate(
-        nickname: String,
-        handle: String,
-        profileImageUrl: String?,
-    ): User {
+    /**
+     * 재활성화 — 탈퇴한 사용자를 최소 계정(nickname·handle·profileImageUrl 모두 null)으로 리셋해
+     * 다시 활성화하는 도메인 전이. 탈퇴 재로그인 = 온보딩 재시작이므로 프로필은 비운다.
+     */
+    fun reactivate(): User {
         require(status == UserStatus.WITHDRAWN) { "탈퇴한 사용자만 재활성화할 수 있습니다." }
-        require(nickname.isNotBlank()) { "닉네임은 비어 있을 수 없습니다." }
-        require(handle.isNotBlank()) { "핸들은 비어 있을 수 없습니다." }
-        require(nickname.length <= MAX_NICKNAME_LENGTH) { "닉네임은 최대 ${MAX_NICKNAME_LENGTH}자입니다." }
-        require(handle.length <= MAX_HANDLE_LENGTH) { "핸들은 최대 ${MAX_HANDLE_LENGTH}자입니다." }
         return copy(
             status = UserStatus.ACTIVE,
-            nickname = nickname,
-            handle = handle,
-            profileImageUrl = profileImageUrl,
+            nickname = null,
+            handle = null,
+            profileImageUrl = null,
         )
     }
 }

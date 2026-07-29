@@ -5,7 +5,7 @@ import com.example.backend.user.application.port.inbound.dto.UserProfileResult
 /** 웹 응답 DTO — 사용자 프로필. 유스케이스 결과([UserProfileResult])를 직렬화 형태로 변환한다. */
 data class UserProfileResponse(
     val id: Long,
-    val nickname: String,
+    val nickname: String?,
     val handle: String?,
     val profileImageUrl: String?,
     val isFollowing: Boolean,
