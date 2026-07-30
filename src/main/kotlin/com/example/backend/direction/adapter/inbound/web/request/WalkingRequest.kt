@@ -10,11 +10,11 @@ import jakarta.validation.constraints.Size
 /**
  * 도보 시간 요청 — 방문 순서대로 나열한 좌표 목록. 구간 계산을 위해 최소 2개 필요.
  *
- * 상한을 15로 둔다: 구간(=points-1)마다 Tmap 을 순차 호출하므로 값이 크면 요청 스레드를 오래 점유하고
- * 외부 쿼터를 증폭시킨다. 실제 코스 장소 수(십수 개)를 고려한 현실적 상한이다.
+ * 상한을 10으로 둔다: 구간(=points-1)마다 Tmap 을 순차 호출하므로 값이 크면 요청 스레드를 오래 점유하고
+ * 외부 쿼터를 증폭시킨다. 실제 코스 장소 수를 고려한 현실적 상한이다.
  */
 data class WalkingRequest(
-    @field:Size(min = 2, max = 15, message = "좌표는 2~15개여야 합니다.")
+    @field:Size(min = 2, max = 10, message = "좌표는 2~10개여야 합니다.")
     @field:Valid
     val points: List<PointDto>,
 ) {
