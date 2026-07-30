@@ -24,14 +24,17 @@ class TmapPedestrianAdapter(
 ) : PedestrianRoutePort {
     private val log = LoggerFactory.getLogger(javaClass)
 
+    init {
+        if (tmapProperties.appKey.isBlank()) {
+            log.warn("T map appKey 미설정 — 보행자 경로 조회 비활성(fail-soft). 키 주입 후 재기동 필요.")
+        }
+    }
+
     override fun walkingSeconds(
         from: Coordinate,
         to: Coordinate,
     ): Int? {
-        if (tmapProperties.appKey.isBlank()) {
-            log.warn("T map appKey 가 비어 있어 보행자 경로 조회를 건너뜁니다.")
-            return null
-        }
+        if (tmapProperties.appKey.isBlank()) return null // 부팅 시 1회 경고 완료 — 요청별 로깅은 생략
         return try {
             val response =
                 tmapRestClient
@@ -58,27 +61,4 @@ class TmapPedestrianAdapter(
             null
         }
     }
-
-    /** 어댑터 내부 전용 요청 DTO. */
-    private data class PedestrianRequest(
-        val startX: Double,
-        val startY: Double,
-        val endX: Double,
-        val endY: Double,
-        val startName: String = "출발",
-        val endName: String = "도착",
-    )
-
-    /** 어댑터 내부 전용 응답 DTO — 밖으로 노출하지 않는다. */
-    private data class PedestrianResponse(
-        val features: List<Feature>? = null,
-    )
-
-    private data class Feature(
-        val properties: Properties? = null,
-    )
-
-    private data class Properties(
-        val totalTime: Int? = null,
-    )
 }

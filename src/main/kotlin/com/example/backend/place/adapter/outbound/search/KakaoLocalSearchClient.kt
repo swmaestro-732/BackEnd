@@ -5,7 +5,6 @@ import com.example.backend.common.geo.Coordinate
 import com.example.backend.place.application.port.outbound.KakaoPlaceSearchPort
 import com.example.backend.place.domain.model.ExternalPlace
 import com.example.backend.place.domain.model.ExternalPlaceSource
-import com.fasterxml.jackson.annotation.JsonProperty
 import org.slf4j.LoggerFactory
 import org.springframework.beans.factory.annotation.Qualifier
 import org.springframework.stereotype.Component
@@ -73,25 +72,6 @@ class KakaoLocalSearchClient(
             source = ExternalPlaceSource.KAKAO,
         )
     }
-
-    /** 어댑터 내부 전용 원시 응답 DTO — 밖으로 노출하지 않는다. */
-    private data class KakaoLocalResponse(
-        val documents: List<KakaoLocalDocument>? = null,
-    )
-
-    private data class KakaoLocalDocument(
-        @param:JsonProperty("place_name")
-        val placeName: String? = null,
-        @param:JsonProperty("category_name")
-        val categoryName: String? = null,
-        @param:JsonProperty("road_address_name")
-        val roadAddressName: String? = null,
-        @param:JsonProperty("address_name")
-        val addressName: String? = null,
-        val x: String? = null,
-        val y: String? = null,
-        val phone: String? = null,
-    )
 
     private companion object {
         const val SIZE = 15
