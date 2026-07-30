@@ -16,9 +16,6 @@ import java.time.Duration
 @Configuration
 class HttpClientConfig {
     @Bean
-    fun naverRestClient(): RestClient = restClient("https://openapi.naver.com")
-
-    @Bean
     fun kakaoRestClient(): RestClient = restClient("https://dapi.kakao.com")
 
     @Bean

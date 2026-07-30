@@ -39,9 +39,6 @@ oauth:
     issuer: https://kauth.kakao.com
 
 # 외부 지도 연동(SCRUM-387). 키가 없으면 각 기능은 빈 결과/null 로 fail-soft.
-naver:
-  client-id: ${NAVER_CLIENT_ID:}
-  client-secret: ${NAVER_CLIENT_SECRET:}
 kakao:
   local:
     rest-key: ${KAKAO_REST_API_KEY:}
