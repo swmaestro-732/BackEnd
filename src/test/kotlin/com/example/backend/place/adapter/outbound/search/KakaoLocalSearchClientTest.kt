@@ -10,6 +10,7 @@ import org.springframework.http.MediaType
 import org.springframework.test.web.client.MockRestServiceServer
 import org.springframework.test.web.client.match.MockRestRequestMatchers.header
 import org.springframework.test.web.client.match.MockRestRequestMatchers.requestTo
+import org.springframework.test.web.client.response.MockRestResponseCreators.withServerError
 import org.springframework.test.web.client.response.MockRestResponseCreators.withSuccess
 import org.springframework.web.client.RestClient
 
@@ -52,15 +53,14 @@ class KakaoLocalSearchClientTest {
     }
 
     @Test
-    fun `restKey 가 비어 있으면 호출하지 않고 빈 목록을 반환한다`() {
-        val blankClient =
-            KakaoLocalSearchClient(
-                kakaoRestClient = builder.build(),
-                kakaoLocalProperties = KakaoLocalProperties(restKey = ""),
-            )
+    fun `호출이 실패하면 빈 목록을 반환한다(fail-soft)`() {
+        server
+            .expect(requestTo(containsString("/v2/local/search/keyword.json")))
+            .andRespond(withServerError())
 
-        val result = blankClient.search("콤포트", null)
+        val result = client.search("콤포트", null)
 
+        server.verify()
         assertEquals(emptyList<Any>(), result)
     }
 }

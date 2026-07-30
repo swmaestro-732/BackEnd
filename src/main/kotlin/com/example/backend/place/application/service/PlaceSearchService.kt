@@ -2,7 +2,7 @@ package com.example.backend.place.application.service
 
 import com.example.backend.common.geo.Coordinate
 import com.example.backend.place.application.port.inbound.PlaceSearchExternalUseCase
-import com.example.backend.place.application.port.outbound.KakaoPlaceSearchPort
+import com.example.backend.place.application.port.outbound.ExternalPlaceSearchPort
 import com.example.backend.place.domain.model.ExternalPlace
 import org.springframework.stereotype.Service
 
@@ -14,10 +14,10 @@ import org.springframework.stereotype.Service
  */
 @Service
 class PlaceSearchService(
-    private val kakaoPlaceSearchPort: KakaoPlaceSearchPort,
+    private val externalPlaceSearchPort: ExternalPlaceSearchPort,
 ) : PlaceSearchExternalUseCase {
     override fun search(
         query: String,
         near: Coordinate?,
-    ): List<ExternalPlace> = kakaoPlaceSearchPort.search(query, near)
+    ): List<ExternalPlace> = externalPlaceSearchPort.search(query, near)
 }

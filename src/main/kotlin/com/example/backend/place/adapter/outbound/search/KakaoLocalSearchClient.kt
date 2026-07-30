@@ -2,7 +2,7 @@ package com.example.backend.place.adapter.outbound.search
 
 import com.example.backend.bootstrap.config.KakaoLocalProperties
 import com.example.backend.common.geo.Coordinate
-import com.example.backend.place.application.port.outbound.KakaoPlaceSearchPort
+import com.example.backend.place.application.port.outbound.ExternalPlaceSearchPort
 import com.example.backend.place.domain.model.ExternalPlace
 import com.example.backend.place.domain.model.ExternalPlaceSource
 import org.slf4j.LoggerFactory
@@ -15,25 +15,21 @@ import org.springframework.web.client.RestClient
  *
  * `GET /v2/local/search/keyword.json?query=&size=15` (near 가 있으면 x/y/radius 추가), 헤더 `Authorization: KakaoAK {restKey}`.
  * 응답 `documents[]` 를 [ExternalPlace] 로 변환한다(원시 DTO 는 밖으로 내보내지 않음).
- * 키가 비어 있거나 호출이 실패하면 빈 목록(fail-soft).
+ * 호출이 실패하면(키 미설정으로 인한 401 포함) 빈 목록을 돌려준다(fail-soft).
  */
 @Component
 class KakaoLocalSearchClient(
     @param:Qualifier("kakaoRestClient")
     private val kakaoRestClient: RestClient,
     private val kakaoLocalProperties: KakaoLocalProperties,
-) : KakaoPlaceSearchPort {
+) : ExternalPlaceSearchPort {
     private val log = LoggerFactory.getLogger(javaClass)
 
     override fun search(
         query: String,
         near: Coordinate?,
-    ): List<ExternalPlace> {
-        if (kakaoLocalProperties.restKey.isBlank()) {
-            log.warn("카카오 로컬 restKey 가 비어 있어 검색을 건너뜁니다.")
-            return emptyList()
-        }
-        return try {
+    ): List<ExternalPlace> =
+        try {
             val response =
                 kakaoRestClient
                     .get()
@@ -57,7 +53,6 @@ class KakaoLocalSearchClient(
             log.warn("카카오 로컬 검색 호출 실패: query={}", query, exception)
             emptyList()
         }
-    }
 
     private fun KakaoLocalDocument.toExternalPlace(): ExternalPlace? {
         val longitude = x?.toDoubleOrNull() ?: return null
