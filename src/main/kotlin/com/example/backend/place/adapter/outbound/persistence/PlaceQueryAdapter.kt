@@ -18,8 +18,17 @@ class PlaceQueryAdapter(
         return placeRepository.findByIds(placeIds)
     }
 
-    override fun searchByName(query: String): List<Place> {
+    override fun searchByName(
+        query: String,
+        cursor: String?,
+        limit: Int,
+    ): List<Place> {
         if (query.isBlank()) return emptyList()
-        return placeRepository.searchByName(query.trim())
+        return placeRepository.searchByName(query.trim(), cursor?.toLong(), limit)
+    }
+
+    override fun countByName(query: String): Long {
+        if (query.isBlank()) return 0
+        return placeRepository.countByName(query.trim())
     }
 }

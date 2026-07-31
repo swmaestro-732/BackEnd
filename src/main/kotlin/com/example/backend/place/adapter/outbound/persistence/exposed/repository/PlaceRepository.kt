@@ -3,7 +3,10 @@ package com.example.backend.place.adapter.outbound.persistence.exposed.repositor
 import com.example.backend.place.adapter.outbound.persistence.PlaceEntity
 import com.example.backend.place.adapter.outbound.persistence.PlaceTable
 import com.example.backend.place.domain.model.Place
+import org.jetbrains.exposed.v1.core.Op
+import org.jetbrains.exposed.v1.core.SortOrder
 import org.jetbrains.exposed.v1.core.and
+import org.jetbrains.exposed.v1.core.greater
 import org.jetbrains.exposed.v1.core.inList
 import org.jetbrains.exposed.v1.core.isNull
 import org.jetbrains.exposed.v1.core.like
@@ -22,13 +25,26 @@ class PlaceRepository {
             .map { it.toDomain() }
 
     /**
-     * 이름 부분 일치(`name LIKE '%query%'`) + deleted_at IS NULL 로 장소를 조회한다.
+     * 이름 부분 일치(`name LIKE '%query%'`) + deleted_at IS NULL 로 장소를 id 오름차순 [limit] 개 조회한다.
+     * [afterId] 가 주어지면 그보다 id 가 큰 장소부터(커서 seek). 삭제된 장소는 제외.
      * 사용자 입력의 LIKE 와일드카드(`%`·`_`·`\`)는 이스케이프해 리터럴로 취급한다(의도치 않은 전체 매칭 방지).
      */
-    fun searchByName(query: String): List<Place> =
+    fun searchByName(
+        query: String,
+        cursor: Long?,
+        limit: Int,
+    ): List<Place> =
         PlaceEntity
-            .find { (PlaceTable.name like "%${query.escapeLikeWildcards()}%") and PlaceTable.deletedAt.isNull() }
+            .find { nameMatches(query) and (cursor?.let { PlaceTable.id greater it } ?: Op.TRUE) }
+            .orderBy(PlaceTable.id to SortOrder.ASC)
+            .limit(limit)
             .map { it.toDomain() }
+
+    /** 이름 부분 일치 + deleted_at IS NULL 인 장소의 전체 개수. */
+    fun countByName(query: String): Long = PlaceEntity.count(nameMatches(query))
+
+    private fun nameMatches(query: String) =
+        (PlaceTable.name like "%${query.escapeLikeWildcards()}%") and PlaceTable.deletedAt.isNull()
 
     // Postgres LIKE 의 기본 이스케이프 문자(백슬래시)를 이용해 와일드카드를 리터럴화한다. 백슬래시를 먼저 치환해야 한다.
     private fun String.escapeLikeWildcards(): String = replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
