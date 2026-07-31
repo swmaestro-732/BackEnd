@@ -1,7 +1,6 @@
 package com.example.backend.place.adapter.inbound.web
 
 import com.example.backend.common.exception.BusinessException
-import com.example.backend.common.mock.MockErrors
 import com.example.backend.common.response.ApiResponse
 import com.example.backend.common.response.ErrorCode
 import com.example.backend.place.adapter.inbound.web.response.PlaceSearchResponse
@@ -19,8 +18,8 @@ import java.util.Base64
  * 인바운드 어댑터 — 장소(노션 명세 · Place).
  *
  * - [search] 장소 검색(`GET /api/v1/places`): **모킹 API**. 지도 뷰포트 안의 장소를 목록/핀으로 내려준다.
- *   컨트롤러에서 목 데이터를 직접 만들어 반환하며, 실제 구현 시 인바운드 포트(UseCase) 연동으로 교체하고
- *   [MockErrors] 호출을 제거한다. `mockError` 파라미터로 모킹 에러를 주입할 수 있다(예: `?mockError=4040`).
+ *   목 데이터는 [PlaceSearchResponse.MOCK] 시드에서 온다. 실제 구현 시 인바운드 포트(UseCase) 연동으로
+ *   교체한다. 모킹 에러(`?mockError=<code>`)는 전역 아스펙트([com.example.backend.bootstrap.mock.MockErrorAspect])가 주입한다.
  *
  * 장소 상세는 화면 조합이라 BFF 경로로 이관했다 → `GET /service/v1/places/{placeId}`
  * ([com.example.backend.bff.adapter.inbound.web.PlaceDetailScreenController]).
@@ -54,14 +53,12 @@ class PlaceController {
         @RequestParam(defaultValue = "DISTANCE") sort: PlaceSearchSort,
         @RequestParam(required = false) cursor: String?,
         @RequestParam(defaultValue = "10") @Min(1) @Max(50) size: Int,
-        @RequestParam(required = false) mockError: Int?,
     ): ApiResponse<PlaceSearchResponse> {
-        MockErrors.throwIfRequested(mockError)
         validateViewport(swLat, swLng, neLat, neLng)
 
         val hasUserLocation = userLat != null && userLng != null
         val filtered =
-            MOCK_PLACES
+            PlaceSearchResponse.MOCK
                 .filter { category == null || category in it.categories }
                 .sortedWith(sort.comparator)
 
@@ -106,7 +103,7 @@ class PlaceController {
         }
     }
 
-    private fun MockPlace.toItem(hasUserLocation: Boolean) =
+    private fun PlaceSearchResponse.MockPlace.toItem(hasUserLocation: Boolean) =
         PlaceSearchResponse.PlaceItem(
             id = id,
             name = name,
@@ -131,105 +128,12 @@ class PlaceController {
     private fun Int.toCursor(): String =
         Base64.getUrlEncoder().withoutPadding().encodeToString(toString().toByteArray())
 
-    /** 목 데이터 시드 — 응답 매핑 전 내부 표현. */
-    private data class MockPlace(
-        val id: Long,
-        val name: String,
-        val imageUrl: String?,
-        val categories: List<String>,
-        val averageRating: Double,
-        val reviewCount: Int,
-        val walkingMinutes: Int,
-        val latitude: Double,
-        val longitude: Double,
-        val hasSaved: Boolean,
-    )
-
     private companion object {
-        val PlaceSearchSort.comparator: Comparator<MockPlace>
+        val PlaceSearchSort.comparator: Comparator<PlaceSearchResponse.MockPlace>
             get() =
                 when (this) {
                     PlaceSearchSort.DISTANCE -> compareBy { it.walkingMinutes }
                     PlaceSearchSort.REVIEW -> compareByDescending { it.reviewCount }
                 }
-
-        fun image(id: String) = "https://images.unsplash.com/$id?w=600&q=80&auto=format&fit=crop"
-
-        /** 성수동 일대 카페 — 디자인(검색 결과 · 장소 탭)의 예시 목록을 그대로 반영. */
-        val MOCK_PLACES: List<MockPlace> =
-            listOf(
-                MockPlace(
-                    id = 101,
-                    name = "어니언 성수",
-                    imageUrl = image("photo-1517433670267-08bbd4be890f"),
-                    categories = listOf("카페", "베이커리"),
-                    averageRating = 4.8,
-                    reviewCount = 1240,
-                    walkingMinutes = 6,
-                    latitude = 37.5445,
-                    longitude = 127.0578,
-                    hasSaved = true,
-                ),
-                MockPlace(
-                    id = 102,
-                    name = "콤포트 성수",
-                    imageUrl = image("photo-1495474472287-4d71bcdd2085"),
-                    categories = listOf("카페", "브런치"),
-                    averageRating = 4.6,
-                    reviewCount = 430,
-                    walkingMinutes = 5,
-                    latitude = 37.5432,
-                    longitude = 127.0561,
-                    hasSaved = false,
-                ),
-                MockPlace(
-                    id = 103,
-                    name = "아우어베이커리 성수",
-                    imageUrl = image("photo-1521017432531-fbd92d768814"),
-                    categories = listOf("카페", "디저트"),
-                    averageRating = 4.5,
-                    reviewCount = 205,
-                    walkingMinutes = 8,
-                    latitude = 37.5451,
-                    longitude = 127.0549,
-                    hasSaved = true,
-                ),
-                MockPlace(
-                    id = 104,
-                    name = "대림창고 카페",
-                    imageUrl = image("photo-1509042239860-f550ce710b93"),
-                    categories = listOf("카페", "전시"),
-                    averageRating = 4.6,
-                    reviewCount = 320,
-                    walkingMinutes = 9,
-                    latitude = 37.5418,
-                    longitude = 127.0592,
-                    hasSaved = false,
-                ),
-                MockPlace(
-                    id = 105,
-                    name = "센터커피 성수",
-                    imageUrl = image("photo-1442512595331-e89e73853f31"),
-                    categories = listOf("카페", "로스터리"),
-                    averageRating = 4.7,
-                    reviewCount = 512,
-                    walkingMinutes = 12,
-                    latitude = 37.5463,
-                    longitude = 127.0537,
-                    hasSaved = false,
-                ),
-                MockPlace(
-                    id = 106,
-                    name = "대성정미소 카페",
-                    imageUrl = image("photo-1445116572660-236099ec97a0"),
-                    categories = listOf("카페", "전시"),
-                    averageRating = 4.4,
-                    reviewCount = 88,
-                    walkingMinutes = 14,
-                    latitude = 37.5409,
-                    longitude = 127.0605,
-                    hasSaved = false,
-                ),
-            )
     }
 }

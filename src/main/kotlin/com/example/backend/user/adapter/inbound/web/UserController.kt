@@ -1,13 +1,14 @@
 package com.example.backend.user.adapter.inbound.web
 
 import com.example.backend.bootstrap.security.CurrentUserId
-import com.example.backend.common.mock.MockErrors
 import com.example.backend.common.response.ApiResponse
 import com.example.backend.user.adapter.inbound.web.request.CreateUserRequest
+import com.example.backend.user.adapter.inbound.web.response.AvailabilityResponse
 import com.example.backend.user.adapter.inbound.web.response.UserProfileResponse
 import com.example.backend.user.adapter.inbound.web.response.UserResponse
 import com.example.backend.user.application.port.inbound.UserUseCase
 import jakarta.validation.Valid
+import jakarta.validation.constraints.NotBlank
 import org.springframework.http.HttpStatus
 import org.springframework.web.bind.annotation.GetMapping
 import org.springframework.web.bind.annotation.PathVariable
@@ -34,11 +35,18 @@ class UserController(
     fun getProfile(
         @PathVariable userId: Long,
         @CurrentUserId viewerId: Long?,
-        @RequestParam(required = false) mockError: Int?,
-    ): ApiResponse<UserProfileResponse> {
-        MockErrors.throwIfRequested(mockError)
-        return ApiResponse.success(UserProfileResponse.from(userUseCase.getProfile(userId, viewerId)))
-    }
+    ): ApiResponse<UserProfileResponse> =
+        ApiResponse.success(UserProfileResponse.from(userUseCase.getProfile(userId, viewerId)))
+
+    /**
+     * 핸들(아이디) 사용 가능 여부. `GET /api/v1/users/availability?handle=`.
+     * 예약어이거나 이미 사용 중이면 available=false. (인증 플로우가 아니라 users 리소스 조회 — auth의 구 엔드포인트를 대체.)
+     */
+    @GetMapping("/availability")
+    fun checkHandleAvailability(
+        @RequestParam @NotBlank handle: String,
+    ): ApiResponse<AvailabilityResponse> =
+        ApiResponse.success(AvailabilityResponse(available = userUseCase.isHandleAvailable(handle)))
 
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)

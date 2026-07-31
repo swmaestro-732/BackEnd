@@ -1,7 +1,7 @@
 package com.example.backend.user.adapter.inbound.web
 
+import com.example.backend.bootstrap.mock.MockGuard
 import com.example.backend.bootstrap.security.CurrentUserId
-import com.example.backend.common.mock.MockErrors
 import com.example.backend.common.response.ApiResponse
 import com.example.backend.user.adapter.inbound.web.request.UpdateProfileRequest
 import com.example.backend.user.adapter.inbound.web.response.FollowResponse
@@ -30,16 +30,15 @@ import org.springframework.web.bind.annotation.RestController
 @RequestMapping("/api/v1/my")
 class MyController(
     private val myUseCase: MyUseCase,
+    private val mockGuard: MockGuard,
 ) {
     /** 내 프로필 조회. */
     @GetMapping("/profile")
     fun getMyProfile(
         @CurrentUserId userId: Long,
-        @RequestParam(defaultValue = "false") mock: Boolean,
-        @RequestParam(required = false) mockError: Int?,
+        @RequestParam(required = false) mock: Boolean = false,
     ): ApiResponse<MyProfileResponse> {
-        MockErrors.throwIfRequested(mockError)
-        if (mock) return ApiResponse.success(mockProfile())
+        if (mock && mockGuard.isMockAllowed()) return ApiResponse.success(MyProfileResponse.mock())
         return ApiResponse.success(MyProfileResponse.from(myUseCase.getMyProfile(userId)))
     }
 
@@ -48,12 +47,10 @@ class MyController(
     fun updateMyProfile(
         @CurrentUserId userId: Long,
         @Valid @RequestBody request: UpdateProfileRequest,
-        @RequestParam(defaultValue = "false") mock: Boolean,
-        @RequestParam(required = false) mockError: Int?,
+        @RequestParam(required = false) mock: Boolean = false,
     ): ApiResponse<MyProfileResponse> {
-        MockErrors.throwIfRequested(mockError)
-        if (mock) {
-            val base = mockProfile()
+        if (mock && mockGuard.isMockAllowed()) {
+            val base = MyProfileResponse.mock()
             return ApiResponse.success(
                 base.copy(
                     nickname = request.nickname ?: base.nickname,
@@ -69,11 +66,9 @@ class MyController(
     @DeleteMapping
     fun withdraw(
         @CurrentUserId userId: Long,
-        @RequestParam(defaultValue = "false") mock: Boolean,
-        @RequestParam(required = false) mockError: Int?,
+        @RequestParam(required = false) mock: Boolean = false,
     ): ApiResponse<Nothing?> {
-        MockErrors.throwIfRequested(mockError)
-        if (!mock) myUseCase.withdraw(userId)
+        if (!(mock && mockGuard.isMockAllowed())) myUseCase.withdraw(userId)
         return ApiResponse.ok()
     }
 
@@ -82,11 +77,9 @@ class MyController(
     fun follow(
         @CurrentUserId followerId: Long,
         @PathVariable("userId") targetId: Long,
-        @RequestParam(defaultValue = "false") mock: Boolean,
-        @RequestParam(required = false) mockError: Int?,
+        @RequestParam(required = false) mock: Boolean = false,
     ): ApiResponse<FollowResponse> {
-        MockErrors.throwIfRequested(mockError)
-        if (mock) return ApiResponse.success(FollowResponse(isFollowing = true, followersCnt = 129))
+        if (mock && mockGuard.isMockAllowed()) return ApiResponse.success(FollowResponse.mock(isFollowing = true))
         return ApiResponse.success(FollowResponse.from(myUseCase.follow(followerId, targetId)))
     }
 
@@ -95,24 +88,9 @@ class MyController(
     fun unfollow(
         @CurrentUserId followerId: Long,
         @PathVariable("userId") targetId: Long,
-        @RequestParam(defaultValue = "false") mock: Boolean,
-        @RequestParam(required = false) mockError: Int?,
+        @RequestParam(required = false) mock: Boolean = false,
     ): ApiResponse<FollowResponse> {
-        MockErrors.throwIfRequested(mockError)
-        if (mock) return ApiResponse.success(FollowResponse(isFollowing = false, followersCnt = 128))
+        if (mock && mockGuard.isMockAllowed()) return ApiResponse.success(FollowResponse.mock(isFollowing = false))
         return ApiResponse.success(FollowResponse.from(myUseCase.unfollow(followerId, targetId)))
     }
-
-    private fun mockProfile() =
-        MyProfileResponse(
-            id = 1L,
-            nickname = "현우님",
-            handle = "@hyunwoo",
-            profileImageUrl = "https://cdn.example.com/users/1.jpg",
-            isFollowing = false,
-            isFollower = false,
-            followersCnt = 128,
-            followingsCnt = 88,
-            coursesCnt = 12,
-        )
 }

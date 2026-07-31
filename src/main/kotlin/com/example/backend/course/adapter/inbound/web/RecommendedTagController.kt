@@ -1,5 +1,6 @@
 package com.example.backend.course.adapter.inbound.web
 
+import com.example.backend.bootstrap.mock.MockGuard
 import com.example.backend.common.response.ApiResponse
 import com.example.backend.course.adapter.inbound.web.response.RecommendedTagsResponse
 import com.example.backend.course.application.port.inbound.RecommendedTagUseCase
@@ -21,6 +22,7 @@ import org.springframework.web.bind.annotation.RestController
 @RequestMapping("/api/v1/recommended-tags")
 class RecommendedTagController(
     private val recommendedTagUseCase: RecommendedTagUseCase,
+    private val mockGuard: MockGuard,
 ) {
     @GetMapping
     fun recommendedTags(
@@ -29,9 +31,9 @@ class RecommendedTagController(
         @Min(1, message = "1 이상이어야 합니다")
         @Max(30, message = "30 이하여야 합니다")
         limit: Int,
-        @RequestParam(required = false, defaultValue = "false") mock: Boolean,
+        @RequestParam(required = false) mock: Boolean = false,
     ): ApiResponse<RecommendedTagsResponse> {
-        if (mock) {
+        if (mock && mockGuard.isMockAllowed()) {
             val tags = if (placeIds.isNullOrEmpty()) POPULAR_TAGS else PLACE_BASED_TAGS
             return ApiResponse.success(RecommendedTagsResponse(tags.take(limit)))
         }

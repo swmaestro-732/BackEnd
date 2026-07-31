@@ -1,20 +1,17 @@
 package com.example.backend.course.adapter.inbound.web
 
-import com.example.backend.common.exception.BusinessException
-import com.example.backend.common.mock.MockErrors
+import com.example.backend.bootstrap.security.CurrentUserId
 import com.example.backend.common.response.ApiResponse
-import com.example.backend.common.response.ErrorCode
 import com.example.backend.course.adapter.inbound.web.request.CreateCourseRequest
+import com.example.backend.course.adapter.inbound.web.request.EditCourseRequest
 import com.example.backend.course.adapter.inbound.web.response.CourseDetailResponse
-import com.example.backend.course.adapter.inbound.web.response.CoursePlaceImageResponse
-import com.example.backend.course.adapter.inbound.web.response.CoursePlaceResponse
-import com.example.backend.course.adapter.inbound.web.response.CourseResponse
-import com.example.backend.course.adapter.inbound.web.response.CourseStatsResponse
-import com.example.backend.course.adapter.inbound.web.response.CourseViewerResponse
-import com.example.backend.course.adapter.inbound.web.response.CreateCourseResponse
+import com.example.backend.course.adapter.inbound.web.response.CourseIdResponse
+import com.example.backend.course.application.port.inbound.CourseUseCase
 import jakarta.validation.Valid
 import org.springframework.http.HttpStatus
+import org.springframework.web.bind.annotation.DeleteMapping
 import org.springframework.web.bind.annotation.GetMapping
+import org.springframework.web.bind.annotation.PatchMapping
 import org.springframework.web.bind.annotation.PathVariable
 import org.springframework.web.bind.annotation.PostMapping
 import org.springframework.web.bind.annotation.RequestBody
@@ -24,146 +21,96 @@ import org.springframework.web.bind.annotation.ResponseStatus
 import org.springframework.web.bind.annotation.RestController
 
 /**
- * 인바운드 어댑터 — 코스(노션 명세 · Course). **모킹 API**.
+ * 인바운드 어댑터 — 코스(노션 명세 · Course).
  *
- * - [getDetail] 코스 상세(`GET /api/v1/courses/{courseId}`): 컨트롤러에서 목 데이터를 직접 만들어 반환한다.
- *   존재하는 코스는 id=1 뿐이며, 나머지는 404(COURSE_NOT_FOUND).
- * - [create] 코스 생성(`POST /api/v1/courses`): 필드는 디자인 목업(코스 만들기: 코스 정보 →
- *   장소 담기 → 공개 설정)과 courses 스키마에서 도출해 합의했다(노션 명세 필드 미작성 상태).
+ * - [getDetail] 코스 상세(`GET /api/v1/courses/{courseId}`): **실구현** — 인바운드 포트([CourseUseCase])로
+ *   DB 조회한다. 시드 데이터가 없는 개발 환경을 위해 `?mock=true` 폴백([CourseDetailResponse.MOCK])을 유지한다.
+ * - [create] 코스 생성(`POST /api/v1/courses`): **실구현** — 인바운드 포트([CourseUseCase])로 저장한다.
+ *   작성자 식별이 필요해 `@CurrentUserId`(JWT subject)로 userId 를 받는다 — 유효한 토큰이 있어야 동작하며,
+ *   경로 자체의 인증 강제(SecurityConfig)는 후속 과제다. 시드/DB 없이 프론트가 붙어볼 수 있도록
+ *   `?mock=true` 면 저장 없이 고정 목([CourseIdResponse.MOCK], 코스 상세 목과 이어짐)을 반환한다.
+ * - [edit] 코스 편집(`PATCH /api/v1/courses/{courseId}`): **실구현** — 인바운드 포트([CourseUseCase])로
+ *   전체 치환 갱신한다. 작성자 식별이 필요해 `@CurrentUserId`(JWT subject)로 userId 를 받으며, 소유자만 편집 가능하다.
+ *   시드/DB 없이 프론트가 붙어볼 수 있도록 `?mock=true` 면 갱신 없이 고정 목([CourseIdResponse.MOCK])을 반환한다.
+ * - [delete] 코스 삭제(`DELETE /api/v1/courses/{courseId}`): **실구현** — 인바운드 포트([CourseUseCase])로
+ *   소프트 삭제한다(deleted_at 스탬프·status=DELETED). 소유자만 삭제 가능하며(그 외 404), data 없이 안내 메시지만 내려준다.
+ *   시드/DB 없이 프론트가 붙어볼 수 있도록 `?mock=true` 면 삭제 없이 고정 성공 메시지를 반환한다.
  *
- * 실제 구현 시 인바운드 포트(UseCase) 연동으로 교체하고 [MockErrors] 호출을 제거한다.
- * `mockError` 파라미터로 모킹 에러를 주입할 수 있다(예: `?mockError=4041`).
+ * 모킹 에러(`?mockError=<code>`)는 전역 아스펙트([com.example.backend.bootstrap.mock.MockErrorAspect])가 주입한다.
  */
 @RestController
-@RequestMapping("/api/v1")
-class CourseController {
-    @GetMapping("/courses/{courseId}")
+@RequestMapping("/api/v1/courses")
+class CourseController(
+    private val courseUseCase: CourseUseCase,
+) {
+    /**
+     * 코스 상세 조회. status=ACTIVE·미삭제 코스만 반환하며 PRIVATE 은 소유자만 조회 가능(그 외 404).
+     * `?mock=true` 면 DB 조회 없이 고정 목([CourseDetailResponse.MOCK])을 반환한다.
+     */
+    @GetMapping("/{courseId}")
     fun getDetail(
         @PathVariable courseId: Long,
-        @RequestParam(required = false) mockError: Int?,
+        @CurrentUserId viewerId: Long?,
+        @RequestParam(required = false) mock: Boolean = false,
     ): ApiResponse<CourseDetailResponse> {
-        MockErrors.throwIfRequested(mockError)
-        if (courseId != 1L) {
-            throw BusinessException(ErrorCode.COURSE_NOT_FOUND, "코스를 찾을 수 없습니다: id=$courseId")
-        }
-        return ApiResponse.success(MOCK_DETAIL)
+        if (mock) return ApiResponse.success(CourseDetailResponse.MOCK)
+        return ApiResponse.success(CourseDetailResponse.from(courseUseCase.getDetail(courseId, viewerId)))
     }
 
     /**
-     * 코스 생성(모킹). 발행(isPublished=true)과 임시저장(false)을 함께 처리한다.
+     * 코스 생성. 발행(isPublished=true)과 임시저장(false)을 함께 처리한다.
      *
      * 검증
      * - 필드 형식·범위(title·tags·places 등)는 Bean Validation([CreateCourseRequest]) → 400 VALIDATION_FAILED + fieldErrors.
-     * - 아래 교차 필드·비즈니스 규칙은 애노테이션으로 표현할 수 없어 직접 검증한다 → 400 INVALID_INPUT.
-     *   - 발행 코스는 장소가 1곳 이상이어야 한다(임시저장은 "아직 장소 없음" 허용 — 디자인 임시저장 목록).
-     *   - places 의 orderNo 는 중복될 수 없다.
+     * - 교차 필드·비즈니스 규칙(발행 시 장소 1곳 이상, orderNo 중복 금지)은 [CourseUseCase] 가 검증한다 → 400 INVALID_INPUT.
+     *
+     * `?mock=true` 면 DB 저장 없이 고정 목([CourseIdResponse.MOCK])을 반환한다.
      */
-    @PostMapping("/courses")
+    @PostMapping("")
     @ResponseStatus(HttpStatus.CREATED)
     fun create(
+        @CurrentUserId userId: Long,
         @Valid @RequestBody request: CreateCourseRequest,
-        @RequestParam(required = false) mockError: Int?,
-    ): ApiResponse<CreateCourseResponse> {
-        MockErrors.throwIfRequested(mockError)
-        validateCreate(request)
-        return ApiResponse.success(CreateCourseResponse(courseId = MOCK_COURSE_ID))
+        @RequestParam(required = false) mock: Boolean = false,
+    ): ApiResponse<CourseIdResponse> {
+        if (mock) return ApiResponse.success(CourseIdResponse.MOCK)
+        val course = courseUseCase.create(request.toCommand(userId))
+        return ApiResponse.success(CourseIdResponse(courseId = requireNotNull(course.id)))
     }
 
-    private fun validateCreate(request: CreateCourseRequest) {
-        if (request.isPublished && request.places.isEmpty()) {
-            throw BusinessException(ErrorCode.INVALID_INPUT, "코스를 발행하려면 장소를 1곳 이상 담아야 합니다.")
-        }
-        if (request.places
-                .map { it.orderNo }
-                .toSet()
-                .size != request.places.size
-        ) {
-            throw BusinessException(ErrorCode.INVALID_INPUT, "장소 순서(orderNo)가 중복되었습니다.")
-        }
+    /**
+     * 코스 편집. 코스 만들기와 같은 빌더 화면을 재사용하며, 편집한 코스 전체 상태를
+     * 되돌려 보내는 전체 치환 계약이다([EditCourseRequest]) — 보낸 필드로 코스·장소·태그를 덮어쓴다.
+     * 소유자만 편집할 수 있고(그 외 404), 발행 전환 시 검증은 생성과 동일하게 도메인이 수행한다.
+     * 응답은 courseId 만 반환하며, 프론트는 편집 후 코스 상세 API 재조회로 화면을 구성한다.
+     * `?mock=true` 면 DB 갱신 없이 고정 목([CourseIdResponse.MOCK])을 반환한다.
+     */
+    @PatchMapping("/{courseId}")
+    fun edit(
+        @CurrentUserId userId: Long,
+        @PathVariable courseId: Long,
+        @Valid @RequestBody request: EditCourseRequest,
+        @RequestParam(required = false) mock: Boolean = false,
+    ): ApiResponse<CourseIdResponse> {
+        if (mock) return ApiResponse.success(CourseIdResponse.MOCK)
+        val course = courseUseCase.edit(request.toCommand(userId, courseId))
+        return ApiResponse.success(CourseIdResponse(courseId = requireNotNull(course.id)))
     }
 
-    private companion object {
-        /** 모킹 고정 id — 코스 상세 목 데이터(courseId=1)와 이어지도록 항상 1을 반환한다. */
-        const val MOCK_COURSE_ID = 1L
-
-        fun image(token: String) = "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9Gc$token&s=10"
-
-        fun img(
-            token: String,
-            orderNo: Int,
-        ) = CoursePlaceImageResponse(imageUrl = image(token), orderNo = orderNo)
-
-        /**
-         * 코스 상세 목 — 디자인(코스 상세)의 예시 반영. 화면 조합 목([com.example.backend.bff.adapter.inbound.web.CourseDetailScreenController])과
-         * 같은 코스(비 오는 날 성수 감성 카페 코스)로 값을 맞춰 두었다. caption 은 장소명.
-         */
-        val MOCK_DETAIL: CourseDetailResponse =
-            CourseDetailResponse(
-                course =
-                    CourseResponse(
-                        id = "1",
-                        title = "비 오는 날 성수 감성 카페 코스",
-                        coverImageUrl = image("THb4AHDBpbwjQOwLbBj3pgro4xFRpvBdRRZDTcbVmMkg"),
-                        themes = listOf("데이트"),
-                        description =
-                            "비가 오면 더 예쁜 성수 카페만 골라 담았어요. 전부 도보로 이어지고, " +
-                                "장소마다 제 팁을 남겨뒀으니 참고하세요 🌧️",
-                        stats =
-                            CourseStatsResponse(
-                                placeCount = 4,
-                                walkingMinutes = 20,
-                                tracingCountLabel = "1.2k",
-                            ),
-                        authorId = 1L,
-                        places =
-                            listOf(
-                                CoursePlaceResponse(
-                                    id = 1L,
-                                    placeId = 101L,
-                                    orderNo = 1,
-                                    caption = "어니언 성수",
-                                    walkingMinutesToNext = 6,
-                                    images =
-                                        listOf(
-                                            img("THIxFwvmFDIDNW9rHdqN1wRMZjFTQwfEmgO-O4kBM5nA", 0),
-                                            img("Qri_COfUpGil6k79RTh7vRhzDdP08yEcUmXIHnvn7Hfw", 1),
-                                        ),
-                                ),
-                                CoursePlaceResponse(
-                                    id = 2L,
-                                    placeId = 102L,
-                                    orderNo = 2,
-                                    caption = "대림창고 갤러리",
-                                    walkingMinutesToNext = 3,
-                                    images = listOf(img("SYjLV1q0A21vyJJ_N3LlUSp3HwiDDouEZRzcVhJb8KJw", 0)),
-                                ),
-                                CoursePlaceResponse(
-                                    id = 3L,
-                                    placeId = 103L,
-                                    orderNo = 3,
-                                    caption = "센터커피 성수",
-                                    walkingMinutesToNext = 5,
-                                    images = listOf(img("TMRMGDnfUqzsxQXY1TOrhMtWZ8-otKbsLPlfnIkvDfUw", 0)),
-                                ),
-                                CoursePlaceResponse(
-                                    id = 4L,
-                                    placeId = 104L,
-                                    orderNo = 4,
-                                    caption = "카페 할아버지공장",
-                                    walkingMinutesToNext = null,
-                                    images =
-                                        listOf(
-                                            img("Qr6pSHzsT4DD0ieT5VQ__SVo2ErRODzDyViWmZeXHGlA", 0),
-                                            img("R_3CDZ5UcouOOEkvGYQVI2emgnCGRIzRysaKhwNlq-kw", 1),
-                                        ),
-                                ),
-                            ),
-                        viewer =
-                            CourseViewerResponse(
-                                hasSaved = false,
-                                hasStartedCourse = false,
-                            ),
-                    ),
-            )
+    /**
+     * 코스 삭제(소프트 삭제). 인바운드 포트([CourseUseCase])로 deleted_at 을 찍고 status 를 DELETED 로 전이한다.
+     * 소유자만 삭제할 수 있고(없음·비활성·타인 소유는 존재를 드러내지 않도록 404 COURSE_NOT_FOUND), 성공 시 data 없이
+     * 안내 메시지만 내려준다. 소유자 식별을 위해 `@CurrentUserId`(JWT subject)로 userId 를 받으므로 유효한 토큰이 필요하다.
+     * `?mock=true` 면 삭제 없이 고정 성공 메시지를 반환한다.
+     */
+    @DeleteMapping("/{courseId}")
+    fun delete(
+        @CurrentUserId userId: Long,
+        @PathVariable courseId: Long,
+        @RequestParam(required = false) mock: Boolean = false,
+    ): ApiResponse<Nothing?> {
+        if (mock) return ApiResponse.ok("코스가 삭제되었습니다.")
+        courseUseCase.delete(userId, courseId)
+        return ApiResponse.ok("코스가 삭제되었습니다.")
     }
 }

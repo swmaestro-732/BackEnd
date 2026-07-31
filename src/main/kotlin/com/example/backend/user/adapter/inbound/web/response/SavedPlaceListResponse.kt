@@ -40,4 +40,67 @@ data class SavedPlaceListResponse(
         val visited: Boolean,
         val savedAt: Instant,
     )
+
+    companion object {
+        /**
+         * 목 저장 레코드 — 디자인(저장함 · 장소 · 리스트)의 예시 목록 반영. 최신 저장순 고정 응답.
+         * placeId 는 장소 검색 모킹([com.example.backend.place.adapter.inbound.web.PlaceController])의
+         * 목 장소 id 와 맞춰 두었다(101 어니언 성수, 104 대림창고 카페, 105 센터커피 성수).
+         */
+        fun mock(): SavedPlaceListResponse {
+            val savedPlaces =
+                listOf(
+                    SavedPlaceItem(
+                        id = 5,
+                        placeId = 108, // 평화양조장
+                        category = SavedPlaceCategory.BAR,
+                        visited = false,
+                        savedAt = Instant.parse("2026-07-17T09:20:00Z"),
+                    ),
+                    SavedPlaceItem(
+                        id = 4,
+                        placeId = 107, // 자그마치
+                        category = SavedPlaceCategory.CULTURE,
+                        visited = false,
+                        savedAt = Instant.parse("2026-07-15T13:05:00Z"),
+                    ),
+                    SavedPlaceItem(
+                        id = 3,
+                        placeId = 105, // 센터커피 성수
+                        category = SavedPlaceCategory.CAFE,
+                        visited = false,
+                        savedAt = Instant.parse("2026-07-12T05:30:00Z"),
+                    ),
+                    SavedPlaceItem(
+                        id = 2,
+                        placeId = 104, // 대림창고 카페
+                        category = SavedPlaceCategory.CAFE,
+                        visited = true,
+                        savedAt = Instant.parse("2026-07-08T11:00:00Z"),
+                    ),
+                    SavedPlaceItem(
+                        id = 1,
+                        placeId = 101, // 어니언 성수
+                        category = SavedPlaceCategory.CAFE,
+                        visited = true,
+                        savedAt = Instant.parse("2026-07-05T02:15:00Z"),
+                    ),
+                )
+            return SavedPlaceListResponse(
+                totalCount = savedPlaces.size,
+                unvisitedCount = savedPlaces.count { !it.visited },
+                visitedCount = savedPlaces.count { it.visited },
+                categoryCounts =
+                    savedPlaces
+                        .mapNotNull { it.category }
+                        .groupingBy { it }
+                        .eachCount()
+                        .map { (category, count) -> CategoryCount(category, count) }
+                        .sortedByDescending { it.count },
+                nextCursor = null,
+                hasNext = false,
+                savedPlaces = savedPlaces,
+            )
+        }
+    }
 }
