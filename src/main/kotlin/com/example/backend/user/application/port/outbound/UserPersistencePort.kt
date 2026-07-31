@@ -41,6 +41,27 @@ interface UserPersistencePort {
         socialId: String,
     ): User?
 
+    /** 탈퇴(soft delete, deletedAt IS NOT NULL)한 소셜 계정 행을 조회한다. */
+    fun findWithdrawnBySocial(
+        provider: SocialProvider,
+        socialId: String,
+    ): User?
+
+    /** 지정한 사용자를 제외하고 닉네임 중복 여부를 검사한다(재활성화 시 자기 자신 제외). */
+    fun existsByNicknameExcludingUser(
+        nickname: String,
+        excludeUserId: Long,
+    ): Boolean
+
+    /** 지정한 사용자를 제외하고 핸들 중복 여부를 검사한다(재활성화 시 자기 자신 제외). */
+    fun existsByHandleExcludingUser(
+        handle: String,
+        excludeUserId: Long,
+    ): Boolean
+
     /** 소셜 계정 정보와 함께 저장 후 식별자가 부여된 User 를 반환한다. */
     fun saveWithSocial(user: User): User
+
+    /** 탈퇴 행을 재활성화(status=ACTIVE, deletedAt=NULL, 프로필 갱신)하고 복원된 User 를 반환한다. */
+    fun reactivate(user: User): User
 }

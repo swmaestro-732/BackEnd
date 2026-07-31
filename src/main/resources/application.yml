@@ -31,9 +31,19 @@ jwt:
 
 oauth:
   kakao:
+    # 로그인(OIDC)용 카카오 앱 client_id(REST API 키). 로컬(지도) 검색 키(kakao.local.rest-key)와 별개 앱/키.
     client-id: ${KAKAO_CLIENT_ID:}
+    # 안드로이드/iOS SDK 로그인 id_token 의 aud = 네이티브 앱 키. 미설정 시 웹(REST 키)만 허용.
+    native-app-key: ${KAKAO_NATIVE_APP_KEY:}
     jwks-uri: https://kauth.kakao.com/.well-known/jwks.json
     issuer: https://kauth.kakao.com
+
+# 외부 지도 연동(SCRUM-387). 키가 없으면 각 기능은 빈 결과/null 로 fail-soft.
+kakao:
+  local:
+    rest-key: ${KAKAO_REST_API_KEY:}
+tmap:
+  app-key: ${TMAP_APP_KEY:}
 
 aws:
   region: ${AWS_REGION:ap-northeast-2}
