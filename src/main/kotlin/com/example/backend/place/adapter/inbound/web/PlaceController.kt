@@ -22,7 +22,7 @@ import java.util.Base64
  *   교체한다. 모킹 에러(`?mockError=<code>`)는 전역 아스펙트([com.example.backend.bootstrap.mock.MockErrorAspect])가 주입한다.
  *
  * 장소 상세는 화면 조합이라 BFF 경로로 이관했다 → `GET /service/v1/places/{placeId}`
- * ([com.example.backend.bff.adapter.inbound.web.PlaceDetailScreenController]).
+ * ([com.example.backend.mobile.place.adapter.inbound.web.PlaceDetailScreenController]).
  */
 @RestController
 @RequestMapping("/api/v1/places")
