@@ -7,6 +7,7 @@ import com.example.backend.course.domain.model.Course
 import com.example.backend.course.domain.model.CourseStatus
 import org.jetbrains.exposed.v1.core.and
 import org.jetbrains.exposed.v1.core.eq
+import org.jetbrains.exposed.v1.core.inList
 import org.jetbrains.exposed.v1.core.isNull
 import org.jetbrains.exposed.v1.jdbc.selectAll
 import org.jetbrains.exposed.v1.jdbc.update
@@ -85,18 +86,29 @@ class CourseRepository {
             .selectAll()
             .where { (CourseTable.id eq courseId) and CourseTable.deletedAt.isNull() }
             .singleOrNull()
-            ?.let {
-                CourseDetailRow(
-                    id = it[CourseTable.id].value,
-                    userId = it[CourseTable.userId],
-                    title = it[CourseTable.title],
-                    coverImageUrl = it[CourseTable.coverImageUrl],
-                    description = it[CourseTable.description],
-                    category = it[CourseTable.category],
-                    tracingsCnt = it[CourseTable.tracingsCnt],
-                    status = it[CourseTable.status],
-                    visibility = it[CourseTable.visibility],
-                    isPublished = it[CourseTable.isPublished],
-                )
-            }
+            ?.let(::toDetailRow)
+
+    /** deleted_at IS NULL 인 코스 본문들을 id 목록으로 한 번에 읽는다(없는 id 는 빠짐). */
+    fun findDetails(courseIds: List<Long>): List<CourseDetailRow> {
+        if (courseIds.isEmpty()) return emptyList()
+        return CourseTable
+            .selectAll()
+            .where { (CourseTable.id inList courseIds) and CourseTable.deletedAt.isNull() }
+            .map(::toDetailRow)
+    }
+
+    private fun toDetailRow(it: org.jetbrains.exposed.v1.core.ResultRow): CourseDetailRow =
+        CourseDetailRow(
+            id = it[CourseTable.id].value,
+            userId = it[CourseTable.userId],
+            title = it[CourseTable.title],
+            coverImageUrl = it[CourseTable.coverImageUrl],
+            description = it[CourseTable.description],
+            category = it[CourseTable.category],
+            area = it[CourseTable.area],
+            tracingsCnt = it[CourseTable.tracingsCnt],
+            status = it[CourseTable.status],
+            visibility = it[CourseTable.visibility],
+            isPublished = it[CourseTable.isPublished],
+        )
 }

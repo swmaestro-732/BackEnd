@@ -1,5 +1,6 @@
 package com.example.backend.user.application.port.inbound
 
+import com.example.backend.user.application.port.inbound.dto.SavedCourseFolderCount
 import com.example.backend.user.application.port.inbound.dto.SavedCoursesCommand
 import com.example.backend.user.application.port.inbound.dto.SavedCoursesResult
 import com.example.backend.user.domain.model.SavedCourse
@@ -25,4 +26,7 @@ interface SavedCourseUseCase {
     )
 
     fun getSavedCourses(command: SavedCoursesCommand): SavedCoursesResult
+
+    /** 사용자의 저장 폴더를 폴더별 저장 코스 개수와 함께 order_no 순으로 반환한다(저장함 코스 탭 폴더 칩). */
+    fun getFolders(userId: Long): List<SavedCourseFolderCount>
 }

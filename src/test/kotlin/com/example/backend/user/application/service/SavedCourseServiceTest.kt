@@ -4,6 +4,7 @@ import com.example.backend.common.exception.BusinessException
 import com.example.backend.common.response.ErrorCode
 import com.example.backend.course.application.port.inbound.CourseQueryUseCase
 import com.example.backend.user.application.port.inbound.dto.SavedCoursesCommand
+import com.example.backend.user.application.port.outbound.CourseFolderCountRow
 import com.example.backend.user.application.port.outbound.SavedCoursePersistencePort
 import com.example.backend.user.application.port.outbound.SavedCourseRow
 import com.example.backend.user.domain.model.SavedCourse
@@ -71,17 +72,21 @@ class SavedCourseServiceTest {
             override fun count(
                 userId: Long,
                 folderId: Long?,
+                completed: Boolean?,
             ): Long = countReturn
 
             override fun findPage(
                 userId: Long,
                 folderId: Long?,
+                completed: Boolean?,
                 cursorId: Long?,
                 limit: Int,
             ): List<SavedCourseRow> {
-                findPageArgs = FindPageArgs(userId, folderId, cursorId, limit)
+                findPageArgs = FindPageArgs(userId, folderId, completed, cursorId, limit)
                 return pageRows
             }
+
+            override fun listFolders(userId: Long): List<CourseFolderCountRow> = emptyList()
         }
 
     private val service = SavedCourseService(fakePort, fakeCourseQuery)
@@ -207,6 +212,7 @@ class SavedCourseServiceTest {
     private data class FindPageArgs(
         val userId: Long,
         val folderId: Long?,
+        val completed: Boolean?,
         val cursorId: Long?,
         val limit: Int,
     )

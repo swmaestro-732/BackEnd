@@ -28,8 +28,8 @@ class SecurityConfig {
             .oauth2ResourceServer { it.jwt { } }
             .authorizeHttpRequests {
                 it
-                    // 첫 매치 우선: 현재 사용자("나") 기준 API·업로드 프리사인은 JWT 인증 필수.
-                    .requestMatchers("/api/v1/my/**", "/api/v1/uploads/**")
+                    // 첫 매치 우선: 현재 사용자("나") 기준 API·업로드 프리사인·개인 화면 조합(BFF)은 JWT 인증 필수.
+                    .requestMatchers("/api/v1/my/**", "/api/v1/uploads/**", "/service/v1/my/**")
                     .access { authentication, _ ->
                         val resolved = authentication.get()
                         AuthorizationDecision(

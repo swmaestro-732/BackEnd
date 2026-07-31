@@ -4,6 +4,7 @@ import com.example.backend.common.exception.BusinessException
 import com.example.backend.common.response.ErrorCode
 import com.example.backend.course.application.port.inbound.CourseQueryUseCase
 import com.example.backend.user.application.port.inbound.SavedCourseUseCase
+import com.example.backend.user.application.port.inbound.dto.SavedCourseFolderCount
 import com.example.backend.user.application.port.inbound.dto.SavedCoursesCommand
 import com.example.backend.user.application.port.inbound.dto.SavedCoursesResult
 import com.example.backend.user.application.port.outbound.SavedCoursePersistencePort
@@ -60,13 +61,22 @@ class SavedCourseService(
     override fun getSavedCourses(command: SavedCoursesCommand): SavedCoursesResult {
         val cursorId = command.cursor?.let(::decodeCursor)
 
-        // hasNext 판정을 위해 한 개 더 조회한 뒤, 페이지 크기만큼 잘라낸다.
-        val rows = savedCoursePersistencePort.findPage(command.userId, command.folderId, cursorId, command.size + 1)
+        // hasNext 판정을 위해 한 개 더 조회한 뒤, 페이지 크기만큼 잘라낸다. 완주 필터(command.completed)를 그대로 넘긴다.
+        val rows =
+            savedCoursePersistencePort.findPage(
+                command.userId,
+                command.folderId,
+                command.completed,
+                cursorId,
+                command.size + 1,
+            )
         val hasNext = rows.size > command.size
         val page = rows.take(command.size)
 
         return SavedCoursesResult(
-            totalCount = savedCoursePersistencePort.count(command.userId, command.folderId),
+            // 칩 배지는 완주 필터와 무관한 폴더 전체·완주 개수다 — count 는 완주 필터를 각각 null/true 로 고정해 센다.
+            totalCount = savedCoursePersistencePort.count(command.userId, command.folderId, completed = null),
+            completedCount = savedCoursePersistencePort.count(command.userId, command.folderId, completed = true),
             nextCursor = if (hasNext) page.lastOrNull()?.id?.toString() else null,
             hasNext = hasNext,
             savedCourses =
@@ -80,6 +90,11 @@ class SavedCourseService(
                 },
         )
     }
+
+    override fun getFolders(userId: Long): List<SavedCourseFolderCount> =
+        savedCoursePersistencePort.listFolders(userId).map {
+            SavedCourseFolderCount(id = it.id, name = it.name, count = it.count)
+        }
 
     /** 커서(=저장 레코드 id)를 파싱한다. 형식이 잘못되면 400. */
     private fun decodeCursor(cursor: String): Long =

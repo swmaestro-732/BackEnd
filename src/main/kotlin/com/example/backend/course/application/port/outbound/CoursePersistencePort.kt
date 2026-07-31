@@ -14,6 +14,8 @@ data class CourseDetailRow(
     val description: String?,
     /** 코스 카테고리(응답 theme 의 출처). 미선택 draft 는 null. */
     val category: CourseCategory?,
+    /** 코스 지역(예: "성수"). 미입력이면 null. */
+    val area: String?,
     val tracingsCnt: Int,
     val status: CourseStatus,
     val visibility: CourseVisibility,
@@ -44,10 +46,16 @@ data class CoursePlaceImageRow(
 interface CoursePersistencePort {
     fun findCourseDetail(courseId: Long): CourseDetailRow?
 
+    /** 여러 코스 본문을 한 번에 읽는다(deleted_at IS NULL). 없는 id 는 결과에서 빠진다 — 목록 화면 배치 조회용. */
+    fun findCourseDetails(courseIds: List<Long>): List<CourseDetailRow>
+
     /** 미삭제(deleted_at IS NULL) 코스가 존재하는지 확인한다(fork 원본 검증 등). */
     fun existsById(courseId: Long): Boolean
 
     fun findPlaces(courseId: Long): List<CoursePlaceRow>
+
+    /** 여러 코스의 장소들을 courseId 별로(각 코스 안은 orderNo 오름차순) 한 번에 읽는다 — 목록 화면 배치 조회용. */
+    fun findPlacesByCourseIds(courseIds: List<Long>): Map<Long, List<CoursePlaceRow>>
 
     /** 코스 애그리거트(코스·장소·이미지·태그)를 한 트랜잭션으로 저장하고, 저장된 코스(생성 id·DB 생성값 포함)를 반환한다. */
     fun save(course: Course): Course

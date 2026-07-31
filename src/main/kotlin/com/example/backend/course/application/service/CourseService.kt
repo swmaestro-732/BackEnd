@@ -42,45 +42,61 @@ class CourseService(
     override fun getDetail(
         courseId: Long,
         viewerId: Long?,
-    ): CourseDetailResult {
-        val course =
-            coursePersistencePort.findCourseDetail(courseId)
-                ?: throw BusinessException(ErrorCode.COURSE_NOT_FOUND, "코스를 찾을 수 없습니다: id=$courseId")
+    ): CourseDetailResult =
+        getDetails(listOf(courseId), viewerId).firstOrNull()
+            ?: throw BusinessException(ErrorCode.COURSE_NOT_FOUND, "코스를 찾을 수 없습니다: id=$courseId")
 
-        if (course.status != CourseStatus.ACTIVE) {
-            throw BusinessException(ErrorCode.COURSE_NOT_FOUND, "코스를 찾을 수 없습니다: id=$courseId")
+    override fun getDetails(
+        courseIds: List<Long>,
+        viewerId: Long?,
+    ): List<CourseDetailResult> {
+        if (courseIds.isEmpty()) return emptyList()
+
+        // status=ACTIVE·미삭제·조회 가능(PRIVATE 소유자, FOLLOWER 소유자·팔로워)만 남긴다.
+        val viewableById =
+            coursePersistencePort
+                .findCourseDetails(courseIds)
+                .filter { it.status == CourseStatus.ACTIVE && isViewable(it.visibility, it.userId, viewerId) }
+                .associateBy { it.id }
+        if (viewableById.isEmpty()) return emptyList()
+
+        val viewableIds = viewableById.keys.toList()
+        val placesByCourse = coursePersistencePort.findPlacesByCourseIds(viewableIds)
+        val viewerByCourse =
+            viewerId
+                ?.let { courseInteractionUseCase.getViewerStates(it, viewableIds) }
+                .orEmpty()
+                .associateBy { it.courseId }
+
+        // 입력 순서를 유지해 반환한다(볼 수 없는 코스는 제외됨).
+        return courseIds.mapNotNull { viewableById[it] }.map { course ->
+            val places =
+                placesByCourse[course.id].orEmpty().map { place ->
+                    CoursePlaceResult(
+                        id = place.id,
+                        placeId = place.placeId,
+                        orderNo = place.orderNo,
+                        caption = place.caption,
+                        walkingMinutesToNext = place.walkingMinutes,
+                        images = place.images.map { CoursePlaceImageResult(it.imageUrl, it.orderNo) },
+                    )
+                }
+            val viewer = viewerByCourse[course.id]
+            CourseDetailResult(
+                id = course.id,
+                title = course.title,
+                coverImageUrl = course.coverImageUrl.orEmpty(),
+                theme = course.category?.name,
+                area = course.area,
+                description = course.description.orEmpty(),
+                visibility = course.visibility,
+                authorId = course.userId,
+                tracingsCnt = course.tracingsCnt,
+                places = places,
+                hasSaved = viewer?.hasSaved ?: false,
+                hasStartedCourse = viewer?.hasStartedCourse ?: false,
+            )
         }
-        if (!isViewable(course.visibility, ownerId = course.userId, viewerId = viewerId)) {
-            throw BusinessException(ErrorCode.COURSE_NOT_FOUND, "코스를 찾을 수 없습니다: id=$courseId")
-        }
-
-        val places =
-            coursePersistencePort.findPlaces(courseId).map { place ->
-                CoursePlaceResult(
-                    id = place.id,
-                    placeId = place.placeId,
-                    orderNo = place.orderNo,
-                    caption = place.caption,
-                    walkingMinutesToNext = place.walkingMinutes,
-                    images = place.images.map { CoursePlaceImageResult(it.imageUrl, it.orderNo) },
-                )
-            }
-
-        val viewer = viewerId?.let { courseInteractionUseCase.getViewerState(it, courseId) }
-
-        return CourseDetailResult(
-            id = course.id,
-            title = course.title,
-            coverImageUrl = course.coverImageUrl.orEmpty(),
-            theme = course.category?.name,
-            description = course.description.orEmpty(),
-            visibility = course.visibility,
-            authorId = course.userId,
-            tracingsCnt = course.tracingsCnt,
-            places = places,
-            hasSaved = viewer?.hasSaved ?: false,
-            hasStartedCourse = viewer?.hasStartedCourse ?: false,
-        )
     }
 
     private fun isViewable(

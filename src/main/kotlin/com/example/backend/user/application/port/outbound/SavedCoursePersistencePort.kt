@@ -33,22 +33,33 @@ interface SavedCoursePersistencePort {
         courseId: Long,
     ): Boolean
 
-    /** 필터(folderId, null 이면 전체)에 해당하는 저장 코스 개수. */
+    /**
+     * 필터에 해당하는 저장 코스 개수.
+     * - folderId: null 이면 전체(폴더 미분류 포함).
+     * - completed: null 이면 완주 여부 무관, true 면 따라간(=완주) 코스만, false 면 아직 안 따라간 코스만.
+     *   완주 판정은 tracing_courses(user_id, course_id) 존재 여부다([com.example.backend.user.adapter.outbound.persistence.TracingCourseTable]).
+     */
     fun count(
         userId: Long,
         folderId: Long?,
+        completed: Boolean?,
     ): Long
 
     /**
      * 저장 레코드를 id 내림차순(최신 저장순)으로 조회한다.
      * cursorId 가 있으면 그보다 작은 id 만(다음 페이지), limit 개까지 반환한다.
+     * completed 필터는 [count] 와 동일한 의미다(tracing_courses 존재 여부 기준).
      */
     fun findPage(
         userId: Long,
         folderId: Long?,
+        completed: Boolean?,
         cursorId: Long?,
         limit: Int,
     ): List<SavedCourseRow>
+
+    /** 사용자의 저장 폴더를 order_no 순으로, 폴더별 저장 코스 개수와 함께 조회한다(저장함 폴더 칩). */
+    fun listFolders(userId: Long): List<CourseFolderCountRow>
 }
 
 /** 저장 레코드 읽기 모델 — 조회 전용. */
@@ -57,4 +68,11 @@ data class SavedCourseRow(
     val folderId: Long?,
     val courseId: Long,
     val savedAt: Instant,
+)
+
+/** 저장 폴더 + 폴더별 저장 코스 개수 읽기 모델(저장함 폴더 칩). */
+data class CourseFolderCountRow(
+    val id: Long,
+    val name: String,
+    val count: Int,
 )

@@ -20,6 +20,8 @@ class PlaceQueryService(
                     id = it.id!!,
                     name = it.name,
                     category = it.category.name,
+                    address = it.address,
+                    imageUrl = it.imageUrl,
                     latitude = it.location.latitude,
                     longitude = it.location.longitude,
                 )

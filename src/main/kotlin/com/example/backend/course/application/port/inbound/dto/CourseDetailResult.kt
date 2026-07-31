@@ -13,6 +13,8 @@ data class CourseDetailResult(
     val coverImageUrl: String,
     /** 코스 테마 = 카테고리(단일). 미선택 draft 는 null. */
     val theme: String?,
+    /** 코스 지역(예: "성수"). 미입력이면 null. */
+    val area: String?,
     val description: String,
     /** 코스 공개 범위(PUBLIC·FOLLOWER·PRIVATE). */
     val visibility: CourseVisibility,
