@@ -47,7 +47,8 @@ class CourseController(
 ) {
     /**
      * 코스 상세 조회. status=ACTIVE·미삭제 코스만 반환하며 PRIVATE 은 소유자만 조회 가능(그 외 404).
-     * `?mock=true` 면 DB 조회 없이 고정 목([CourseDetailResponse.MOCK])을 반환한다.
+     * `?mock=true` 이고 [MockGuard] 가 모킹을 허용할 때만 DB 조회 없이 고정 목([CourseDetailResponse.MOCK])을
+     * 반환하고, 그 외에는 정상 유스케이스 경로를 탄다.
      */
     @GetMapping("/{courseId}")
     fun getDetail(
@@ -66,7 +67,8 @@ class CourseController(
      * - 필드 형식·범위(title·tags·places 등)는 Bean Validation([CreateCourseRequest]) → 400 VALIDATION_FAILED + fieldErrors.
      * - 교차 필드·비즈니스 규칙(발행 시 장소 1곳 이상, orderNo 중복 금지)은 [CourseUseCase] 가 검증한다 → 400 INVALID_INPUT.
      *
-     * `?mock=true` 면 DB 저장 없이 고정 목([CourseIdResponse.MOCK])을 반환한다.
+     * `?mock=true` 이고 [MockGuard] 가 모킹을 허용할 때만 DB 저장 없이 고정 목([CourseIdResponse.MOCK])을
+     * 반환하고, 그 외에는 정상 유스케이스 경로를 탄다.
      */
     @PostMapping("")
     @ResponseStatus(HttpStatus.CREATED)
@@ -85,7 +87,8 @@ class CourseController(
      * 되돌려 보내는 전체 치환 계약이다([EditCourseRequest]) — 보낸 필드로 코스·장소·태그를 덮어쓴다.
      * 소유자만 편집할 수 있고(그 외 404), 발행 전환 시 검증은 생성과 동일하게 도메인이 수행한다.
      * 응답은 courseId 만 반환하며, 프론트는 편집 후 코스 상세 API 재조회로 화면을 구성한다.
-     * `?mock=true` 면 DB 갱신 없이 고정 목([CourseIdResponse.MOCK])을 반환한다.
+     * `?mock=true` 이고 [MockGuard] 가 모킹을 허용할 때만 DB 갱신 없이 고정 목([CourseIdResponse.MOCK])을
+     * 반환하고, 그 외에는 정상 유스케이스 경로를 탄다.
      */
     @PatchMapping("/{courseId}")
     fun edit(
@@ -103,7 +106,8 @@ class CourseController(
      * 코스 삭제(소프트 삭제). 인바운드 포트([CourseUseCase])로 deleted_at 을 찍고 status 를 DELETED 로 전이한다.
      * 소유자만 삭제할 수 있고(없음·비활성·타인 소유는 존재를 드러내지 않도록 404 COURSE_NOT_FOUND), 성공 시 data 없이
      * 안내 메시지만 내려준다. 소유자 식별을 위해 `@CurrentUserId`(JWT subject)로 userId 를 받으므로 유효한 토큰이 필요하다.
-     * `?mock=true` 면 삭제 없이 고정 성공 메시지를 반환한다.
+     * `?mock=true` 이고 [MockGuard] 가 모킹을 허용할 때만 삭제 없이 고정 성공 메시지를 반환하고,
+     * 그 외에는 정상 유스케이스 경로를 탄다.
      */
     @DeleteMapping("/{courseId}")
     fun delete(

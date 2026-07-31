@@ -1,5 +1,7 @@
 package com.example.backend.course.adapter.outbound.persistence.exposed.repository
 
+import com.example.backend.common.exception.BusinessException
+import com.example.backend.common.response.ErrorCode
 import com.example.backend.course.adapter.outbound.persistence.CourseEntity
 import com.example.backend.course.adapter.outbound.persistence.CourseTable
 import com.example.backend.course.application.port.outbound.CourseDetailRow
@@ -38,24 +40,30 @@ class CourseRepository {
 
     /**
      * 코스 본문을 전체 치환으로 갱신하고 updated_at 을 명시로 새로 채운다(장소·태그 연결은 어댑터가 별도 조율).
-     * 존재·소유권은 서비스가 사전 검증하므로 여기서는 id 로 적재해 필드만 덮어쓴다.
-     * 갱신값(updated_at 등)까지 반영된 엔티티를 반환한다(insert 와 동일하게 refresh 로 확정 상태를 되읽는다).
+     * 존재·소유권은 서비스가 사전 검증하므로 여기서는 id·deleted_at IS NULL 로 원자 갱신만 한다.
+     * 갱신값(updated_at 등)까지 반영된 엔티티를 되읽어 반환한다.
      */
     internal fun update(course: Course): CourseEntity {
         val courseId = checkNotNull(course.id) { "영속화된 Course 는 id 를 가진다." }
-        val entity =
-            CourseEntity
-                .find { (CourseTable.id eq courseId) and CourseTable.deletedAt.isNull() }
-                .singleOrNull()
-                ?: error("갱신할 코스를 찾을 수 없습니다: id=$courseId")
-        entity.title = course.title
-        entity.description = course.description
-        entity.coverImageUrl = course.coverImageUrl
-        entity.category = course.category
-        entity.isPublished = course.isPublished
-        entity.visibility = course.visibility
-        entity.updatedAt = Clock.System.now()
-        return entity.also { it.refresh(flush = true) }
+        val now = Clock.System.now()
+        // deleted_at IS NULL 가드를 WHERE 에 담아 원자 갱신한다(softDelete 와 같은 이유) —
+        // 엔티티를 적재해 flush 하면 PK 만으로 UPDATE 가 나가 조회~flush 사이 동시 소프트 삭제를 덮어쓸 수 있다.
+        val affected =
+            CourseTable.update({ (CourseTable.id eq courseId) and CourseTable.deletedAt.isNull() }) {
+                it[title] = course.title
+                it[description] = course.description
+                it[coverImageUrl] = course.coverImageUrl
+                it[category] = course.category
+                it[isPublished] = course.isPublished
+                it[visibility] = course.visibility
+                it[updatedAt] = now
+            }
+        // 서비스가 존재·소유권을 사전 검증하므로 0행은 동시 소프트 삭제가 이긴 경우 — 500 대신 404 로 드러낸다.
+        if (affected == 0) {
+            throw BusinessException(ErrorCode.COURSE_NOT_FOUND, "갱신할 코스를 찾을 수 없습니다: id=$courseId")
+        }
+        // 갱신하지 않은 컬럼(created_at·카운터·area 등)까지 담아 도메인을 재구성하도록 확정 상태를 되읽는다.
+        return CourseEntity.findById(courseId) ?: error("갱신 직후 코스를 되읽지 못했습니다: id=$courseId")
     }
 
     /**

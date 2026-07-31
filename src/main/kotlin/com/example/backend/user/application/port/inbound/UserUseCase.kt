@@ -19,6 +19,15 @@ interface UserUseCase {
         viewerId: Long?,
     ): UserProfileResult
 
+    /**
+     * 여러 프로필을 한 번에 조회 — 저장함·피드 등 작성자 카드가 여럿인 목록 화면용(작성자 수만큼의 N+1 회피).
+     * 없는·삭제된 사용자는 결과에서 빠진다(단건과 달리 예외를 던지지 않음). 반환 순서는 보장하지 않는다.
+     */
+    fun getProfiles(
+        userIds: List<Long>,
+        viewerId: Long?,
+    ): List<UserProfileResult>
+
     /** 핸들(아이디) 사용 가능 여부. 예약어이거나 이미 사용 중이면 false. 회원가입 시 handle 입력 검증에 쓴다. */
     fun isHandleAvailable(handle: String): Boolean
 }

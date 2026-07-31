@@ -8,6 +8,7 @@ import com.example.backend.user.domain.model.UserStatus
 import org.jetbrains.exposed.v1.core.ResultRow
 import org.jetbrains.exposed.v1.core.and
 import org.jetbrains.exposed.v1.core.eq
+import org.jetbrains.exposed.v1.core.inList
 import org.jetbrains.exposed.v1.core.isNull
 import org.jetbrains.exposed.v1.jdbc.insert
 import org.jetbrains.exposed.v1.jdbc.selectAll
@@ -44,17 +45,15 @@ class UserPersistenceAdapter(
             .selectAll()
             .where { (UserTable.id eq userId) and UserTable.deletedAt.isNull() }
             .singleOrNull()
-            ?.let {
-                UserProfileRow(
-                    id = it[UserTable.id],
-                    nickname = it[UserTable.nickname],
-                    handle = it[UserTable.handle],
-                    profileImageUrl = it[UserTable.profileImageUrl],
-                    followersCnt = it[UserTable.followersCnt],
-                    followingsCnt = it[UserTable.followingsCnt],
-                    coursesCnt = it[UserTable.coursesCnt],
-                )
-            }
+            ?.let(::toProfileRow)
+
+    override fun findProfiles(userIds: List<Long>): List<UserProfileRow> {
+        if (userIds.isEmpty()) return emptyList()
+        return UserTable
+            .selectAll()
+            .where { (UserTable.id inList userIds) and UserTable.deletedAt.isNull() }
+            .map(::toProfileRow)
+    }
 
     override fun save(user: User): User {
         val id =
@@ -135,6 +134,17 @@ class UserPersistenceAdapter(
             socialId = socialId,
         )
     }
+
+    private fun toProfileRow(row: ResultRow): UserProfileRow =
+        UserProfileRow(
+            id = row[UserTable.id],
+            nickname = row[UserTable.nickname],
+            handle = row[UserTable.handle],
+            profileImageUrl = row[UserTable.profileImageUrl],
+            followersCnt = row[UserTable.followersCnt],
+            followingsCnt = row[UserTable.followingsCnt],
+            coursesCnt = row[UserTable.coursesCnt],
+        )
 
     private fun toDomain(row: ResultRow): User =
         User.reconstitute(

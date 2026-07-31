@@ -362,6 +362,25 @@ data class SavedCourseScreenResponse(
         ): SavedCourseScreenItemResponse {
             val course = item.course
             val walkingMinutes = course.places.sumOf { it.walkingMinutesToNext ?: 0 }
+            // 삭제·누락으로 placeById 에서 해석되지 않는 장소는 제외한 목록 — placeCount·places 를 이 하나에서 파생한다.
+            val resolvedPlaces =
+                course.places
+                    .sortedBy { it.orderNo }
+                    .mapNotNull { coursePlace ->
+                        item.placeById[coursePlace.placeId]?.let { p ->
+                            SavedCoursePlaceResponse(
+                                orderNo = coursePlace.orderNo,
+                                placeId = p.id,
+                                name = p.name,
+                                category = p.category,
+                                address = p.address,
+                                // 코스에서 이 장소에 올린 사진들(course_place_images) — 장소 자체 이미지가 아님.
+                                imageUrls = coursePlace.images.sortedBy { it.orderNo }.map { it.imageUrl },
+                                caption = coursePlace.caption,
+                                location = PlaceLocationResponse(p.latitude, p.longitude),
+                            )
+                        }
+                    }
             return SavedCourseScreenItemResponse(
                 id = item.savedId,
                 courseId = course.id,
@@ -376,7 +395,7 @@ data class SavedCourseScreenResponse(
                         coverImageUrl = course.coverImageUrl.ifBlank { null },
                         area = course.area,
                         theme = course.theme,
-                        placeCount = course.places.size,
+                        placeCount = resolvedPlaces.size,
                         durationText = durationText(walkingMinutes),
                         author =
                             CourseAuthorSummaryResponse(
@@ -385,25 +404,7 @@ data class SavedCourseScreenResponse(
                                 nickname = item.author.nickname,
                                 profileImageUrl = item.author.profileImageUrl,
                             ),
-                        places =
-                            course.places
-                                .sortedBy { it.orderNo }
-                                .mapNotNull { coursePlace ->
-                                    item.placeById[coursePlace.placeId]?.let { p ->
-                                        SavedCoursePlaceResponse(
-                                            orderNo = coursePlace.orderNo,
-                                            placeId = p.id,
-                                            name = p.name,
-                                            category = p.category,
-                                            address = p.address,
-                                            // 코스에서 이 장소에 올린 사진들(course_place_images) — 장소 자체 이미지가 아님.
-                                            imageUrls =
-                                                coursePlace.images.sortedBy { it.orderNo }.map { it.imageUrl },
-                                            caption = coursePlace.caption,
-                                            location = PlaceLocationResponse(p.latitude, p.longitude),
-                                        )
-                                    }
-                                },
+                        places = resolvedPlaces,
                     ),
             )
         }

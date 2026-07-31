@@ -56,11 +56,12 @@ class SavedCourseScreenService(
             courseInteractionUseCase
                 .getViewerStates(command.userId, recordsWithCourse.map { it.second.id })
                 .associateBy({ it.courseId }, { it.completedAt })
+        // 작성자 프로필은 한 번에 배치 조회한다(작성자 수만큼의 N+1 회피). 소프트 삭제된 작성자는 결과에서 빠지고,
+        // 그 코스는 아래 items 조립에서 제외된다(삭제·비공개 코스 제외와 같은 취급).
         val authorById =
-            recordsWithCourse
-                .map { it.second.authorId }
-                .distinct()
-                .associateWith { userUseCase.getProfile(it, command.userId) }
+            userUseCase
+                .getProfiles(recordsWithCourse.map { it.second.authorId }, command.userId)
+                .associateBy { it.id }
         val placeById =
             placeQueryUseCase
                 .findPlacesById(
@@ -71,14 +72,16 @@ class SavedCourseScreenService(
                 ).associateBy { it.id }
 
         val items =
-            recordsWithCourse.map { (record, course) ->
+            recordsWithCourse.mapNotNull { (record, course) ->
+                // 작성자 프로필을 해석하지 못한(소프트 삭제 등) 코스는 목록에서 제외한다 — 삭제·비공개 코스 제외와 같은 취급.
+                val author = authorById[course.authorId] ?: return@mapNotNull null
                 SavedCourseScreenResult.Item(
                     savedId = record.id,
                     folderId = record.folderId,
                     savedAt = record.savedAt,
                     completedAt = completedAtByCourse[course.id],
                     course = course,
-                    author = authorById.getValue(course.authorId),
+                    author = author,
                     placeById = placeById,
                 )
             }

@@ -3,6 +3,7 @@ package com.example.backend.user.adapter.outbound.persistence
 import com.example.backend.user.application.port.outbound.FollowPersistencePort
 import org.jetbrains.exposed.v1.core.and
 import org.jetbrains.exposed.v1.core.eq
+import org.jetbrains.exposed.v1.core.inList
 import org.jetbrains.exposed.v1.core.minus
 import org.jetbrains.exposed.v1.core.plus
 import org.jetbrains.exposed.v1.jdbc.deleteWhere
@@ -65,4 +66,28 @@ class FollowPersistenceAdapter : FollowPersistencePort {
                 (FollowTable.followerId eq followerId) and (FollowTable.followingId eq followingId)
             }.empty()
             .not()
+
+    override fun filterFollowing(
+        followerId: Long,
+        followingIds: List<Long>,
+    ): Set<Long> {
+        if (followingIds.isEmpty()) return emptySet()
+        return FollowTable
+            .selectAll()
+            .where {
+                (FollowTable.followerId eq followerId) and (FollowTable.followingId inList followingIds)
+            }.mapTo(mutableSetOf()) { it[FollowTable.followingId] }
+    }
+
+    override fun filterFollowers(
+        followingId: Long,
+        followerIds: List<Long>,
+    ): Set<Long> {
+        if (followerIds.isEmpty()) return emptySet()
+        return FollowTable
+            .selectAll()
+            .where {
+                (FollowTable.followingId eq followingId) and (FollowTable.followerId inList followerIds)
+            }.mapTo(mutableSetOf()) { it[FollowTable.followerId] }
+    }
 }

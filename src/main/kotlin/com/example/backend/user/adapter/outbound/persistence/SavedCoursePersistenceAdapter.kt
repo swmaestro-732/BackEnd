@@ -4,9 +4,12 @@ import com.example.backend.user.application.port.outbound.CourseFolderCountRow
 import com.example.backend.user.application.port.outbound.SavedCoursePersistencePort
 import com.example.backend.user.application.port.outbound.SavedCourseRow
 import com.example.backend.user.domain.model.SavedCourse
+import org.jetbrains.exposed.v1.core.JoinType
 import org.jetbrains.exposed.v1.core.Op
 import org.jetbrains.exposed.v1.core.SortOrder
+import org.jetbrains.exposed.v1.core.alias
 import org.jetbrains.exposed.v1.core.and
+import org.jetbrains.exposed.v1.core.count
 import org.jetbrains.exposed.v1.core.eq
 import org.jetbrains.exposed.v1.core.inSubQuery
 import org.jetbrains.exposed.v1.core.less
@@ -102,19 +105,32 @@ class SavedCoursePersistenceAdapter : SavedCoursePersistencePort {
             }
     }
 
-    override fun listFolders(userId: Long): List<CourseFolderCountRow> =
-        SavedCourseFolderTable
-            .selectAll()
-            .where { SavedCourseFolderTable.userId eq userId }
+    override fun listFolders(userId: Long): List<CourseFolderCountRow> {
+        // 폴더별 저장 개수를 폴더 수만큼의 count 쿼리(N+1) 대신 leftJoin + groupBy 한 번으로 집계한다.
+        // LEFT 조인이라 저장 코스가 없는 폴더도 남고, saved_courses.id 의 count 는 0 이 된다.
+        val savedCount = SavedCourseTable.id.count().alias("saved_count")
+        return SavedCourseFolderTable
+            .join(
+                SavedCourseTable,
+                JoinType.LEFT,
+                onColumn = SavedCourseFolderTable.id,
+                otherColumn = SavedCourseTable.folderId,
+            ).select(
+                SavedCourseFolderTable.id,
+                SavedCourseFolderTable.name,
+                SavedCourseFolderTable.orderNo,
+                savedCount,
+            ).where { SavedCourseFolderTable.userId eq userId }
+            .groupBy(SavedCourseFolderTable.id, SavedCourseFolderTable.name, SavedCourseFolderTable.orderNo)
             .orderBy(SavedCourseFolderTable.orderNo to SortOrder.ASC)
             .map { row ->
-                val folderId = row[SavedCourseFolderTable.id].value
                 CourseFolderCountRow(
-                    id = folderId,
+                    id = row[SavedCourseFolderTable.id].value,
                     name = row[SavedCourseFolderTable.name],
-                    count = count(userId, folderId, completed = null).toInt(),
+                    count = row[savedCount].toInt(),
                 )
             }
+    }
 
     /**
      * 소유자 + 폴더 + 완주 여부 필터.
