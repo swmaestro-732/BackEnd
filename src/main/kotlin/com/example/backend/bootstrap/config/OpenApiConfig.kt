@@ -5,6 +5,7 @@ import io.swagger.v3.oas.models.OpenAPI
 import io.swagger.v3.oas.models.info.Info
 import io.swagger.v3.oas.models.security.SecurityRequirement
 import io.swagger.v3.oas.models.security.SecurityScheme
+import io.swagger.v3.oas.models.servers.Server
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
 
@@ -21,6 +22,10 @@ class OpenApiConfig {
     @Bean
     fun openAPI(): OpenAPI =
         OpenAPI()
+            // CloudFront(https) → ALB/EC2(http) 뒤라 요청 스킴이 http 로 보여 Swagger 가 http 서버 URL 을
+            // 만들고 "Try it out" 이 깨진다. 상대 경로("/")로 두면 Swagger UI 가 문서를 연 브라우저
+            // origin(운영=https://api.courmy.com, 로컬=http://localhost)에 맞춰 호출한다.
+            .servers(listOf(Server().url("/")))
             .info(
                 Info()
                     .title("칠삼이 Backend API")
