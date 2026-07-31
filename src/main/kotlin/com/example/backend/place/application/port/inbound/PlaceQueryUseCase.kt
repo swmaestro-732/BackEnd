@@ -9,4 +9,7 @@ import com.example.backend.place.application.port.inbound.dto.PlaceSummary
 interface PlaceQueryUseCase {
     /** placeIds 에 해당하는 장소 요약들. 존재하지 않거나 삭제된 장소는 결과에서 빠진다. */
     fun findPlacesById(placeIds: List<Long>): List<PlaceSummary>
+
+    /** 이름에 [query] 를 포함하는 장소 요약들. 공백/빈 검색어는 빈 결과. 삭제된 장소는 빠진다. */
+    fun searchByName(query: String): List<PlaceSummary>
 }

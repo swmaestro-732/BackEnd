@@ -17,4 +17,9 @@ class PlaceQueryAdapter(
         if (placeIds.isEmpty()) return emptyList()
         return placeRepository.findByIds(placeIds)
     }
+
+    override fun searchByName(query: String): List<Place> {
+        if (query.isBlank()) return emptyList()
+        return placeRepository.searchByName(query.trim())
+    }
 }

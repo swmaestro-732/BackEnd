@@ -6,6 +6,7 @@ import com.example.backend.place.domain.model.Place
 import org.jetbrains.exposed.v1.core.and
 import org.jetbrains.exposed.v1.core.inList
 import org.jetbrains.exposed.v1.core.isNull
+import org.jetbrains.exposed.v1.core.like
 import org.springframework.stereotype.Repository
 
 /**
@@ -19,4 +20,16 @@ class PlaceRepository {
         PlaceEntity
             .find { (PlaceTable.id inList placeIds) and PlaceTable.deletedAt.isNull() }
             .map { it.toDomain() }
+
+    /**
+     * 이름 부분 일치(`name LIKE '%query%'`) + deleted_at IS NULL 로 장소를 조회한다.
+     * 사용자 입력의 LIKE 와일드카드(`%`·`_`·`\`)는 이스케이프해 리터럴로 취급한다(의도치 않은 전체 매칭 방지).
+     */
+    fun searchByName(query: String): List<Place> =
+        PlaceEntity
+            .find { (PlaceTable.name like "%${query.escapeLikeWildcards()}%") and PlaceTable.deletedAt.isNull() }
+            .map { it.toDomain() }
+
+    // Postgres LIKE 의 기본 이스케이프 문자(백슬래시)를 이용해 와일드카드를 리터럴화한다. 백슬래시를 먼저 치환해야 한다.
+    private fun String.escapeLikeWildcards(): String = replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
 }
