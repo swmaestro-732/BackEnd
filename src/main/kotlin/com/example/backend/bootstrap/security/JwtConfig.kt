@@ -48,24 +48,30 @@ class JwtConfig(
                 .build()
 
         val issuerValidator = JwtValidators.createDefaultWithIssuer(kakaoOauthProperties.issuer)
+        // aud 는 로그인 방식마다 다르다 — 웹=REST API 키(clientId), 안드로이드/iOS SDK=네이티브 앱 키.
+        // 설정된 키(빈 값 제외) 중 하나라도 aud 에 있으면 통과한다.
+        val allowedAudiences =
+            listOf(kakaoOauthProperties.clientId, kakaoOauthProperties.nativeAppKey)
+                .filter { it.isNotBlank() }
+                .toSet()
         val validator =
             DelegatingOAuth2TokenValidator(
                 issuerValidator,
-                audienceValidator(kakaoOauthProperties.clientId),
+                audienceValidator(allowedAudiences),
             )
         decoder.setJwtValidator(validator)
         return decoder
     }
 
-    private fun audienceValidator(clientId: String): OAuth2TokenValidator<Jwt> =
+    private fun audienceValidator(allowedAudiences: Set<String>): OAuth2TokenValidator<Jwt> =
         OAuth2TokenValidator { jwt ->
-            if (clientId in jwt.audience.orEmpty()) {
+            if (jwt.audience.orEmpty().any { it in allowedAudiences }) {
                 OAuth2TokenValidatorResult.success()
             } else {
                 OAuth2TokenValidatorResult.failure(
                     OAuth2Error(
                         "invalid_token",
-                        "Kakao ID token audience does not contain the configured client ID.",
+                        "Kakao ID token audience does not match a configured Kakao app key.",
                         null,
                     ),
                 )
