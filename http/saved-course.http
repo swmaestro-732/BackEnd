@@ -23,7 +23,7 @@ Content-Type: application/json
 Authorization: Bearer {{accessToken}}
 
 {
-  "courseId": 100,
+  "courseId": 1,
   "folderId": 1
 }
 

@@ -1,5 +1,6 @@
 package com.example.backend.course.adapter.inbound.web
 
+import com.example.backend.bootstrap.mock.MockGuard
 import com.example.backend.bootstrap.security.CurrentUserId
 import com.example.backend.common.response.ApiResponse
 import com.example.backend.course.adapter.inbound.web.request.CreateCourseRequest
@@ -42,6 +43,7 @@ import org.springframework.web.bind.annotation.RestController
 @RequestMapping("/api/v1/courses")
 class CourseController(
     private val courseUseCase: CourseUseCase,
+    private val mockGuard: MockGuard,
 ) {
     /**
      * 코스 상세 조회. status=ACTIVE·미삭제 코스만 반환하며 PRIVATE 은 소유자만 조회 가능(그 외 404).
@@ -53,7 +55,7 @@ class CourseController(
         @CurrentUserId viewerId: Long?,
         @RequestParam(required = false) mock: Boolean = false,
     ): ApiResponse<CourseDetailResponse> {
-        if (mock) return ApiResponse.success(CourseDetailResponse.MOCK)
+        if (mock && mockGuard.isMockAllowed()) return ApiResponse.success(CourseDetailResponse.MOCK)
         return ApiResponse.success(CourseDetailResponse.from(courseUseCase.getDetail(courseId, viewerId)))
     }
 
@@ -73,7 +75,7 @@ class CourseController(
         @Valid @RequestBody request: CreateCourseRequest,
         @RequestParam(required = false) mock: Boolean = false,
     ): ApiResponse<CourseIdResponse> {
-        if (mock) return ApiResponse.success(CourseIdResponse.MOCK)
+        if (mock && mockGuard.isMockAllowed()) return ApiResponse.success(CourseIdResponse.MOCK)
         val course = courseUseCase.create(request.toCommand(userId))
         return ApiResponse.success(CourseIdResponse(courseId = requireNotNull(course.id)))
     }
@@ -92,7 +94,7 @@ class CourseController(
         @Valid @RequestBody request: EditCourseRequest,
         @RequestParam(required = false) mock: Boolean = false,
     ): ApiResponse<CourseIdResponse> {
-        if (mock) return ApiResponse.success(CourseIdResponse.MOCK)
+        if (mock && mockGuard.isMockAllowed()) return ApiResponse.success(CourseIdResponse.MOCK)
         val course = courseUseCase.edit(request.toCommand(userId, courseId))
         return ApiResponse.success(CourseIdResponse(courseId = requireNotNull(course.id)))
     }
@@ -109,7 +111,7 @@ class CourseController(
         @PathVariable courseId: Long,
         @RequestParam(required = false) mock: Boolean = false,
     ): ApiResponse<Nothing?> {
-        if (mock) return ApiResponse.ok("코스가 삭제되었습니다.")
+        if (mock && mockGuard.isMockAllowed()) return ApiResponse.ok("코스가 삭제되었습니다.")
         courseUseCase.delete(userId, courseId)
         return ApiResponse.ok("코스가 삭제되었습니다.")
     }

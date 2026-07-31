@@ -42,7 +42,11 @@ class CourseRepository {
      */
     internal fun update(course: Course): CourseEntity {
         val courseId = checkNotNull(course.id) { "영속화된 Course 는 id 를 가진다." }
-        val entity = CourseEntity.findById(courseId) ?: error("갱신할 코스를 찾을 수 없습니다: id=$courseId")
+        val entity =
+            CourseEntity
+                .find { (CourseTable.id eq courseId) and CourseTable.deletedAt.isNull() }
+                .singleOrNull()
+                ?: error("갱신할 코스를 찾을 수 없습니다: id=$courseId")
         entity.title = course.title
         entity.description = course.description
         entity.coverImageUrl = course.coverImageUrl
