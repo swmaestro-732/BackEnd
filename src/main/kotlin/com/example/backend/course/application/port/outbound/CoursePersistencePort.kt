@@ -4,7 +4,6 @@ import com.example.backend.course.domain.model.Course
 import com.example.backend.course.domain.model.CourseCategory
 import com.example.backend.course.domain.model.CourseStatus
 import com.example.backend.course.domain.model.CourseVisibility
-import java.time.Instant
 
 /** 코스 단건 읽기 모델. deleted_at IS NULL 인 행만 반환한다(상태·공개범위 판정은 서비스가 수행). */
 data class CourseDetailRow(
@@ -20,23 +19,6 @@ data class CourseDetailRow(
     val visibility: CourseVisibility,
     /** 발행 여부(true=게시, false=임시저장). 게시 코스 편집 시 장소 구성 변경 금지 판정에 쓰인다. */
     val isPublished: Boolean,
-)
-
-/**
- * 코스 요약 읽기 모델 — 작성자별 코스 목록 등에 쓰는 범용 요약(화면 전용 아님).
- * deleted_at IS NULL·발행·ACTIVE 인 행만 반환하며, 공개범위(visibility) 판정은 서비스가 수행한다.
- */
-data class CourseSummaryRow(
-    val id: Long,
-    val userId: Long,
-    val title: String,
-    val coverImageUrl: String?,
-    val category: CourseCategory?,
-    val visibility: CourseVisibility,
-    val isPublished: Boolean,
-    val likesCnt: Int,
-    val savesCnt: Int,
-    val createdAt: Instant,
 )
 
 /** 코스에 담긴 장소 읽기 모델(장소별 이미지 포함, orderNo 오름차순). */
@@ -61,12 +43,6 @@ data class CoursePlaceImageRow(
  */
 interface CoursePersistencePort {
     fun findCourseDetail(courseId: Long): CourseDetailRow?
-
-    /**
-     * 작성자의 발행 코스 요약 목록 — isPublished=true·status=ACTIVE·deleted_at IS NULL, createdAt 내림차순.
-     * 공개범위(visibility) 필터는 서비스가 조회자 기준으로 수행한다.
-     */
-    fun findPublishedByAuthor(authorId: Long): List<CourseSummaryRow>
 
     /** 미삭제(deleted_at IS NULL) 코스가 존재하는지 확인한다(fork 원본 검증 등). */
     fun existsById(courseId: Long): Boolean

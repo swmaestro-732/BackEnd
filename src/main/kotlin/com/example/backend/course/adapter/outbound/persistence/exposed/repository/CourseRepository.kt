@@ -3,10 +3,8 @@ package com.example.backend.course.adapter.outbound.persistence.exposed.reposito
 import com.example.backend.course.adapter.outbound.persistence.CourseEntity
 import com.example.backend.course.adapter.outbound.persistence.CourseTable
 import com.example.backend.course.application.port.outbound.CourseDetailRow
-import com.example.backend.course.application.port.outbound.CourseSummaryRow
 import com.example.backend.course.domain.model.Course
 import com.example.backend.course.domain.model.CourseStatus
-import org.jetbrains.exposed.v1.core.SortOrder
 import org.jetbrains.exposed.v1.core.and
 import org.jetbrains.exposed.v1.core.eq
 import org.jetbrains.exposed.v1.core.isNull
@@ -14,7 +12,6 @@ import org.jetbrains.exposed.v1.jdbc.selectAll
 import org.jetbrains.exposed.v1.jdbc.update
 import org.springframework.stereotype.Repository
 import kotlin.time.Clock
-import kotlin.time.toJavaInstant
 
 /**
  * courses 테이블 접근 리포지토리 — 코스 본문의 조회·삽입만 담당한다.
@@ -96,31 +93,6 @@ class CourseRepository {
                     status = it[CourseTable.status],
                     visibility = it[CourseTable.visibility],
                     isPublished = it[CourseTable.isPublished],
-                )
-            }
-
-    /** 작성자의 발행·활성 코스 요약을 createdAt 내림차순으로 읽는다(공개범위 필터는 서비스). */
-    fun findPublishedByAuthor(authorId: Long): List<CourseSummaryRow> =
-        CourseTable
-            .selectAll()
-            .where {
-                (CourseTable.userId eq authorId) and
-                    (CourseTable.isPublished eq true) and
-                    (CourseTable.status eq CourseStatus.ACTIVE) and
-                    CourseTable.deletedAt.isNull()
-            }.orderBy(CourseTable.createdAt to SortOrder.DESC)
-            .map {
-                CourseSummaryRow(
-                    id = it[CourseTable.id].value,
-                    userId = it[CourseTable.userId],
-                    title = it[CourseTable.title],
-                    coverImageUrl = it[CourseTable.coverImageUrl],
-                    category = it[CourseTable.category],
-                    visibility = it[CourseTable.visibility],
-                    isPublished = it[CourseTable.isPublished],
-                    likesCnt = it[CourseTable.likesCnt],
-                    savesCnt = it[CourseTable.savesCnt],
-                    createdAt = it[CourseTable.createdAt].toJavaInstant(),
                 )
             }
 }

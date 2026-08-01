@@ -1,6 +1,6 @@
 package com.example.backend.mobile.user.adapter.inbound.web.response
 
-import com.example.backend.course.application.port.inbound.dto.CourseSummary
+import com.example.backend.mobile.user.application.port.inbound.dto.MyPageCourseInfo
 import com.example.backend.mobile.user.application.port.inbound.dto.MyPageResult
 import com.example.backend.user.application.port.inbound.dto.UserProfileResult
 import java.time.Instant
@@ -80,7 +80,7 @@ data class MyPageProfileResponse(
     }
 }
 
-/** 마이페이지 코스 카드 — 작성자의 발행 코스 요약([CourseSummary]). theme 은 카테고리 이름. */
+/** 마이페이지 코스 카드 — 작성자의 코스 요약([MyPageCourseInfo]). theme 은 카테고리 이름. */
 data class MyPageCourseResponse(
     val id: String,
     val title: String,
@@ -91,15 +91,15 @@ data class MyPageCourseResponse(
     val createdAt: Instant,
 ) {
     companion object {
-        fun from(summary: CourseSummary): MyPageCourseResponse =
+        fun from(course: MyPageCourseInfo): MyPageCourseResponse =
             MyPageCourseResponse(
-                id = summary.id.toString(),
-                title = summary.title,
-                coverImageUrl = summary.coverImageUrl,
-                theme = summary.theme,
-                likesCnt = summary.likesCnt,
-                savesCnt = summary.savesCnt,
-                createdAt = summary.createdAt,
+                id = course.id.toString(),
+                title = course.title,
+                coverImageUrl = course.coverImageUrl,
+                theme = course.theme,
+                likesCnt = course.likesCnt,
+                savesCnt = course.savesCnt,
+                createdAt = course.createdAt,
             )
     }
 }

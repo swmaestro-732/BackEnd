@@ -2,12 +2,10 @@ package com.example.backend.course.application.service
 
 import com.example.backend.common.exception.BusinessException
 import com.example.backend.common.response.ErrorCode
-import com.example.backend.course.application.port.inbound.CourseQueryUseCase
 import com.example.backend.course.application.port.inbound.CourseUseCase
 import com.example.backend.course.application.port.inbound.dto.CourseDetailResult
 import com.example.backend.course.application.port.inbound.dto.CoursePlaceImageResult
 import com.example.backend.course.application.port.inbound.dto.CoursePlaceResult
-import com.example.backend.course.application.port.inbound.dto.CourseSummary
 import com.example.backend.course.application.port.inbound.dto.CreateCourseCommand
 import com.example.backend.course.application.port.inbound.dto.EditCourseCommand
 import com.example.backend.course.application.port.outbound.CourseDetailRow
@@ -40,8 +38,7 @@ class CourseService(
     private val coursePersistencePort: CoursePersistencePort,
     private val placeQueryUseCase: PlaceQueryUseCase,
     private val courseInteractionUseCase: CourseInteractionUseCase,
-) : CourseUseCase,
-    CourseQueryUseCase {
+) : CourseUseCase {
     override fun getDetail(
         courseId: Long,
         viewerId: Long?,
@@ -85,30 +82,6 @@ class CourseService(
             hasStartedCourse = viewer?.hasStartedCourse ?: false,
         )
     }
-
-    /**
-     * 작성자의 발행 코스 요약 목록 — 조회자(viewerId) 기준 공개범위(isViewable) 통과분만 내려준다.
-     * 본인 조회(viewerId==authorId)면 발행 코스 전체가 통과한다.
-     */
-    override fun listByAuthor(
-        authorId: Long,
-        viewerId: Long?,
-    ): List<CourseSummary> =
-        coursePersistencePort
-            .findPublishedByAuthor(authorId)
-            .filter { isViewable(it.visibility, ownerId = it.userId, viewerId = viewerId) }
-            .map {
-                CourseSummary(
-                    id = it.id,
-                    authorId = it.userId,
-                    title = it.title,
-                    coverImageUrl = it.coverImageUrl,
-                    theme = it.category?.name,
-                    likesCnt = it.likesCnt,
-                    savesCnt = it.savesCnt,
-                    createdAt = it.createdAt,
-                )
-            }
 
     private fun isViewable(
         visibility: CourseVisibility,
