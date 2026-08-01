@@ -27,7 +27,8 @@ import org.springframework.web.bind.annotation.RestController
  * 인바운드 어댑터 — users 리소스(user 도메인). Request → Command, Result → Response 로 매핑한다.
  *
  * 현재 사용자("나")는 JWT 로 식별되므로 식별자 없는 컬렉션 경로(`/api/v1/users`)에 둔다:
- * 내 프로필 `GET`·`PATCH`, 회원 탈퇴 `DELETE`, 팔로우 `POST`·`DELETE /{userId}/followers`(대상 팔로워 컬렉션에 나를 추가·제거).
+ * 내 프로필 수정 `PATCH`, 회원 탈퇴 `DELETE`, 팔로우 `POST`·`DELETE /followers/{userId}`(대상의 팔로워로 나를 추가·제거).
+ * (내 프로필 단독 조회는 마이페이지 `GET /service/v1/mypage` 로 대체 — 중복 제거.)
  * 다른 사용자 조회는 `GET /{userId}`, 핸들 가용성은 `GET /availability`(공개).
  * "나" 기준 핸들러에만 [AccessTokenRequired] 로 access 토큰 인증을 강제한다(그 외는 공개).
  * 시드 데이터가 없는 개발 환경에서는 `?mock=true` 폴백을 제공한다.
@@ -39,16 +40,7 @@ class UserController(
     private val accountUseCase: AccountUseCase,
     private val mockGuard: MockGuard,
 ) {
-    /** 내 프로필 조회. `GET /api/v1/users` (대상은 JWT 의 나). */
-    @GetMapping
-    @AccessTokenRequired
-    fun getMyProfile(
-        @CurrentUserId userId: Long,
-        @RequestParam(required = false) mock: Boolean = false,
-    ): ApiResponse<AccountProfileResponse> {
-        if (mock && mockGuard.isMockAllowed()) return ApiResponse.success(AccountProfileResponse.mock())
-        return ApiResponse.success(AccountProfileResponse.from(accountUseCase.getProfile(userId)))
-    }
+    // 내 프로필 단독 조회는 제거 — 마이페이지(GET /service/v1/mypage)가 프로필을 포함하므로 중복.
 
     /** 내 프로필 수정. 넘어온 필드만 반영한 결과를 내려준다. `PATCH /api/v1/users`. */
     @PatchMapping
@@ -107,8 +99,8 @@ class UserController(
         return ApiResponse.ok()
     }
 
-    /** 대상 사용자의 팔로워 컬렉션에 "나"를 추가(=팔로우, idempotent). 대상의 팔로워 수를 내려준다. */
-    @PostMapping("/{userId}/followers")
+    /** 대상 사용자의 팔로워로 "나"를 추가(=팔로우, idempotent). 대상의 팔로워 수를 내려준다. */
+    @PostMapping("/followers/{userId}")
     @AccessTokenRequired
     fun follow(
         @CurrentUserId followerId: Long,
@@ -119,8 +111,8 @@ class UserController(
         return ApiResponse.success(FollowResponse.from(accountUseCase.follow(followerId, targetId)))
     }
 
-    /** 대상 사용자의 팔로워 컬렉션에서 "나"를 제거(=언팔로우). */
-    @DeleteMapping("/{userId}/followers")
+    /** 대상 사용자의 팔로워에서 "나"를 제거(=언팔로우). */
+    @DeleteMapping("/followers/{userId}")
     @AccessTokenRequired
     fun unfollow(
         @CurrentUserId followerId: Long,

@@ -32,52 +32,13 @@ class MyControllerTest
         private val mockMvc: MockMvc,
         private val jwtTokenProvider: JwtTokenProvider,
     ) : IntegrationTestBase() {
-        @Test
-        fun `내 프로필 조회는 실제 사용자의 프로필을 내려준다`() {
-            mockMvc
-                .perform(
-                    get("/api/v1/users")
-                        .header(HttpHeaders.AUTHORIZATION, "Bearer ${tokenFor(ME_ID)}"),
-                ).andExpect(status().isOk)
-                .andExpect(jsonPath("$.code").value(2000))
-                .andExpect(jsonPath("$.data.id").value(ME_ID))
-                .andExpect(jsonPath("$.data.nickname").value("나테스트"))
-                .andExpect(jsonPath("$.data.handle").value("me_handle"))
-                .andExpect(jsonPath("$.data.followersCnt").isNumber)
-                .andExpect(jsonPath("$.data.followingsCnt").isNumber)
-                .andExpect(jsonPath("$.data.coursesCnt").isNumber)
-        }
+        // 내 프로필 단독 조회는 마이페이지(GET /service/v1/mypage)로 대체돼 제거됨 — 관련 테스트 삭제.
 
         @Test
-        fun `내 프로필 조회는 토큰이 없으면 401을 내려준다`() {
+        fun `현재 사용자 전용 엔드포인트는 토큰이 없으면 401을 내려준다`() {
             mockMvc
-                .perform(get("/api/v1/users"))
+                .perform(post("/api/v1/users/followers/$TARGET_ID"))
                 .andExpect(status().isUnauthorized)
-        }
-
-        @Test
-        fun `내 프로필 조회 mock 폴백은 목 프로필을 내려준다`() {
-            mockMvc
-                .perform(
-                    get("/api/v1/users")
-                        .param("mock", "true")
-                        .header(HttpHeaders.AUTHORIZATION, "Bearer ${tokenFor(ME_ID)}"),
-                ).andExpect(status().isOk)
-                .andExpect(jsonPath("$.code").value(2000))
-                .andExpect(jsonPath("$.data.id").value(1))
-                .andExpect(jsonPath("$.data.nickname").value("현우님"))
-                .andExpect(jsonPath("$.data.handle").value("@hyunwoo"))
-        }
-
-        @Test
-        fun `내 프로필 조회 mockError로 4040을 주입한다`() {
-            mockMvc
-                .perform(
-                    get("/api/v1/users")
-                        .param("mockError", "4040")
-                        .header(HttpHeaders.AUTHORIZATION, "Bearer ${tokenFor(ME_ID)}"),
-                ).andExpect(status().isNotFound)
-                .andExpect(jsonPath("$.code").value(4040))
         }
 
         @Test
@@ -193,7 +154,7 @@ class MyControllerTest
             repeat(2) {
                 mockMvc
                     .perform(
-                        post("/api/v1/users/$TARGET_ID/followers")
+                        post("/api/v1/users/followers/$TARGET_ID")
                             .header(HttpHeaders.AUTHORIZATION, "Bearer ${tokenFor(ME_ID)}"),
                     ).andExpect(status().isOk)
                     .andExpect(jsonPath("$.code").value(2000))
@@ -206,7 +167,7 @@ class MyControllerTest
         fun `팔로우 mock 폴백은 DB 사용자 없이도 목 응답을 내려준다`() {
             mockMvc
                 .perform(
-                    post("/api/v1/users/998/followers")
+                    post("/api/v1/users/followers/998")
                         .param("mock", "true")
                         .header(HttpHeaders.AUTHORIZATION, "Bearer ${tokenFor(999)}"),
                 ).andExpect(status().isOk)
@@ -219,7 +180,7 @@ class MyControllerTest
         fun `팔로우 mockError로 4040을 주입한다`() {
             mockMvc
                 .perform(
-                    post("/api/v1/users/$TARGET_ID/followers")
+                    post("/api/v1/users/followers/$TARGET_ID")
                         .param("mockError", "4040")
                         .header(HttpHeaders.AUTHORIZATION, "Bearer ${tokenFor(ME_ID)}"),
                 ).andExpect(status().isNotFound)
@@ -230,14 +191,14 @@ class MyControllerTest
         fun `팔로우한 사용자를 언팔로우하면 팔로워 수를 줄인다`() {
             mockMvc
                 .perform(
-                    post("/api/v1/users/$TARGET_ID/followers")
+                    post("/api/v1/users/followers/$TARGET_ID")
                         .header(HttpHeaders.AUTHORIZATION, "Bearer ${tokenFor(ME_ID)}"),
                 ).andExpect(status().isOk)
                 .andExpect(jsonPath("$.data.followersCnt").value(1))
 
             mockMvc
                 .perform(
-                    delete("/api/v1/users/$TARGET_ID/followers")
+                    delete("/api/v1/users/followers/$TARGET_ID")
                         .header(HttpHeaders.AUTHORIZATION, "Bearer ${tokenFor(ME_ID)}"),
                 ).andExpect(status().isOk)
                 .andExpect(jsonPath("$.code").value(2000))
@@ -249,7 +210,7 @@ class MyControllerTest
         fun `언팔로우 mock 폴백은 DB 사용자 없이도 목 응답을 내려준다`() {
             mockMvc
                 .perform(
-                    delete("/api/v1/users/998/followers")
+                    delete("/api/v1/users/followers/998")
                         .param("mock", "true")
                         .header(HttpHeaders.AUTHORIZATION, "Bearer ${tokenFor(999)}"),
                 ).andExpect(status().isOk)
@@ -262,7 +223,7 @@ class MyControllerTest
         fun `언팔로우 mockError로 4040을 주입한다`() {
             mockMvc
                 .perform(
-                    delete("/api/v1/users/$TARGET_ID/followers")
+                    delete("/api/v1/users/followers/$TARGET_ID")
                         .param("mockError", "4040")
                         .header(HttpHeaders.AUTHORIZATION, "Bearer ${tokenFor(ME_ID)}"),
                 ).andExpect(status().isNotFound)
@@ -273,7 +234,7 @@ class MyControllerTest
         fun `자기 자신을 팔로우하면 4001을 내려준다`() {
             mockMvc
                 .perform(
-                    post("/api/v1/users/$ME_ID/followers")
+                    post("/api/v1/users/followers/$ME_ID")
                         .header(HttpHeaders.AUTHORIZATION, "Bearer ${tokenFor(ME_ID)}"),
                 ).andExpect(status().isBadRequest)
                 .andExpect(jsonPath("$.code").value(4001))
@@ -283,7 +244,7 @@ class MyControllerTest
         fun `없는 사용자를 팔로우하면 4042를 내려준다`() {
             mockMvc
                 .perform(
-                    post("/api/v1/users/999/followers")
+                    post("/api/v1/users/followers/999")
                         .header(HttpHeaders.AUTHORIZATION, "Bearer ${tokenFor(ME_ID)}"),
                 ).andExpect(status().isNotFound)
                 .andExpect(jsonPath("$.code").value(4042))
@@ -303,7 +264,7 @@ class MyControllerTest
 
             mockMvc
                 .perform(
-                    get("/api/v1/users")
+                    get("/service/v1/mypage")
                         .header(HttpHeaders.AUTHORIZATION, "Bearer $accessToken"),
                 ).andExpect(status().isNotFound)
                 .andExpect(jsonPath("$.code").value(4042))
@@ -323,11 +284,11 @@ class MyControllerTest
 
             mockMvc
                 .perform(
-                    get("/api/v1/users")
+                    get("/service/v1/mypage")
                         .header(HttpHeaders.AUTHORIZATION, "Bearer $accessToken"),
                 ).andExpect(status().isOk)
                 .andExpect(jsonPath("$.code").value(2000))
-                .andExpect(jsonPath("$.data.id").value(ME_ID))
+                .andExpect(jsonPath("$.data.profile.id").value(ME_ID))
         }
 
         @Test
