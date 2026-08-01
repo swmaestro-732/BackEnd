@@ -1,21 +1,24 @@
 package com.example.backend.user.adapter.outbound.persistence
 
+import com.example.backend.user.adapter.outbound.persistence.exposed.repository.SavedCourseRepository
 import com.example.backend.user.application.port.outbound.CourseInteractionPort
 import org.jetbrains.exposed.v1.core.and
 import org.jetbrains.exposed.v1.core.eq
 import org.jetbrains.exposed.v1.core.inList
-import org.jetbrains.exposed.v1.core.isNull
 import org.jetbrains.exposed.v1.jdbc.select
-import org.springframework.stereotype.Repository
+import org.springframework.stereotype.Component
 import java.time.Instant
 import kotlin.time.toJavaInstant
 
 /**
- * 아웃바운드 어댑터 — [CourseInteractionPort] 를 Exposed 로 구현한다.
- * saved_courses·tracing_courses 를 (user_id, course_id) 기준으로 배치 조회한다.
+ * 아웃바운드 어댑터 — [CourseInteractionPort] 를 구현한다.
+ * 완주 시각은 tracing_courses 를 직접 조회하고, 저장 여부는 [SavedCourseRepository] 에 위임해
+ * (user_id, course_id) 기준으로 배치 조회한다.
  */
-@Repository
-class CourseInteractionAdapter : CourseInteractionPort {
+@Component
+class CourseInteractionAdapter(
+    private val savedCourseRepository: SavedCourseRepository,
+) : CourseInteractionPort {
     override fun findCompletedAt(
         userId: Long,
         courseIds: List<Long>,
@@ -33,14 +36,5 @@ class CourseInteractionAdapter : CourseInteractionPort {
     override fun findSavedCourseIds(
         userId: Long,
         courseIds: List<Long>,
-    ): Set<Long> {
-        if (courseIds.isEmpty()) return emptySet()
-        return SavedCourseTable
-            .select(SavedCourseTable.courseId)
-            .where {
-                (SavedCourseTable.userId eq userId) and
-                    (SavedCourseTable.courseId inList courseIds) and
-                    SavedCourseTable.deletedAt.isNull()
-            }.mapTo(mutableSetOf()) { it[SavedCourseTable.courseId] }
-    }
+    ): Set<Long> = savedCourseRepository.findSavedCourseIds(userId, courseIds)
 }
