@@ -3,6 +3,7 @@ package com.example.backend.user.adapter.outbound.persistence
 import com.example.backend.user.adapter.outbound.persistence.exposed.repository.FollowRepository
 import com.example.backend.user.adapter.outbound.persistence.exposed.repository.UserRepository
 import com.example.backend.user.application.port.outbound.FollowPersistencePort
+import com.example.backend.user.application.port.outbound.FollowUserRow
 import org.springframework.stereotype.Component
 
 /**
@@ -53,4 +54,16 @@ class FollowPersistenceAdapter(
         followingId: Long,
         followerIds: List<Long>,
     ): Set<Long> = followRepository.filterFollowers(followingId, followerIds)
+
+    override fun findFollowers(
+        targetUserId: Long,
+        cursorId: Long?,
+        limit: Int,
+    ): List<FollowUserRow> = followRepository.findFollowers(targetUserId, cursorId, limit)
+
+    override fun findFollowings(
+        targetUserId: Long,
+        cursorId: Long?,
+        limit: Int,
+    ): List<FollowUserRow> = followRepository.findFollowings(targetUserId, cursorId, limit)
 }

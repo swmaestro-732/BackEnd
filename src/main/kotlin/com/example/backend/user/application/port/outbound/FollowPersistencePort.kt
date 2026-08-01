@@ -1,5 +1,15 @@
 package com.example.backend.user.application.port.outbound
 
+/** 팔로워/팔로잉 목록 항목용 읽기 모델 — follows 레코드 id(커서용) + 사용자 요약. */
+data class FollowUserRow(
+    // follows 레코드 id — 커서 페이지네이션 기준(사용자 id 아님).
+    val followId: Long,
+    val userId: Long,
+    val nickname: String,
+    val handle: String?,
+    val profileImageUrl: String?,
+)
+
 interface FollowPersistencePort {
     /** 팔로우(멱등). 실제로 새로 생성됐으면 true. */
     fun follow(
@@ -29,4 +39,18 @@ interface FollowPersistencePort {
         followingId: Long,
         followerIds: List<Long>,
     ): Set<Long>
+
+    /** targetUserId 를 팔로우하는 사용자(팔로워) 목록을 follows.id 내림차순으로 커서 페이지 조회한다. */
+    fun findFollowers(
+        targetUserId: Long,
+        cursorId: Long?,
+        limit: Int,
+    ): List<FollowUserRow>
+
+    /** targetUserId 가 팔로우하는 사용자(팔로잉) 목록을 follows.id 내림차순으로 커서 페이지 조회한다. */
+    fun findFollowings(
+        targetUserId: Long,
+        cursorId: Long?,
+        limit: Int,
+    ): List<FollowUserRow>
 }

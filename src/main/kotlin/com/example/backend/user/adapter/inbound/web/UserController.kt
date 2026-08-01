@@ -1,13 +1,19 @@
 package com.example.backend.user.adapter.inbound.web
 
+import com.example.backend.bootstrap.mock.MockGuard
 import com.example.backend.bootstrap.security.CurrentUserId
 import com.example.backend.common.response.ApiResponse
 import com.example.backend.user.adapter.inbound.web.request.CreateUserRequest
 import com.example.backend.user.adapter.inbound.web.response.AvailabilityResponse
+import com.example.backend.user.adapter.inbound.web.response.FollowListResponse
 import com.example.backend.user.adapter.inbound.web.response.UserProfileResponse
 import com.example.backend.user.adapter.inbound.web.response.UserResponse
+import com.example.backend.user.application.port.inbound.FollowQueryUseCase
 import com.example.backend.user.application.port.inbound.UserUseCase
+import com.example.backend.user.application.port.inbound.dto.FollowListCommand
 import jakarta.validation.Valid
+import jakarta.validation.constraints.Max
+import jakarta.validation.constraints.Min
 import jakarta.validation.constraints.NotBlank
 import org.springframework.http.HttpStatus
 import org.springframework.web.bind.annotation.GetMapping
@@ -27,6 +33,8 @@ import org.springframework.web.bind.annotation.RestController
 @RequestMapping("/api/v1/users")
 class UserController(
     private val userUseCase: UserUseCase,
+    private val followQueryUseCase: FollowQueryUseCase,
+    private val mockGuard: MockGuard,
 ) {
     @GetMapping
     fun list(): ApiResponse<List<UserResponse>> = ApiResponse.success(userUseCase.list().map(UserResponse::from))
@@ -47,6 +55,40 @@ class UserController(
         @RequestParam @NotBlank handle: String,
     ): ApiResponse<AvailabilityResponse> =
         ApiResponse.success(AvailabilityResponse(available = userUseCase.isHandleAvailable(handle)))
+
+    @GetMapping("/{userId}/followers")
+    fun followers(
+        @PathVariable userId: Long,
+        @CurrentUserId viewerId: Long?,
+        @RequestParam(required = false) cursor: String?,
+        @RequestParam(required = false) @Min(1) @Max(50) size: Int = 10,
+        @RequestParam(required = false) mock: Boolean = false,
+    ): ApiResponse<FollowListResponse> {
+        if (mock && mockGuard.isMockAllowed()) return ApiResponse.success(FollowListResponse.mock())
+
+        return ApiResponse.success(
+            FollowListResponse.from(
+                followQueryUseCase.getFollowers(FollowListCommand(userId, viewerId, cursor, size)),
+            ),
+        )
+    }
+
+    @GetMapping("/{userId}/followings")
+    fun followings(
+        @PathVariable userId: Long,
+        @CurrentUserId viewerId: Long?,
+        @RequestParam(required = false) cursor: String?,
+        @RequestParam(required = false) @Min(1) @Max(50) size: Int = 10,
+        @RequestParam(required = false) mock: Boolean = false,
+    ): ApiResponse<FollowListResponse> {
+        if (mock && mockGuard.isMockAllowed()) return ApiResponse.success(FollowListResponse.mock())
+
+        return ApiResponse.success(
+            FollowListResponse.from(
+                followQueryUseCase.getFollowings(FollowListCommand(userId, viewerId, cursor, size)),
+            ),
+        )
+    }
 
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
