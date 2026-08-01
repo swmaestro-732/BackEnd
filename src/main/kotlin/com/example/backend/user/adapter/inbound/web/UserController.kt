@@ -17,7 +17,7 @@ import org.springframework.web.bind.annotation.DeleteMapping
 import org.springframework.web.bind.annotation.GetMapping
 import org.springframework.web.bind.annotation.PatchMapping
 import org.springframework.web.bind.annotation.PathVariable
-import org.springframework.web.bind.annotation.PostMapping
+import org.springframework.web.bind.annotation.PutMapping
 import org.springframework.web.bind.annotation.RequestBody
 import org.springframework.web.bind.annotation.RequestMapping
 import org.springframework.web.bind.annotation.RequestParam
@@ -27,7 +27,7 @@ import org.springframework.web.bind.annotation.RestController
  * 인바운드 어댑터 — users 리소스(user 도메인). Request → Command, Result → Response 로 매핑한다.
  *
  * 현재 사용자("나")는 JWT 로 식별되므로 식별자 없는 컬렉션 경로(`/api/v1/users`)에 둔다:
- * 내 프로필 수정 `PATCH`, 회원 탈퇴 `DELETE`, 팔로우 `POST`·`DELETE /followers/{userId}`(대상의 팔로워로 나를 추가·제거).
+ * 내 프로필 수정 `PATCH`, 회원 탈퇴 `DELETE`, 팔로우 `PUT`·`DELETE /followers/{userId}`(대상의 팔로워로 나를 추가·제거).
  * (내 프로필 단독 조회는 마이페이지 `GET /service/v1/mypage` 로 대체 — 중복 제거.)
  * 다른 사용자 조회는 `GET /{userId}`, 핸들 가용성은 `GET /availability`(공개).
  * "나" 기준 핸들러에만 [AccessTokenRequired] 로 access 토큰 인증을 강제한다(그 외는 공개).
@@ -99,8 +99,8 @@ class UserController(
         return ApiResponse.ok()
     }
 
-    /** 대상 사용자의 팔로워로 "나"를 추가(=팔로우, idempotent). 대상의 팔로워 수를 내려준다. */
-    @PostMapping("/followers/{userId}")
+    /** 대상 사용자의 팔로워로 "나"를 추가(=팔로우, 멱등이라 PUT). 대상의 팔로워 수를 내려준다. */
+    @PutMapping("/followers/{userId}")
     @AccessTokenRequired
     fun follow(
         @CurrentUserId followerId: Long,
