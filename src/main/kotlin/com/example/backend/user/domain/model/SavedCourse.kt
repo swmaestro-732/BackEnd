@@ -12,4 +12,5 @@ data class SavedCourse(
     val courseId: Long,
     val folderId: Long?,
     val savedAt: Instant,
+    val deletedAt: Instant? = null, // 소프트 삭제 시각, 살아있으면 null
 )

@@ -11,5 +11,6 @@ internal object SavedPlaceTable : Table("saved_places") {
     val category = enumerationByName<SavedPlaceCategory>("category", 50).nullable()
     val visited = bool("visited")
     val createdAt = timestamp("created_at")
+    val deletedAt = timestamp("deleted_at").nullable() // 소프트 삭제 스탬프, NULL = 살아있음
     override val primaryKey = PrimaryKey(id)
 }

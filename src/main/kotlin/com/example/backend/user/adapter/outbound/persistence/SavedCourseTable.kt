@@ -16,6 +16,7 @@ internal object SavedCourseTable : LongIdTable("saved_courses") {
     val folderId = long("folder_id").nullable() // NULL = 폴더 미분류
     val courseId = long("course_id") // cross-domain(course): FK 없음
     val createdAt = timestamp("created_at").clientDefault { Clock.System.now() }
+    val deletedAt = timestamp("deleted_at").nullable() // 소프트 삭제 스탬프, NULL = 살아있음
 }
 
 /**
@@ -31,6 +32,7 @@ internal class SavedCourseEntity(
     var folderId by SavedCourseTable.folderId
     var courseId by SavedCourseTable.courseId
     var createdAt by SavedCourseTable.createdAt
+    var deletedAt by SavedCourseTable.deletedAt
 
     /** DAO 엔티티를 도메인 [SavedCourse] 로 변환한다(생성된 id·created_at 은 insert 후 refresh 로 적재된 뒤라야 정확하다). */
     fun toDomain(): SavedCourse =
@@ -40,5 +42,6 @@ internal class SavedCourseEntity(
             courseId = courseId,
             folderId = folderId,
             savedAt = createdAt.toJavaInstant(),
+            deletedAt = deletedAt?.toJavaInstant(),
         )
 }

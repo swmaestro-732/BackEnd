@@ -4,6 +4,7 @@ import com.example.backend.user.application.port.outbound.CourseInteractionPort
 import org.jetbrains.exposed.v1.core.and
 import org.jetbrains.exposed.v1.core.eq
 import org.jetbrains.exposed.v1.core.inList
+import org.jetbrains.exposed.v1.core.isNull
 import org.jetbrains.exposed.v1.jdbc.select
 import org.springframework.stereotype.Repository
 import java.time.Instant
@@ -36,7 +37,10 @@ class CourseInteractionAdapter : CourseInteractionPort {
         if (courseIds.isEmpty()) return emptySet()
         return SavedCourseTable
             .select(SavedCourseTable.courseId)
-            .where { (SavedCourseTable.userId eq userId) and (SavedCourseTable.courseId inList courseIds) }
-            .mapTo(mutableSetOf()) { it[SavedCourseTable.courseId] }
+            .where {
+                (SavedCourseTable.userId eq userId) and
+                    (SavedCourseTable.courseId inList courseIds) and
+                    SavedCourseTable.deletedAt.isNull()
+            }.mapTo(mutableSetOf()) { it[SavedCourseTable.courseId] }
     }
 }

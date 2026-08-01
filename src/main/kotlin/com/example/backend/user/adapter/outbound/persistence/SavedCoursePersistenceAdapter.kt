@@ -12,12 +12,14 @@ import org.jetbrains.exposed.v1.core.and
 import org.jetbrains.exposed.v1.core.count
 import org.jetbrains.exposed.v1.core.eq
 import org.jetbrains.exposed.v1.core.inSubQuery
+import org.jetbrains.exposed.v1.core.isNull
 import org.jetbrains.exposed.v1.core.less
 import org.jetbrains.exposed.v1.core.notInSubQuery
-import org.jetbrains.exposed.v1.jdbc.deleteWhere
 import org.jetbrains.exposed.v1.jdbc.select
 import org.jetbrains.exposed.v1.jdbc.selectAll
+import org.jetbrains.exposed.v1.jdbc.update
 import org.springframework.stereotype.Repository
+import kotlin.time.Clock
 import kotlin.time.toJavaInstant
 
 /**
@@ -43,8 +45,11 @@ class SavedCoursePersistenceAdapter : SavedCoursePersistencePort {
     ): Boolean =
         SavedCourseTable
             .selectAll()
-            .where { (SavedCourseTable.userId eq userId) and (SavedCourseTable.courseId eq courseId) }
-            .limit(1)
+            .where {
+                (SavedCourseTable.userId eq userId) and
+                    (SavedCourseTable.courseId eq courseId) and
+                    SavedCourseTable.deletedAt.isNull()
+            }.limit(1)
             .empty()
             .not()
 
@@ -62,12 +67,21 @@ class SavedCoursePersistenceAdapter : SavedCoursePersistencePort {
             }.also { it.refresh(flush = true) }
             .toDomain()
 
+    /**
+     * 소프트 삭제 — 살아있는(deleted_at IS NULL) 행에만 삭제 스탬프를 찍는다.
+     * WHERE 의 deleted_at IS NULL 가드 덕에 동시 이중 삭제가 와도 두 번째 호출은 0행이라 안전하다.
+     * 이후 같은 코스 재저장은 partial 유니크 인덱스(deleted_at IS NULL) 덕에 새 행으로 허용된다.
+     */
     override fun deleteByUserAndCourse(
         userId: Long,
         courseId: Long,
     ): Boolean =
-        SavedCourseTable.deleteWhere {
-            (SavedCourseTable.userId eq userId) and (SavedCourseTable.courseId eq courseId)
+        SavedCourseTable.update({
+            (SavedCourseTable.userId eq userId) and
+                (SavedCourseTable.courseId eq courseId) and
+                SavedCourseTable.deletedAt.isNull()
+        }) {
+            it[deletedAt] = Clock.System.now()
         } > 0
 
     override fun count(
@@ -108,6 +122,8 @@ class SavedCoursePersistenceAdapter : SavedCoursePersistencePort {
     override fun listFolders(userId: Long): List<CourseFolderCountRow> {
         // 폴더별 저장 개수를 폴더 수만큼의 count 쿼리(N+1) 대신 leftJoin + groupBy 한 번으로 집계한다.
         // LEFT 조인이라 저장 코스가 없는 폴더도 남고, saved_courses.id 의 count 는 0 이 된다.
+        // deleted_at IS NULL 가드는 조인 조건(additionalConstraint)에 둔다 — WHERE 로 옮기면
+        // 소프트 삭제뿐인 폴더가 통째로 빠지므로, 조인 단계에서 걸러 빈 폴더는 count 0 으로 남긴다.
         val savedCount = SavedCourseTable.id.count().alias("saved_count")
         return SavedCourseFolderTable
             .join(
@@ -115,6 +131,7 @@ class SavedCoursePersistenceAdapter : SavedCoursePersistencePort {
                 JoinType.LEFT,
                 onColumn = SavedCourseFolderTable.id,
                 otherColumn = SavedCourseTable.folderId,
+                additionalConstraint = { SavedCourseTable.deletedAt.isNull() },
             ).select(
                 SavedCourseFolderTable.id,
                 SavedCourseFolderTable.name,
@@ -143,7 +160,7 @@ class SavedCoursePersistenceAdapter : SavedCoursePersistencePort {
         folderId: Long?,
         completed: Boolean?,
     ): Op<Boolean> {
-        var condition: Op<Boolean> = SavedCourseTable.userId eq userId
+        var condition: Op<Boolean> = (SavedCourseTable.userId eq userId) and SavedCourseTable.deletedAt.isNull()
         folderId?.let { condition = condition and (SavedCourseTable.folderId eq it) }
         completed?.let { condition = condition and completedOp(userId, it) }
         return condition

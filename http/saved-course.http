@@ -33,7 +33,7 @@ Content-Type: application/json
 Authorization: Bearer {{accessToken}}
 
 {
-  "courseId": 5
+  "courseId": 2
 }
 
 ### 3) 코스 저장 — 중복 저장(같은 courseId 재요청) → 409 / 4093 COURSE_ALREADY_SAVED
@@ -78,7 +78,7 @@ Authorization: Bearer {{accessToken}}
 }
 
 ### 7) 코스 저장 취소 (정상, 멱등) — courseId 로 저장 레코드 삭제. 저장 안 돼 있어도 성공
-DELETE http://localhost:8080/api/v1/courses/save/1
+DELETE http://localhost:8080/api/v1/courses/save/2
 Authorization: Bearer {{accessToken}}
 
 ### 8) 코스 저장 취소 (mock) — 삭제 없이 고정 성공 응답
