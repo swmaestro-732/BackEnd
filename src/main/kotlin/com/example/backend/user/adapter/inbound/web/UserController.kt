@@ -8,7 +8,6 @@ import com.example.backend.user.adapter.inbound.web.request.UpdateProfileRequest
 import com.example.backend.user.adapter.inbound.web.response.AccountProfileResponse
 import com.example.backend.user.adapter.inbound.web.response.AvailabilityResponse
 import com.example.backend.user.adapter.inbound.web.response.FollowResponse
-import com.example.backend.user.adapter.inbound.web.response.UserProfileResponse
 import com.example.backend.user.application.port.inbound.AccountUseCase
 import com.example.backend.user.application.port.inbound.UserUseCase
 import jakarta.validation.Valid
@@ -29,7 +28,7 @@ import org.springframework.web.bind.annotation.RestController
  * 현재 사용자("나")는 JWT 로 식별되므로 식별자 없는 컬렉션 경로(`/api/v1/users`)에 둔다:
  * 내 프로필 수정 `PATCH`, 회원 탈퇴 `DELETE`, 팔로우 `PUT`·`DELETE /followers/{userId}`(대상의 팔로워로 나를 추가·제거).
  * (내 프로필 단독 조회는 마이페이지 `GET /service/v1/mypage` 로 대체 — 중복 제거.)
- * 다른 사용자 조회는 `GET /{userId}`, 핸들 가용성은 `GET /availability`(공개).
+ * 핸들 가용성은 `GET /availability`(공개). 다른 사용자 프로필은 마이페이지 `GET /service/v1/mypage/{handle}` 로.
  * "나" 기준 핸들러에만 [AccessTokenRequired] 로 access 토큰 인증을 강제한다(그 외는 공개).
  * 시드 데이터가 없는 개발 환경에서는 `?mock=true` 폴백을 제공한다.
  */
@@ -67,13 +66,8 @@ class UserController(
         )
     }
 
-    /** 다른 사용자 프로필 조회. `GET /api/v1/users/{userId}`(공개, viewer 기준 관계 플래그 포함). */
-    @GetMapping("/{userId}")
-    fun getProfile(
-        @PathVariable userId: Long,
-        @CurrentUserId viewerId: Long?,
-    ): ApiResponse<UserProfileResponse> =
-        ApiResponse.success(UserProfileResponse.from(userUseCase.getProfile(userId, viewerId)))
+    // 다른 사용자 프로필 단독 조회(GET /{userId})는 마이페이지(GET /service/v1/mypage/{handle})로 대체돼 제거.
+    // (UserUseCase.getProfile 은 코스 상세 화면 BFF 등 내부 조합에서 계속 사용.)
 
     /**
      * 핸들(아이디) 사용 가능 여부. `GET /api/v1/users/availability?handle=`(공개).
