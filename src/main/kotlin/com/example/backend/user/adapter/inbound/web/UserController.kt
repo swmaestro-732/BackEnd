@@ -4,27 +4,78 @@ import com.example.backend.bootstrap.mock.MockGuard
 import com.example.backend.bootstrap.security.AccessTokenRequired
 import com.example.backend.bootstrap.security.CurrentUserId
 import com.example.backend.common.response.ApiResponse
+import com.example.backend.user.adapter.inbound.web.request.UpdateProfileRequest
+import com.example.backend.user.adapter.inbound.web.response.AccountProfileResponse
 import com.example.backend.user.adapter.inbound.web.response.AvailabilityResponse
+import com.example.backend.user.adapter.inbound.web.response.FollowResponse
 import com.example.backend.user.adapter.inbound.web.response.UserProfileResponse
+import com.example.backend.user.application.port.inbound.AccountUseCase
 import com.example.backend.user.application.port.inbound.UserUseCase
+import jakarta.validation.Valid
 import jakarta.validation.constraints.NotBlank
 import org.springframework.web.bind.annotation.DeleteMapping
 import org.springframework.web.bind.annotation.GetMapping
+import org.springframework.web.bind.annotation.PatchMapping
 import org.springframework.web.bind.annotation.PathVariable
+import org.springframework.web.bind.annotation.PutMapping
+import org.springframework.web.bind.annotation.RequestBody
 import org.springframework.web.bind.annotation.RequestMapping
 import org.springframework.web.bind.annotation.RequestParam
 import org.springframework.web.bind.annotation.RestController
 
 /**
- * 인바운드 어댑터 — HTTP 요청을 인바운드 포트([UserUseCase]) 호출로 변환한다.
- * Request → Command, Result → Response 로 매핑해 도메인/애플리케이션 타입을 밖으로 노출하지 않는다.
+ * 인바운드 어댑터 — users 리소스(user 도메인). Request → Command, Result → Response 로 매핑한다.
+ *
+ * 현재 사용자("나")는 JWT 로 식별되므로 식별자 없는 컬렉션 경로(`/api/v1/users`)에 둔다:
+ * 내 프로필 `GET`·`PATCH`, 회원 탈퇴 `DELETE`, 팔로우 `PUT`·`DELETE /followings/{userId}`.
+ * 다른 사용자 조회는 `GET /{userId}`, 핸들 가용성은 `GET /availability`(공개).
+ * "나" 기준 핸들러에만 [AccessTokenRequired] 로 access 토큰 인증을 강제한다(그 외는 공개).
+ * 시드 데이터가 없는 개발 환경에서는 `?mock=true` 폴백을 제공한다.
  */
 @RestController
 @RequestMapping("/api/v1/users")
 class UserController(
     private val userUseCase: UserUseCase,
+    private val accountUseCase: AccountUseCase,
     private val mockGuard: MockGuard,
 ) {
+    /** 내 프로필 조회. `GET /api/v1/users` (대상은 JWT 의 나). */
+    @GetMapping
+    @AccessTokenRequired
+    fun getMyProfile(
+        @CurrentUserId userId: Long,
+        @RequestParam(required = false) mock: Boolean = false,
+    ): ApiResponse<AccountProfileResponse> {
+        if (mock && mockGuard.isMockAllowed()) return ApiResponse.success(AccountProfileResponse.mock())
+        return ApiResponse.success(AccountProfileResponse.from(accountUseCase.getProfile(userId)))
+    }
+
+    /** 내 프로필 수정. 넘어온 필드만 반영한 결과를 내려준다. `PATCH /api/v1/users`. */
+    @PatchMapping
+    @AccessTokenRequired
+    fun updateMyProfile(
+        @CurrentUserId userId: Long,
+        @Valid @RequestBody request: UpdateProfileRequest,
+        @RequestParam(required = false) mock: Boolean = false,
+    ): ApiResponse<AccountProfileResponse> {
+        if (mock && mockGuard.isMockAllowed()) {
+            val base = AccountProfileResponse.mock()
+            return ApiResponse.success(
+                base.copy(
+                    nickname = request.nickname ?: base.nickname,
+                    handle = request.handle ?: base.handle,
+                    profileImageUrl = request.profileImageUrl ?: base.profileImageUrl,
+                ),
+            )
+        }
+        return ApiResponse.success(
+            AccountProfileResponse.from(
+                accountUseCase.updateProfile(userId, request.nickname, request.handle, request.profileImageUrl),
+            ),
+        )
+    }
+
+    /** 다른 사용자 프로필 조회. `GET /api/v1/users/{userId}`(공개, viewer 기준 관계 플래그 포함). */
     @GetMapping("/{userId}")
     fun getProfile(
         @PathVariable userId: Long,
@@ -33,8 +84,8 @@ class UserController(
         ApiResponse.success(UserProfileResponse.from(userUseCase.getProfile(userId, viewerId)))
 
     /**
-     * 핸들(아이디) 사용 가능 여부. `GET /api/v1/users/availability?handle=`.
-     * 예약어이거나 이미 사용 중이면 available=false. (인증 플로우가 아니라 users 리소스 조회 — auth의 구 엔드포인트를 대체.)
+     * 핸들(아이디) 사용 가능 여부. `GET /api/v1/users/availability?handle=`(공개).
+     * 예약어이거나 이미 사용 중이면 available=false.
      */
     @GetMapping("/availability")
     fun checkHandleAvailability(
@@ -44,7 +95,7 @@ class UserController(
 
     /**
      * 회원 탈퇴 — 현재 로그인 사용자("나")를 소프트 삭제한다. `DELETE /api/v1/users`.
-     * 대상은 JWT 의 나이므로 식별자 없이 컬렉션 경로에 둔다. 계정 리소스 액션이라 user 도메인에 둔다.
+     * 대상은 JWT 의 나이므로 식별자 없이 컬렉션 경로에 둔다.
      */
     @DeleteMapping
     @AccessTokenRequired
@@ -54,5 +105,29 @@ class UserController(
     ): ApiResponse<Nothing?> {
         if (!(mock && mockGuard.isMockAllowed())) userUseCase.withdraw(userId)
         return ApiResponse.ok()
+    }
+
+    /** "내 팔로잉"에 대상 사용자를 추가(idempotent). 대상의 팔로워 수를 내려준다. */
+    @PutMapping("/followings/{userId}")
+    @AccessTokenRequired
+    fun follow(
+        @CurrentUserId followerId: Long,
+        @PathVariable("userId") targetId: Long,
+        @RequestParam(required = false) mock: Boolean = false,
+    ): ApiResponse<FollowResponse> {
+        if (mock && mockGuard.isMockAllowed()) return ApiResponse.success(FollowResponse.mock(isFollowing = true))
+        return ApiResponse.success(FollowResponse.from(accountUseCase.follow(followerId, targetId)))
+    }
+
+    /** "내 팔로잉"에서 대상 사용자를 제거. */
+    @DeleteMapping("/followings/{userId}")
+    @AccessTokenRequired
+    fun unfollow(
+        @CurrentUserId followerId: Long,
+        @PathVariable("userId") targetId: Long,
+        @RequestParam(required = false) mock: Boolean = false,
+    ): ApiResponse<FollowResponse> {
+        if (mock && mockGuard.isMockAllowed()) return ApiResponse.success(FollowResponse.mock(isFollowing = false))
+        return ApiResponse.success(FollowResponse.from(accountUseCase.unfollow(followerId, targetId)))
     }
 }
