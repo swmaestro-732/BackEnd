@@ -65,7 +65,9 @@ class AccountController(
             )
         }
         return ApiResponse.success(
-            AccountProfileResponse.from(accountUseCase.updateProfile(userId, request.toCommand())),
+            AccountProfileResponse.from(
+                accountUseCase.updateProfile(userId, request.nickname, request.handle, request.profileImageUrl),
+            ),
         )
     }
 

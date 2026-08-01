@@ -6,6 +6,7 @@ import io.swagger.v3.oas.models.info.Info
 import io.swagger.v3.oas.models.security.SecurityRequirement
 import io.swagger.v3.oas.models.security.SecurityScheme
 import io.swagger.v3.oas.models.servers.Server
+import org.springdoc.core.models.GroupedOpenApi
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
 
@@ -43,4 +44,37 @@ class OpenApiConfig {
             )
             // 전역 적용: 모든 엔드포인트에 자물쇠 표시 + Authorize 토큰 전송
             .addSecurityItem(SecurityRequirement().addList(bearerScheme))
+
+    /**
+     * Swagger UI 상단 그룹을 **도메인 패키지 기준**으로 묶는다(컨트롤러 클래스 단위 태그 대신).
+     * 각 그룹은 `com.example.backend.<domain>` 하위 컨트롤러만 스캔한다.
+     * mobile 은 화면 조합(BFF, /service/v1) 전용 패키지라 별도 그룹으로 둔다.
+     */
+    private fun group(
+        name: String,
+        vararg packages: String,
+    ): GroupedOpenApi =
+        GroupedOpenApi
+            .builder()
+            .group(name)
+            .packagesToScan(*packages)
+            .build()
+
+    @Bean
+    fun userApi(): GroupedOpenApi = group("user", "com.example.backend.user")
+
+    @Bean
+    fun courseApi(): GroupedOpenApi = group("course", "com.example.backend.course")
+
+    @Bean
+    fun placeApi(): GroupedOpenApi = group("place", "com.example.backend.place")
+
+    @Bean
+    fun mediaApi(): GroupedOpenApi = group("media", "com.example.backend.media")
+
+    @Bean
+    fun directionApi(): GroupedOpenApi = group("direction", "com.example.backend.direction")
+
+    @Bean
+    fun mobileApi(): GroupedOpenApi = group("mobile", "com.example.backend.mobile")
 }

@@ -1,13 +1,13 @@
 package com.example.backend.user.adapter.outbound.persistence.exposed.repository
 
 import com.example.backend.bootstrap.security.JwtProperties
+import com.example.backend.user.adapter.outbound.persistence.exposed.RefreshTokenEntity
 import com.example.backend.user.adapter.outbound.persistence.exposed.RefreshTokenTable
 import com.example.backend.user.application.port.outbound.RefreshTokenRecord
 import org.jetbrains.exposed.v1.core.and
 import org.jetbrains.exposed.v1.core.eq
 import org.jetbrains.exposed.v1.core.greater
 import org.jetbrains.exposed.v1.jdbc.insert
-import org.jetbrains.exposed.v1.jdbc.selectAll
 import org.jetbrains.exposed.v1.jdbc.update
 import org.springframework.stereotype.Repository
 import java.security.MessageDigest
@@ -34,21 +34,20 @@ class RefreshTokenRepository(
     }
 
     fun findValid(token: String): RefreshTokenRecord? =
-        RefreshTokenTable
-            .selectAll()
-            .where {
+        RefreshTokenEntity
+            .find {
                 (RefreshTokenTable.tokenHash eq hash(token)) and
                     (RefreshTokenTable.revoked eq false) and
                     (RefreshTokenTable.expiresAt greater clock.instant().toKotlinInstant())
             }.singleOrNull()
             ?.let {
                 RefreshTokenRecord(
-                    id = it[RefreshTokenTable.id],
-                    userId = it[RefreshTokenTable.userId],
-                    tokenHash = it[RefreshTokenTable.tokenHash],
-                    expiresAt = it[RefreshTokenTable.expiresAt].toJavaInstant(),
-                    revoked = it[RefreshTokenTable.revoked],
-                    createdAt = it[RefreshTokenTable.createdAt].toJavaInstant(),
+                    id = it.id.value,
+                    userId = it.userId,
+                    tokenHash = it.tokenHash,
+                    expiresAt = it.expiresAt.toJavaInstant(),
+                    revoked = it.revoked,
+                    createdAt = it.createdAt.toJavaInstant(),
                 )
             }
 

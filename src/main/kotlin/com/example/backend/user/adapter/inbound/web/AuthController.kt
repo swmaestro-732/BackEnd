@@ -14,7 +14,6 @@ import com.example.backend.user.adapter.inbound.web.response.SocialLoginResponse
 import com.example.backend.user.adapter.inbound.web.response.TokenResponse
 import com.example.backend.user.application.port.inbound.AuthUseCase
 import com.example.backend.user.application.port.inbound.dto.SignupCommand
-import com.example.backend.user.application.port.inbound.dto.SocialLoginCommand
 import jakarta.validation.Valid
 import jakarta.validation.constraints.NotBlank
 import org.springframework.web.bind.annotation.GetMapping
@@ -48,13 +47,7 @@ class AuthController(
             ensureMockAvailable()
             return ApiResponse.success(SocialLoginResponse.mock(authUseCase.issueDevAccessToken()))
         }
-        val result =
-            authUseCase.socialLogin(
-                SocialLoginCommand(
-                    provider = request.provider.toDomain(),
-                    idToken = request.idToken,
-                ),
-            )
+        val result = authUseCase.socialLogin(request.provider.toDomain(), request.idToken)
         return ApiResponse.success(SocialLoginResponse.from(result))
     }
 

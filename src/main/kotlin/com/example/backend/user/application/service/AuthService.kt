@@ -7,12 +7,12 @@ import com.example.backend.user.application.port.inbound.dto.LoginResult
 import com.example.backend.user.application.port.inbound.dto.SignupCommand
 import com.example.backend.user.application.port.inbound.dto.SignupResult
 import com.example.backend.user.application.port.inbound.dto.SignupUserResult
-import com.example.backend.user.application.port.inbound.dto.SocialLoginCommand
 import com.example.backend.user.application.port.inbound.dto.TokenPair
 import com.example.backend.user.application.port.outbound.AuthTokenPort
 import com.example.backend.user.application.port.outbound.RefreshTokenPort
 import com.example.backend.user.application.port.outbound.SocialVerificationPort
 import com.example.backend.user.application.port.outbound.UserPersistencePort
+import com.example.backend.user.domain.model.SocialProvider
 import com.example.backend.user.domain.model.User
 import com.example.backend.user.domain.model.UserStatus
 import org.springframework.stereotype.Service
@@ -28,8 +28,11 @@ class AuthService(
     private val refreshTokenPort: RefreshTokenPort,
 ) : AuthUseCase {
     @Transactional
-    override fun socialLogin(command: SocialLoginCommand): LoginResult {
-        val identity = socialVerificationPort.verify(command.provider, command.idToken)
+    override fun socialLogin(
+        provider: SocialProvider,
+        idToken: String,
+    ): LoginResult {
+        val identity = socialVerificationPort.verify(provider, idToken)
         val user =
             userPersistencePort.findBySocial(identity.provider, identity.socialId)
                 ?: return LoginResult(
