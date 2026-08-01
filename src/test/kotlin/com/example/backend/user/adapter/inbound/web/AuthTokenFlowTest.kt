@@ -113,7 +113,7 @@ class AuthTokenFlowTest
         private fun reissueRequest() = reissueRequestWith(REFRESH_TOKEN)
 
         private fun reissueRequestWith(refreshToken: String) =
-            post("/api/v1/auth/token-reissue")
+            post("/api/v1/auth/refresh")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("""{"refreshToken":"$refreshToken"}""")
 

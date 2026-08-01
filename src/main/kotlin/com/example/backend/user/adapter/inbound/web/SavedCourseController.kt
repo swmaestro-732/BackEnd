@@ -1,6 +1,5 @@
 package com.example.backend.user.adapter.inbound.web
 
-import com.example.backend.bootstrap.security.AccessTokenRequired
 import com.example.backend.common.response.ApiResponse
 import com.example.backend.user.adapter.inbound.web.request.SaveCourseRequest
 import com.example.backend.user.adapter.inbound.web.response.SavedCourseListResponse
@@ -21,14 +20,10 @@ import org.springframework.web.bind.annotation.RestController
  * 인바운드 어댑터 — 저장 코스(노션 명세 · User · user-course). **모킹 API**.
  * 실제 구현 시 인바운드 포트(UseCase) 연동으로 교체한다. 모킹 에러(`?mockError=<code>`)는
  * 전역 아스펙트([com.example.backend.bootstrap.mock.MockErrorAspect])가 주입한다.
- *
- * 경로: `/service/v1/saved-courses`.
  */
 @RestController
-@RequestMapping("/service/v1/saved-courses")
-@AccessTokenRequired
+@RequestMapping("/api/v1/my/saved-courses")
 class SavedCourseController {
-    /** 코스 저장(모킹). 저장 성공 엔벨로프만 반환한다. */
     @PostMapping("/{courseId}")
     @ResponseStatus(HttpStatus.CREATED)
     fun save(

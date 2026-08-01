@@ -1,6 +1,5 @@
 package com.example.backend.user.adapter.inbound.web
 
-import com.example.backend.bootstrap.security.AccessTokenRequired
 import com.example.backend.common.response.ApiResponse
 import com.example.backend.user.adapter.inbound.web.response.SavedPlaceListResponse
 import com.example.backend.user.domain.model.SavedPlaceCategory
@@ -19,23 +18,20 @@ import org.springframework.web.bind.annotation.RestController
 /**
  * 인바운드 어댑터 — 저장 장소(노션 명세 · User · user-place).
  *
- * - [save] 장소 저장(`POST /service/v1/saved-places/{placeId}`): **모킹 API**.
- * - [list] 저장 장소 조회(`GET /service/v1/saved-places`): **모킹 API**. 노션 필드 명세 미작성 상태라
+ * - [save] 장소 저장(`POST /api/v1/my/saved-places/{placeId}`): **모킹 API**.
+ * - [list] 저장 장소 조회(`GET /api/v1/my/saved-places`): **모킹 API**. 노션 필드 명세 미작성 상태라
  *   저장 레코드 스키마(saved_places)·디자인(저장함 · 장소 탭)에서 필드를 도출했다.
  *   api-spec.md 설계 노트대로 저장 레코드(ID 위주)를 반환한다 — 화면 조합은 service 담당.
- * - [visit] 저장 장소 방문 처리(`PATCH /service/v1/saved-places/{savedPlaceId}`): **모킹 API**.
+ * - [visit] 저장 장소 방문 처리(`PATCH /api/v1/my/saved-places/{savedPlaceId}`): **모킹 API**.
  *   노션 필드 명세 미작성 상태라 디자인(저장함 · 장소 · 방문 표시 스와이프 흐름)에서 도출 —
  *   요청 본문 없이 방문 처리하고 data 없이 메시지만 반환한다(단방향, 되돌리기 흐름 없음).
  *   경로 변수는 장소 id가 아니라 **저장 레코드 id**([SavedPlaceListResponse.SavedPlaceItem.id])다.
  *
  * 실제 구현 시 인바운드 포트(UseCase) 연동으로 교체한다. 모킹 에러(`?mockError=<code>`)는
  * 전역 아스펙트([com.example.backend.bootstrap.mock.MockErrorAspect])가 주입한다.
- *
- * 경로: `/service/v1/saved-places`.
  */
 @RestController
-@RequestMapping("/service/v1/saved-places")
-@AccessTokenRequired
+@RequestMapping("/api/v1/my/saved-places")
 class SavedPlaceController {
     @PostMapping("/{placeId}")
     @ResponseStatus(HttpStatus.CREATED)

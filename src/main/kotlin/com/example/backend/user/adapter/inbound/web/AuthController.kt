@@ -1,6 +1,5 @@
 package com.example.backend.user.adapter.inbound.web
 
-import com.example.backend.bootstrap.security.KakaoOauthProperties
 import com.example.backend.common.exception.BusinessException
 import com.example.backend.common.response.ApiResponse
 import com.example.backend.common.response.ErrorCode
@@ -28,14 +27,13 @@ import org.springframework.web.bind.annotation.RestController
  *
  * 로그인·회원가입·로그아웃·토큰 재발급 등 **인증 액션**은 `/api/v1/auth` 로 묶는다
  * (`/my` = 내가 기준인 리소스, `/users` = 유저 도메인 리소스와 구분).
- * social-login·signup 은 [AuthUseCase]로 실구현하며, Kakao 설정이 없는 개발 환경에서는
- * `?mock=true`로 DB 저장 없는 폴백을 제공한다. `mockError`는 모킹 에러 화면 작업을 위해 유지한다.
+ * social-login·signup 은 [AuthUseCase]로 실구현하며, 개발 환경에서 `?mock=true`로 DB 저장 없는
+ * 폴백을 제공한다(`?mockError`는 모킹 에러 화면 작업용). 운영 차단은 프로파일 게이팅으로 다룬다.
  */
 @RestController
 @RequestMapping("/api/v1/auth")
 class AuthController(
     private val authUseCase: AuthUseCase,
-    private val kakaoOauthProperties: KakaoOauthProperties,
 ) {
     /** 소셜 로그인. isNewUser 면 클라이언트가 registrationToken 으로 회원가입을 진행한다. */
     @PostMapping("/social-login")
@@ -43,10 +41,7 @@ class AuthController(
         @Valid @RequestBody request: SocialLoginRequest,
         @RequestParam(required = false) mock: Boolean = false,
     ): ApiResponse<SocialLoginResponse> {
-        if (mock) {
-            ensureMockAvailable()
-            return ApiResponse.success(SocialLoginResponse.mock(authUseCase.issueDevAccessToken()))
-        }
+        if (mock) return ApiResponse.success(SocialLoginResponse.mock(authUseCase.issueDevAccessToken()))
         val result = authUseCase.socialLogin(request.provider.toDomain(), request.idToken)
         return ApiResponse.success(SocialLoginResponse.from(result))
     }
@@ -58,7 +53,6 @@ class AuthController(
         @RequestParam(required = false) mock: Boolean = false,
     ): ApiResponse<SignupResponse> {
         if (mock) {
-            ensureMockAvailable()
             return ApiResponse.success(
                 SignupResponse.mock(
                     authUseCase.issueDevAccessToken(),
@@ -83,18 +77,14 @@ class AuthController(
     /**
      * refresh token 회전으로 accessToken·refreshToken 재발급.
      *
-     * 정식 경로는 `POST /api/v1/auth/refresh`. `POST /api/v1/auth/token-reissue` 는 **deprecated 별칭**으로
-     * 동일 핸들러를 병행 노출한다(클라이언트 전환 완료 후 token-reissue 경로 제거 예정).
+     * `POST /api/v1/auth/refresh`.
      */
-    @PostMapping(value = ["/refresh", "/token-reissue"])
+    @PostMapping("/refresh")
     fun reissueToken(
         @Valid @RequestBody request: TokenReissueRequest,
         @RequestParam(required = false) mock: Boolean = false,
     ): ApiResponse<TokenResponse> {
-        if (mock) {
-            ensureMockAvailable()
-            return ApiResponse.success(TokenResponse.mock(authUseCase.issueDevAccessToken()))
-        }
+        if (mock) return ApiResponse.success(TokenResponse.mock(authUseCase.issueDevAccessToken()))
         val result = authUseCase.reissue(request.refreshToken)
         return ApiResponse.success(TokenResponse(result.accessToken, result.refreshToken))
     }
@@ -105,10 +95,7 @@ class AuthController(
         @Valid @RequestBody(required = false) request: LogoutRequest?,
         @RequestParam(required = false) mock: Boolean = false,
     ): ApiResponse<Nothing?> {
-        if (mock) {
-            ensureMockAvailable()
-            return ApiResponse.ok()
-        }
+        if (mock) return ApiResponse.ok()
         val refreshToken = request?.refreshToken ?: throw BusinessException(ErrorCode.INVALID_INPUT)
         authUseCase.logout(refreshToken)
         return ApiResponse.ok()
@@ -126,12 +113,6 @@ class AuthController(
     ): ApiResponse<AvailabilityResponse> {
         val available = loginId.lowercase() !in RESERVED_LOGIN_IDS && !authUseCase.isLoginIdTaken(loginId)
         return ApiResponse.success(AvailabilityResponse(available = available))
-    }
-
-    private fun ensureMockAvailable() {
-        if (kakaoOauthProperties.clientId.isNotBlank()) {
-            throw BusinessException(ErrorCode.SOCIAL_AUTHENTICATION_FAILED)
-        }
     }
 
     private companion object {

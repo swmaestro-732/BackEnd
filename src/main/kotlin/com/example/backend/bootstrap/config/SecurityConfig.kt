@@ -30,9 +30,9 @@ class SecurityConfig {
             .oauth2ResourceServer { it.jwt { } }
             .authorizeHttpRequests {
                 it
-                    // 업로드 프리사인은 경로 기준 JWT 인증 필수. 현재 사용자("나") 기준 엔드포인트는
-                    // 경로가 아니라 @AccessTokenRequired 메서드 시큐리티로 보호한다(경로 별칭에 무관하게 일관 적용).
-                    .requestMatchers("/api/v1/uploads/**")
+                    // 업로드 프리사인·`/api/v1/my/**`(저장함·폴더 등 담당 도메인)은 경로 기준 JWT 인증 필수.
+                    // user 도메인 계정 엔드포인트(`/api/v1/users`)는 경로가 아니라 @AccessTokenRequired 메서드 시큐리티로 보호한다.
+                    .requestMatchers("/api/v1/my/**", "/api/v1/uploads/**")
                     .access { authentication, _ ->
                         val resolved = authentication.get()
                         AuthorizationDecision(

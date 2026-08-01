@@ -1,6 +1,5 @@
 package com.example.backend.user.adapter.inbound.web
 
-import com.example.backend.bootstrap.mock.MockGuard
 import com.example.backend.bootstrap.security.AccessTokenRequired
 import com.example.backend.bootstrap.security.CurrentUserId
 import com.example.backend.common.response.ApiResponse
@@ -37,7 +36,6 @@ import org.springframework.web.bind.annotation.RestController
 class UserController(
     private val userUseCase: UserUseCase,
     private val accountUseCase: AccountUseCase,
-    private val mockGuard: MockGuard,
 ) {
     // 내 프로필 단독 조회는 제거 — 마이페이지(GET /service/v1/mypage)가 프로필을 포함하므로 중복.
 
@@ -49,7 +47,7 @@ class UserController(
         @Valid @RequestBody request: UpdateProfileRequest,
         @RequestParam(required = false) mock: Boolean = false,
     ): ApiResponse<AccountProfileResponse> {
-        if (mock && mockGuard.isMockAllowed()) {
+        if (mock) {
             val base = AccountProfileResponse.mock()
             return ApiResponse.success(
                 base.copy(
@@ -89,7 +87,7 @@ class UserController(
         @CurrentUserId userId: Long,
         @RequestParam(required = false) mock: Boolean = false,
     ): ApiResponse<Nothing?> {
-        if (!(mock && mockGuard.isMockAllowed())) userUseCase.withdraw(userId)
+        if (!mock) userUseCase.withdraw(userId)
         return ApiResponse.ok()
     }
 
@@ -101,7 +99,7 @@ class UserController(
         @PathVariable("userId") targetId: Long,
         @RequestParam(required = false) mock: Boolean = false,
     ): ApiResponse<FollowResponse> {
-        if (mock && mockGuard.isMockAllowed()) return ApiResponse.success(FollowResponse.mock(isFollowing = true))
+        if (mock) return ApiResponse.success(FollowResponse.mock(isFollowing = true))
         return ApiResponse.success(FollowResponse.from(accountUseCase.follow(followerId, targetId)))
     }
 
@@ -113,7 +111,7 @@ class UserController(
         @PathVariable("userId") targetId: Long,
         @RequestParam(required = false) mock: Boolean = false,
     ): ApiResponse<FollowResponse> {
-        if (mock && mockGuard.isMockAllowed()) return ApiResponse.success(FollowResponse.mock(isFollowing = false))
+        if (mock) return ApiResponse.success(FollowResponse.mock(isFollowing = false))
         return ApiResponse.success(FollowResponse.from(accountUseCase.unfollow(followerId, targetId)))
     }
 }
