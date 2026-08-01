@@ -1,5 +1,6 @@
 package com.example.backend.user.adapter.inbound.web
 
+import com.example.backend.bootstrap.security.AccessTokenRequired
 import com.example.backend.common.response.ApiResponse
 import com.example.backend.user.adapter.inbound.web.request.SaveCourseRequest
 import com.example.backend.user.adapter.inbound.web.response.SavedCourseListResponse
@@ -21,17 +22,13 @@ import org.springframework.web.bind.annotation.RestController
  * 실제 구현 시 인바운드 포트(UseCase) 연동으로 교체한다. 모킹 에러(`?mockError=<code>`)는
  * 전역 아스펙트([com.example.backend.bootstrap.mock.MockErrorAspect])가 주입한다.
  *
- * 경로: `/service/v1/saved-courses` 가 정식이며 `/api/v1/my/saved-courses` 는 deprecated 별칭(동일 핸들러).
- * save 의 RESTful 정식 경로는 `POST /api/v1/courses/{courseId}/save` 다.
+ * 경로: `/service/v1/saved-courses`.
  */
 @RestController
-@RequestMapping(value = ["/service/v1/saved-courses", "/api/v1/my/saved-courses"])
+@RequestMapping("/service/v1/saved-courses")
+@AccessTokenRequired
 class SavedCourseController {
-    /**
-     * Deprecated: 코스 리소스 액션이므로 `POST /api/v1/courses/{courseId}/save`
-     * ([com.example.backend.course.adapter.inbound.web.CourseSaveController.save]) 로 대체한다.
-     * 신·구 병행 유지 중 — 클라이언트 전환 완료 후 제거한다.
-     */
+    /** 코스 저장(모킹). 저장 성공 엔벨로프만 반환한다. */
     @PostMapping("/{courseId}")
     @ResponseStatus(HttpStatus.CREATED)
     fun save(

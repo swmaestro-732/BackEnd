@@ -1,5 +1,6 @@
 package com.example.backend.user.adapter.inbound.web
 
+import com.example.backend.bootstrap.security.AccessTokenRequired
 import com.example.backend.common.response.ApiResponse
 import com.example.backend.user.adapter.inbound.web.response.SavedPlaceListResponse
 import com.example.backend.user.domain.model.SavedPlaceCategory
@@ -18,11 +19,11 @@ import org.springframework.web.bind.annotation.RestController
 /**
  * 인바운드 어댑터 — 저장 장소(노션 명세 · User · user-place).
  *
- * - [save] 장소 저장(`POST /api/v1/my/saved-places/{placeId}`): **모킹 API**.
- * - [list] 저장 장소 조회(`GET /api/v1/my/saved-places`): **모킹 API**. 노션 필드 명세 미작성 상태라
+ * - [save] 장소 저장(`POST /service/v1/saved-places/{placeId}`): **모킹 API**.
+ * - [list] 저장 장소 조회(`GET /service/v1/saved-places`): **모킹 API**. 노션 필드 명세 미작성 상태라
  *   저장 레코드 스키마(saved_places)·디자인(저장함 · 장소 탭)에서 필드를 도출했다.
  *   api-spec.md 설계 노트대로 저장 레코드(ID 위주)를 반환한다 — 화면 조합은 service 담당.
- * - [visit] 저장 장소 방문 처리(`PATCH /api/v1/my/saved-places/{savedPlaceId}`): **모킹 API**.
+ * - [visit] 저장 장소 방문 처리(`PATCH /service/v1/saved-places/{savedPlaceId}`): **모킹 API**.
  *   노션 필드 명세 미작성 상태라 디자인(저장함 · 장소 · 방문 표시 스와이프 흐름)에서 도출 —
  *   요청 본문 없이 방문 처리하고 data 없이 메시지만 반환한다(단방향, 되돌리기 흐름 없음).
  *   경로 변수는 장소 id가 아니라 **저장 레코드 id**([SavedPlaceListResponse.SavedPlaceItem.id])다.
@@ -30,11 +31,11 @@ import org.springframework.web.bind.annotation.RestController
  * 실제 구현 시 인바운드 포트(UseCase) 연동으로 교체한다. 모킹 에러(`?mockError=<code>`)는
  * 전역 아스펙트([com.example.backend.bootstrap.mock.MockErrorAspect])가 주입한다.
  *
- * 경로: `/service/v1/saved-places` 가 정식이며 `/api/v1/my/saved-places` 는 deprecated 별칭(동일 핸들러).
- * visit 의 RESTful 정식 경로는 `POST /api/v1/places/{placeId}/visits` 다.
+ * 경로: `/service/v1/saved-places`.
  */
 @RestController
-@RequestMapping(value = ["/service/v1/saved-places", "/api/v1/my/saved-places"])
+@RequestMapping("/service/v1/saved-places")
+@AccessTokenRequired
 class SavedPlaceController {
     @PostMapping("/{placeId}")
     @ResponseStatus(HttpStatus.CREATED)
@@ -45,10 +46,6 @@ class SavedPlaceController {
     /**
      * 저장 장소 방문 처리(모킹). 미방문 탭 카드 스와이프 → "방문한 곳으로 표시할까요?" 확인 후 호출 —
      * 방문 탭으로 옮기고 지도에 방문 표시를 남긴다. 장소 저장(save)과 동일하게 data 없이 메시지만 반환한다.
-     *
-     * Deprecated: 장소 리소스 액션이므로 `POST /api/v1/places/{placeId}/visits`
-     * ([com.example.backend.place.adapter.inbound.web.PlaceVisitController.visit]) 로 대체한다(경로 변수는 장소 id).
-     * 신·구 병행 유지 중 — 클라이언트 전환 완료 후 제거한다.
      */
     @PatchMapping("/{savedPlaceId}")
     fun visit(

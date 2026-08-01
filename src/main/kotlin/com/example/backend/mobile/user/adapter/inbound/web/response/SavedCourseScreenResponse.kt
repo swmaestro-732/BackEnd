@@ -5,7 +5,7 @@ import java.time.Instant
 
 /**
  * 웹 응답 DTO — 저장함 · 코스 탭 화면 조합(BFF). 프론트 화면 계약 형태.
- * 도메인 API(`GET /api/v1/my/saved-courses`)의 저장 레코드·카운트·페이지 메타를 유지하고,
+ * 도메인 API(`GET /service/v1/saved-courses`)의 저장 레코드·카운트·페이지 메타를 유지하고,
  * 각 항목에 코스 요약(제목·지역·테마·장소 수·소요 시간·작성자 — 디자인 J 밴드)과
  * 완주 상태(trace)를 덧붙여 내려준다.
  * 현재는 컨트롤러에서 목 데이터로 채운다(실제 구현 시 user + course + trace inbound 포트 조합으로 교체).
@@ -166,7 +166,7 @@ data class SavedCourseScreenResponse(
     }
 }
 
-/** 폴더 칩 배지 — 코스 폴더 목록 API(`GET /api/v1/my/course-folders`)와 같은 폴더. */
+/** 폴더 칩 배지 — 코스 폴더 목록 API(`GET /service/v1/course-folders`)와 같은 폴더. */
 data class CourseFolderCountResponse(
     val id: Long,
     val name: String,

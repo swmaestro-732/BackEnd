@@ -103,7 +103,7 @@ class AuthTokenFlowTest
 
             mockMvc
                 .perform(
-                    get("/api/v1/my/profile")
+                    get("/service/v1/profile")
                         .header(HttpHeaders.AUTHORIZATION, "Bearer $accessToken"),
                 ).andExpect(status().isOk)
                 .andExpect(jsonPath("$.code").value(2000))

@@ -1,6 +1,7 @@
 package com.example.backend.user.adapter.inbound.web
 
 import com.example.backend.bootstrap.mock.MockGuard
+import com.example.backend.bootstrap.security.AccessTokenRequired
 import com.example.backend.bootstrap.security.CurrentUserId
 import com.example.backend.common.response.ApiResponse
 import com.example.backend.user.adapter.inbound.web.response.AvailabilityResponse
@@ -43,10 +44,10 @@ class UserController(
 
     /**
      * 회원 탈퇴 — 현재 로그인 사용자("나")를 소프트 삭제한다. `DELETE /api/v1/users`.
-     * 대상은 JWT 의 나이므로 식별자 없이 컬렉션 경로에 둔다. 계정 리소스 액션이라 user 도메인에 둔다
-     * (구 `DELETE /service/v1`·`/api/v1/my` 는 deprecated 별칭).
+     * 대상은 JWT 의 나이므로 식별자 없이 컬렉션 경로에 둔다. 계정 리소스 액션이라 user 도메인에 둔다.
      */
     @DeleteMapping
+    @AccessTokenRequired
     fun withdraw(
         @CurrentUserId userId: Long,
         @RequestParam(required = false) mock: Boolean = false,

@@ -1,6 +1,7 @@
 package com.example.backend.bootstrap.security
 
 import org.springframework.core.MethodParameter
+import org.springframework.security.authentication.AuthenticationCredentialsNotFoundException
 import org.springframework.security.core.context.SecurityContextHolder
 import org.springframework.security.oauth2.jwt.Jwt
 import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationToken
@@ -26,9 +27,17 @@ class CurrentUserIdArgumentResolver : HandlerMethodArgumentResolver {
         binderFactory: WebDataBinderFactory?,
     ): Any? {
         val authentication = SecurityContextHolder.getContext().authentication
-        if (authentication !is JwtAuthenticationToken) return null
+        val userId =
+            (authentication as? JwtAuthenticationToken)
+                ?.let { it.principal as? Jwt }
+                ?.subject
+                ?.toLong()
 
-        val jwt = authentication.principal as? Jwt ?: return null
-        return jwt.subject?.toLong()
+        // 필수(non-null) 파라미터인데 인증이 없으면 500 대신 401 로 응답하도록 인증 예외를 던진다.
+        // (경로 매칭 대신 @AccessTokenRequired 메서드 시큐리티로 보호하므로, 익명 요청이 컨트롤러까지 도달한다.)
+        if (userId == null && !parameter.isOptional) {
+            throw AuthenticationCredentialsNotFoundException("인증이 필요합니다.")
+        }
+        return userId
     }
 }

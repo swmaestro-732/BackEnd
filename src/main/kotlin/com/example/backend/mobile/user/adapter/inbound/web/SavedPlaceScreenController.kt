@@ -21,7 +21,7 @@ import java.time.Instant
  * 모바일 화면용 경로 `/service/v1/places/save`(도메인 REST API `/api/v1/...` 와 구분).
  * api-spec.md service 후보(우선순위 높음 · 디자인 J 밴드): 저장 레코드(user) + 장소 요약(place)
  * — 이름·카테고리·지역·이미지·좌표·방문/미방문을 한 번에 내려준다. 노션 필드 명세 미작성 상태라
- * 도메인 API(`GET /api/v1/my/saved-places`) 응답 + 디자인(저장함 · 장소 탭)에서 필드를 도출했다.
+ * 도메인 API(`GET /service/v1/saved-places`) 응답 + 디자인(저장함 · 장소 탭)에서 필드를 도출했다.
  *
  * 항상 고정 목 응답을 내려준다 — 쿼리 파라미터(필터·페이지네이션)는 API 계약 확인용으로 받기만 하고
  * 동작은 실구현에서 지원한다(저장 장소 도메인 모킹과 동일 컨벤션).

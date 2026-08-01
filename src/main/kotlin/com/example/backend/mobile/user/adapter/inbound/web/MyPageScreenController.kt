@@ -1,6 +1,7 @@
 package com.example.backend.mobile.user.adapter.inbound.web
 
 import com.example.backend.bootstrap.mock.MockGuard
+import com.example.backend.bootstrap.security.AccessTokenRequired
 import com.example.backend.bootstrap.security.CurrentUserId
 import com.example.backend.common.response.ApiResponse
 import com.example.backend.mobile.user.adapter.inbound.web.response.MyPageScreenResponse
@@ -27,6 +28,7 @@ class MyPageScreenController(
 ) {
     /** 내 마이페이지 — 내 프로필 + 내 발행 코스 전체. */
     @GetMapping("/mypage")
+    @AccessTokenRequired
     fun getMyPage(
         @CurrentUserId userId: Long,
         @RequestParam(required = false) mock: Boolean = false,

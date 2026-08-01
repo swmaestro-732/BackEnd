@@ -4,6 +4,7 @@ import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
 import org.springframework.security.authentication.AnonymousAuthenticationToken
 import org.springframework.security.authorization.AuthorizationDecision
+import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity
 import org.springframework.security.config.annotation.web.builders.HttpSecurity
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity
 import org.springframework.security.config.http.SessionCreationPolicy
@@ -17,6 +18,7 @@ import org.springframework.security.web.SecurityFilterChain
  */
 @Configuration
 @EnableWebSecurity
+@EnableMethodSecurity
 class SecurityConfig {
     @Bean
     fun filterChain(http: HttpSecurity): SecurityFilterChain {
@@ -28,8 +30,9 @@ class SecurityConfig {
             .oauth2ResourceServer { it.jwt { } }
             .authorizeHttpRequests {
                 it
-                    // 첫 매치 우선: 현재 사용자("나") 기준 API·업로드 프리사인은 JWT 인증 필수.
-                    .requestMatchers("/api/v1/my/**", "/api/v1/uploads/**")
+                    // 업로드 프리사인은 경로 기준 JWT 인증 필수. 현재 사용자("나") 기준 엔드포인트는
+                    // 경로가 아니라 @AccessTokenRequired 메서드 시큐리티로 보호한다(경로 별칭에 무관하게 일관 적용).
+                    .requestMatchers("/api/v1/uploads/**")
                     .access { authentication, _ ->
                         val resolved = authentication.get()
                         AuthorizationDecision(
