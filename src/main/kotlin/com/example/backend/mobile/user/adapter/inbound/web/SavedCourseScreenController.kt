@@ -17,7 +17,8 @@ import org.springframework.web.bind.annotation.RestController
 import java.time.Instant
 
 /**
- * 저장함 · 코스 탭 **화면 조합 목업 API** (BFF) — `GET /service/v1/my/saved-courses`.
+ * 저장함 · 코스 탭 **화면 조합 목업 API** (BFF) — `GET /service/v1/courses/save`.
+ * 모바일 화면용 경로 `/service/v1/courses/save`(도메인 REST API `/api/v1/...` 와 구분).
  */
 @RestController
 @RequestMapping("/service/v1")
@@ -68,7 +69,7 @@ class SavedCourseScreenController {
          * 목 데이터 — 저장 레코드는 도메인 모킹([com.example.backend.user.adapter.inbound.web.SavedCourseController])과,
          * courseId=1 코스는 코스 상세 화면 조합 목([CourseDetailScreenController]: 비 오는 날 성수 감성 카페 코스,
          * jiho_routes)과 값을 맞춰 두었다. 나머지 코스·좌표는 디자인(저장함 · 코스 · 리스트/지도) 예시 기준.
-         * 작성자 id 는 로그인 사용자 목(id=1 · MyController)과 겹치지 않게 두고, isMine 코스만 id=1 로 맞췄다.
+         * 작성자 id 는 로그인 사용자 목(id=1 · AccountController)과 겹치지 않게 두고, isMine 코스만 id=1 로 맞췄다.
          */
         val MOCK_ITEMS: List<SavedCourseScreenItemResponse> =
             listOf(

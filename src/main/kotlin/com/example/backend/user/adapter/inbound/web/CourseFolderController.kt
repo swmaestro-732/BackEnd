@@ -24,9 +24,11 @@ import org.springframework.web.bind.annotation.RestController
  *
  * 실제 구현 시 인바운드 포트(UseCase) 연동으로 교체한다. 모킹 에러(`?mockError=<code>`)는
  * 전역 아스펙트([com.example.backend.bootstrap.mock.MockErrorAspect])가 주입한다.
+ *
+ * 경로: `/service/v1/course-folders` 가 정식이며 `/api/v1/my/course-folders` 는 deprecated 별칭(동일 핸들러).
  */
 @RestController
-@RequestMapping("/api/v1/my/course-folders")
+@RequestMapping(value = ["/service/v1/course-folders", "/api/v1/my/course-folders"])
 class CourseFolderController {
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)

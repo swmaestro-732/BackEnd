@@ -29,9 +29,12 @@ import org.springframework.web.bind.annotation.RestController
  *
  * 실제 구현 시 인바운드 포트(UseCase) 연동으로 교체한다. 모킹 에러(`?mockError=<code>`)는
  * 전역 아스펙트([com.example.backend.bootstrap.mock.MockErrorAspect])가 주입한다.
+ *
+ * 경로: `/service/v1/saved-places` 가 정식이며 `/api/v1/my/saved-places` 는 deprecated 별칭(동일 핸들러).
+ * visit 의 RESTful 정식 경로는 `POST /api/v1/places/{placeId}/visits` 다.
  */
 @RestController
-@RequestMapping("/api/v1/my/saved-places")
+@RequestMapping(value = ["/service/v1/saved-places", "/api/v1/my/saved-places"])
 class SavedPlaceController {
     @PostMapping("/{placeId}")
     @ResponseStatus(HttpStatus.CREATED)
@@ -42,6 +45,10 @@ class SavedPlaceController {
     /**
      * 저장 장소 방문 처리(모킹). 미방문 탭 카드 스와이프 → "방문한 곳으로 표시할까요?" 확인 후 호출 —
      * 방문 탭으로 옮기고 지도에 방문 표시를 남긴다. 장소 저장(save)과 동일하게 data 없이 메시지만 반환한다.
+     *
+     * Deprecated: 장소 리소스 액션이므로 `POST /api/v1/places/{placeId}/visits`
+     * ([com.example.backend.place.adapter.inbound.web.PlaceVisitController.visit]) 로 대체한다(경로 변수는 장소 id).
+     * 신·구 병행 유지 중 — 클라이언트 전환 완료 후 제거한다.
      */
     @PatchMapping("/{savedPlaceId}")
     fun visit(

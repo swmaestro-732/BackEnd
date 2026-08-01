@@ -4,15 +4,13 @@ import com.example.backend.user.application.port.inbound.dto.FollowResult
 import com.example.backend.user.application.port.inbound.dto.UpdateProfileCommand
 import com.example.backend.user.application.port.inbound.dto.UserProfileResult
 
-interface MyUseCase {
-    fun getMyProfile(userId: Long): UserProfileResult
+interface AccountUseCase {
+    fun getProfile(userId: Long): UserProfileResult
 
-    fun updateMyProfile(
+    fun updateProfile(
         userId: Long,
         command: UpdateProfileCommand,
     ): UserProfileResult
-
-    fun withdraw(userId: Long)
 
     fun follow(
         followerId: Long,

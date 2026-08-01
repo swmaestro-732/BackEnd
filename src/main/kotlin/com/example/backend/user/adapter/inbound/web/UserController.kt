@@ -1,22 +1,17 @@
 package com.example.backend.user.adapter.inbound.web
 
+import com.example.backend.bootstrap.mock.MockGuard
 import com.example.backend.bootstrap.security.CurrentUserId
 import com.example.backend.common.response.ApiResponse
-import com.example.backend.user.adapter.inbound.web.request.CreateUserRequest
 import com.example.backend.user.adapter.inbound.web.response.AvailabilityResponse
 import com.example.backend.user.adapter.inbound.web.response.UserProfileResponse
-import com.example.backend.user.adapter.inbound.web.response.UserResponse
 import com.example.backend.user.application.port.inbound.UserUseCase
-import jakarta.validation.Valid
 import jakarta.validation.constraints.NotBlank
-import org.springframework.http.HttpStatus
+import org.springframework.web.bind.annotation.DeleteMapping
 import org.springframework.web.bind.annotation.GetMapping
 import org.springframework.web.bind.annotation.PathVariable
-import org.springframework.web.bind.annotation.PostMapping
-import org.springframework.web.bind.annotation.RequestBody
 import org.springframework.web.bind.annotation.RequestMapping
 import org.springframework.web.bind.annotation.RequestParam
-import org.springframework.web.bind.annotation.ResponseStatus
 import org.springframework.web.bind.annotation.RestController
 
 /**
@@ -27,10 +22,8 @@ import org.springframework.web.bind.annotation.RestController
 @RequestMapping("/api/v1/users")
 class UserController(
     private val userUseCase: UserUseCase,
+    private val mockGuard: MockGuard,
 ) {
-    @GetMapping
-    fun list(): ApiResponse<List<UserResponse>> = ApiResponse.success(userUseCase.list().map(UserResponse::from))
-
     @GetMapping("/{userId}")
     fun getProfile(
         @PathVariable userId: Long,
@@ -48,9 +41,17 @@ class UserController(
     ): ApiResponse<AvailabilityResponse> =
         ApiResponse.success(AvailabilityResponse(available = userUseCase.isHandleAvailable(handle)))
 
-    @PostMapping
-    @ResponseStatus(HttpStatus.CREATED)
-    fun create(
-        @Valid @RequestBody request: CreateUserRequest,
-    ): ApiResponse<UserResponse> = ApiResponse.success(UserResponse.from(userUseCase.create(request.toCommand())))
+    /**
+     * 회원 탈퇴 — 현재 로그인 사용자("나")를 소프트 삭제한다. `DELETE /api/v1/users`.
+     * 대상은 JWT 의 나이므로 식별자 없이 컬렉션 경로에 둔다. 계정 리소스 액션이라 user 도메인에 둔다
+     * (구 `DELETE /service/v1`·`/api/v1/my` 는 deprecated 별칭).
+     */
+    @DeleteMapping
+    fun withdraw(
+        @CurrentUserId userId: Long,
+        @RequestParam(required = false) mock: Boolean = false,
+    ): ApiResponse<Nothing?> {
+        if (!(mock && mockGuard.isMockAllowed())) userUseCase.withdraw(userId)
+        return ApiResponse.ok()
+    }
 }

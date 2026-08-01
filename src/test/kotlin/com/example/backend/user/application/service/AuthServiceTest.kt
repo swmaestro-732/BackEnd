@@ -43,6 +43,8 @@ class AuthServiceTest {
 
             override fun findById(id: Long): User? = byId
 
+            override fun findByHandle(handle: String): User? = null
+
             override fun findProfile(userId: Long): UserProfileRow? = null
 
             override fun save(user: User): User = user

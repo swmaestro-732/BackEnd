@@ -87,8 +87,13 @@ class AuthController(
         return ApiResponse.success(SignupResponse.from(result))
     }
 
-    /** refresh token 회전으로 accessToken·refreshToken 재발급. */
-    @PostMapping("/token-reissue")
+    /**
+     * refresh token 회전으로 accessToken·refreshToken 재발급.
+     *
+     * 정식 경로는 `POST /api/v1/auth/refresh`. `POST /api/v1/auth/token-reissue` 는 **deprecated 별칭**으로
+     * 동일 핸들러를 병행 노출한다(클라이언트 전환 완료 후 token-reissue 경로 제거 예정).
+     */
+    @PostMapping(value = ["/refresh", "/token-reissue"])
     fun reissueToken(
         @Valid @RequestBody request: TokenReissueRequest,
         @RequestParam(required = false) mock: Boolean = false,
