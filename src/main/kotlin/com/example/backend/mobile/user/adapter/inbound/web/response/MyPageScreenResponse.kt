@@ -1,8 +1,8 @@
 package com.example.backend.mobile.user.adapter.inbound.web.response
 
-import com.example.backend.course.application.port.inbound.dto.CourseSummary
 import com.example.backend.mobile.user.application.port.inbound.dto.MyPageResult
-import com.example.backend.user.application.port.inbound.dto.UserProfileResult
+import com.example.backend.mobile.user.application.port.outbound.dto.AuthoredCourse
+import com.example.backend.mobile.user.application.port.outbound.dto.ProfileSnapshot
 import java.time.Instant
 
 /**
@@ -52,7 +52,7 @@ data class MyPageScreenResponse(
     }
 }
 
-/** 마이페이지 프로필 카드 — [UserProfileResult] 형태. 팔로우 플래그는 타인 조회 기준. */
+/** 마이페이지 프로필 카드 — [ProfileSnapshot] 형태. 팔로우 플래그는 타인 조회 기준. */
 data class MyPageProfileResponse(
     val id: Long,
     val nickname: String,
@@ -65,7 +65,7 @@ data class MyPageProfileResponse(
     val coursesCnt: Int,
 ) {
     companion object {
-        fun from(profile: UserProfileResult): MyPageProfileResponse =
+        fun from(profile: ProfileSnapshot): MyPageProfileResponse =
             MyPageProfileResponse(
                 id = profile.id,
                 nickname = profile.nickname,
@@ -80,7 +80,7 @@ data class MyPageProfileResponse(
     }
 }
 
-/** 마이페이지 코스 카드 — 작성자의 발행 코스 요약([CourseSummary]). theme 은 카테고리 이름. */
+/** 마이페이지 코스 카드 — 작성자의 발행 코스 요약([AuthoredCourse]). theme 은 카테고리 이름. */
 data class MyPageCourseResponse(
     val id: String,
     val title: String,
@@ -91,7 +91,7 @@ data class MyPageCourseResponse(
     val createdAt: Instant,
 ) {
     companion object {
-        fun from(summary: CourseSummary): MyPageCourseResponse =
+        fun from(summary: AuthoredCourse): MyPageCourseResponse =
             MyPageCourseResponse(
                 id = summary.id.toString(),
                 title = summary.title,
