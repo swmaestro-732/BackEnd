@@ -1,28 +1,37 @@
 package com.example.backend.user.adapter.outbound.persistence
 
-import com.example.backend.user.adapter.outbound.persistence.exposed.repository.FollowRepository
-import com.example.backend.user.adapter.outbound.persistence.exposed.repository.UserRepository
 import com.example.backend.user.application.port.outbound.FollowPersistencePort
-import org.springframework.stereotype.Component
+import org.jetbrains.exposed.v1.core.and
+import org.jetbrains.exposed.v1.core.eq
+import org.jetbrains.exposed.v1.core.inList
+import org.jetbrains.exposed.v1.core.minus
+import org.jetbrains.exposed.v1.core.plus
+import org.jetbrains.exposed.v1.jdbc.deleteWhere
+import org.jetbrains.exposed.v1.jdbc.insertIgnore
+import org.jetbrains.exposed.v1.jdbc.selectAll
+import org.jetbrains.exposed.v1.jdbc.update
+import org.springframework.stereotype.Repository
 
-/**
- * 아웃바운드 어댑터 — [FollowPersistencePort] 를 구현한다.
- * follows 관계는 [FollowRepository], 팔로워/팔로잉 카운터 증감은 [UserRepository] 에 위임하고,
- * 이 어댑터는 관계 삽입·삭제 성사 여부에 맞춰 카운터 갱신을 조율한다.
- */
-@Component
-class FollowPersistenceAdapter(
-    private val followRepository: FollowRepository,
-    private val userRepository: UserRepository,
-) : FollowPersistencePort {
+@Repository
+class FollowPersistenceAdapter : FollowPersistencePort {
     override fun follow(
         followerId: Long,
         followingId: Long,
     ): Boolean {
-        val inserted = followRepository.insertIgnore(followerId, followingId)
+        val inserted =
+            FollowTable
+                .insertIgnore {
+                    it[FollowTable.followerId] = followerId
+                    it[FollowTable.followingId] = followingId
+                }.insertedCount > 0
+
         if (inserted) {
-            userRepository.increaseFollowers(followingId)
-            userRepository.increaseFollowings(followerId)
+            UserTable.update({ UserTable.id eq followingId }) {
+                it[followersCnt] = followersCnt + 1
+            }
+            UserTable.update({ UserTable.id eq followerId }) {
+                it[followingsCnt] = followingsCnt + 1
+            }
         }
         return inserted
     }
@@ -31,10 +40,18 @@ class FollowPersistenceAdapter(
         followerId: Long,
         followingId: Long,
     ): Boolean {
-        val deleted = followRepository.delete(followerId, followingId)
+        val deleted =
+            FollowTable.deleteWhere {
+                (FollowTable.followerId eq followerId) and (FollowTable.followingId eq followingId)
+            } > 0
+
         if (deleted) {
-            userRepository.decreaseFollowers(followingId)
-            userRepository.decreaseFollowings(followerId)
+            UserTable.update({ UserTable.id eq followingId }) {
+                it[followersCnt] = followersCnt - 1
+            }
+            UserTable.update({ UserTable.id eq followerId }) {
+                it[followingsCnt] = followingsCnt - 1
+            }
         }
         return deleted
     }
@@ -42,15 +59,35 @@ class FollowPersistenceAdapter(
     override fun isFollowing(
         followerId: Long,
         followingId: Long,
-    ): Boolean = followRepository.exists(followerId, followingId)
+    ): Boolean =
+        FollowTable
+            .selectAll()
+            .where {
+                (FollowTable.followerId eq followerId) and (FollowTable.followingId eq followingId)
+            }.empty()
+            .not()
 
     override fun filterFollowing(
         followerId: Long,
         followingIds: List<Long>,
-    ): Set<Long> = followRepository.filterFollowing(followerId, followingIds)
+    ): Set<Long> {
+        if (followingIds.isEmpty()) return emptySet()
+        return FollowTable
+            .selectAll()
+            .where {
+                (FollowTable.followerId eq followerId) and (FollowTable.followingId inList followingIds)
+            }.mapTo(mutableSetOf()) { it[FollowTable.followingId] }
+    }
 
     override fun filterFollowers(
         followingId: Long,
         followerIds: List<Long>,
-    ): Set<Long> = followRepository.filterFollowers(followingId, followerIds)
+    ): Set<Long> {
+        if (followerIds.isEmpty()) return emptySet()
+        return FollowTable
+            .selectAll()
+            .where {
+                (FollowTable.followingId eq followingId) and (FollowTable.followerId inList followerIds)
+            }.mapTo(mutableSetOf()) { it[FollowTable.followerId] }
+    }
 }
