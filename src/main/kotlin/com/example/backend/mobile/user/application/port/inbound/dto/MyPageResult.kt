@@ -1,5 +1,6 @@
 package com.example.backend.mobile.user.application.port.inbound.dto
 
+import com.example.backend.course.application.port.inbound.dto.CourseSummary
 import com.example.backend.user.application.port.inbound.dto.UserProfileResult
 
 /**
@@ -8,5 +9,5 @@ import com.example.backend.user.application.port.inbound.dto.UserProfileResult
  */
 data class MyPageResult(
     val profile: UserProfileResult,
-    val courses: List<MyPageCourseInfo>,
+    val courses: List<CourseSummary>,
 )
