@@ -31,7 +31,7 @@ class CurrentUserIdArgumentResolver : HandlerMethodArgumentResolver {
             (authentication as? JwtAuthenticationToken)
                 ?.let { it.principal as? Jwt }
                 ?.subject
-                ?.toLong()
+                ?.toLongOrNull()
 
         // 필수(non-null) 파라미터인데 인증이 없으면 500 대신 401 로 응답하도록 인증 예외를 던진다.
         // (경로 매칭 대신 @AccessTokenRequired 메서드 시큐리티로 보호하므로, 익명 요청이 컨트롤러까지 도달한다.)

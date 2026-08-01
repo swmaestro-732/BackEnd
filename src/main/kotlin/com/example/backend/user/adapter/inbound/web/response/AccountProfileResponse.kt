@@ -31,7 +31,7 @@ data class AccountProfileResponse(
             AccountProfileResponse(
                 id = 1L,
                 nickname = "현우님",
-                handle = "@hyunwoo",
+                handle = "hyunwoo",
                 profileImageUrl = "https://cdn.example.com/users/1.jpg",
                 followersCnt = 128,
                 followingsCnt = 88,

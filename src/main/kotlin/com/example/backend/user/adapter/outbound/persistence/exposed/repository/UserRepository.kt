@@ -92,11 +92,14 @@ class UserRepository(
 
     fun update(user: User) {
         val id = checkNotNull(user.id) { "영속화된 User 는 id 를 가진다." }
-        UserTable.update({ UserTable.id eq id }) {
-            it[nickname] = user.nickname
-            it[handle] = user.handle
-            it[profileImageUrl] = user.profileImageUrl
-        }
+        // 탈퇴 계정 프로필이 갱신되지 않도록 softDelete/reactivate 와 동일하게 deletedAt 필터를 건다(방어).
+        val updated =
+            UserTable.update({ (UserTable.id eq id) and UserTable.deletedAt.isNull() }) {
+                it[nickname] = user.nickname
+                it[handle] = user.handle
+                it[profileImageUrl] = user.profileImageUrl
+            }
+        check(updated == 1) { "갱신할 활성 사용자를 찾지 못했습니다: id=$id" }
     }
 
     fun softDelete(user: User) {
@@ -197,7 +200,8 @@ class UserRepository(
         val socialId = checkNotNull(user.socialId) { "소셜 식별자가 필요합니다." }
         val updated =
             UserTable.update({ (UserTable.id eq id) and UserTable.deletedAt.isNotNull() }) {
-                it[status] = user.status.code
+                // 재활성화는 항상 ACTIVE 로 되살린다(반환 도메인 객체의 고정 status 와 일치).
+                it[status] = UserStatus.ACTIVE.code
                 it[deletedAt] = null
                 it[nickname] = user.nickname
                 it[handle] = user.handle
