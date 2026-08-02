@@ -68,6 +68,12 @@ interface CoursePersistencePort {
      */
     fun findPublishedByAuthor(authorId: Long): List<CourseSummaryRow>
 
+    /**
+     * 전체 공개(visibility=PUBLIC)·발행·활성·미삭제 코스 요약을 createdAt 내림차순으로 [limit] 개까지 읽는다.
+     * 모두 PUBLIC 이라 서비스의 공개범위 필터가 필요 없다(피드 후보용).
+     */
+    fun findPublishedPublic(limit: Int): List<CourseSummaryRow>
+
     /** 미삭제(deleted_at IS NULL) 코스가 존재하는지 확인한다(fork 원본 검증 등). */
     fun existsById(courseId: Long): Boolean
 

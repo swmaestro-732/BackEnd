@@ -26,4 +26,7 @@ class CourseInteractionService(
         followerId: Long,
         followingId: Long,
     ): Boolean = followPersistencePort.isFollowing(followerId, followingId)
+
+    override fun countSavesByCourseIds(courseIds: List<Long>): Map<Long, Int> =
+        courseInteractionPort.countSavesByCourseIds(courseIds)
 }

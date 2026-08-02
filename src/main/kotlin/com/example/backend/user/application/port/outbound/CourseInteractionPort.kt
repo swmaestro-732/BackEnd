@@ -14,4 +14,7 @@ interface CourseInteractionPort {
         userId: Long,
         courseId: Long,
     ): Boolean
+
+    /** 코스별 저장수(saved_courses 행 수)를 courseId → count 로 집계한다(저장 기록 없는 코스는 맵에서 빠진다). */
+    fun countSavesByCourseIds(courseIds: List<Long>): Map<Long, Int>
 }

@@ -110,6 +110,26 @@ class CourseService(
                 )
             }
 
+    /**
+     * 전체 공개(PUBLIC) 발행 코스 후보를 최신순으로 [limit] 개 내려준다.
+     * 조회 결과가 모두 PUBLIC 이라 공개범위(isViewable) 필터 없이 그대로 매핑한다(피드 후보용, 랭킹은 BFF).
+     */
+    override fun listPublic(limit: Int): List<CourseSummary> =
+        coursePersistencePort
+            .findPublishedPublic(limit)
+            .map {
+                CourseSummary(
+                    id = it.id,
+                    authorId = it.userId,
+                    title = it.title,
+                    coverImageUrl = it.coverImageUrl,
+                    theme = it.category?.name,
+                    likesCnt = it.likesCnt,
+                    savesCnt = it.savesCnt,
+                    createdAt = it.createdAt,
+                )
+            }
+
     private fun isViewable(
         visibility: CourseVisibility,
         ownerId: Long,

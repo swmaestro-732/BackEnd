@@ -18,4 +18,7 @@ class CourseInteractionAdapter(
         userId: Long,
         courseId: Long,
     ): Boolean = courseInteractionRepository.existsTracingCourse(userId, courseId)
+
+    override fun countSavesByCourseIds(courseIds: List<Long>): Map<Long, Int> =
+        courseInteractionRepository.countSavesByCourseIds(courseIds)
 }

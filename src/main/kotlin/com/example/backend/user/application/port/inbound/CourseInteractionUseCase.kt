@@ -22,4 +22,11 @@ interface CourseInteractionUseCase {
         followerId: Long,
         followingId: Long,
     ): Boolean
+
+    /**
+     * 코스별 저장수(saved_courses 행 수)를 courseId → count 로 집계한다.
+     * 코스 피드 저장수 랭킹 등 다른 도메인·BFF 가 저장수를 필요로 할 때 이 포트로만 접근한다.
+     * 저장 기록이 없는 courseId 는 결과 맵에서 빠진다(호출측이 0 으로 처리).
+     */
+    fun countSavesByCourseIds(courseIds: List<Long>): Map<Long, Int>
 }
