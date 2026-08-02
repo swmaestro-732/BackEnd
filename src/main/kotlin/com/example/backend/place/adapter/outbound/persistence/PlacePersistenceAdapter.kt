@@ -15,5 +15,5 @@ class PlacePersistenceAdapter(
 ) : PlacePersistencePort {
     override fun findByKakaoIds(kakaoIds: List<String>): List<Place> = placeRepository.findByKakaoIds(kakaoIds)
 
-    override fun saveAll(places: List<Place>): List<Place> = placeRepository.saveAll(places)
+    override fun insertIgnoringConflicts(places: List<Place>) = placeRepository.insertIgnoringConflicts(places)
 }

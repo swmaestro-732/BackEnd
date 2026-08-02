@@ -29,19 +29,21 @@ class PlaceSearchService(
         val external = externalPlaceSearchPort.search(query, near)
         if (external.isEmpty()) return emptyList()
 
+        val allKakaoIds = external.map { it.kakaoPlaceId }
+
         // 이미 저장된 장소는 kakao id 로 찾아 재사용한다(kakaoPlaceId 는 카카오 유래 row 에선 non-null).
-        val existingByKakao =
+        val existingKakaoIds =
             placePersistencePort
-                .findByKakaoIds(external.map { it.kakaoPlaceId })
-                .mapNotNull { place -> place.kakaoPlaceId?.let { it to place } }
-                .toMap()
+                .findByKakaoIds(allKakaoIds)
+                .mapNotNull { it.kakaoPlaceId }
+                .toSet()
 
         // 저장되지 않은 것만 신규 도메인으로. 카카오가 페이지 간 중복 id 를 줄 수 있어 distinctBy 로 한 번 걸러낸다.
         // 도메인 불변식(이름·주소 비어 있으면 예외)에 걸리지 않도록 빈 값은 미리 제외한다.
         val toInsert =
             external
                 .asSequence()
-                .filter { it.kakaoPlaceId !in existingByKakao }
+                .filter { it.kakaoPlaceId !in existingKakaoIds }
                 .distinctBy { it.kakaoPlaceId }
                 .filter { it.name.isNotBlank() }
                 .mapNotNull { ext ->
@@ -58,14 +60,18 @@ class PlaceSearchService(
                     )
                 }.toList()
 
-        val inserted =
+        if (toInsert.isNotEmpty()) placePersistencePort.insertIgnoringConflicts(toInsert)
+
+        // 삽입 후 재조회로 확정한다 — 기존 + 방금 삽입 + (경합 시)동시 삽입분까지 여기서 집힌다.
+        // insert ignore 라 경합으로 내 insert 가 무시돼도 상대가 넣은 row 를 이 재조회가 집어 요청이 실패하지 않는다.
+        val placeByKakao =
             placePersistencePort
-                .saveAll(toInsert)
+                .findByKakaoIds(allKakaoIds)
                 .mapNotNull { place -> place.kakaoPlaceId?.let { it to place } }
                 .toMap()
 
         return external.mapNotNull { ext ->
-            val place = existingByKakao[ext.kakaoPlaceId] ?: inserted[ext.kakaoPlaceId] ?: return@mapNotNull null
+            val place = placeByKakao[ext.kakaoPlaceId] ?: return@mapNotNull null
             PlaceSearchResult(
                 id = place.id!!,
                 name = ext.name,

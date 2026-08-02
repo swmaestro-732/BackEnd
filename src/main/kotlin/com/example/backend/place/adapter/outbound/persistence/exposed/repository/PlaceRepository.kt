@@ -10,6 +10,7 @@ import org.jetbrains.exposed.v1.core.greater
 import org.jetbrains.exposed.v1.core.inList
 import org.jetbrains.exposed.v1.core.isNull
 import org.jetbrains.exposed.v1.core.like
+import org.jetbrains.exposed.v1.jdbc.insertIgnore
 import org.springframework.stereotype.Repository
 
 /**
@@ -57,20 +58,24 @@ class PlaceRepository {
             .map { it.toDomain() }
     }
 
-    /** 신규 장소들을 삽입하고 생성값(id·타임스탬프)까지 실린 도메인으로 반환한다(created_at·updated_at 은 클라이언트 기본값이 채운다). */
-    fun saveAll(places: List<Place>): List<Place> =
-        places.map { place ->
-            PlaceEntity
-                .new {
-                    status = place.status
-                    name = place.name
-                    description = place.description
-                    category = place.category
-                    location = place.location
-                    address = place.address
-                    imageUrl = place.imageUrl
-                    businessStatus = place.businessStatus
-                    kakaoPlaceId = place.kakaoPlaceId
-                }.toDomain()
+    /**
+     * 신규 장소들을 삽입하되 kakao place id 유니크 충돌은 무시한다(동시 검색 경합 대비 — ON CONFLICT DO NOTHING).
+     * 부분 유니크 인덱스라 대상 컬럼 없는 targetless insert ignore 를 쓴다. created_at·updated_at 은 클라이언트 기본값이 채운다.
+     * 삽입 id 는 반환하지 않는다 — 호출부가 findByKakaoIds 로 재조회해 (기존+삽입+동시 삽입) 전부를 확정한다.
+     */
+    fun insertIgnoringConflicts(places: List<Place>) {
+        places.forEach { place ->
+            PlaceTable.insertIgnore {
+                it[PlaceTable.status] = place.status
+                it[PlaceTable.name] = place.name
+                it[PlaceTable.description] = place.description
+                it[PlaceTable.category] = place.category
+                it[PlaceTable.location] = place.location
+                it[PlaceTable.address] = place.address
+                it[PlaceTable.imageUrl] = place.imageUrl
+                it[PlaceTable.businessStatus] = place.businessStatus
+                it[PlaceTable.kakaoPlaceId] = place.kakaoPlaceId
+            }
         }
+    }
 }

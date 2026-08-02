@@ -70,10 +70,12 @@ class PlaceSearchServiceTest {
 
         override fun findByKakaoIds(kakaoIds: List<String>): List<Place> = kakaoIds.mapNotNull { store[it] }
 
-        override fun saveAll(places: List<Place>): List<Place> =
-            places.map { place ->
+        // insert ignore 모사 — 이미 있는 kakao id 는 건너뛴다(충돌 무시). id 는 삽입 시에만 부여.
+        override fun insertIgnoringConflicts(places: List<Place>) {
+            places.forEach { place ->
                 val kakaoId = place.kakaoPlaceId!!
-                val persisted =
+                if (store.containsKey(kakaoId)) return@forEach
+                store[kakaoId] =
                     Place.reconstitute(
                         id = ++seq,
                         status = PlaceStatus.ACTIVE,
@@ -89,8 +91,7 @@ class PlaceSearchServiceTest {
                         updatedAt = null,
                         deletedAt = null,
                     )
-                store[kakaoId] = persisted
-                persisted
             }
+        }
     }
 }

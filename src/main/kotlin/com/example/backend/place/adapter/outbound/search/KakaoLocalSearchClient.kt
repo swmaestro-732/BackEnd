@@ -55,7 +55,7 @@ class KakaoLocalSearchClient(
         }
 
     private fun KakaoLocalDocument.toExternalPlace(): ExternalPlace? {
-        val kakaoId = id ?: return null
+        val kakaoId = id?.takeIf(String::isNotBlank) ?: return null
         val longitude = x?.toDoubleOrNull() ?: return null
         val latitude = y?.toDoubleOrNull() ?: return null
         return ExternalPlace(
