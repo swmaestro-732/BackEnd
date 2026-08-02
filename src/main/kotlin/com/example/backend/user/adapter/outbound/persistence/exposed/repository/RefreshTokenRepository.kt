@@ -1,0 +1,74 @@
+package com.example.backend.user.adapter.outbound.persistence.exposed.repository
+
+import com.example.backend.bootstrap.security.JwtProperties
+import com.example.backend.user.adapter.outbound.persistence.exposed.RefreshTokenEntity
+import com.example.backend.user.adapter.outbound.persistence.exposed.RefreshTokenTable
+import com.example.backend.user.application.port.outbound.RefreshTokenRecord
+import org.jetbrains.exposed.v1.core.and
+import org.jetbrains.exposed.v1.core.eq
+import org.jetbrains.exposed.v1.core.greater
+import org.jetbrains.exposed.v1.jdbc.insert
+import org.jetbrains.exposed.v1.jdbc.update
+import org.springframework.stereotype.Repository
+import java.security.MessageDigest
+import java.time.Clock
+import java.util.UUID
+import kotlin.time.toJavaInstant
+import kotlin.time.toKotlinInstant
+
+/** refresh_tokens 테이블 접근 리포지토리 — 불투명 refresh token 을 발급하고 V4 refresh_tokens 에 저장·검증한다. */
+@Repository
+class RefreshTokenRepository(
+    private val jwtProperties: JwtProperties,
+    private val clock: Clock,
+) {
+    fun issue(userId: Long): String {
+        val token = UUID.randomUUID().toString()
+        val expiresAt = clock.instant().plus(jwtProperties.refreshTtl).toKotlinInstant()
+        RefreshTokenTable.insert {
+            it[RefreshTokenTable.userId] = userId
+            it[RefreshTokenTable.tokenHash] = hash(token)
+            it[RefreshTokenTable.expiresAt] = expiresAt
+        }
+        return token
+    }
+
+    fun findValid(token: String): RefreshTokenRecord? =
+        RefreshTokenEntity
+            .find {
+                (RefreshTokenTable.tokenHash eq hash(token)) and
+                    (RefreshTokenTable.revoked eq false) and
+                    (RefreshTokenTable.expiresAt greater clock.instant().toKotlinInstant())
+            }.singleOrNull()
+            ?.let {
+                RefreshTokenRecord(
+                    id = it.id.value,
+                    userId = it.userId,
+                    tokenHash = it.tokenHash,
+                    expiresAt = it.expiresAt.toJavaInstant(),
+                    revoked = it.revoked,
+                    createdAt = it.createdAt.toJavaInstant(),
+                )
+            }
+
+    fun revoke(token: String): Boolean =
+        RefreshTokenTable.update({
+            (RefreshTokenTable.tokenHash eq hash(token)) and (RefreshTokenTable.revoked eq false)
+        }) {
+            it[RefreshTokenTable.revoked] = true
+        } > 0
+
+    fun revokeAllByUser(userId: Long) {
+        RefreshTokenTable.update({
+            (RefreshTokenTable.userId eq userId) and (RefreshTokenTable.revoked eq false)
+        }) {
+            it[RefreshTokenTable.revoked] = true
+        }
+    }
+
+    private fun hash(token: String): String =
+        MessageDigest
+            .getInstance("SHA-256")
+            .digest(token.toByteArray())
+            .joinToString("") { "%02x".format(it) }
+}

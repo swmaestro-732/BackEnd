@@ -5,7 +5,7 @@ import java.time.Instant
 
 /**
  * 웹 응답 DTO — 저장함 · 장소 탭 화면 조합(BFF). 프론트 화면 계약 형태.
- * 도메인 API(`GET /api/v1/my/saved-places`)의 저장 레코드·카운트·페이지 메타를 유지하고,
+ * 도메인 API(`GET /service/v1/saved-places`)의 저장 레코드·카운트·페이지 메타를 유지하고,
  * 각 저장 항목에 장소 요약(평점·카테고리·영업·거리 — 디자인 J 밴드)을 덧붙여 내려준다.
  * 현재는 컨트롤러에서 목 데이터로 채운다(실제 구현 시 user + place inbound 포트 조합으로 교체).
  */
