@@ -48,4 +48,29 @@ class PlaceRepository {
 
     // Postgres LIKE 의 기본 이스케이프 문자(백슬래시)를 이용해 와일드카드를 리터럴화한다. 백슬래시를 먼저 치환해야 한다.
     private fun String.escapeLikeWildcards(): String = replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
+
+    /** deleted_at IS NULL 인 장소들을 카카오 place id 목록으로 읽어 도메인으로 변환한다(검색 결과 dedup 조회용). */
+    fun findByKakaoIds(kakaoIds: List<String>): List<Place> {
+        if (kakaoIds.isEmpty()) return emptyList()
+        return PlaceEntity
+            .find { (PlaceTable.kakaoPlaceId inList kakaoIds) and PlaceTable.deletedAt.isNull() }
+            .map { it.toDomain() }
+    }
+
+    /** 신규 장소들을 삽입하고 생성값(id·타임스탬프)까지 실린 도메인으로 반환한다(created_at·updated_at 은 클라이언트 기본값이 채운다). */
+    fun saveAll(places: List<Place>): List<Place> =
+        places.map { place ->
+            PlaceEntity
+                .new {
+                    status = place.status
+                    name = place.name
+                    description = place.description
+                    category = place.category
+                    location = place.location
+                    address = place.address
+                    imageUrl = place.imageUrl
+                    businessStatus = place.businessStatus
+                    kakaoPlaceId = place.kakaoPlaceId
+                }.toDomain()
+        }
 }

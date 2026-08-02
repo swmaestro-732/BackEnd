@@ -27,6 +27,7 @@ internal object PlaceTable : LongIdTable("places") {
     val address = varchar("address", 255)
     val imageUrl = text("image_url").nullable()
     val businessStatus = enumerationByName<PlaceBusinessStatus>("business_status", 32)
+    val kakaoPlaceId = varchar("kakao_place_id", 64).nullable()
 }
 
 /**
@@ -50,6 +51,7 @@ internal class PlaceEntity(
     var address by PlaceTable.address
     var imageUrl by PlaceTable.imageUrl
     var businessStatus by PlaceTable.businessStatus
+    var kakaoPlaceId by PlaceTable.kakaoPlaceId
 
     /** DAO 엔티티를 도메인 [Place] 로 변환한다(생성된 id·DB 생성값 포함). */
     fun toDomain(): Place =
@@ -63,6 +65,7 @@ internal class PlaceEntity(
             address = address,
             imageUrl = imageUrl,
             businessStatus = businessStatus,
+            kakaoPlaceId = kakaoPlaceId,
             createdAt = createdAt,
             updatedAt = updatedAt,
             deletedAt = deletedAt,
