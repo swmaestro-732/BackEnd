@@ -11,6 +11,8 @@ import org.jetbrains.exposed.v1.core.and
 import org.jetbrains.exposed.v1.core.eq
 import org.jetbrains.exposed.v1.core.inList
 import org.jetbrains.exposed.v1.core.isNull
+import org.jetbrains.exposed.v1.core.minus
+import org.jetbrains.exposed.v1.core.plus
 import org.jetbrains.exposed.v1.jdbc.selectAll
 import org.jetbrains.exposed.v1.jdbc.update
 import org.springframework.stereotype.Repository
@@ -79,6 +81,18 @@ class CourseRepository {
             it[updatedAt] = now
         }
     }
+
+    /** deleted_at IS NULL 인 행의 saves_cnt 를 1 증가시킨다. 반환은 영향받은 행 수(0 또는 1). */
+    fun increaseSavesCount(courseId: Long): Int =
+        CourseTable.update({ (CourseTable.id eq courseId) and CourseTable.deletedAt.isNull() }) {
+            it[savesCnt] = savesCnt + 1
+        }
+
+    /** deleted_at IS NULL 인 행의 saves_cnt 를 1 감소시킨다. 반환은 영향받은 행 수(0 또는 1). */
+    fun decreaseSavesCount(courseId: Long): Int =
+        CourseTable.update({ (CourseTable.id eq courseId) and CourseTable.deletedAt.isNull() }) {
+            it[savesCnt] = savesCnt - 1
+        }
 
     /** deleted_at IS NULL 인 코스가 존재하는지만 확인한다(fork 원본 검증 등, 본문 미적재). */
     fun existsById(courseId: Long): Boolean =

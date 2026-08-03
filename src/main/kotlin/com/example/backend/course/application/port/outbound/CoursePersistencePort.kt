@@ -72,4 +72,16 @@ interface CoursePersistencePort {
      * 자식(장소·이미지·태그)은 지우지 않는다 — 모든 조회가 courses.deleted_at 로 걸러 도달 불가하다.
      */
     fun softDelete(courseId: Long): Int
+
+    /**
+     * 저장 수(saves_cnt)를 1 증가시킨다 — 미삭제(deleted_at IS NULL) 행에만 적용하고 영향받은 행 수를 반환한다.
+     * 코스 저장(다른 도메인) 시 호출된다. 정합성은 추후 비동기 집계로 옮긴다.
+     */
+    fun increaseSavesCount(courseId: Long): Int
+
+    /**
+     * 저장 수(saves_cnt)를 1 감소시킨다 — 미삭제(deleted_at IS NULL) 행에만 적용하고 영향받은 행 수를 반환한다.
+     * 저장 취소(다른 도메인)가 실제로 일어났을 때만 호출된다. 정합성은 추후 비동기 집계로 옮긴다.
+     */
+    fun decreaseSavesCount(courseId: Long): Int
 }

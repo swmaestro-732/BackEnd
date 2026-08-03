@@ -2,6 +2,7 @@ package com.example.backend.user.application.service
 
 import com.example.backend.common.exception.BusinessException
 import com.example.backend.common.response.ErrorCode
+import com.example.backend.course.application.port.inbound.CourseCounterUseCase
 import com.example.backend.course.application.port.inbound.CourseQueryUseCase
 import com.example.backend.user.application.port.inbound.dto.SavedCoursesCommand
 import com.example.backend.user.application.port.outbound.CourseFolderCountRow
@@ -89,7 +90,21 @@ class SavedCourseServiceTest {
             override fun listFolders(userId: Long): List<CourseFolderCountRow> = emptyList()
         }
 
-    private val service = SavedCourseService(fakePort, fakeCourseQuery)
+    private val fakeCourseCounter =
+        object : CourseCounterUseCase {
+            var increasedCourseIds: MutableList<Long> = mutableListOf()
+            var decreasedCourseIds: MutableList<Long> = mutableListOf()
+
+            override fun increaseSavesCount(courseId: Long) {
+                increasedCourseIds += courseId
+            }
+
+            override fun decreaseSavesCount(courseId: Long) {
+                decreasedCourseIds += courseId
+            }
+        }
+
+    private val service = SavedCourseService(fakePort, fakeCourseQuery, fakeCourseCounter)
 
     private fun row(id: Long) = SavedCourseRow(id = id, folderId = null, courseId = id * 10, savedAt = Instant.EPOCH)
 
