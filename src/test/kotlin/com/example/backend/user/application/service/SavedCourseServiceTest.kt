@@ -4,6 +4,7 @@ import com.example.backend.common.exception.BusinessException
 import com.example.backend.common.response.ErrorCode
 import com.example.backend.course.application.port.inbound.CourseCounterUseCase
 import com.example.backend.course.application.port.inbound.CourseQueryUseCase
+import com.example.backend.course.application.port.inbound.dto.CourseSummary
 import com.example.backend.user.application.port.inbound.dto.SavedCoursesCommand
 import com.example.backend.user.application.port.outbound.CourseFolderCountRow
 import com.example.backend.user.application.port.outbound.SavedCoursePersistencePort
@@ -23,6 +24,11 @@ class SavedCourseServiceTest {
             var existing: Set<Long> = emptySet()
 
             override fun existsById(courseId: Long): Boolean = courseId in existing
+
+            override fun listByAuthor(
+                authorId: Long,
+                viewerId: Long?,
+            ): List<CourseSummary> = emptyList()
         }
 
     private val fakePort =
