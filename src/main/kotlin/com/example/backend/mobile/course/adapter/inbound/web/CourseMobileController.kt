@@ -13,7 +13,9 @@ import org.springframework.web.bind.annotation.RestController
 /**
  * 인바운드 어댑터 — 코스 상세 **화면 조합 API** (BFF).
  * 코스 상세 + 작성자 프로필 + 장소 이름·카테고리를 한 번에 내려준다.
- * 개별 도메인 API(`/api/v1/...`)와 구분해 화면 조합 경로(`/service/v1/...`)로 노출한다.
+ * 개별 도메인 API(`/api/v1/...`)와 구분해 화면 조합 경로로 노출한다.
+ * 화면 조합 BFF는 모바일용 `/service/v1/...` 경로로 노출한다(도메인 REST API `/api/v1/...` 와 구분)
+ * (동일 핸들러·동일 유스케이스, 클라이언트 전환 완료 후 `/service/v1` 제거 예정).
  *
  * 조합(도메인 인바운드 포트 3개 호출)은 인바운드 포트([CourseMobileUseCase])가 담당하고,
  * 컨트롤러는 Request → 포트 호출 → Response 매핑만 한다. 코스 존재/공개범위 판정은 코스 도메인이 수행한다

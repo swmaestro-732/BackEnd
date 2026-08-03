@@ -6,7 +6,7 @@ import java.time.Instant
 
 /**
  * 웹 응답 DTO — 저장함 · 코스 탭 화면 조합(BFF). 프론트 화면 계약 형태.
- * 도메인 API(`GET /api/v1/my/saved-courses`)의 저장 레코드·카운트·페이지 메타를 유지하고,
+ * 도메인 API(`GET /service/v1/saved-courses`)의 저장 레코드·카운트·페이지 메타를 유지하고,
  * 각 항목에 코스 요약(제목·지역·테마·장소 수·소요 시간·작성자 — 디자인 J 밴드)과
  * 완주 상태(trace)를 덧붙여 내려준다.
  */
@@ -77,8 +77,10 @@ data class SavedCourseScreenResponse(
             )
 
         /**
-         * 목 데이터 — 코스·장소·작성자 값을 로컬 시드([scripts/dev-seed.sql])와 맞춰 두었다.
-         * isMine 코스만 작성자 id=1(hyunwoo)로 맞췄다.
+         * 목 데이터 — 저장 레코드는 도메인 모킹([com.example.backend.user.adapter.inbound.web.SavedCourseController])과,
+         * courseId=1 코스는 코스 상세 화면 조합 목([com.example.backend.bff.adapter.inbound.web.CourseDetailScreenController]: 비 오는 날 성수 감성 카페 코스,
+         * jiho_routes)과 값을 맞춰 두었다. 나머지 코스·좌표는 디자인(저장함 · 코스 · 리스트/지도) 예시 기준.
+         * 작성자 id 는 로그인 사용자 목(id=1 · AccountController)과 겹치지 않게 두고, isMine 코스만 id=1 로 맞췄다.
          */
         private val MOCK_ITEMS: List<SavedCourseScreenItemResponse> =
             listOf(
@@ -419,7 +421,7 @@ data class SavedCourseScreenResponse(
     }
 }
 
-/** 폴더 칩 배지 — 코스 폴더 목록 API(`GET /api/v1/my/course-folders`)와 같은 폴더. */
+/** 폴더 칩 배지 — 코스 폴더 목록 API(`GET /service/v1/course-folders`)와 같은 폴더. */
 data class CourseFolderCountResponse(
     val id: Long,
     val name: String,

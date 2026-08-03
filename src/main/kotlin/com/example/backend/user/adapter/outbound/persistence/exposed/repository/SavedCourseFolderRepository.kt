@@ -1,7 +1,7 @@
 package com.example.backend.user.adapter.outbound.persistence.exposed.repository
 
-import com.example.backend.user.adapter.outbound.persistence.SavedCourseFolderTable
-import com.example.backend.user.adapter.outbound.persistence.SavedCourseTable
+import com.example.backend.user.adapter.outbound.persistence.exposed.SavedCourseFolderTable
+import com.example.backend.user.adapter.outbound.persistence.exposed.SavedCourseTable
 import com.example.backend.user.application.port.outbound.CourseFolderCountRow
 import org.jetbrains.exposed.v1.core.JoinType
 import org.jetbrains.exposed.v1.core.SortOrder

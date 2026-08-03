@@ -1,18 +1,18 @@
 package com.example.backend.user.application.port.inbound
 
 import com.example.backend.user.application.port.inbound.dto.FollowResult
-import com.example.backend.user.application.port.inbound.dto.UpdateProfileCommand
 import com.example.backend.user.application.port.inbound.dto.UserProfileResult
 
-interface MyUseCase {
-    fun getMyProfile(userId: Long): UserProfileResult
+interface AccountUseCase {
+    fun getProfile(userId: Long): UserProfileResult
 
-    fun updateMyProfile(
+    // 파라미터 4개 미만이면 커맨드로 감싸지 않고 그대로 받는다(팀 컨벤션).
+    fun updateProfile(
         userId: Long,
-        command: UpdateProfileCommand,
+        nickname: String?,
+        handle: String?,
+        profileImageUrl: String?,
     ): UserProfileResult
-
-    fun withdraw(userId: Long)
 
     fun follow(
         followerId: Long,

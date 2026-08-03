@@ -7,6 +7,8 @@ import org.jetbrains.exposed.v1.exceptions.ExposedSQLException
 import org.slf4j.LoggerFactory
 import org.springframework.http.ResponseEntity
 import org.springframework.http.converter.HttpMessageNotReadableException
+import org.springframework.security.access.AccessDeniedException
+import org.springframework.security.core.AuthenticationException
 import org.springframework.web.bind.MethodArgumentNotValidException
 import org.springframework.web.bind.MissingServletRequestParameterException
 import org.springframework.web.bind.annotation.ExceptionHandler
@@ -105,6 +107,9 @@ class GlobalExceptionHandler {
     /** 그 외 → 500. 원인 추적을 위해 스택트레이스를 남긴다. */
     @ExceptionHandler(Exception::class)
     fun handleUnexpected(e: Exception): ResponseEntity<ApiResponse<Nothing?>> {
+        // 스프링 시큐리티 인증/인가 예외(@PreAuthorize·@CurrentUserId 등)는 필터의
+        // ExceptionTranslationFilter 가 401/403 으로 변환하도록 재던진다(500 로 삼키지 않는다).
+        if (e is AuthenticationException || e is AccessDeniedException) throw e
         log.error("처리되지 않은 예외", e)
         return respond(ErrorCode.INTERNAL_ERROR)
     }

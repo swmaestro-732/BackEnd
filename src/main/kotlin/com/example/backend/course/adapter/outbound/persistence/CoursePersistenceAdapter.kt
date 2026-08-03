@@ -7,6 +7,7 @@ import com.example.backend.course.adapter.outbound.persistence.exposed.repositor
 import com.example.backend.course.application.port.outbound.CourseDetailRow
 import com.example.backend.course.application.port.outbound.CoursePersistencePort
 import com.example.backend.course.application.port.outbound.CoursePlaceRow
+import com.example.backend.course.application.port.outbound.CourseSummaryRow
 import com.example.backend.course.domain.model.Course
 import org.springframework.stereotype.Component
 
@@ -28,6 +29,9 @@ class CoursePersistenceAdapter(
 
     override fun findCourseDetails(courseIds: List<Long>): List<CourseDetailRow> =
         courseRepository.findDetails(courseIds)
+
+    override fun findPublishedByAuthor(authorId: Long): List<CourseSummaryRow> =
+        courseRepository.findPublishedByAuthor(authorId)
 
     override fun existsById(courseId: Long): Boolean = courseRepository.existsById(courseId)
 

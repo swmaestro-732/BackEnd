@@ -98,22 +98,22 @@ class AuthTokenFlowTest
         }
 
         @Test
-        fun `유효한 access token으로 보호된 내 프로필을 조회한다`() {
+        fun `유효한 access token으로 보호된 마이페이지를 조회한다`() {
             val accessToken = jwtTokenProvider.issueAccessToken(USER_ID)
 
             mockMvc
                 .perform(
-                    get("/api/v1/my/profile")
+                    get("/service/v1/mypage")
                         .header(HttpHeaders.AUTHORIZATION, "Bearer $accessToken"),
                 ).andExpect(status().isOk)
                 .andExpect(jsonPath("$.code").value(2000))
-                .andExpect(jsonPath("$.data.id").value(USER_ID))
+                .andExpect(jsonPath("$.data.profile.id").value(USER_ID))
         }
 
         private fun reissueRequest() = reissueRequestWith(REFRESH_TOKEN)
 
         private fun reissueRequestWith(refreshToken: String) =
-            post("/api/v1/auth/token-reissue")
+            post("/api/v1/auth/refresh")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("""{"refreshToken":"$refreshToken"}""")
 

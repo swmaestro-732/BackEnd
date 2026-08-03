@@ -1,8 +1,8 @@
 package com.example.backend.user.adapter.outbound.persistence.exposed.repository
 
-import com.example.backend.user.adapter.outbound.persistence.SavedCourseEntity
-import com.example.backend.user.adapter.outbound.persistence.SavedCourseTable
-import com.example.backend.user.adapter.outbound.persistence.TracingCourseTable
+import com.example.backend.user.adapter.outbound.persistence.exposed.SavedCourseEntity
+import com.example.backend.user.adapter.outbound.persistence.exposed.SavedCourseTable
+import com.example.backend.user.adapter.outbound.persistence.exposed.TracingCourseTable
 import com.example.backend.user.application.port.outbound.SavedCourseRow
 import com.example.backend.user.domain.model.SavedCourse
 import org.jetbrains.exposed.v1.core.Op

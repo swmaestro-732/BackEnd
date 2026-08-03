@@ -1,4 +1,4 @@
-package com.example.backend.user.adapter.outbound.persistence
+package com.example.backend.user.adapter.outbound.persistence.exposed
 
 import com.example.backend.user.domain.model.SavedCourse
 import org.jetbrains.exposed.v1.core.dao.id.EntityID
