@@ -9,10 +9,14 @@ import com.example.backend.user.application.port.inbound.dto.CourseViewerState
  * 다른 도메인(course)이 조회자 상태나 작성자와의 관계를 필요로 할 때 이 포트로만 접근한다(크로스 도메인 격리).
  */
 interface CourseInteractionUseCase {
-    fun getViewerState(
+    /**
+     * 여러 코스에 대한 조회자 상태(저장 여부·완주 시각)를 코스별로 반환한다(목록·상세 화면 조합용).
+     * 반환 순서는 입력 [courseIds] 순서를 따르며, 각 항목이 자신의 courseId 를 담는다.
+     */
+    fun getViewerStates(
         userId: Long,
-        courseId: Long,
-    ): CourseViewerState
+        courseIds: List<Long>,
+    ): List<CourseViewerState>
 
     /**
      * 조회자(followerId)가 대상 사용자(followingId)를 팔로우하는지.
@@ -22,11 +26,4 @@ interface CourseInteractionUseCase {
         followerId: Long,
         followingId: Long,
     ): Boolean
-
-    /**
-     * 코스별 저장수(saved_courses 행 수)를 courseId → count 로 집계한다.
-     * 코스 피드 저장수 랭킹 등 다른 도메인·BFF 가 저장수를 필요로 할 때 이 포트로만 접근한다.
-     * 저장 기록이 없는 courseId 는 결과 맵에서 빠진다(호출측이 0 으로 처리).
-     */
-    fun countSavesByCourseIds(courseIds: List<Long>): Map<Long, Int>
 }

@@ -28,6 +28,8 @@ interface UserPersistencePort {
 
     fun findProfile(userId: Long): UserProfileRow?
 
+    fun findProfiles(userIds: List<Long>): List<UserProfileRow>
+
     /** 저장 후 식별자가 부여된 User 를 반환한다. */
     fun save(user: User): User
 

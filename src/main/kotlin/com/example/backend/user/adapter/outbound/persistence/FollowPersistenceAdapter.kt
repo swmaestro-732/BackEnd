@@ -23,4 +23,14 @@ class FollowPersistenceAdapter(
         followerId: Long,
         followingId: Long,
     ): Boolean = followRepository.isFollowing(followerId, followingId)
+
+    override fun filterFollowing(
+        followerId: Long,
+        followingIds: List<Long>,
+    ): Set<Long> = followRepository.filterFollowing(followerId, followingIds)
+
+    override fun filterFollowers(
+        followingId: Long,
+        followerIds: List<Long>,
+    ): Set<Long> = followRepository.filterFollowers(followingId, followerIds)
 }

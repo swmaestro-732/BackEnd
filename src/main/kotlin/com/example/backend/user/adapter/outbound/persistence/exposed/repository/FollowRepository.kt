@@ -4,6 +4,7 @@ import com.example.backend.user.adapter.outbound.persistence.exposed.FollowTable
 import com.example.backend.user.adapter.outbound.persistence.exposed.UserTable
 import org.jetbrains.exposed.v1.core.and
 import org.jetbrains.exposed.v1.core.eq
+import org.jetbrains.exposed.v1.core.inList
 import org.jetbrains.exposed.v1.core.minus
 import org.jetbrains.exposed.v1.core.plus
 import org.jetbrains.exposed.v1.jdbc.deleteWhere
@@ -67,4 +68,30 @@ class FollowRepository {
                 (FollowTable.followerId eq followerId) and (FollowTable.followingId eq followingId)
             }.empty()
             .not()
+
+    /** followerId 가 팔로우하는 대상 중 followingIds 에 속한 id 집합(조회자 기준 배치 조회). */
+    fun filterFollowing(
+        followerId: Long,
+        followingIds: List<Long>,
+    ): Set<Long> {
+        if (followingIds.isEmpty()) return emptySet()
+        return FollowTable
+            .selectAll()
+            .where {
+                (FollowTable.followerId eq followerId) and (FollowTable.followingId inList followingIds)
+            }.mapTo(mutableSetOf()) { it[FollowTable.followingId] }
+    }
+
+    /** followerIds 중 followingId 를 팔로우하는 id 집합(조회자 기준 배치 조회). */
+    fun filterFollowers(
+        followingId: Long,
+        followerIds: List<Long>,
+    ): Set<Long> {
+        if (followerIds.isEmpty()) return emptySet()
+        return FollowTable
+            .selectAll()
+            .where {
+                (FollowTable.followingId eq followingId) and (FollowTable.followerId inList followerIds)
+            }.mapTo(mutableSetOf()) { it[FollowTable.followerId] }
+    }
 }

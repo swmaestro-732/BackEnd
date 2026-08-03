@@ -3,50 +3,46 @@ package com.example.backend.user.adapter.outbound.persistence.exposed.repository
 import com.example.backend.user.adapter.outbound.persistence.exposed.SavedCourseTable
 import com.example.backend.user.adapter.outbound.persistence.exposed.TracingCourseTable
 import org.jetbrains.exposed.v1.core.and
-import org.jetbrains.exposed.v1.core.count
 import org.jetbrains.exposed.v1.core.eq
 import org.jetbrains.exposed.v1.core.inList
+import org.jetbrains.exposed.v1.core.isNull
 import org.jetbrains.exposed.v1.jdbc.select
-import org.jetbrains.exposed.v1.jdbc.selectAll
 import org.springframework.stereotype.Repository
+import java.time.Instant
+import kotlin.time.toJavaInstant
 
 /**
- * saved_courses·tracing_courses 테이블 접근 리포지토리.
- * (user_id, course_id) 행 존재 여부만 확인한다.
+ * saved_courses·tracing_courses 테이블 접근 리포지토리 — 조회자 상태(저장 여부·완주 시각) 배치 조회를 담당한다.
  */
 @Repository
 class CourseInteractionRepository {
-    fun existsSavedCourse(
+    /** 주어진 코스들 중 사용자가 따라간(완주한) 코스의 가장 이른 tracing 시각을 courseId 별로 반환한다(없으면 빈 맵). */
+    fun findCompletedAt(
         userId: Long,
-        courseId: Long,
-    ): Boolean =
-        SavedCourseTable
-            .selectAll()
-            .where { (SavedCourseTable.userId eq userId) and (SavedCourseTable.courseId eq courseId) }
-            .empty()
-            .not()
-
-    fun existsTracingCourse(
-        userId: Long,
-        courseId: Long,
-    ): Boolean =
-        TracingCourseTable
-            .selectAll()
-            .where { (TracingCourseTable.userId eq userId) and (TracingCourseTable.courseId eq courseId) }
-            .empty()
-            .not()
-
-    /**
-     * 코스별 저장수(saved_courses 행 수)를 courseId → count 로 집계한다(GROUP BY course_id).
-     * 저장 기록이 없는 courseId 는 결과 맵에서 빠진다(호출측이 0 으로 처리). 빈 입력이면 조회 없이 빈 맵.
-     */
-    fun countSavesByCourseIds(courseIds: List<Long>): Map<Long, Int> {
+        courseIds: List<Long>,
+    ): Map<Long, Instant> {
         if (courseIds.isEmpty()) return emptyMap()
-        val cnt = SavedCourseTable.courseId.count()
+        return TracingCourseTable
+            .select(TracingCourseTable.courseId, TracingCourseTable.createdAt)
+            .where { (TracingCourseTable.userId eq userId) and (TracingCourseTable.courseId inList courseIds) }
+            .map { it[TracingCourseTable.courseId] to it[TracingCourseTable.createdAt].toJavaInstant() }
+            // 같은 코스를 여러 번 따라간 경우 가장 이른 시각을 완주 시각으로 본다.
+            .groupBy({ it.first }, { it.second })
+            .mapValues { (_, times) -> times.minOrNull()!! }
+    }
+
+    /** 주어진 코스들 중 사용자가 저장(deleted_at IS NULL)한 코스의 id 집합을 반환한다. */
+    fun findSavedCourseIds(
+        userId: Long,
+        courseIds: List<Long>,
+    ): Set<Long> {
+        if (courseIds.isEmpty()) return emptySet()
         return SavedCourseTable
-            .select(SavedCourseTable.courseId, cnt)
-            .where { SavedCourseTable.courseId inList courseIds }
-            .groupBy(SavedCourseTable.courseId)
-            .associate { it[SavedCourseTable.courseId] to it[cnt].toInt() }
+            .select(SavedCourseTable.courseId)
+            .where {
+                (SavedCourseTable.userId eq userId) and
+                    (SavedCourseTable.courseId inList courseIds) and
+                    SavedCourseTable.deletedAt.isNull()
+            }.mapTo(mutableSetOf()) { it[SavedCourseTable.courseId] }
     }
 }

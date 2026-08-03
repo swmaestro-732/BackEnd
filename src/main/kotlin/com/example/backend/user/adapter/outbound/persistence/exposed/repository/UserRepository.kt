@@ -63,6 +63,24 @@ class UserRepository(
                 )
             }
 
+    /** 여러 프로필을 한 번에 읽는다(탈퇴 제외). 없는·삭제된 id 는 결과에서 빠지며 순서는 보장하지 않는다. */
+    fun findProfiles(userIds: List<Long>): List<UserProfileRow> {
+        if (userIds.isEmpty()) return emptyList()
+        return UserEntity
+            .find { (UserTable.id inList userIds) and UserTable.deletedAt.isNull() }
+            .map {
+                UserProfileRow(
+                    id = it.id.value,
+                    nickname = it.nickname,
+                    handle = it.handle,
+                    profileImageUrl = it.profileImageUrl,
+                    followersCnt = it.followersCnt,
+                    followingsCnt = it.followingsCnt,
+                    coursesCnt = it.coursesCnt,
+                )
+            }
+    }
+
     /** 탈퇴(soft delete) 사용자는 제외하고 요약 정보만 읽는다. */
     fun findSummariesByIds(ids: Collection<Long>): List<UserSummaryUseCase.UserSummary> =
         UserEntity

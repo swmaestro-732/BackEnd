@@ -25,7 +25,7 @@ import org.springframework.web.bind.annotation.RestController
  * 파라미터는 받되 아직 적용하지 않는다(모킹 폴백은 고정 응답이라 파라미터를 무시한다).
  *
  * 장소 상세는 화면 조합이라 BFF 경로로 이관했다 → `GET /service/v1/places/{placeId}`
- * ([com.example.backend.bff.adapter.inbound.web.PlaceDetailScreenController]).
+ * ([com.example.backend.mobile.place.adapter.inbound.web.PlaceDetailScreenController]).
  */
 @RestController
 @RequestMapping("/api/v1/places")

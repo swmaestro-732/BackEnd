@@ -13,20 +13,24 @@ class CourseInteractionService(
     private val courseInteractionPort: CourseInteractionPort,
     private val followPersistencePort: FollowPersistencePort,
 ) : CourseInteractionUseCase {
-    override fun getViewerState(
+    override fun getViewerStates(
         userId: Long,
-        courseId: Long,
-    ): CourseViewerState =
-        CourseViewerState(
-            hasSaved = courseInteractionPort.existsSavedCourse(userId, courseId),
-            hasStartedCourse = courseInteractionPort.existsTracingCourse(userId, courseId),
-        )
+        courseIds: List<Long>,
+    ): List<CourseViewerState> {
+        if (courseIds.isEmpty()) return emptyList()
+        val saved = courseInteractionPort.findSavedCourseIds(userId, courseIds)
+        val completedAt = courseInteractionPort.findCompletedAt(userId, courseIds)
+        return courseIds.map { courseId ->
+            CourseViewerState(
+                courseId = courseId,
+                hasSaved = courseId in saved,
+                completedAt = completedAt[courseId],
+            )
+        }
+    }
 
     override fun isFollowing(
         followerId: Long,
         followingId: Long,
     ): Boolean = followPersistencePort.isFollowing(followerId, followingId)
-
-    override fun countSavesByCourseIds(courseIds: List<Long>): Map<Long, Int> =
-        courseInteractionPort.countSavesByCourseIds(courseIds)
 }
