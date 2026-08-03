@@ -85,7 +85,7 @@ class AuthControllerTest
         fun `토큰 재발급은 새 토큰을 내려준다`() {
             mockMvc
                 .perform(
-                    post("/api/v1/auth/token-reissue?mock=true")
+                    post("/api/v1/auth/refresh?mock=true")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""{"refreshToken":"mock-refresh-token"}"""),
                 ).andExpect(status().isOk)

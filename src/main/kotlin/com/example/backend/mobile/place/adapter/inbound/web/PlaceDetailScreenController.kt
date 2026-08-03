@@ -20,7 +20,8 @@ import java.time.Instant
 /**
  * 장소 상세 **화면 조합 목업 API** (BFF).
  * 장소 정보 + 리뷰 요약/미리보기(작성자) + 저장 여부 + "이 근처 코스"(이 장소를 포함한 코스)를 한 번에 내려준다.
- * 개별 도메인 API(`/api/v1/...`)와 구분해 화면 조합 경로(`/service/v1/...`)로 노출한다(코스 상세 선례와 동일 원칙).
+ * 개별 도메인 API(`/api/v1/...`)와 구분해 화면 조합 경로로 노출한다(코스 상세 선례와 동일 원칙).
+ * 모바일 화면용 경로 `/service/v1/places/{placeId}`(도메인 REST API `/api/v1/...` 와 구분).
  *
  * `viewer.hasSaved`(user 소관)·"이 근처 코스"(course 소관)는 화면 조합이라 도메인 API가 아닌 여기에 둔다.
  * 기존 [com.example.backend.mobile.place.adapter.inbound.web.CourseDetailScreenController] 와 동일하게

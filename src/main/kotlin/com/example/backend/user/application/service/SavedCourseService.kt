@@ -2,6 +2,7 @@ package com.example.backend.user.application.service
 
 import com.example.backend.common.exception.BusinessException
 import com.example.backend.common.response.ErrorCode
+import com.example.backend.course.application.port.inbound.CourseCounterUseCase
 import com.example.backend.course.application.port.inbound.CourseQueryUseCase
 import com.example.backend.user.application.port.inbound.SavedCourseUseCase
 import com.example.backend.user.application.port.inbound.dto.SavedCourseFolderCount
@@ -27,6 +28,7 @@ import org.springframework.transaction.annotation.Transactional
 class SavedCourseService(
     private val savedCoursePersistencePort: SavedCoursePersistencePort,
     private val courseQueryUseCase: CourseQueryUseCase,
+    private val courseCounterUseCase: CourseCounterUseCase,
 ) : SavedCourseUseCase {
     @Transactional
     override fun save(
@@ -47,7 +49,10 @@ class SavedCourseService(
             throw BusinessException(ErrorCode.COURSE_ALREADY_SAVED, "이미 저장한 코스입니다: courseId=$courseId")
         }
 
-        return savedCoursePersistencePort.insert(userId, courseId, folderId)
+        val saved = savedCoursePersistencePort.insert(userId, courseId, folderId)
+        // courses.saves_cnt 낙관적 +1 — 코스 도메인이 자기 카운터를 소유한다. 같은 트랜잭션에 묶이며 추후 비동기 집계로 옮긴다.
+        courseCounterUseCase.increaseSavesCount(courseId)
+        return saved
     }
 
     @Transactional
@@ -55,7 +60,10 @@ class SavedCourseService(
         userId: Long,
         courseId: Long,
     ) {
-        savedCoursePersistencePort.deleteByUserAndCourse(userId, courseId)
+        // 실제로 살아있던 저장을 지웠을 때만 카운터를 내린다 — 멱등 취소(이미 없음)는 no-op 라 언더플로를 막는다.
+        if (savedCoursePersistencePort.deleteByUserAndCourse(userId, courseId)) {
+            courseCounterUseCase.decreaseSavesCount(courseId)
+        }
     }
 
     override fun getSavedCourses(command: SavedCoursesCommand): SavedCoursesResult {

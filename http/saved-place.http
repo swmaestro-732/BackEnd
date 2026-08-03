@@ -1,7 +1,7 @@
 ## 장소 저장 (POST /api/v1/my/saved-places/{placeId})
 
 ### 장소 저장 (정상) — 요청 바디 없음
-POST http://localhost:8080/api/v1/my/saved-places/1
+POST http://localhost:8080/api/v1/my/saved-places/101
 
 ### 모킹 에러 주입 — 404 / 4040 NOT_FOUND (placeId를 찾을 수 없음)
 POST http://localhost:8080/api/v1/my/saved-places/101?mockError=4040

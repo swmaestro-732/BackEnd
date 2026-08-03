@@ -1,7 +1,7 @@
 package com.example.backend.user.adapter.outbound.persistence.exposed.repository
 
-import com.example.backend.user.adapter.outbound.persistence.FollowTable
-import com.example.backend.user.adapter.outbound.persistence.UserTable
+import com.example.backend.user.adapter.outbound.persistence.exposed.FollowTable
+import com.example.backend.user.adapter.outbound.persistence.exposed.UserTable
 import com.example.backend.user.application.port.outbound.FollowUserRow
 import org.jetbrains.exposed.v1.core.Column
 import org.jetbrains.exposed.v1.core.JoinType
@@ -11,36 +11,61 @@ import org.jetbrains.exposed.v1.core.eq
 import org.jetbrains.exposed.v1.core.inList
 import org.jetbrains.exposed.v1.core.isNull
 import org.jetbrains.exposed.v1.core.less
+import org.jetbrains.exposed.v1.core.minus
+import org.jetbrains.exposed.v1.core.plus
 import org.jetbrains.exposed.v1.jdbc.deleteWhere
 import org.jetbrains.exposed.v1.jdbc.insertIgnore
 import org.jetbrains.exposed.v1.jdbc.select
 import org.jetbrains.exposed.v1.jdbc.selectAll
+import org.jetbrains.exposed.v1.jdbc.update
 import org.springframework.stereotype.Repository
 
-/** follows 테이블 접근 리포지토리 — 팔로우 관계의 삽입·삭제·조회만 담당한다(카운터 증감은 [UserRepository]). */
+/** follows 테이블 접근 리포지토리 — 팔로우 관계 생성·해제와 users 의 팔로워/팔로잉 카운터 반영을 담당한다. */
 @Repository
 class FollowRepository {
-    /** 팔로우 관계를 삽입한다(이미 있으면 무시). 새로 심었으면 true. */
-    fun insertIgnore(
+    fun follow(
         followerId: Long,
         followingId: Long,
-    ): Boolean =
-        FollowTable
-            .insertIgnore {
-                it[FollowTable.followerId] = followerId
-                it[FollowTable.followingId] = followingId
-            }.insertedCount > 0
+    ): Boolean {
+        val inserted =
+            FollowTable
+                .insertIgnore {
+                    it[FollowTable.followerId] = followerId
+                    it[FollowTable.followingId] = followingId
+                }.insertedCount > 0
 
-    /** 팔로우 관계를 삭제한다. 실제로 지웠으면 true. */
-    fun delete(
+        if (inserted) {
+            UserTable.update({ UserTable.id eq followingId }) {
+                it[followersCnt] = followersCnt + 1
+            }
+            UserTable.update({ UserTable.id eq followerId }) {
+                it[followingsCnt] = followingsCnt + 1
+            }
+        }
+        return inserted
+    }
+
+    fun unfollow(
         followerId: Long,
         followingId: Long,
-    ): Boolean =
-        FollowTable.deleteWhere {
-            (FollowTable.followerId eq followerId) and (FollowTable.followingId eq followingId)
-        } > 0
+    ): Boolean {
+        val deleted =
+            FollowTable.deleteWhere {
+                (FollowTable.followerId eq followerId) and (FollowTable.followingId eq followingId)
+            } > 0
 
-    fun exists(
+        if (deleted) {
+            UserTable.update({ UserTable.id eq followingId }) {
+                it[followersCnt] = followersCnt - 1
+            }
+            UserTable.update({ UserTable.id eq followerId }) {
+                it[followingsCnt] = followingsCnt - 1
+            }
+        }
+        return deleted
+    }
+
+    fun isFollowing(
         followerId: Long,
         followingId: Long,
     ): Boolean =
@@ -51,6 +76,7 @@ class FollowRepository {
             }.empty()
             .not()
 
+    /** followerId 가 팔로우하는 대상 중 followingIds 에 속한 id 집합(조회자 기준 배치 조회). */
     fun filterFollowing(
         followerId: Long,
         followingIds: List<Long>,
@@ -63,6 +89,7 @@ class FollowRepository {
             }.mapTo(mutableSetOf()) { it[FollowTable.followingId] }
     }
 
+    /** followerIds 중 followingId 를 팔로우하는 id 집합(조회자 기준 배치 조회). */
     fun filterFollowers(
         followingId: Long,
         followerIds: List<Long>,
@@ -128,7 +155,7 @@ class FollowRepository {
             .map {
                 FollowUserRow(
                     followId = it[FollowTable.id],
-                    userId = it[UserTable.id],
+                    userId = it[UserTable.id].value,
                     nickname = it[UserTable.nickname],
                     handle = it[UserTable.handle],
                     profileImageUrl = it[UserTable.profileImageUrl],

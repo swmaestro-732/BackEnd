@@ -23,6 +23,9 @@ interface UserPersistencePort {
 
     fun findById(id: Long): User?
 
+    /** 핸들로 조회한다(deleted_at IS NULL, findById 와 동일한 소프트 삭제 시맨틱). 없으면 null. */
+    fun findByHandle(handle: String): User?
+
     fun findProfile(userId: Long): UserProfileRow?
 
     fun findProfiles(userIds: List<Long>): List<UserProfileRow>

@@ -1,0 +1,62 @@
+package com.example.backend.user.adapter.outbound.persistence.exposed
+
+import com.example.backend.user.domain.model.SocialProvider
+import com.example.backend.user.domain.model.User
+import com.example.backend.user.domain.model.UserStatus
+import org.jetbrains.exposed.v1.core.dao.id.EntityID
+import org.jetbrains.exposed.v1.core.dao.id.LongIdTable
+import org.jetbrains.exposed.v1.dao.LongEntity
+import org.jetbrains.exposed.v1.dao.LongEntityClass
+import org.jetbrains.exposed.v1.datetime.timestamp
+
+/**
+ * Exposed 테이블 정의. 영속성 세부사항이므로 아웃바운드 어댑터 내부에만 둔다.
+ * 실제 스키마는 Flyway(V1__init.sql)가 생성한다. users 의 나머지 컬럼은 DB 기본값을 사용하므로
+ * 여기서는 user 도메인이 다루는 컬럼만 선언한다(프로필 요약 조회에 필요한 컬럼 포함).
+ * LongIdTable 이 id(EntityID<Long>, "id" 컬럼)와 primaryKey 를 제공한다 → DAO(UserEntity)·DSL 공용.
+ */
+internal object UserTable : LongIdTable("users") {
+    val nickname = varchar("nickname", 20)
+    val handle = varchar("handle", 30).nullable()
+    val profileImageUrl = text("profile_image_url").nullable()
+    val followersCnt = integer("followers_cnt")
+    val followingsCnt = integer("followings_cnt")
+    val coursesCnt = integer("courses_cnt")
+    val status = short("status")
+    val socialProvider = varchar("social_provider", 20).nullable()
+    val socialId = varchar("social_id", 255).nullable()
+    val deletedAt = timestamp("deleted_at").nullable()
+}
+
+/**
+ * users 테이블의 DAO 엔티티([UserTable] 과 한 쌍이라 같은 파일에 둔다). 같은 테이블을 DSL 로도 조회할 수 있다(DAO·DSL 공용).
+ * 트랜잭션에 묶인 가변 영속 객체이므로 어댑터(outbound) 밖으로 내보내지 않고, 읽기 모델은 순수 도메인/DTO 로 변환해 반환한다.
+ */
+internal class UserEntity(
+    id: EntityID<Long>,
+) : LongEntity(id) {
+    companion object : LongEntityClass<UserEntity>(UserTable)
+
+    var nickname by UserTable.nickname
+    var handle by UserTable.handle
+    var profileImageUrl by UserTable.profileImageUrl
+    var followersCnt by UserTable.followersCnt
+    var followingsCnt by UserTable.followingsCnt
+    var coursesCnt by UserTable.coursesCnt
+    var status by UserTable.status
+    var socialProvider by UserTable.socialProvider
+    var socialId by UserTable.socialId
+    var deletedAt by UserTable.deletedAt
+
+    /** DAO 엔티티를 도메인 [User] 로 변환한다. */
+    fun toDomain(): User =
+        User.reconstitute(
+            id = id.value,
+            nickname = nickname,
+            handle = handle,
+            profileImageUrl = profileImageUrl,
+            socialProvider = socialProvider?.let(SocialProvider::valueOf),
+            socialId = socialId,
+            status = UserStatus.fromCode(status),
+        )
+}

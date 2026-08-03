@@ -3,25 +3,22 @@ package com.example.backend.user.application.service
 import com.example.backend.common.exception.BusinessException
 import com.example.backend.common.response.ErrorCode
 import com.example.backend.media.application.port.inbound.MediaCleanupUseCase
-import com.example.backend.user.application.port.inbound.MyUseCase
+import com.example.backend.user.application.port.inbound.AccountUseCase
 import com.example.backend.user.application.port.inbound.dto.FollowResult
-import com.example.backend.user.application.port.inbound.dto.UpdateProfileCommand
 import com.example.backend.user.application.port.inbound.dto.UserProfileResult
 import com.example.backend.user.application.port.outbound.FollowPersistencePort
-import com.example.backend.user.application.port.outbound.RefreshTokenPort
 import com.example.backend.user.application.port.outbound.UserPersistencePort
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
 
 @Service
 @Transactional(readOnly = true)
-class MyService(
+class AccountService(
     private val userPersistencePort: UserPersistencePort,
     private val followPersistencePort: FollowPersistencePort,
-    private val refreshTokenPort: RefreshTokenPort,
     private val mediaCleanupUseCase: MediaCleanupUseCase,
-) : MyUseCase {
-    override fun getMyProfile(userId: Long): UserProfileResult {
+) : AccountUseCase {
+    override fun getProfile(userId: Long): UserProfileResult {
         val row =
             userPersistencePort.findProfile(userId)
                 ?: throw BusinessException(ErrorCode.USER_NOT_FOUND, "사용자를 찾을 수 없습니다: id=$userId")
@@ -39,44 +36,37 @@ class MyService(
     }
 
     @Transactional
-    override fun updateMyProfile(
+    override fun updateProfile(
         userId: Long,
-        command: UpdateProfileCommand,
+        nickname: String?,
+        handle: String?,
+        profileImageUrl: String?,
     ): UserProfileResult {
         val user =
             userPersistencePort.findById(userId)
                 ?: throw BusinessException(ErrorCode.USER_NOT_FOUND, "사용자를 찾을 수 없습니다: id=$userId")
 
-        if (command.nickname != null &&
-            command.nickname != user.nickname &&
-            userPersistencePort.existsByNickname(command.nickname)
+        if (nickname != null &&
+            nickname != user.nickname &&
+            userPersistencePort.existsByNickname(nickname)
         ) {
             throw BusinessException(ErrorCode.NICKNAME_ALREADY_TAKEN)
         }
-        if (command.handle != null &&
-            command.handle != user.handle &&
-            userPersistencePort.existsByHandle(command.handle)
+        if (handle != null &&
+            handle != user.handle &&
+            userPersistencePort.existsByHandle(handle)
         ) {
             throw BusinessException(ErrorCode.HANDLE_ALREADY_TAKEN)
         }
 
         val oldImageUrl = user.profileImageUrl
-        val updated = user.updateProfile(command.nickname, command.handle, command.profileImageUrl)
+        val updated = user.updateProfile(nickname, handle, profileImageUrl)
         userPersistencePort.update(updated)
         // 프로필 이미지가 새 값으로 교체되면 참조 끊긴 옛 이미지(고아)를 정리한다(재사용 함수).
-        if (command.profileImageUrl != null && command.profileImageUrl != oldImageUrl) {
+        if (profileImageUrl != null && profileImageUrl != oldImageUrl) {
             mediaCleanupUseCase.deleteByUrl(oldImageUrl)
         }
-        return getMyProfile(userId)
-    }
-
-    @Transactional
-    override fun withdraw(userId: Long) {
-        val user =
-            userPersistencePort.findById(userId)
-                ?: throw BusinessException(ErrorCode.USER_NOT_FOUND, "사용자를 찾을 수 없습니다: id=$userId")
-        userPersistencePort.softDelete(user.withdraw())
-        refreshTokenPort.revokeAllByUser(userId)
+        return getProfile(userId)
     }
 
     @Transactional

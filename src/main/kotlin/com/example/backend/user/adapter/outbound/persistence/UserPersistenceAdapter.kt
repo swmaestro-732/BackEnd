@@ -9,9 +9,7 @@ import org.springframework.stereotype.Component
 
 /**
  * 아웃바운드 어댑터 — [UserPersistencePort] 를 구현한다.
- * 실제 users 테이블 접근은 [UserRepository] 에 위임하고, 이 어댑터는 포트 계약만 노출한다.
- * 트랜잭션은 애플리케이션 서비스의 @Transactional 이
- * SpringTransactionManager(exposed-spring-boot-starter)로 열어준다.
+ * 실제 테이블 접근·도메인 매핑은 [UserRepository] 에 위임하고, 이 어댑터는 유스케이스 계약만 맞춘다.
  */
 @Component
 class UserPersistenceAdapter(
@@ -20,6 +18,8 @@ class UserPersistenceAdapter(
     override fun findAll(): List<User> = userRepository.findAll()
 
     override fun findById(id: Long): User? = userRepository.findById(id)
+
+    override fun findByHandle(handle: String): User? = userRepository.findByHandle(handle)
 
     override fun findProfile(userId: Long): UserProfileRow? = userRepository.findProfile(userId)
 
@@ -35,16 +35,6 @@ class UserPersistenceAdapter(
 
     override fun existsByHandle(handle: String): Boolean = userRepository.existsByHandle(handle)
 
-    override fun existsByNicknameExcludingUser(
-        nickname: String,
-        excludeUserId: Long,
-    ): Boolean = userRepository.existsByNicknameExcludingUser(nickname, excludeUserId)
-
-    override fun existsByHandleExcludingUser(
-        handle: String,
-        excludeUserId: Long,
-    ): Boolean = userRepository.existsByHandleExcludingUser(handle, excludeUserId)
-
     override fun findBySocial(
         provider: SocialProvider,
         socialId: String,
@@ -54,6 +44,16 @@ class UserPersistenceAdapter(
         provider: SocialProvider,
         socialId: String,
     ): User? = userRepository.findWithdrawnBySocial(provider, socialId)
+
+    override fun existsByNicknameExcludingUser(
+        nickname: String,
+        excludeUserId: Long,
+    ): Boolean = userRepository.existsByNicknameExcludingUser(nickname, excludeUserId)
+
+    override fun existsByHandleExcludingUser(
+        handle: String,
+        excludeUserId: Long,
+    ): Boolean = userRepository.existsByHandleExcludingUser(handle, excludeUserId)
 
     override fun saveWithSocial(user: User): User = userRepository.saveWithSocial(user)
 
