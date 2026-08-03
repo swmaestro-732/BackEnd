@@ -62,8 +62,8 @@ class PlaceSearchService(
 
         if (toInsert.isNotEmpty()) placePersistencePort.insertIgnoringConflicts(toInsert)
 
-        // 삽입 후 재조회로 확정한다 — 기존 + 방금 삽입 + (경합 시)동시 삽입분까지 여기서 집힌다.
-        // insert ignore 라 경합으로 내 insert 가 무시돼도 상대가 넣은 row 를 이 재조회가 집어 요청이 실패하지 않는다.
+        // 삽입 후 재조회로 확정한다 — 기존 + 방금 삽입분을 집는다.
+        // (kakao_place_id 유니크 인덱스를 걸면, 동시 경합으로 내 insert 가 무시돼도 상대가 넣은 row 를 이 재조회가 집어 요청이 실패하지 않는다.)
         val placeByKakao =
             placePersistencePort
                 .findByKakaoIds(allKakaoIds)
