@@ -46,6 +46,8 @@ class AuthServiceTest {
 
             override fun findProfile(userId: Long): UserProfileRow? = null
 
+            override fun findProfiles(userIds: List<Long>): List<UserProfileRow> = emptyList()
+
             override fun save(user: User): User = user
 
             override fun update(user: User) = Unit

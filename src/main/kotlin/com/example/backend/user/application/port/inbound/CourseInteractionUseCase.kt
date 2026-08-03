@@ -9,10 +9,14 @@ import com.example.backend.user.application.port.inbound.dto.CourseViewerState
  * 다른 도메인(course)이 조회자 상태나 작성자와의 관계를 필요로 할 때 이 포트로만 접근한다(크로스 도메인 격리).
  */
 interface CourseInteractionUseCase {
-    fun getViewerState(
+    /**
+     * 여러 코스에 대한 조회자 상태(저장 여부·완주 시각)를 코스별로 반환한다(목록·상세 화면 조합용).
+     * 반환 순서는 입력 [courseIds] 순서를 따르며, 각 항목이 자신의 courseId 를 담는다.
+     */
+    fun getViewerStates(
         userId: Long,
-        courseId: Long,
-    ): CourseViewerState
+        courseIds: List<Long>,
+    ): List<CourseViewerState>
 
     /**
      * 조회자(followerId)가 대상 사용자(followingId)를 팔로우하는지.

@@ -27,12 +27,18 @@ class CoursePersistenceAdapter(
 ) : CoursePersistencePort {
     override fun findCourseDetail(courseId: Long): CourseDetailRow? = courseRepository.findDetail(courseId)
 
+    override fun findCourseDetails(courseIds: List<Long>): List<CourseDetailRow> =
+        courseRepository.findDetails(courseIds)
+
     override fun findPublishedByAuthor(authorId: Long): List<CourseSummaryRow> =
         courseRepository.findPublishedByAuthor(authorId)
 
     override fun existsById(courseId: Long): Boolean = courseRepository.existsById(courseId)
 
     override fun findPlaces(courseId: Long): List<CoursePlaceRow> = coursePlaceRepository.findByCourseId(courseId)
+
+    override fun findPlacesByCourseIds(courseIds: List<Long>): Map<Long, List<CoursePlaceRow>> =
+        coursePlaceRepository.findByCourseIds(courseIds)
 
     override fun save(course: Course): Course {
         val courseEntity = courseRepository.insert(course)
@@ -53,6 +59,10 @@ class CoursePersistenceAdapter(
     }
 
     override fun softDelete(courseId: Long): Int = courseRepository.softDelete(courseId)
+
+    override fun increaseSavesCount(courseId: Long): Int = courseRepository.increaseSavesCount(courseId)
+
+    override fun decreaseSavesCount(courseId: Long): Int = courseRepository.decreaseSavesCount(courseId)
 
     /** 코스에 담긴 장소·이미지와 태그 연결을 심는다(생성·편집 공용). */
     private fun insertChildren(

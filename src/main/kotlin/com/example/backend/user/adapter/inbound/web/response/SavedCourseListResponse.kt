@@ -1,5 +1,6 @@
 package com.example.backend.user.adapter.inbound.web.response
 
+import com.example.backend.user.application.port.inbound.dto.SavedCoursesResult
 import java.time.Instant
 
 /**
@@ -27,6 +28,23 @@ data class SavedCourseListResponse(
     )
 
     companion object {
+        /** 인바운드 포트 결과([SavedCoursesResult])를 웹 응답으로 변환한다. */
+        fun from(result: SavedCoursesResult): SavedCourseListResponse =
+            SavedCourseListResponse(
+                totalCount = result.totalCount.toInt(),
+                nextCursor = result.nextCursor,
+                hasNext = result.hasNext,
+                savedCourses =
+                    result.savedCourses.map {
+                        SavedCourseItem(
+                            id = it.id,
+                            folderId = it.folderId,
+                            courseId = it.courseId,
+                            savedAt = it.savedAt,
+                        )
+                    },
+            )
+
         /**
          * 목 저장 레코드 — 디자인(저장함 · 코스 · 리스트)의 예시 목록 반영. 최신 저장순 고정 응답.
          * folderId 는 코스 폴더 모킹([com.example.backend.user.adapter.inbound.web.CourseFolderController]: 1 데이트 코스, 2 주말 나들이, 3 혼자 걷기)과,

@@ -7,6 +7,7 @@ import com.example.backend.user.application.port.inbound.dto.UserProfileResult
 import com.example.backend.user.application.port.outbound.FollowPersistencePort
 import com.example.backend.user.application.port.outbound.RefreshTokenPort
 import com.example.backend.user.application.port.outbound.UserPersistencePort
+import com.example.backend.user.application.port.outbound.UserProfileRow
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
 
@@ -29,18 +30,48 @@ class UserService(
         val row =
             userPersistencePort.findProfile(userId)
                 ?: throw BusinessException(ErrorCode.USER_NOT_FOUND, "사용자를 찾을 수 없습니다: id=$userId")
-        return UserProfileResult(
+        return toProfileResult(
+            row = row,
+            isFollowing = viewerId?.let { followPersistencePort.isFollowing(it, userId) } ?: false,
+            isFollower = viewerId?.let { followPersistencePort.isFollowing(userId, it) } ?: false,
+        )
+    }
+
+    override fun getProfiles(
+        userIds: List<Long>,
+        viewerId: Long?,
+    ): List<UserProfileResult> {
+        val ids = userIds.distinct()
+        if (ids.isEmpty()) return emptyList()
+        val rows = userPersistencePort.findProfiles(ids)
+        // 조회자 기준 팔로우 관계를 두 번의 배치 쿼리로 모은다(작성자별 isFollowing/isFollower N+1 회피).
+        val following = viewerId?.let { followPersistencePort.filterFollowing(it, ids) } ?: emptySet()
+        val followers = viewerId?.let { followPersistencePort.filterFollowers(it, ids) } ?: emptySet()
+        return rows.map { row ->
+            toProfileResult(
+                row = row,
+                isFollowing = row.id in following,
+                isFollower = row.id in followers,
+            )
+        }
+    }
+
+    private fun toProfileResult(
+        row: UserProfileRow,
+        isFollowing: Boolean,
+        isFollower: Boolean,
+    ): UserProfileResult =
+        UserProfileResult(
             id = row.id,
             nickname = row.nickname,
             handle = row.handle,
             profileImageUrl = row.profileImageUrl,
-            isFollowing = viewerId?.let { followPersistencePort.isFollowing(it, userId) } ?: false,
-            isFollower = viewerId?.let { followPersistencePort.isFollowing(userId, it) } ?: false,
+            isFollowing = isFollowing,
+            isFollower = isFollower,
             followersCnt = row.followersCnt,
             followingsCnt = row.followingsCnt,
             coursesCnt = row.coursesCnt,
         )
-    }
 
     override fun getProfileByHandle(
         handle: String,

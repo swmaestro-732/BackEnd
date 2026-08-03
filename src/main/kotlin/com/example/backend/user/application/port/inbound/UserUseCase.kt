@@ -13,6 +13,15 @@ interface UserUseCase {
         viewerId: Long?,
     ): UserProfileResult
 
+    /**
+     * 여러 프로필을 한 번에 조회 — 저장함·피드 등 작성자 카드가 여럿인 목록 화면용(작성자 수만큼의 N+1 회피).
+     * 없는·삭제된 사용자는 결과에서 빠진다(단건과 달리 예외를 던지지 않음). 반환 순서는 보장하지 않는다.
+     */
+    fun getProfiles(
+        userIds: List<Long>,
+        viewerId: Long?,
+    ): List<UserProfileResult>
+
     /** 핸들로 프로필 조회 — 마이페이지(타인) 등에서 사용. 없으면 USER_NOT_FOUND. [getProfile] 과 같은 결과 형태. */
     fun getProfileByHandle(
         handle: String,

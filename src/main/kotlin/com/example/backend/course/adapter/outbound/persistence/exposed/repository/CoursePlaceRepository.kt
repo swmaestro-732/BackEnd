@@ -6,6 +6,7 @@ import com.example.backend.course.application.port.outbound.CoursePlaceRow
 import com.example.backend.course.domain.model.CoursePlace
 import org.jetbrains.exposed.v1.core.SortOrder
 import org.jetbrains.exposed.v1.core.eq
+import org.jetbrains.exposed.v1.core.inList
 import org.jetbrains.exposed.v1.jdbc.deleteWhere
 import org.jetbrains.exposed.v1.jdbc.select
 import org.jetbrains.exposed.v1.jdbc.selectAll
@@ -52,30 +53,39 @@ class CoursePlaceRepository(
     }
 
     /** 코스의 장소들을 orderNo 오름차순으로, 각 장소의 이미지를 채워 반환한다. */
-    fun findByCourseId(courseId: Long): List<CoursePlaceRow> {
+    fun findByCourseId(courseId: Long): List<CoursePlaceRow> = findByCourseIds(listOf(courseId))[courseId].orEmpty()
+
+    /** 여러 코스의 장소들을 courseId 별로(각 코스 안은 orderNo 오름차순) 한 번에 읽는다 — 이미지도 배치로 채운다. */
+    fun findByCourseIds(courseIds: List<Long>): Map<Long, List<CoursePlaceRow>> {
+        if (courseIds.isEmpty()) return emptyMap()
         val placeRows =
             CoursePlaceTable
                 .selectAll()
-                .where { CoursePlaceTable.courseId eq courseId }
+                .where { CoursePlaceTable.courseId inList courseIds }
                 .orderBy(CoursePlaceTable.orderNo to SortOrder.ASC)
                 .toList()
-        if (placeRows.isEmpty()) return emptyList()
+        if (placeRows.isEmpty()) return emptyMap()
 
         val imagesByPlace =
             coursePlaceImageRepository.findByCoursePlaceIds(
                 placeRows.map { it[CoursePlaceTable.id].value },
             )
 
-        return placeRows.map { row ->
-            val coursePlaceId = row[CoursePlaceTable.id].value
-            CoursePlaceRow(
-                id = coursePlaceId,
-                placeId = row[CoursePlaceTable.placeId],
-                orderNo = row[CoursePlaceTable.orderNo].toInt(),
-                caption = row[CoursePlaceTable.caption],
-                walkingMinutes = row[CoursePlaceTable.walkingMinutes],
-                images = imagesByPlace[coursePlaceId].orEmpty(),
-            )
-        }
+        // orderNo 전역 정렬이라 courseId 로 묶어도 각 코스 안 순서가 유지된다.
+        return placeRows
+            .groupBy { it[CoursePlaceTable.courseId] }
+            .mapValues { (_, rows) ->
+                rows.map { row ->
+                    val coursePlaceId = row[CoursePlaceTable.id].value
+                    CoursePlaceRow(
+                        id = coursePlaceId,
+                        placeId = row[CoursePlaceTable.placeId],
+                        orderNo = row[CoursePlaceTable.orderNo].toInt(),
+                        caption = row[CoursePlaceTable.caption],
+                        walkingMinutes = row[CoursePlaceTable.walkingMinutes],
+                        images = imagesByPlace[coursePlaceId].orEmpty(),
+                    )
+                }
+            }
     }
 }

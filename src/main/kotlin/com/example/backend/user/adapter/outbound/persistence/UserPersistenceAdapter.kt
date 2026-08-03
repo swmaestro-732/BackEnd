@@ -23,6 +23,8 @@ class UserPersistenceAdapter(
 
     override fun findProfile(userId: Long): UserProfileRow? = userRepository.findProfile(userId)
 
+    override fun findProfiles(userIds: List<Long>): List<UserProfileRow> = userRepository.findProfiles(userIds)
+
     override fun save(user: User): User = userRepository.save(user)
 
     override fun update(user: User) = userRepository.update(user)
