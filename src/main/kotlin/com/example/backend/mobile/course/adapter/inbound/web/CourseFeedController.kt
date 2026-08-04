@@ -3,6 +3,8 @@ package com.example.backend.mobile.course.adapter.inbound.web
 import com.example.backend.common.response.ApiResponse
 import com.example.backend.mobile.course.adapter.inbound.web.response.CourseFeedResponse
 import com.example.backend.mobile.course.application.port.inbound.CourseFeedUseCase
+import jakarta.validation.constraints.Max
+import jakarta.validation.constraints.Min
 import org.springframework.web.bind.annotation.GetMapping
 import org.springframework.web.bind.annotation.RequestMapping
 import org.springframework.web.bind.annotation.RequestParam
@@ -18,12 +20,16 @@ import org.springframework.web.bind.annotation.RestController
  */
 @RestController
 @RequestMapping("/service/v1")
+@Validated
 class CourseFeedController(
     private val courseFeedUseCase: CourseFeedUseCase,
 ) {
     @GetMapping("/courses")
     fun getCourseFeed(
-        @RequestParam(required = false) size: Int = 20,
+        @RequestParam(required = false)
+        @Min(1, message = "1 이상이어야 합니다")
+        @Max(50, message = "50 이하여야 합니다")
+        size: Int = 20,
         @RequestParam(required = false) mock: Boolean = false,
     ): ApiResponse<CourseFeedResponse> {
         if (mock) return ApiResponse.success(CourseFeedResponse.MOCK)

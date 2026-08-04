@@ -52,9 +52,10 @@ class PlaceRepository {
 
     /** deleted_at IS NULL 인 장소들을 카카오 place id 목록으로 읽어 도메인으로 변환한다(검색 결과 dedup 조회용). */
     fun findByKakaoIds(kakaoIds: List<String>): List<Place> {
-        if (kakaoIds.isEmpty()) return emptyList()
+        val ids = kakaoIds.filter { it.isNotBlank() }
+        if (ids.isEmpty()) return emptyList()
         return PlaceEntity
-            .find { (PlaceTable.kakaoPlaceId inList kakaoIds) and PlaceTable.deletedAt.isNull() }
+            .find { (PlaceTable.kakaoPlaceId inList ids) and PlaceTable.deletedAt.isNull() }
             .map { it.toDomain() }
     }
 
@@ -65,7 +66,8 @@ class PlaceRepository {
      * created_at·updated_at 은 클라이언트 기본값이 채운다. 삽입 id 는 반환하지 않고 호출부가 findByKakaoIds 로 재조회해 확정한다.
      */
     fun insertIgnoringConflicts(places: List<Place>) {
-        places.forEach { place ->
+        // kakao id 가 비어 있으면 dedup 키로 쓸 수 없어 삽입하지 않는다(방어 — 어댑터에서 이미 걸러지지만 이중 안전).
+        places.filterNot { it.kakaoPlaceId.isNullOrBlank() }.forEach { place ->
             PlaceTable.insertIgnore {
                 it[PlaceTable.status] = place.status
                 it[PlaceTable.name] = place.name

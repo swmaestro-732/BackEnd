@@ -52,4 +52,12 @@ class CourseFeedControllerTest
                 .andExpect(jsonPath("$.data.courses[0].title").value("비 오는 날 성수 감성 카페 코스"))
                 .andExpect(jsonPath("$.data.courses[0].savesCnt").value(342))
         }
+
+        @Test
+        fun `size가 범위를 벗어나면 4002를 내려준다`() {
+            mockMvc
+                .perform(get("/service/v1/courses").param("size", "0"))
+                .andExpect(status().isBadRequest)
+                .andExpect(jsonPath("$.code").value(4002))
+        }
     }
