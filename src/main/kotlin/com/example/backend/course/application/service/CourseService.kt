@@ -126,6 +126,27 @@ class CourseService(
                 )
             }
 
+    /**
+     * 전체 공개(PUBLIC) 발행 코스를 저장수+최신순으로 [limit] 개 내려준다(피드용).
+     * 정렬은 findPublishedPublic 이 SQL(saves_cnt DESC, created_at DESC)로 수행하고,
+     * 모두 PUBLIC 이라 공개범위(isViewable) 필터 없이 그대로 매핑한다.
+     */
+    override fun listPublic(limit: Int): List<CourseSummary> =
+        coursePersistencePort
+            .findPublishedPublic(limit)
+            .map {
+                CourseSummary(
+                    id = it.id,
+                    authorId = it.userId,
+                    title = it.title,
+                    coverImageUrl = it.coverImageUrl,
+                    theme = it.category?.name,
+                    likesCnt = it.likesCnt,
+                    savesCnt = it.savesCnt,
+                    createdAt = it.createdAt,
+                )
+            }
+
     /** 미삭제 코스 존재 확인(크로스 도메인) — 다른 도메인(user 저장함 등)이 이 포트로만 접근한다. */
     override fun existsById(courseId: Long): Boolean = coursePersistencePort.existsById(courseId)
 

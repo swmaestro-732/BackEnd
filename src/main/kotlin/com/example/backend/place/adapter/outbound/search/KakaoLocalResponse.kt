@@ -8,10 +8,14 @@ internal data class KakaoLocalResponse(
 )
 
 internal data class KakaoLocalDocument(
+    @param:JsonProperty("id")
+    val id: String? = null,
     @param:JsonProperty("place_name")
     val placeName: String? = null,
     @param:JsonProperty("category_name")
     val categoryName: String? = null,
+    @param:JsonProperty("category_group_code")
+    val categoryGroupCode: String? = null,
     @param:JsonProperty("road_address_name")
     val roadAddressName: String? = null,
     @param:JsonProperty("address_name")

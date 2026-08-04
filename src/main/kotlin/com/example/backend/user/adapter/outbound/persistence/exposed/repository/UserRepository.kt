@@ -125,11 +125,14 @@ class UserRepository(
         UserTable.update({ (UserTable.id eq id) and UserTable.deletedAt.isNull() }) {
             it[deletedAt] = clock.instant().toKotlinInstant()
             it[status] = user.status.code
+            // handle 은 탈퇴 시 즉시 해제(NULL)해 재사용 가능하게 한다 — 죽은 계정이 핸들을 영구 점유하지 않도록.
+            // handle 은 nullable 이고 UNIQUE 는 NULL 다중 허용이라, existsByHandle 은 NULL 아닌 값만 매칭돼 자연히 활성 행만 본다.
+            it[handle] = null
         }
     }
 
-    // nickname·handle 은 전역 UNIQUE(탈퇴자 포함)이므로 중복검사도 전역으로 본다.
-    // (탈퇴자의 값도 예약 유지 — DB 제약과 앱 검사 범위를 일치시켜 UNIQUE 위반 500 을 방지.)
+    // nickname 은 전역 UNIQUE(탈퇴자 포함)이므로 중복검사도 전역으로 본다(탈퇴자 값 예약 유지).
+    // handle 은 탈퇴 시 NULL 로 해제되므로 이 전역 검사가 자연히 활성 행만 본다(해제된 handle 은 재사용 가능).
     fun existsByNickname(nickname: String): Boolean =
         UserTable
             .selectAll()

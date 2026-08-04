@@ -29,6 +29,8 @@ class SavedCourseServiceTest {
                 authorId: Long,
                 viewerId: Long?,
             ): List<CourseSummary> = emptyList()
+
+            override fun listPublic(limit: Int): List<CourseSummary> = emptyList()
         }
 
     private val fakePort =

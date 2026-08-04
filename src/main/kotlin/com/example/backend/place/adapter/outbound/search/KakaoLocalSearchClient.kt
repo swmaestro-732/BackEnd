@@ -55,11 +55,14 @@ class KakaoLocalSearchClient(
         }
 
     private fun KakaoLocalDocument.toExternalPlace(): ExternalPlace? {
+        val kakaoId = id?.takeIf(String::isNotBlank) ?: return null
         val longitude = x?.toDoubleOrNull() ?: return null
         val latitude = y?.toDoubleOrNull() ?: return null
         return ExternalPlace(
+            kakaoPlaceId = kakaoId,
             name = placeName.orEmpty(),
-            category = categoryName.orEmpty(),
+            // 외부(카카오) 원시 분류 → 내부 도메인 카테고리 번역은 어댑터 책임(anti-corruption).
+            category = KakaoCategoryMapper.toPlaceCategory(categoryGroupCode?.takeIf(String::isNotBlank)),
             roadAddress = roadAddressName?.takeIf(String::isNotBlank),
             address = addressName?.takeIf(String::isNotBlank),
             coordinate = Coordinate(latitude = latitude, longitude = longitude),

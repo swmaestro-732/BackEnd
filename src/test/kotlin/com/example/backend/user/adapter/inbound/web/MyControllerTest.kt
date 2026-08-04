@@ -271,6 +271,27 @@ class MyControllerTest
         }
 
         @Test
+        fun `회원 탈퇴하면 handle 이 해제되어 재사용 가능해진다`() {
+            // 탈퇴 전엔 내 handle 이 사용 중
+            mockMvc
+                .perform(get("/api/v1/users/availability").param("handle", "me_handle"))
+                .andExpect(status().isOk)
+                .andExpect(jsonPath("$.data.available").value(false))
+
+            mockMvc
+                .perform(
+                    delete("/api/v1/users")
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer ${tokenFor(ME_ID)}"),
+                ).andExpect(status().isOk)
+
+            // 탈퇴 후엔 handle 이 해제되어 사용 가능
+            mockMvc
+                .perform(get("/api/v1/users/availability").param("handle", "me_handle"))
+                .andExpect(status().isOk)
+                .andExpect(jsonPath("$.data.available").value(true))
+        }
+
+        @Test
         fun `회원 탈퇴 mock 폴백은 실제 사용자를 탈퇴시키지 않는다`() {
             val accessToken = tokenFor(ME_ID)
 

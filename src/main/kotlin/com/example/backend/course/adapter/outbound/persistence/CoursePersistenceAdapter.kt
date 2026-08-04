@@ -33,6 +33,8 @@ class CoursePersistenceAdapter(
     override fun findPublishedByAuthor(authorId: Long): List<CourseSummaryRow> =
         courseRepository.findPublishedByAuthor(authorId)
 
+    override fun findPublishedPublic(limit: Int): List<CourseSummaryRow> = courseRepository.findPublishedPublic(limit)
+
     override fun existsById(courseId: Long): Boolean = courseRepository.existsById(courseId)
 
     override fun findPlaces(courseId: Long): List<CoursePlaceRow> = coursePlaceRepository.findByCourseId(courseId)
