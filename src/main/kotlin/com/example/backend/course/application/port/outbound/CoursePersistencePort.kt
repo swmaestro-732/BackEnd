@@ -4,6 +4,7 @@ import com.example.backend.course.domain.model.Course
 import com.example.backend.course.domain.model.CourseCategory
 import com.example.backend.course.domain.model.CourseStatus
 import com.example.backend.course.domain.model.CourseVisibility
+import java.time.Instant
 
 /** 코스 단건 읽기 모델. deleted_at IS NULL 인 행만 반환한다(상태·공개범위 판정은 서비스가 수행). */
 data class CourseDetailRow(
@@ -14,11 +15,30 @@ data class CourseDetailRow(
     val description: String?,
     /** 코스 카테고리(응답 theme 의 출처). 미선택 draft 는 null. */
     val category: CourseCategory?,
+    /** 코스 지역(예: "성수"). 미입력이면 null. */
+    val area: String?,
     val tracingsCnt: Int,
     val status: CourseStatus,
     val visibility: CourseVisibility,
     /** 발행 여부(true=게시, false=임시저장). 게시 코스 편집 시 장소 구성 변경 금지 판정에 쓰인다. */
     val isPublished: Boolean,
+)
+
+/**
+ * 코스 요약 읽기 모델 — 작성자별 코스 목록 등에 쓰는 범용 요약(화면 전용 아님).
+ * deleted_at IS NULL·발행·ACTIVE 인 행만 반환하며, 공개범위(visibility) 판정은 서비스가 수행한다.
+ */
+data class CourseSummaryRow(
+    val id: Long,
+    val userId: Long,
+    val title: String,
+    val coverImageUrl: String?,
+    val category: CourseCategory?,
+    val visibility: CourseVisibility,
+    val isPublished: Boolean,
+    val likesCnt: Int,
+    val savesCnt: Int,
+    val createdAt: Instant,
 )
 
 /** 코스에 담긴 장소 읽기 모델(장소별 이미지 포함, orderNo 오름차순). */
@@ -44,10 +64,28 @@ data class CoursePlaceImageRow(
 interface CoursePersistencePort {
     fun findCourseDetail(courseId: Long): CourseDetailRow?
 
+    /** 여러 코스 본문을 한 번에 읽는다(deleted_at IS NULL). 없는 id 는 결과에서 빠진다 — 목록 화면 배치 조회용. */
+    fun findCourseDetails(courseIds: List<Long>): List<CourseDetailRow>
+
+    /**
+     * 작성자의 발행 코스 요약 목록 — isPublished=true·status=ACTIVE·deleted_at IS NULL, createdAt 내림차순.
+     * 공개범위(visibility) 필터는 서비스가 조회자 기준으로 수행한다.
+     */
+    fun findPublishedByAuthor(authorId: Long): List<CourseSummaryRow>
+
+    /**
+     * 전체 공개(visibility=PUBLIC)·발행·활성·미삭제 코스 요약을 createdAt 내림차순으로 [limit] 개까지 읽는다.
+     * 모두 PUBLIC 이라 서비스의 공개범위 필터가 필요 없다(피드 후보용).
+     */
+    fun findPublishedPublic(limit: Int): List<CourseSummaryRow>
+
     /** 미삭제(deleted_at IS NULL) 코스가 존재하는지 확인한다(fork 원본 검증 등). */
     fun existsById(courseId: Long): Boolean
 
     fun findPlaces(courseId: Long): List<CoursePlaceRow>
+
+    /** 여러 코스의 장소들을 courseId 별로(각 코스 안은 orderNo 오름차순) 한 번에 읽는다 — 목록 화면 배치 조회용. */
+    fun findPlacesByCourseIds(courseIds: List<Long>): Map<Long, List<CoursePlaceRow>>
 
     /** 코스 애그리거트(코스·장소·이미지·태그)를 한 트랜잭션으로 저장하고, 저장된 코스(생성 id·DB 생성값 포함)를 반환한다. */
     fun save(course: Course): Course
@@ -64,4 +102,16 @@ interface CoursePersistencePort {
      * 자식(장소·이미지·태그)은 지우지 않는다 — 모든 조회가 courses.deleted_at 로 걸러 도달 불가하다.
      */
     fun softDelete(courseId: Long): Int
+
+    /**
+     * 저장 수(saves_cnt)를 1 증가시킨다 — 미삭제(deleted_at IS NULL) 행에만 적용하고 영향받은 행 수를 반환한다.
+     * 코스 저장(다른 도메인) 시 호출된다. 정합성은 추후 비동기 집계로 옮긴다.
+     */
+    fun increaseSavesCount(courseId: Long): Int
+
+    /**
+     * 저장 수(saves_cnt)를 1 감소시킨다 — 미삭제(deleted_at IS NULL) 행에만 적용하고 영향받은 행 수를 반환한다.
+     * 저장 취소(다른 도메인)가 실제로 일어났을 때만 호출된다. 정합성은 추후 비동기 집계로 옮긴다.
+     */
+    fun decreaseSavesCount(courseId: Long): Int
 }

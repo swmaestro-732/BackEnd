@@ -2,7 +2,6 @@ package com.example.backend.user.application.service
 
 import com.example.backend.common.exception.BusinessException
 import com.example.backend.common.response.ErrorCode
-import com.example.backend.user.application.port.inbound.dto.SocialLoginCommand
 import com.example.backend.user.application.port.outbound.AuthTokenPort
 import com.example.backend.user.application.port.outbound.RefreshTokenPort
 import com.example.backend.user.application.port.outbound.RefreshTokenRecord
@@ -43,7 +42,11 @@ class AuthServiceTest {
 
             override fun findById(id: Long): User? = byId
 
+            override fun findByHandle(handle: String): User? = null
+
             override fun findProfile(userId: Long): UserProfileRow? = null
+
+            override fun findProfiles(userIds: List<Long>): List<UserProfileRow> = emptyList()
 
             override fun save(user: User): User = user
 
@@ -136,7 +139,7 @@ class AuthServiceTest {
 
         val ex =
             assertThrows<BusinessException> {
-                service.socialLogin(SocialLoginCommand(provider = SocialProvider.KAKAO, idToken = "kakao-token"))
+                service.socialLogin(SocialProvider.KAKAO, "kakao-token")
             }
 
         assertEquals(ErrorCode.ACCOUNT_SUSPENDED, ex.errorCode)
@@ -158,7 +161,7 @@ class AuthServiceTest {
 
         val ex =
             assertThrows<BusinessException> {
-                service.socialLogin(SocialLoginCommand(provider = SocialProvider.KAKAO, idToken = "kakao-token"))
+                service.socialLogin(SocialProvider.KAKAO, "kakao-token")
             }
 
         assertEquals(ErrorCode.ACCOUNT_INACTIVE, ex.errorCode)

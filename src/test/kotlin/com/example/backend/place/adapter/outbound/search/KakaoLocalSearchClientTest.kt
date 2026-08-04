@@ -3,6 +3,7 @@ package com.example.backend.place.adapter.outbound.search
 import com.example.backend.bootstrap.config.KakaoLocalProperties
 import com.example.backend.common.geo.Coordinate
 import com.example.backend.place.domain.model.ExternalPlaceSource
+import com.example.backend.place.domain.model.PlaceCategory
 import org.hamcrest.Matchers.containsString
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Test
@@ -28,7 +29,7 @@ class KakaoLocalSearchClientTest {
         val body =
             """
             {"documents":[
-              {"place_name":"콤포트 성수","category_name":"음식점 > 카페",
+              {"id":"12345","place_name":"콤포트 성수","category_name":"음식점 > 카페","category_group_code":"CE7",
                "road_address_name":"서울 성동구 서울숲2길 3","address_name":"서울 성동구 성수동1가",
                "x":"127.0561","y":"37.5432","phone":"02-9876-5432"}
             ]}
@@ -43,8 +44,9 @@ class KakaoLocalSearchClientTest {
         server.verify()
         assertEquals(1, result.size)
         val place = result.first()
+        assertEquals("12345", place.kakaoPlaceId)
         assertEquals("콤포트 성수", place.name)
-        assertEquals("음식점 > 카페", place.category)
+        assertEquals(PlaceCategory.CAFE, place.category)
         assertEquals("서울 성동구 서울숲2길 3", place.roadAddress)
         assertEquals(127.0561, place.coordinate.longitude, 1e-9)
         assertEquals(37.5432, place.coordinate.latitude, 1e-9)

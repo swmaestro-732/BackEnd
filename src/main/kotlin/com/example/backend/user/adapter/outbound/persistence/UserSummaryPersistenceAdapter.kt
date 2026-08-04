@@ -1,25 +1,15 @@
 package com.example.backend.user.adapter.outbound.persistence
 
+import com.example.backend.user.adapter.outbound.persistence.exposed.repository.UserRepository
 import com.example.backend.user.application.port.inbound.UserSummaryUseCase
 import com.example.backend.user.application.port.outbound.UserSummaryPort
-import org.jetbrains.exposed.v1.core.and
-import org.jetbrains.exposed.v1.core.inList
-import org.jetbrains.exposed.v1.core.isNull
-import org.jetbrains.exposed.v1.jdbc.selectAll
-import org.springframework.stereotype.Repository
+import org.springframework.stereotype.Component
 
-/** 아웃바운드 어댑터 — [UserSummaryPort] 를 Exposed 로 구현한다. 탈퇴(soft delete) 사용자는 제외. */
-@Repository
-class UserSummaryPersistenceAdapter : UserSummaryPort {
+/** 아웃바운드 어댑터 — [UserSummaryPort] 를 구현한다. 실제 조회는 [UserRepository] 에 위임한다. */
+@Component
+class UserSummaryPersistenceAdapter(
+    private val userRepository: UserRepository,
+) : UserSummaryPort {
     override fun findByIds(ids: Collection<Long>): List<UserSummaryUseCase.UserSummary> =
-        UserTable
-            .selectAll()
-            .where { (UserTable.id inList ids) and (UserTable.deletedAt.isNull()) }
-            .map {
-                UserSummaryUseCase.UserSummary(
-                    id = it[UserTable.id],
-                    nickname = it[UserTable.nickname],
-                    profileImageUrl = it[UserTable.profileImageUrl],
-                )
-            }
+        userRepository.findSummariesByIds(ids)
 }

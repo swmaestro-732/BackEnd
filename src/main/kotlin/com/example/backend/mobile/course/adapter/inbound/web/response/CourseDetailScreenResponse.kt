@@ -67,7 +67,7 @@ data class CourseDetailScreenResponse(
                         description =
                             "비가 오면 더 예쁜 성수 카페만 골라 담았어요. 전부 도보로 이어지고, " +
                                 "장소마다 제 팁을 남겨뒀으니 참고하세요 🌧️",
-                        stats = CourseStatsResponse(placeCount = 4, walkingMinutes = 20, tracingCount = 1200),
+                        stats = CourseStatsResponse(placeCount = 4, walkingMinutes = 14, tracingCount = 1200),
                         author =
                             AuthorResponse(
                                 id = 1,

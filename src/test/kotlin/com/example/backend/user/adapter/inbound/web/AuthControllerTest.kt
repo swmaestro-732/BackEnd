@@ -5,6 +5,7 @@ import org.junit.jupiter.api.Test
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc
 import org.springframework.http.MediaType
+import org.springframework.test.context.jdbc.Sql
 import org.springframework.test.web.servlet.MockMvc
 import org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get
 import org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post
@@ -84,7 +85,7 @@ class AuthControllerTest
         fun `토큰 재발급은 새 토큰을 내려준다`() {
             mockMvc
                 .perform(
-                    post("/api/v1/auth/token-reissue?mock=true")
+                    post("/api/v1/auth/refresh?mock=true")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""{"refreshToken":"mock-refresh-token"}"""),
                 ).andExpect(status().isOk)
@@ -100,7 +101,13 @@ class AuthControllerTest
                 .andExpect(jsonPath("$.data").doesNotExist())
         }
 
+        // 실제 DB(existsByHandle)를 타는 유일한 케이스라, 다른 통합 테스트 픽스처가 남긴 유저(예: hyunwoo)에
+        // 오염되지 않도록 users 를 비우고 시작한다 — 실행 순서와 무관하게 결정적으로 만든다.
         @Test
+        @Sql(
+            statements = ["TRUNCATE TABLE users RESTART IDENTITY CASCADE"],
+            executionPhase = Sql.ExecutionPhase.BEFORE_TEST_METHOD,
+        )
         fun `아이디 사용 가능 여부 - 일반 값은 사용 가능, 예약어는 불가`() {
             mockMvc
                 .perform(get("/api/v1/auth/login-id/availability").param("loginId", "hyunwoo"))

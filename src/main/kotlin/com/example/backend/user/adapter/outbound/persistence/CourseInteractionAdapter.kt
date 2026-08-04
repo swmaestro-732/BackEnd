@@ -1,34 +1,22 @@
 package com.example.backend.user.adapter.outbound.persistence
 
+import com.example.backend.user.adapter.outbound.persistence.exposed.repository.CourseInteractionRepository
 import com.example.backend.user.application.port.outbound.CourseInteractionPort
-import org.jetbrains.exposed.v1.core.and
-import org.jetbrains.exposed.v1.core.eq
-import org.jetbrains.exposed.v1.jdbc.selectAll
-import org.springframework.stereotype.Repository
+import org.springframework.stereotype.Component
+import java.time.Instant
 
-/**
- * 아웃바운드 어댑터 — [CourseInteractionPort] 를 Exposed 로 구현한다.
- * saved_courses·tracing_courses 에 (user_id, course_id) 행 존재 여부만 확인한다.
- */
-@Repository
-class CourseInteractionAdapter : CourseInteractionPort {
-    override fun existsSavedCourse(
+/** 아웃바운드 어댑터 — [CourseInteractionPort] 를 구현한다. 실제 테이블 접근은 [CourseInteractionRepository] 에 위임한다. */
+@Component
+class CourseInteractionAdapter(
+    private val courseInteractionRepository: CourseInteractionRepository,
+) : CourseInteractionPort {
+    override fun findCompletedAt(
         userId: Long,
-        courseId: Long,
-    ): Boolean =
-        SavedCourseTable
-            .selectAll()
-            .where { (SavedCourseTable.userId eq userId) and (SavedCourseTable.courseId eq courseId) }
-            .empty()
-            .not()
+        courseIds: List<Long>,
+    ): Map<Long, Instant> = courseInteractionRepository.findCompletedAt(userId, courseIds)
 
-    override fun existsTracingCourse(
+    override fun findSavedCourseIds(
         userId: Long,
-        courseId: Long,
-    ): Boolean =
-        TracingCourseTable
-            .selectAll()
-            .where { (TracingCourseTable.userId eq userId) and (TracingCourseTable.courseId eq courseId) }
-            .empty()
-            .not()
+        courseIds: List<Long>,
+    ): Set<Long> = courseInteractionRepository.findSavedCourseIds(userId, courseIds)
 }

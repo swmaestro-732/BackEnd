@@ -21,6 +21,7 @@ data class Place private constructor(
     val address: String,
     val imageUrl: String?,
     val businessStatus: PlaceBusinessStatus,
+    val kakaoPlaceId: String?,
     val createdAt: Instant?,
     val updatedAt: Instant?,
     val deletedAt: Instant?,
@@ -35,6 +36,7 @@ data class Place private constructor(
             address: String,
             imageUrl: String?,
             businessStatus: PlaceBusinessStatus = PlaceBusinessStatus.UNKNOWN,
+            kakaoPlaceId: String? = null,
         ): Place {
             require(name.isNotBlank()) { "이름은 비어 있을 수 없습니다." }
             require(address.isNotBlank()) { "주소는 비어 있을 수 없습니다." }
@@ -48,6 +50,7 @@ data class Place private constructor(
                 address = address,
                 imageUrl = imageUrl,
                 businessStatus = businessStatus,
+                kakaoPlaceId = kakaoPlaceId,
                 createdAt = null,
                 updatedAt = null,
                 deletedAt = null,
@@ -69,6 +72,7 @@ data class Place private constructor(
             address: String,
             imageUrl: String?,
             businessStatus: PlaceBusinessStatus,
+            kakaoPlaceId: String?,
             createdAt: Instant?,
             updatedAt: Instant?,
             deletedAt: Instant?,
@@ -83,6 +87,7 @@ data class Place private constructor(
                 address = address,
                 imageUrl = imageUrl,
                 businessStatus = businessStatus,
+                kakaoPlaceId = kakaoPlaceId,
                 createdAt = createdAt,
                 updatedAt = updatedAt,
                 deletedAt = deletedAt,

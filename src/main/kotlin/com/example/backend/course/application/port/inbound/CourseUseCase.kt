@@ -18,6 +18,11 @@ interface CourseUseCase {
         viewerId: Long?,
     ): CourseDetailResult
 
+    fun getDetails(
+        courseIds: List<Long>,
+        viewerId: Long?,
+    ): List<CourseDetailResult>
+
     fun create(command: CreateCourseCommand): Course
 
     fun edit(command: EditCourseCommand): Course

@@ -46,7 +46,7 @@ data class CourseDetailResponse(
                         stats =
                             CourseStatsResponse(
                                 placeCount = 4,
-                                walkingMinutes = 20,
+                                walkingMinutes = 14,
                                 tracingCount = 1200,
                             ),
                         authorId = 1L,
@@ -55,7 +55,7 @@ data class CourseDetailResponse(
                                 CoursePlaceResponse(
                                     id = 1L,
                                     placeId = 101L,
-                                    orderNo = 1,
+                                    orderNo = 0,
                                     caption = "어니언 성수",
                                     walkingMinutesToNext = 6,
                                     images =
@@ -67,7 +67,7 @@ data class CourseDetailResponse(
                                 CoursePlaceResponse(
                                     id = 2L,
                                     placeId = 102L,
-                                    orderNo = 2,
+                                    orderNo = 1,
                                     caption = "대림창고 갤러리",
                                     walkingMinutesToNext = 3,
                                     images = listOf(img("SYjLV1q0A21vyJJ_N3LlUSp3HwiDDouEZRzcVhJb8KJw", 0)),
@@ -75,7 +75,7 @@ data class CourseDetailResponse(
                                 CoursePlaceResponse(
                                     id = 3L,
                                     placeId = 103L,
-                                    orderNo = 3,
+                                    orderNo = 2,
                                     caption = "센터커피 성수",
                                     walkingMinutesToNext = 5,
                                     images = listOf(img("TMRMGDnfUqzsxQXY1TOrhMtWZ8-otKbsLPlfnIkvDfUw", 0)),
@@ -83,7 +83,7 @@ data class CourseDetailResponse(
                                 CoursePlaceResponse(
                                     id = 4L,
                                     placeId = 104L,
-                                    orderNo = 4,
+                                    orderNo = 3,
                                     caption = "카페 할아버지공장",
                                     walkingMinutesToNext = null,
                                     images =

@@ -1,42 +1,157 @@
-### 코스 저장 (정상) — 바디는 저장할 폴더 id
-POST http://localhost:8080/api/v1/my/saved-courses/1
+## 코스 저장 (실구현) — User · user-course
+# 저장/취소/조회 모두 @CurrentUserId(JWT subject)로 userId 를 뽑으므로 유효한 access 토큰이 필요하다.
+# 아래 첫 요청(mock 로그인)이 accessToken 을 전역 저장 → 이후 요청은 Authorization 헤더로 재사용한다.
+# (auth.http 를 먼저 실행해 두었다면 이 요청은 건너뛰어도 된다.)
+
+### 0) 사전: mock 소셜 로그인 — dev accessToken(user id=1) 발급 + 전역 저장
+POST http://localhost:8080/api/v1/auth/social-login?mock=true
 Content-Type: application/json
 
 {
-  "folderId": 1
+  "provider": "KAKAO",
+  "idToken": "dev"
 }
 
-### 코스 저장 (정상) — folderId 생략 시 "미분류"로 저장 (folderId 선택)
-POST http://localhost:8080/api/v1/my/saved-courses/1
-Content-Type: application/json
+> {%
+    client.global.set("accessToken", response.body.data.accessToken);
+    client.global.set("refreshToken", response.body.data.refreshToken);
+%}
 
-{}
-
-### 모킹 에러 주입 — 404 / 4041 COURSE_NOT_FOUND
-POST http://localhost:8080/api/v1/my/saved-courses/999?mockError=4041
+### 1) 코스 저장 (정상) — folderId 지정 → 201 CREATED
+POST http://localhost:8080/api/v1/courses/save
 Content-Type: application/json
+Authorization: Bearer {{accessToken}}
 
 {
+  "courseId": 1,
   "folderId": 1
 }
 
-### 저장 코스 조회 (정상) — 저장 레코드(ID 위주) 반환
+### 2) 코스 저장 (정상) — folderId 생략 시 "미분류"로 저장 → 201 CREATED
+POST http://localhost:8080/api/v1/courses/save
+Content-Type: application/json
+Authorization: Bearer {{accessToken}}
+
+{
+  "courseId": 2
+}
+
+### 3) 코스 저장 — 중복 저장(같은 courseId 재요청) → 409 / 4093 COURSE_ALREADY_SAVED
+# 1) 을 먼저 실행한 뒤 다시 호출하면 재현된다.
+POST http://localhost:8080/api/v1/courses/save
+Content-Type: application/json
+Authorization: Bearer {{accessToken}}
+
+{
+  "courseId": 1,
+  "folderId": 1
+}
+
+### 4) 코스 저장 — 없는 폴더 지정 → 400 / 4001 INVALID_INPUT
+POST http://localhost:8080/api/v1/courses/save
+Content-Type: application/json
+Authorization: Bearer {{accessToken}}
+
+{
+  "courseId": 3,
+  "folderId": 999999
+}
+
+### 5) 코스 저장 — 검증 실패(courseId 는 @Positive) → 400 / 4001
+POST http://localhost:8080/api/v1/courses/save
+Content-Type: application/json
+Authorization: Bearer {{accessToken}}
+
+{
+  "courseId": 0,
+  "folderId": 1
+}
+
+### 6) 코스 저장 (mock) — 저장 없이 고정 성공 응답
+POST http://localhost:8080/api/v1/courses/save?mock=true
+Content-Type: application/json
+Authorization: Bearer {{accessToken}}
+
+{
+  "courseId": 1,
+  "folderId": 1
+}
+
+### 7) 코스 저장 취소 (정상, 멱등) — courseId 로 저장 레코드 삭제. 저장 안 돼 있어도 성공
+DELETE http://localhost:8080/api/v1/courses/save/2
+Authorization: Bearer {{accessToken}}
+
+### 8) 코스 저장 취소 (mock) — 삭제 없이 고정 성공 응답
+DELETE http://localhost:8080/api/v1/courses/save/1?mock=true
+Authorization: Bearer {{accessToken}}
+
+### 9) 저장 코스 조회 (정상) — 저장 레코드(ID 위주) 최신순 + 커서 페이지네이션
+GET http://localhost:8080/api/v1/my/saved-courses
+Authorization: Bearer {{accessToken}}
+
+### 10) 저장 코스 조회 — 폴더 필터 + 페이지 크기
+GET http://localhost:8080/api/v1/my/saved-courses?folderId=1&size=5
+Authorization: Bearer {{accessToken}}
+
+### 11) 저장 코스 조회 — 커서 페이지네이션(직전 응답의 nextCursor 사용)
+GET http://localhost:8080/api/v1/my/saved-courses?cursor=3&size=2
+Authorization: Bearer {{accessToken}}
+
+### 12) 저장 코스 조회 — 잘못된 커서 → 400 / 4001 INVALID_INPUT
+GET http://localhost:8080/api/v1/my/saved-courses?cursor=abc
+Authorization: Bearer {{accessToken}}
+
+### 13) 저장 코스 조회 — size 범위 초과(@Max(50)) → 400
+GET http://localhost:8080/api/v1/my/saved-courses?size=100
+Authorization: Bearer {{accessToken}}
+
+### 14) 저장 코스 조회 — 토큰 없음 → 401 (/api/v1/my/** 는 JWT 필수)
 GET http://localhost:8080/api/v1/my/saved-courses
 
-### 저장 코스 조회 — 필터·페이지네이션(계약 확인용, 응답은 고정)
-GET http://localhost:8080/api/v1/my/saved-courses?folderId=1&size=10
+### 15) 저장 코스 조회 (mock) — 고정 목 응답
+GET http://localhost:8080/api/v1/my/saved-courses?mock=true
+Authorization: Bearer {{accessToken}}
 
-### 검증 실패 — 400 / 4002 (size 범위 초과)
-GET http://localhost:8080/api/v1/my/saved-courses?size=100
-
-### 모킹 에러 주입 — 404 / 4040 NOT_FOUND
+### 16) 저장 코스 조회 — 모킹 에러 주입 → 404 / 4040 NOT_FOUND
 GET http://localhost:8080/api/v1/my/saved-courses?mockError=4040
+Authorization: Bearer {{accessToken}}
 
-### 저장함 · 코스 탭 화면 조합 (BFF, 정상)
+### 17) BFF (실구현, 정상) — 전체 저장 코스 화면 조합
+# 저장 레코드 + 코스 요약(제목·지역·테마·장소 핀) + 작성자 핸들 + 완주 여부 + 폴더 칩.
+GET http://localhost:8080/service/v1/my/saved-courses
+Authorization: Bearer {{accessToken}}
+
+### 18) BFF — 폴더 필터(folderId=1)
+GET http://localhost:8080/service/v1/my/saved-courses?folderId=1
+Authorization: Bearer {{accessToken}}
+
+### 19) BFF — 완주 필터: 안 가봄만(completed=false)
+GET http://localhost:8080/service/v1/my/saved-courses?completed=false
+Authorization: Bearer {{accessToken}}
+
+### 20) BFF — 완주 필터: 완주만(completed=true)
+GET http://localhost:8080/service/v1/my/saved-courses?completed=true
+Authorization: Bearer {{accessToken}}
+
+### 21) BFF — 페이지 크기(size=2)
+GET http://localhost:8080/service/v1/my/saved-courses?size=2
+Authorization: Bearer {{accessToken}}
+
+### 22) BFF — 커서 페이지네이션(직전 응답의 nextCursor 사용)
+GET http://localhost:8080/service/v1/my/saved-courses?cursor=3&size=2
+Authorization: Bearer {{accessToken}}
+
+### 23) BFF — size 범위 초과(@Max(50)) → 400
+GET http://localhost:8080/service/v1/my/saved-courses?size=100
+Authorization: Bearer {{accessToken}}
+
+### 24) BFF — 토큰 없음 → 401 (/service/v1/my/** 는 JWT 필수)
 GET http://localhost:8080/service/v1/my/saved-courses
 
-### 저장함 · 코스 탭 화면 조합 — 폴더·완주 필터(계약 확인용, 응답은 고정)
-GET http://localhost:8080/service/v1/my/saved-courses?folderId=1&completed=false&size=10
+### 25) BFF (mock=true) — 조회 없이 고정 목 응답
+GET http://localhost:8080/service/v1/my/saved-courses?mock=true
+Authorization: Bearer {{accessToken}}
 
-### 모킹 에러 주입 — 404 / 4040 NOT_FOUND
+### 26) BFF — 모킹 에러 주입 → 404 / 4040 NOT_FOUND
 GET http://localhost:8080/service/v1/my/saved-courses?mockError=4040
+Authorization: Bearer {{accessToken}}

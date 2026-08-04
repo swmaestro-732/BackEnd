@@ -17,4 +17,16 @@ interface FollowPersistencePort {
         followerId: Long,
         followingId: Long,
     ): Boolean
+
+    /** followingIds 중 followerId 가 팔로우하는 대상만 골라 반환한다(배치 isFollowing, N+1 회피). */
+    fun filterFollowing(
+        followerId: Long,
+        followingIds: List<Long>,
+    ): Set<Long>
+
+    /** followerIds 중 followingId 를 팔로우하는 사용자만 골라 반환한다(배치 isFollower, N+1 회피). */
+    fun filterFollowers(
+        followingId: Long,
+        followerIds: List<Long>,
+    ): Set<Long>
 }
