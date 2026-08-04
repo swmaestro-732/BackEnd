@@ -53,6 +53,45 @@ Authorization: Bearer {{accessToken}}
 GET http://localhost:8080/api/v1/users/2
 Authorization: Bearer {{accessToken}}
 
+## 팔로워/팔로잉 목록 (/api/v1/users/{userId}/followers|followings) — 공개 경로, 뷰어 토큰은 선택
+# 최신 팔로우순(follows.id DESC) 정렬. 뷰어 토큰이 있으면 각 항목에 isFollowing/isFollower 가 반영된다(없으면 false).
+# 커서 형식: "<followId>". 직전 응답의 nextCursor 를 그대로 넣는다.
+
+### 팔로워 목록 (mock) — 시드 없이 고정 목 3명
+GET http://localhost:8080/api/v1/users/2/followers?mock=true
+Authorization: Bearer {{accessToken}}
+
+### 팔로워 목록 (실, 뷰어) — size 기본 10
+GET http://localhost:8080/api/v1/users/2/followers
+Authorization: Bearer {{accessToken}}
+
+### 팔로워 목록 2페이지 — 위 응답의 nextCursor 로 교체(예: 5). size 지정
+GET http://localhost:8080/api/v1/users/2/followers?cursor=5&size=5
+Authorization: Bearer {{accessToken}}
+
+### 팔로워 목록 (무토큰, 공개) — 200. 뷰어 없으니 isFollowing/isFollower=false
+GET http://localhost:8080/api/v1/users/2/followers
+
+### 팔로잉 목록 (실, 뷰어) — userId=2 가 팔로우하는 사람들
+GET http://localhost:8080/api/v1/users/2/followings
+Authorization: Bearer {{accessToken}}
+
+### 팔로잉 목록 (mock)
+GET http://localhost:8080/api/v1/users/2/followings?mock=true
+Authorization: Bearer {{accessToken}}
+
+### 없는 유저의 목록 — 404 / 4042
+GET http://localhost:8080/api/v1/users/999/followers
+Authorization: Bearer {{accessToken}}
+
+### 잘못된 커서 — 400 / 4001
+GET http://localhost:8080/api/v1/users/2/followers?cursor=abc
+Authorization: Bearer {{accessToken}}
+
+### size 범위 초과 — 400 / 4002 (1~50)
+GET http://localhost:8080/api/v1/users/2/followers?size=51
+Authorization: Bearer {{accessToken}}
+
 ### 회원 탈퇴 — soft delete + refresh 토큰 폐기. 이후 /my/profile 은 404/4042
 DELETE http://localhost:8080/api/v1/my
 Authorization: Bearer {{accessToken}}
