@@ -20,7 +20,6 @@ import org.springframework.web.bind.annotation.RestController
  */
 @RestController
 @RequestMapping("/service/v1")
-@Validated
 class CourseFeedController(
     private val courseFeedUseCase: CourseFeedUseCase,
 ) {
