@@ -1,6 +1,7 @@
 package com.example.backend.place.application.service
 
 import com.example.backend.common.geo.Coordinate
+import com.example.backend.place.application.port.outbound.AreaCodeLookupPort
 import com.example.backend.place.application.port.outbound.ExternalPlaceSearchPort
 import com.example.backend.place.application.port.outbound.PlacePersistencePort
 import com.example.backend.place.domain.model.ExternalPlace
@@ -31,7 +32,13 @@ class PlaceSearchServiceTest {
             ) = external
         }
     private val persistence = FakePlacePersistencePort()
-    private val service = PlaceSearchService(externalPort, persistence)
+
+    // 좌표→법정동 변환은 이 테스트의 관심사(dedup)가 아니라 항상 미확인(null)으로 둔다.
+    private val areaCodeLookup =
+        object : AreaCodeLookupPort {
+            override fun findLegalDongCode(coordinate: Coordinate): String? = null
+        }
+    private val service = PlaceSearchService(externalPort, persistence, areaCodeLookup)
 
     @Test
     fun `같은 장소를 두 번 검색하면 저장은 한 번, id 는 재사용된다`() {

@@ -4,6 +4,7 @@ import com.example.backend.common.geo.Coordinate
 import com.example.backend.common.persistence.postgis.GeoPoint
 import com.example.backend.place.application.port.inbound.PlaceSearchExternalUseCase
 import com.example.backend.place.application.port.inbound.dto.PlaceSearchResult
+import com.example.backend.place.application.port.outbound.AreaCodeLookupPort
 import com.example.backend.place.application.port.outbound.ExternalPlaceSearchPort
 import com.example.backend.place.application.port.outbound.PlacePersistencePort
 import com.example.backend.place.domain.model.Place
@@ -20,6 +21,7 @@ import org.springframework.transaction.annotation.Transactional
 class PlaceSearchService(
     private val externalPlaceSearchPort: ExternalPlaceSearchPort,
     private val placePersistencePort: PlacePersistencePort,
+    private val areaCodeLookupPort: AreaCodeLookupPort,
 ) : PlaceSearchExternalUseCase {
     @Transactional
     override fun search(
@@ -55,6 +57,8 @@ class PlaceSearchService(
                         category = ext.category,
                         location = GeoPoint(ext.coordinate.latitude, ext.coordinate.longitude),
                         address = address,
+                        // 신규 저장 장소에만 좌표→법정동 변환을 호출한다(dedup 이후라 호출 수가 신규분으로 제한됨). 실패 시 null.
+                        areaCode = areaCodeLookupPort.findLegalDongCode(ext.coordinate),
                         imageUrl = null,
                         kakaoPlaceId = ext.kakaoPlaceId,
                     )
