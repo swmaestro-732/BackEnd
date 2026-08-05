@@ -14,6 +14,7 @@ import com.example.backend.course.application.port.outbound.CourseDetailRow
 import com.example.backend.course.application.port.outbound.CoursePersistencePort
 import com.example.backend.course.application.port.outbound.CoursePlaceImageRow
 import com.example.backend.course.application.port.outbound.CoursePlaceRow
+import com.example.backend.course.application.port.outbound.CourseSummaryRow
 import com.example.backend.course.domain.model.Course
 import com.example.backend.course.domain.model.CourseCategory
 import com.example.backend.course.domain.model.CoursePlace
@@ -113,18 +114,13 @@ class CourseService(
         coursePersistencePort
             .findPublishedByAuthor(authorId)
             .filter { isViewable(it.visibility, ownerId = it.userId, viewerId = viewerId) }
-            .map {
-                CourseSummary(
-                    id = it.id,
-                    authorId = it.userId,
-                    title = it.title,
-                    coverImageUrl = it.coverImageUrl,
-                    theme = it.category?.name,
-                    likesCnt = it.likesCnt,
-                    savesCnt = it.savesCnt,
-                    createdAt = it.createdAt,
-                )
-            }
+            .map { it.toSummary() }
+
+    /** 작성자 본인의 임시저장 코스 요약 목록 — 공개범위 필터 없이 영속 포트의 최근 수정순을 유지한다. */
+    override fun listDraftsByAuthor(authorId: Long): List<CourseSummary> =
+        coursePersistencePort
+            .findDraftsByAuthor(authorId)
+            .map { it.toSummary() }
 
     /**
      * 전체 공개(PUBLIC) 발행 코스를 저장수+최신순으로 [limit] 개 내려준다(피드용).
@@ -134,18 +130,19 @@ class CourseService(
     override fun listPublic(limit: Int): List<CourseSummary> =
         coursePersistencePort
             .findPublishedPublic(limit)
-            .map {
-                CourseSummary(
-                    id = it.id,
-                    authorId = it.userId,
-                    title = it.title,
-                    coverImageUrl = it.coverImageUrl,
-                    theme = it.category?.name,
-                    likesCnt = it.likesCnt,
-                    savesCnt = it.savesCnt,
-                    createdAt = it.createdAt,
-                )
-            }
+            .map { it.toSummary() }
+
+    private fun CourseSummaryRow.toSummary(): CourseSummary =
+        CourseSummary(
+            id = id,
+            authorId = userId,
+            title = title,
+            coverImageUrl = coverImageUrl,
+            theme = category?.name,
+            likesCnt = likesCnt,
+            savesCnt = savesCnt,
+            createdAt = createdAt,
+        )
 
     /** 미삭제 코스 존재 확인(크로스 도메인) — 다른 도메인(user 저장함 등)이 이 포트로만 접근한다. */
     override fun existsById(courseId: Long): Boolean = coursePersistencePort.existsById(courseId)

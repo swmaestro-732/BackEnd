@@ -26,7 +26,7 @@ data class CourseDetailRow(
 
 /**
  * 코스 요약 읽기 모델 — 작성자별 코스 목록 등에 쓰는 범용 요약(화면 전용 아님).
- * deleted_at IS NULL·발행·ACTIVE 인 행만 반환하며, 공개범위(visibility) 판정은 서비스가 수행한다.
+ * 발행 여부·정렬 등 목록별 조건은 각 포트 메서드가 정하고, 공개범위(visibility) 판정은 필요한 경우 서비스가 수행한다.
  */
 data class CourseSummaryRow(
     val id: Long,
@@ -72,6 +72,11 @@ interface CoursePersistencePort {
      * 공개범위(visibility) 필터는 서비스가 조회자 기준으로 수행한다.
      */
     fun findPublishedByAuthor(authorId: Long): List<CourseSummaryRow>
+
+    /**
+     * 작성자의 임시저장 코스 요약 목록 — isPublished=false·status=ACTIVE·deleted_at IS NULL, updatedAt 내림차순.
+     */
+    fun findDraftsByAuthor(authorId: Long): List<CourseSummaryRow>
 
     /**
      * 전체 공개(visibility=PUBLIC)·발행·활성·미삭제 코스 요약을 createdAt 내림차순으로 [limit] 개까지 읽는다.

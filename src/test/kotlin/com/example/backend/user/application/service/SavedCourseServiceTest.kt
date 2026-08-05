@@ -30,6 +30,8 @@ class SavedCourseServiceTest {
                 viewerId: Long?,
             ): List<CourseSummary> = emptyList()
 
+            override fun listDraftsByAuthor(authorId: Long): List<CourseSummary> = emptyList()
+
             override fun listPublic(limit: Int): List<CourseSummary> = emptyList()
         }
 
