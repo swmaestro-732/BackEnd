@@ -17,6 +17,8 @@ data class CourseDetailRow(
     val category: CourseCategory?,
     /** 코스 지역(예: "성수"). 미입력이면 null. */
     val area: String?,
+    /** 코스 지역 법정동코드 10자리(시군구 레벨은 뒤 0 패딩). 미도출이면 null. 편집 시 유지/재도출 판정에 쓰인다. */
+    val areaCode: String?,
     val tracingsCnt: Int,
     val status: CourseStatus,
     val visibility: CourseVisibility,

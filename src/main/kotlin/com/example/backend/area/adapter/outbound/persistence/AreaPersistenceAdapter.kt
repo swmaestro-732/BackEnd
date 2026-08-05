@@ -38,6 +38,14 @@ class AreaPersistenceAdapter(
             }
     }
 
+    /** 10자리 코드 → 읍면동 항목(단건 조회용). */
+    private val dongMap: Map<String, AreaDescriptor> by lazy {
+        activeAreas.associate { it.code.value to it.toDescriptor() }
+    }
+
+    override fun findByCode(code: String): AreaDescriptor? =
+        if (code.endsWith(SIGUNGU_LEVEL_SUFFIX)) sigunguMap[code.take(SIGUNGU_CODE_LENGTH)] else dongMap[code]
+
     override fun search(keyword: String): List<AreaDescriptor> {
         val trimmed = keyword.trim()
         if (trimmed.isEmpty()) return emptyList()
@@ -59,5 +67,9 @@ class AreaPersistenceAdapter(
 
     private companion object {
         const val SEARCH_LIMIT = 20
+
+        /** 시군구 레벨 코드는 시군구(앞 5자리) 뒤를 0 으로 패딩한 형태다(저장 단위는 읍면동뿐이라 별도 행이 없음). */
+        const val SIGUNGU_LEVEL_SUFFIX = "00000"
+        const val SIGUNGU_CODE_LENGTH = 5
     }
 }

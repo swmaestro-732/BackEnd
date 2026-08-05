@@ -18,4 +18,6 @@ class AreaQueryService(
     private val areaDirectoryPort: AreaDirectoryPort,
 ) : AreaQueryUseCase {
     override fun searchAreas(keyword: String): List<AreaDescriptor> = areaDirectoryPort.search(keyword)
+
+    override fun findAreaByCode(code: String): AreaDescriptor? = areaDirectoryPort.findByCode(code)
 }

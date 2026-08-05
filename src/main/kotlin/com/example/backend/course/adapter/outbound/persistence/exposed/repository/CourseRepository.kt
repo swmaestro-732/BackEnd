@@ -39,6 +39,8 @@ class CourseRepository {
                 description = course.description
                 coverImageUrl = course.coverImageUrl
                 category = course.category
+                area = course.area
+                areaCode = course.areaCode
                 isPublished = course.isPublished
                 visibility = course.visibility
                 forkedFromId = course.forkedFromId
@@ -60,6 +62,8 @@ class CourseRepository {
                 it[description] = course.description
                 it[coverImageUrl] = course.coverImageUrl
                 it[category] = course.category
+                it[area] = course.area
+                it[areaCode] = course.areaCode
                 it[isPublished] = course.isPublished
                 it[visibility] = course.visibility
                 it[updatedAt] = now
@@ -132,6 +136,7 @@ class CourseRepository {
             description = it[CourseTable.description],
             category = it[CourseTable.category],
             area = it[CourseTable.area],
+            areaCode = it[CourseTable.areaCode],
             tracingsCnt = it[CourseTable.tracingsCnt],
             status = it[CourseTable.status],
             visibility = it[CourseTable.visibility],
