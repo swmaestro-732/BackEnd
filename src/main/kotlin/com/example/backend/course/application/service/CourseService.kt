@@ -4,16 +4,20 @@ import com.example.backend.common.exception.BusinessException
 import com.example.backend.common.response.ErrorCode
 import com.example.backend.course.application.port.inbound.CourseQueryUseCase
 import com.example.backend.course.application.port.inbound.CourseUseCase
+import com.example.backend.course.application.port.inbound.dto.AuthorCourseCursor
 import com.example.backend.course.application.port.inbound.dto.CourseDetailResult
 import com.example.backend.course.application.port.inbound.dto.CoursePlaceImageResult
 import com.example.backend.course.application.port.inbound.dto.CoursePlaceResult
 import com.example.backend.course.application.port.inbound.dto.CourseSummary
+import com.example.backend.course.application.port.inbound.dto.CourseSummaryPage
+import com.example.backend.course.application.port.inbound.dto.CourseVisibilityCounts
 import com.example.backend.course.application.port.inbound.dto.CreateCourseCommand
 import com.example.backend.course.application.port.inbound.dto.EditCourseCommand
 import com.example.backend.course.application.port.outbound.CourseDetailRow
 import com.example.backend.course.application.port.outbound.CoursePersistencePort
 import com.example.backend.course.application.port.outbound.CoursePlaceImageRow
 import com.example.backend.course.application.port.outbound.CoursePlaceRow
+import com.example.backend.course.application.port.outbound.CourseSummaryRow
 import com.example.backend.course.domain.model.Course
 import com.example.backend.course.domain.model.CourseCategory
 import com.example.backend.course.domain.model.CoursePlace
@@ -109,22 +113,30 @@ class CourseService(
     override fun listByAuthor(
         authorId: Long,
         viewerId: Long?,
-    ): List<CourseSummary> =
-        coursePersistencePort
-            .findPublishedByAuthor(authorId)
-            .filter { isViewable(it.visibility, ownerId = it.userId, viewerId = viewerId) }
-            .map {
-                CourseSummary(
-                    id = it.id,
-                    authorId = it.userId,
-                    title = it.title,
-                    coverImageUrl = it.coverImageUrl,
-                    theme = it.category?.name,
-                    likesCnt = it.likesCnt,
-                    savesCnt = it.savesCnt,
-                    createdAt = it.createdAt,
-                )
-            }
+        cursor: AuthorCourseCursor?,
+        size: Int,
+    ): CourseSummaryPage {
+        val rows =
+            coursePersistencePort.findPublishedByAuthor(
+                authorId = authorId,
+                visibilities = viewableVisibilities(ownerId = authorId, viewerId = viewerId),
+                cursor = cursor,
+                size = size,
+            )
+        return CourseSummaryPage(
+            items = rows.take(size).map(::toCourseSummary),
+            hasNext = rows.size > size,
+        )
+    }
+
+    override fun countByAuthorGroupedByVisibility(authorId: Long): CourseVisibilityCounts {
+        val counts = coursePersistencePort.countPublishedByAuthorGroupedByVisibility(authorId)
+        return CourseVisibilityCounts(
+            publicCount = counts[CourseVisibility.PUBLIC] ?: 0,
+            followerCount = counts[CourseVisibility.FOLLOWER] ?: 0,
+            privateCount = counts[CourseVisibility.PRIVATE] ?: 0,
+        )
+    }
 
     /**
      * 전체 공개(PUBLIC) 발행 코스를 저장수+최신순으로 [limit] 개 내려준다(피드용).
@@ -134,21 +146,41 @@ class CourseService(
     override fun listPublic(limit: Int): List<CourseSummary> =
         coursePersistencePort
             .findPublishedPublic(limit)
-            .map {
-                CourseSummary(
-                    id = it.id,
-                    authorId = it.userId,
-                    title = it.title,
-                    coverImageUrl = it.coverImageUrl,
-                    theme = it.category?.name,
-                    likesCnt = it.likesCnt,
-                    savesCnt = it.savesCnt,
-                    createdAt = it.createdAt,
-                )
-            }
+            .map(::toCourseSummary)
 
     /** 미삭제 코스 존재 확인(크로스 도메인) — 다른 도메인(user 저장함 등)이 이 포트로만 접근한다. */
     override fun existsById(courseId: Long): Boolean = coursePersistencePort.existsById(courseId)
+
+    /** 조회자에게 허용된 공개범위를 SQL 조건으로 전달해 필터 이후에도 페이지 크기와 hasNext가 정확하게 유지되게 한다. */
+    private fun viewableVisibilities(
+        ownerId: Long,
+        viewerId: Long?,
+    ): Set<CourseVisibility> =
+        when {
+            viewerId == ownerId -> {
+                CourseVisibility.entries.toSet()
+            }
+
+            viewerId != null && courseInteractionUseCase.isFollowing(viewerId, ownerId) -> {
+                setOf(CourseVisibility.PUBLIC, CourseVisibility.FOLLOWER)
+            }
+
+            else -> {
+                setOf(CourseVisibility.PUBLIC)
+            }
+        }
+
+    private fun toCourseSummary(row: CourseSummaryRow) =
+        CourseSummary(
+            id = row.id,
+            authorId = row.userId,
+            title = row.title,
+            coverImageUrl = row.coverImageUrl,
+            theme = row.category?.name,
+            likesCnt = row.likesCnt,
+            savesCnt = row.savesCnt,
+            createdAt = row.createdAt,
+        )
 
     private fun isViewable(
         visibility: CourseVisibility,

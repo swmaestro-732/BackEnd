@@ -28,10 +28,13 @@ class MyPageScreenController(
     @AccessTokenRequired
     fun getMyPage(
         @CurrentUserId userId: Long,
+        @RequestParam(required = false) cursor: String?,
         @RequestParam(required = false) mock: Boolean = false,
     ): ApiResponse<MyPageScreenResponse> {
         if (mock) return ApiResponse.success(MyPageScreenResponse.MOCK)
-        return ApiResponse.success(MyPageScreenResponse.from(myPageUseCase.getMyPage(userId)))
+        return ApiResponse.success(
+            MyPageScreenResponse.from(myPageUseCase.getMyPage(userId, cursor, PAGE_SIZE)),
+        )
     }
 
     /** 타인 마이페이지 — 대상 프로필 + 조회자 기준 공개 코스. 없는 handle 은 404 USER_NOT_FOUND. */
@@ -39,9 +42,16 @@ class MyPageScreenController(
     fun getUserPage(
         @PathVariable handle: String,
         @CurrentUserId viewerId: Long?,
+        @RequestParam(required = false) cursor: String?,
         @RequestParam(required = false) mock: Boolean = false,
     ): ApiResponse<MyPageScreenResponse> {
         if (mock) return ApiResponse.success(MyPageScreenResponse.MOCK)
-        return ApiResponse.success(MyPageScreenResponse.from(myPageUseCase.getUserPage(handle, viewerId)))
+        return ApiResponse.success(
+            MyPageScreenResponse.from(myPageUseCase.getUserPage(handle, viewerId, cursor, PAGE_SIZE)),
+        )
+    }
+
+    private companion object {
+        const val PAGE_SIZE = 10
     }
 }

@@ -1,8 +1,12 @@
 package com.example.backend.mobile.user.adapter.outbound
 
 import com.example.backend.course.application.port.inbound.CourseQueryUseCase
+import com.example.backend.course.application.port.inbound.dto.AuthorCourseCursor
+import com.example.backend.mobile.user.application.MyPageCursorCodec
 import com.example.backend.mobile.user.application.port.outbound.MyPageCoursePort
 import com.example.backend.mobile.user.application.port.outbound.dto.AuthoredCourse
+import com.example.backend.mobile.user.application.port.outbound.dto.AuthoredCoursePage
+import com.example.backend.mobile.user.application.port.outbound.dto.CourseCounts
 import org.springframework.stereotype.Component
 
 /**
@@ -16,16 +20,42 @@ class MyPageCourseAdapter(
     override fun listByAuthor(
         authorId: Long,
         viewerId: Long?,
-    ): List<AuthoredCourse> =
-        courseQueryUseCase.listByAuthor(authorId, viewerId).map {
-            AuthoredCourse(
-                id = it.id,
-                title = it.title,
-                coverImageUrl = it.coverImageUrl,
-                theme = it.theme,
-                likesCnt = it.likesCnt,
-                savesCnt = it.savesCnt,
-                createdAt = it.createdAt,
+        cursor: String?,
+        size: Int,
+    ): AuthoredCoursePage {
+        val page =
+            courseQueryUseCase.listByAuthor(
+                authorId = authorId,
+                viewerId = viewerId,
+                cursor =
+                    MyPageCursorCodec.decode(cursor)?.let {
+                        AuthorCourseCursor(createdAt = it.createdAt, id = it.id)
+                    },
+                size = size,
+            )
+        return AuthoredCoursePage(
+            courses =
+                page.items.map {
+                    AuthoredCourse(
+                        id = it.id,
+                        title = it.title,
+                        coverImageUrl = it.coverImageUrl,
+                        theme = it.theme,
+                        likesCnt = it.likesCnt,
+                        savesCnt = it.savesCnt,
+                        createdAt = it.createdAt,
+                    )
+                },
+            hasNext = page.hasNext,
+        )
+    }
+
+    override fun countByVisibility(authorId: Long): CourseCounts =
+        courseQueryUseCase.countByAuthorGroupedByVisibility(authorId).let {
+            CourseCounts(
+                publicCount = it.publicCount,
+                followerCount = it.followerCount,
+                privateCount = it.privateCount,
             )
         }
 }

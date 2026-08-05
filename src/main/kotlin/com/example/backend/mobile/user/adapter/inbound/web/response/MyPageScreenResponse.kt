@@ -2,6 +2,7 @@ package com.example.backend.mobile.user.adapter.inbound.web.response
 
 import com.example.backend.mobile.user.application.port.inbound.dto.MyPageResult
 import com.example.backend.mobile.user.application.port.outbound.dto.AuthoredCourse
+import com.example.backend.mobile.user.application.port.outbound.dto.CourseCounts
 import com.example.backend.mobile.user.application.port.outbound.dto.ProfileSnapshot
 import java.time.Instant
 
@@ -13,12 +14,16 @@ import java.time.Instant
 data class MyPageScreenResponse(
     val profile: MyPageProfileResponse,
     val courses: List<MyPageCourseResponse>,
+    val nextCursor: String?,
+    val hasNext: Boolean,
 ) {
     companion object {
         fun from(result: MyPageResult): MyPageScreenResponse =
             MyPageScreenResponse(
-                profile = MyPageProfileResponse.from(result.profile),
+                profile = MyPageProfileResponse.from(result.profile, result.courseCounts),
                 courses = result.courses.map(MyPageCourseResponse::from),
+                nextCursor = result.nextCursor,
+                hasNext = result.hasNext,
             )
 
         /** `?mock=true` 폴백 — 로그인 사용자 목(id=1 · AccountProfileResponse.mock)과 값을 맞춰 둔다. */
@@ -34,7 +39,9 @@ data class MyPageScreenResponse(
                         isFollower = false,
                         followersCnt = 128,
                         followingsCnt = 88,
-                        coursesCnt = 12,
+                        publicCoursesCnt = 12,
+                        followerCoursesCnt = 3,
+                        privateCoursesCnt = 2,
                     ),
                 courses =
                     listOf(
@@ -48,6 +55,8 @@ data class MyPageScreenResponse(
                             createdAt = Instant.parse("2026-03-10T02:00:00Z"),
                         ),
                     ),
+                nextCursor = null,
+                hasNext = false,
             )
     }
 }
@@ -62,10 +71,15 @@ data class MyPageProfileResponse(
     val isFollower: Boolean,
     val followersCnt: Int,
     val followingsCnt: Int,
-    val coursesCnt: Int,
+    val publicCoursesCnt: Int,
+    val followerCoursesCnt: Int,
+    val privateCoursesCnt: Int,
 ) {
     companion object {
-        fun from(profile: ProfileSnapshot): MyPageProfileResponse =
+        fun from(
+            profile: ProfileSnapshot,
+            counts: CourseCounts,
+        ): MyPageProfileResponse =
             MyPageProfileResponse(
                 id = profile.id,
                 nickname = profile.nickname,
@@ -75,7 +89,9 @@ data class MyPageProfileResponse(
                 isFollower = profile.isFollower,
                 followersCnt = profile.followersCnt,
                 followingsCnt = profile.followingsCnt,
-                coursesCnt = profile.coursesCnt,
+                publicCoursesCnt = counts.publicCount,
+                followerCoursesCnt = counts.followerCount,
+                privateCoursesCnt = counts.privateCount,
             )
     }
 }

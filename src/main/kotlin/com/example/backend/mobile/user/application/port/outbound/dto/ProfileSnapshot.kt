@@ -16,5 +16,4 @@ data class ProfileSnapshot(
     val isFollower: Boolean,
     val followersCnt: Int,
     val followingsCnt: Int,
-    val coursesCnt: Int,
 )
