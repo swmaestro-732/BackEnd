@@ -6,8 +6,10 @@ import com.example.backend.common.response.ErrorCode
 import com.example.backend.common.support.runAfterCommit
 import com.example.backend.media.application.port.inbound.MediaCleanupUseCase
 import com.example.backend.media.application.port.inbound.PresignUploadUseCase
+import com.example.backend.media.application.port.inbound.dto.PresignBatchCommand
 import com.example.backend.media.application.port.inbound.dto.PresignCommand
 import com.example.backend.media.application.port.inbound.dto.PresignResult
+import com.example.backend.media.application.port.inbound.dto.UploadPurpose
 import com.example.backend.media.application.port.outbound.MediaStoragePort
 import org.springframework.stereotype.Service
 import java.util.UUID
@@ -18,19 +20,42 @@ class MediaService(
     private val mediaProperties: MediaProperties,
 ) : PresignUploadUseCase,
     MediaCleanupUseCase {
-    override fun presign(command: PresignCommand): PresignResult {
+    override fun presign(command: PresignCommand): PresignResult =
+        presignOne(
+            userId = command.userId,
+            purpose = command.purpose,
+            contentType = command.contentType,
+            contentLength = command.contentLength,
+        )
+
+    override fun presignBatch(command: PresignBatchCommand): List<PresignResult> =
+        command.images.map { image ->
+            presignOne(
+                userId = command.userId,
+                purpose = command.purpose,
+                contentType = image.contentType,
+                contentLength = image.contentLength,
+            )
+        }
+
+    private fun presignOne(
+        userId: Long,
+        purpose: UploadPurpose,
+        contentType: String,
+        contentLength: Long,
+    ): PresignResult {
         val ext =
-            CONTENT_TYPE_EXTENSIONS[command.contentType]
+            CONTENT_TYPE_EXTENSIONS[contentType]
                 ?: throw BusinessException(ErrorCode.UNSUPPORTED_MEDIA_TYPE)
 
-        if (command.contentLength !in 1..mediaProperties.maxUploadBytes) {
+        if (contentLength !in 1..mediaProperties.maxUploadBytes) {
             throw BusinessException(ErrorCode.PAYLOAD_TOO_LARGE)
         }
 
-        val key = "${command.purpose.keyPrefix}/${command.userId}/${UUID.randomUUID()}.$ext"
+        val key = "${purpose.keyPrefix}/$userId/${UUID.randomUUID()}.$ext"
         return PresignResult(
             key = key,
-            uploadUrl = mediaStoragePort.presignedPutUrl(key, command.contentType, command.contentLength),
+            uploadUrl = mediaStoragePort.presignedPutUrl(key, contentType, contentLength),
             imageUrl = mediaStoragePort.publicUrl(key),
         )
     }

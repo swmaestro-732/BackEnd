@@ -46,6 +46,96 @@ class UploadControllerTest
         }
 
         @Test
+        fun `장소 이미지 3개의 배치 프리사인 요청은 각 이미지의 URL을 내려준다`() {
+            mockMvc
+                .perform(
+                    post("/api/v1/uploads/presign/batch")
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer ${jwtTokenProvider.issueAccessToken(1L)}")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(
+                            """
+                            {
+                              "purpose":"PLACE",
+                              "images":[
+                                {"contentType":"image/jpeg","contentLength":1024},
+                                {"contentType":"image/png","contentLength":2048},
+                                {"contentType":"image/webp","contentLength":4096}
+                              ]
+                            }
+                            """.trimIndent(),
+                        ),
+                ).andExpect(status().isOk)
+                .andExpect(jsonPath("$.code").value(2000))
+                .andExpect(jsonPath("$.data.items.length()").value(3))
+                .andExpect(jsonPath("$.data.items[0].key").value(matchesPattern("place/1/[0-9a-f-]{36}\\.jpg")))
+                .andExpect(jsonPath("$.data.items[0].uploadUrl").isNotEmpty)
+                .andExpect(jsonPath("$.data.items[0].imageUrl").isNotEmpty)
+                .andExpect(jsonPath("$.data.items[1].key").value(matchesPattern("place/1/[0-9a-f-]{36}\\.png")))
+                .andExpect(jsonPath("$.data.items[1].uploadUrl").isNotEmpty)
+                .andExpect(jsonPath("$.data.items[1].imageUrl").isNotEmpty)
+                .andExpect(jsonPath("$.data.items[2].key").value(matchesPattern("place/1/[0-9a-f-]{36}\\.webp")))
+                .andExpect(jsonPath("$.data.items[2].uploadUrl").isNotEmpty)
+                .andExpect(jsonPath("$.data.items[2].imageUrl").isNotEmpty)
+        }
+
+        @Test
+        fun `코스 대표 이미지 배치 프리사인 요청은 course 키를 내려준다`() {
+            mockMvc
+                .perform(
+                    post("/api/v1/uploads/presign/batch")
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer ${jwtTokenProvider.issueAccessToken(1L)}")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(
+                            """
+                            {
+                              "purpose":"COURSE",
+                              "images":[{"contentType":"image/jpeg","contentLength":1024}]
+                            }
+                            """.trimIndent(),
+                        ),
+                ).andExpect(status().isOk)
+                .andExpect(jsonPath("$.code").value(2000))
+                .andExpect(jsonPath("$.data.items.length()").value(1))
+                .andExpect(jsonPath("$.data.items[0].key").value(matchesPattern("course/1/[0-9a-f-]{36}\\.jpg")))
+        }
+
+        @Test
+        fun `배치 프리사인 요청은 이미지를 10개까지만 허용한다`() {
+            val images =
+                (1..11).joinToString(",") {
+                    """{"contentType":"image/jpeg","contentLength":1024}"""
+                }
+
+            mockMvc
+                .perform(
+                    post("/api/v1/uploads/presign/batch")
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer ${jwtTokenProvider.issueAccessToken(1L)}")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""{"purpose":"PLACE","images":[$images]}"""),
+                ).andExpect(status().isBadRequest)
+                .andExpect(jsonPath("$.code").value(4002))
+        }
+
+        @Test
+        fun `배치 프리사인 요청에 지원하지 않는 contentType이면 415를 내려준다`() {
+            mockMvc
+                .perform(
+                    post("/api/v1/uploads/presign/batch")
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer ${jwtTokenProvider.issueAccessToken(1L)}")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(
+                            """
+                            {
+                              "purpose":"PLACE",
+                              "images":[{"contentType":"application/pdf","contentLength":1024}]
+                            }
+                            """.trimIndent(),
+                        ),
+                ).andExpect(status().isUnsupportedMediaType)
+                .andExpect(jsonPath("$.code").value(4150))
+        }
+
+        @Test
         fun `지원하지 않는 contentType이면 415를 내려준다`() {
             mockMvc
                 .perform(

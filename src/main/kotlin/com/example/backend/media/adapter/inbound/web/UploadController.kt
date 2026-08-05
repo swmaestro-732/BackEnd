@@ -2,7 +2,9 @@ package com.example.backend.media.adapter.inbound.web
 
 import com.example.backend.bootstrap.security.CurrentUserId
 import com.example.backend.common.response.ApiResponse
+import com.example.backend.media.adapter.inbound.web.request.PresignBatchRequest
 import com.example.backend.media.adapter.inbound.web.request.PresignRequest
+import com.example.backend.media.adapter.inbound.web.response.PresignBatchResponse
 import com.example.backend.media.adapter.inbound.web.response.PresignResponse
 import com.example.backend.media.application.port.inbound.PresignUploadUseCase
 import jakarta.validation.Valid
@@ -24,4 +26,12 @@ class UploadController(
         @Valid @RequestBody request: PresignRequest,
     ): ApiResponse<PresignResponse> =
         ApiResponse.success(PresignResponse.from(presignUploadUseCase.presign(request.toCommand(userId))))
+
+    /** 코스 대표 이미지 또는 코스 내 장소 이미지들의 프리사인 URL을 한 번에 발급한다. */
+    @PostMapping("/presign/batch")
+    fun presignBatch(
+        @CurrentUserId userId: Long,
+        @Valid @RequestBody request: PresignBatchRequest,
+    ): ApiResponse<PresignBatchResponse> =
+        ApiResponse.success(PresignBatchResponse.from(presignUploadUseCase.presignBatch(request.toCommand(userId))))
 }
