@@ -89,7 +89,9 @@ class MyPageService(
             this
         } else {
             copy(
-                followerCount = if (profile.isFollower) followerCount else 0,
+                // 팔로워 공개 코스는 "조회자가 대상을 팔로우할 때"(isFollowing = 나→대상) 보인다.
+                // isFollower(대상→나)가 아니다 — 관계 방향을 반대로 쓰면 실제 팔로워에게 0을 주고 아닌 사람에게 노출된다.
+                followerCount = if (profile.isFollowing) followerCount else 0,
                 privateCount = 0,
             )
         }
