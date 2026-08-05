@@ -114,6 +114,7 @@ class UploadControllerTest
                         .content("""{"purpose":"PLACE","images":[$images]}"""),
                 ).andExpect(status().isBadRequest)
                 .andExpect(jsonPath("$.code").value(4002))
+                .andExpect(jsonPath("$.fieldErrors[0].field").value("images"))
         }
 
         @Test
