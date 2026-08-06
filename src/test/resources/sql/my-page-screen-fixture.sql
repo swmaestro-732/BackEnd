@@ -5,11 +5,14 @@ INSERT INTO users (nickname, handle, profile_image_url)
 VALUES
     ('작성자', 'owner_handle', 'https://img/owner.jpg'),
     ('비팔로워 조회자', 'outsider_handle', 'https://img/outsider.jpg'),
-    ('작성자의 팔로잉', 'reverse_follower_handle', 'https://img/reverse-follower.jpg');
+    ('작성자의 팔로잉', 'reverse_follower_handle', 'https://img/reverse-follower.jpg'),
+    ('진짜 팔로워', 'follower_handle', 'https://img/follower.jpg');
 
--- ProfileSnapshot.isFollower(대상 → 조회자) 마스킹 검증용: 작성자(1)가 조회자(3)를 팔로우한다.
+-- 팔로워 공개 카운트 노출/마스킹 검증용 관계:
+--   (4→1) 조회자4가 작성자1을 팔로우 → 작성자 페이지에서 isFollowing=true → 팔로워 공개 카운트 노출
+--   (1→3) 작성자1이 조회자3을 팔로우(역방향) → isFollower=true·isFollowing=false → 마스킹(0)
 INSERT INTO follows (follower_id, following_id)
-VALUES (1, 3);
+VALUES (4, 1), (1, 3);
 
 -- PUBLIC 발행 코스 10개. n=1이 가장 최신이며 id도 1부터 순서대로 부여된다.
 INSERT INTO courses (

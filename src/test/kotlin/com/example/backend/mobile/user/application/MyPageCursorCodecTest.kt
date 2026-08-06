@@ -54,7 +54,13 @@ class MyPageCursorCodecTest {
 
     @Test
     fun `필드 수나 형식이 틀리면 잘못된 커서다`() {
-        assertThatThrownBy { MyPageCursorCodec.decode("not-base64!!!") }.isInstanceOf(BusinessException::class.java)
-        assertThatThrownBy { MyPageCursorCodec.decode(raw("0:1")) }.isInstanceOf(BusinessException::class.java)
+        assertThatThrownBy { MyPageCursorCodec.decode("not-base64!!!") }
+            .isInstanceOf(BusinessException::class.java)
+            .extracting("errorCode")
+            .isEqualTo(ErrorCode.INVALID_INPUT)
+        assertThatThrownBy { MyPageCursorCodec.decode(raw("0:1")) }
+            .isInstanceOf(BusinessException::class.java)
+            .extracting("errorCode")
+            .isEqualTo(ErrorCode.INVALID_INPUT)
     }
 }

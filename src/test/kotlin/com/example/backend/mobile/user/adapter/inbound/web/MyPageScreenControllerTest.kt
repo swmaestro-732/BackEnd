@@ -85,15 +85,30 @@ class MyPageScreenControllerTest
         }
 
         @Test
-        fun `대상이 조회자를 팔로우하면 타인 페이지에 팔로워 공개 코스 개수를 노출한다`() {
+        fun `조회자가 대상을 팔로우하면 타인 페이지에 팔로워 공개 코스 개수를 노출한다`() {
+            // 조회자4 → 작성자1 팔로우(isFollowing=true)일 때만 팔로워 공개 카운트가 보인다.
+            mockMvc
+                .perform(
+                    get("$MY_PAGE_PATH/owner_handle")
+                        .header(HttpHeaders.AUTHORIZATION, bearer(FOLLOWER_ID)),
+                ).andExpect(status().isOk)
+                .andExpect(jsonPath("$.data.profile.isFollowing").value(true))
+                .andExpect(jsonPath("$.data.profile.publicCoursesCnt").value(10))
+                .andExpect(jsonPath("$.data.profile.followerCoursesCnt").value(1))
+                .andExpect(jsonPath("$.data.profile.privateCoursesCnt").value(0))
+        }
+
+        @Test
+        fun `대상만 조회자를 팔로우하는 역방향 관계에서는 팔로워 공개 코스 개수를 마스킹한다`() {
+            // 작성자1 → 조회자3(isFollower=true, isFollowing=false)은 노출 조건이 아니다 → 0으로 마스킹.
             mockMvc
                 .perform(
                     get("$MY_PAGE_PATH/owner_handle")
                         .header(HttpHeaders.AUTHORIZATION, bearer(REVERSE_FOLLOWER_ID)),
                 ).andExpect(status().isOk)
                 .andExpect(jsonPath("$.data.profile.isFollower").value(true))
-                .andExpect(jsonPath("$.data.profile.publicCoursesCnt").value(10))
-                .andExpect(jsonPath("$.data.profile.followerCoursesCnt").value(1))
+                .andExpect(jsonPath("$.data.profile.isFollowing").value(false))
+                .andExpect(jsonPath("$.data.profile.followerCoursesCnt").value(0))
                 .andExpect(jsonPath("$.data.profile.privateCoursesCnt").value(0))
         }
 
@@ -127,5 +142,6 @@ class MyPageScreenControllerTest
             const val OWNER_ID = 1L
             const val OUTSIDER_ID = 2L
             const val REVERSE_FOLLOWER_ID = 3L
+            const val FOLLOWER_ID = 4L
         }
     }
