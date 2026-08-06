@@ -71,6 +71,24 @@ class MyPageScreenControllerTest
         }
 
         @Test
+        fun `size로 코스 목록 페이지 크기를 제한한다`() {
+            mockMvc
+                .perform(get(MY_PAGE_PATH).param("size", "5").header(HttpHeaders.AUTHORIZATION, bearer(OWNER_ID)))
+                .andExpect(status().isOk)
+                .andExpect(jsonPath("$.data.courses.length()").value(5))
+                .andExpect(jsonPath("$.data.hasNext").value(true))
+                .andExpect(jsonPath("$.data.nextCursor").isNotEmpty)
+        }
+
+        @Test
+        fun `size가 범위를 벗어나면 4002를 내려준다`() {
+            mockMvc
+                .perform(get(MY_PAGE_PATH).param("size", "0").header(HttpHeaders.AUTHORIZATION, bearer(OWNER_ID)))
+                .andExpect(status().isBadRequest)
+                .andExpect(jsonPath("$.code").value(4002))
+        }
+
+        @Test
         fun `비팔로워가 타인 페이지를 보면 팔로워와 비공개 코스 개수를 마스킹한다`() {
             mockMvc
                 .perform(
