@@ -6,7 +6,6 @@ import com.example.backend.common.response.ErrorCode
 import com.example.backend.common.support.runAfterCommit
 import com.example.backend.media.application.port.inbound.MediaCleanupUseCase
 import com.example.backend.media.application.port.inbound.PresignUploadUseCase
-import com.example.backend.media.application.port.inbound.dto.PresignBatchCommand
 import com.example.backend.media.application.port.inbound.dto.PresignCommand
 import com.example.backend.media.application.port.inbound.dto.PresignResult
 import com.example.backend.media.application.port.inbound.dto.UploadPurpose
@@ -20,15 +19,7 @@ class MediaService(
     private val mediaProperties: MediaProperties,
 ) : PresignUploadUseCase,
     MediaCleanupUseCase {
-    override fun presign(command: PresignCommand): PresignResult =
-        presignOne(
-            userId = command.userId,
-            purpose = command.purpose,
-            contentType = command.contentType,
-            contentLength = command.contentLength,
-        )
-
-    override fun presignBatch(command: PresignBatchCommand): List<PresignResult> =
+    override fun presign(command: PresignCommand): List<PresignResult> =
         command.images.map { image ->
             presignOne(
                 userId = command.userId,

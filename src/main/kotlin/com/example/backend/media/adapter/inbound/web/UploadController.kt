@@ -2,9 +2,7 @@ package com.example.backend.media.adapter.inbound.web
 
 import com.example.backend.bootstrap.security.CurrentUserId
 import com.example.backend.common.response.ApiResponse
-import com.example.backend.media.adapter.inbound.web.request.PresignBatchRequest
 import com.example.backend.media.adapter.inbound.web.request.PresignRequest
-import com.example.backend.media.adapter.inbound.web.response.PresignBatchResponse
 import com.example.backend.media.adapter.inbound.web.response.PresignResponse
 import com.example.backend.media.application.port.inbound.PresignUploadUseCase
 import jakarta.validation.Valid
@@ -19,19 +17,11 @@ import org.springframework.web.bind.annotation.RestController
 class UploadController(
     private val presignUploadUseCase: PresignUploadUseCase,
 ) {
-    /** 클라이언트는 발급받은 uploadUrl 로 동일 Content-Type 헤더를 실어 PUT 한 뒤, imageUrl 을 프로필 수정 등에 사용한다. */
-    @PostMapping("/presign")
+    /** 클라이언트는 각 uploadUrl 로 동일 Content-Type 헤더를 실어 PUT 한 뒤, imageUrl 을 프로필 수정 등에 사용한다. */
+    @PostMapping("/presigned-urls")
     fun presign(
         @CurrentUserId userId: Long,
         @Valid @RequestBody request: PresignRequest,
     ): ApiResponse<PresignResponse> =
         ApiResponse.success(PresignResponse.from(presignUploadUseCase.presign(request.toCommand(userId))))
-
-    /** 코스 대표 이미지 또는 코스 내 장소 이미지들의 프리사인 URL을 한 번에 발급한다. */
-    @PostMapping("/presign/batch")
-    fun presignBatch(
-        @CurrentUserId userId: Long,
-        @Valid @RequestBody request: PresignBatchRequest,
-    ): ApiResponse<PresignBatchResponse> =
-        ApiResponse.success(PresignBatchResponse.from(presignUploadUseCase.presignBatch(request.toCommand(userId))))
 }
