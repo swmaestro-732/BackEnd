@@ -9,6 +9,7 @@ import com.example.backend.user.adapter.inbound.web.response.AvailabilityRespons
 import com.example.backend.user.adapter.inbound.web.response.FollowResponse
 import com.example.backend.user.application.port.inbound.AccountUseCase
 import com.example.backend.user.application.port.inbound.UserUseCase
+import com.example.backend.user.application.port.inbound.dto.UpdateProfileCommand
 import jakarta.validation.Valid
 import jakarta.validation.constraints.NotBlank
 import org.springframework.web.bind.annotation.DeleteMapping
@@ -59,7 +60,15 @@ class UserController(
         }
         return ApiResponse.success(
             AccountProfileResponse.from(
-                accountUseCase.updateProfile(userId, request.nickname, request.handle, request.profileImageUrl),
+                accountUseCase.updateProfile(
+                    userId,
+                    UpdateProfileCommand(
+                        nickname = request.nickname,
+                        handle = request.handle,
+                        profileImageUrl = request.profileImageUrl,
+                        areaCodes = request.areaCodes,
+                    ),
+                ),
             ),
         )
     }

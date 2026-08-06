@@ -25,7 +25,7 @@ CREATE INDEX idx_area_dong_name              ON area (dong_name);
 -- 기존 행이 이미 있어 우선 전부 NULLABLE 로 추가한다(NOT NULL 즉시 추가 시 기존 행 때문에 마이그레이션 실패).
 -- 시드/백필이 준비되면 course·place 의 area_code 는 별도 마이그레이션에서 NOT NULL 로 승격한다(users 는 계속 NULL 허용).
 -- sigungu_code 는 조회 최적화용 파생 컬럼(area_code 앞 5자리) — DB 가 자동 계산한다(INSERT/UPDATE 에 넣지 않음).
--- 레거시 자유텍스트(courses.area, user_areas 테이블)는 이번 변경에서 건드리지 않고 공존시킨다.
+-- 레거시 자유텍스트 중 courses.area 는 이번 변경에서 건드리지 않고 공존시킨다(user_areas 는 아래 ③에서 전환).
 
 -- ── course ──
 ALTER TABLE courses ADD COLUMN area_code    VARCHAR(10);
@@ -44,3 +44,16 @@ ALTER TABLE users ADD COLUMN area_code    VARCHAR(10);
 ALTER TABLE users ADD COLUMN sigungu_code VARCHAR(5) GENERATED ALWAYS AS (SUBSTRING(area_code, 1, 5)) STORED;
 CREATE INDEX idx_users_area_code    ON users (area_code);
 CREATE INDEX idx_users_sigungu_code ON users (sigungu_code);
+
+-- ============================ ③ user_areas(관심 지역) 전환 ============================
+-- 회원가입 관심 지역을 법정동코드로 저장하도록 레거시 자유텍스트 컬럼(area VARCHAR(20))을 전환한다.
+-- 자유텍스트 값은 코드로 변환할 수 없고 읽는 코드도 없었으므로 행을 비우고 형식을 바꾼다.
+-- area 마스터에는 FK 를 걸지 않는다(위와 동일 — 존재 검증은 애플리케이션이 한다).
+
+TRUNCATE TABLE user_areas;
+
+ALTER TABLE user_areas RENAME COLUMN area TO area_code;
+ALTER TABLE user_areas ALTER COLUMN area_code TYPE VARCHAR(10);
+
+-- 같은 지역 중복 등록 방지. 서비스의 사전 dedup(distinct)과 별개로 DB 가 최종 보장한다.
+ALTER TABLE user_areas ADD CONSTRAINT uq_user_areas_user_area_code UNIQUE (user_id, area_code);
