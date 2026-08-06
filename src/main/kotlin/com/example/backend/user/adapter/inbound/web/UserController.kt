@@ -12,8 +12,8 @@ import com.example.backend.user.adapter.inbound.web.response.FollowResponse
 import com.example.backend.user.application.port.inbound.AccountUseCase
 import com.example.backend.user.application.port.inbound.FollowQueryUseCase
 import com.example.backend.user.application.port.inbound.UserUseCase
-import com.example.backend.user.application.port.inbound.dto.UpdateProfileCommand
 import com.example.backend.user.application.port.inbound.dto.FollowListCommand
+import com.example.backend.user.application.port.inbound.dto.UpdateProfileCommand
 import jakarta.validation.Valid
 import jakarta.validation.constraints.Max
 import jakarta.validation.constraints.Min
