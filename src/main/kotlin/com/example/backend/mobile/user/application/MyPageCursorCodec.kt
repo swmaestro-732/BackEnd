@@ -4,6 +4,7 @@ import com.example.backend.common.exception.BusinessException
 import com.example.backend.common.response.ErrorCode
 import com.example.backend.mobile.user.application.port.outbound.dto.AuthoredCourseCursor
 import java.nio.charset.StandardCharsets
+import java.time.DateTimeException
 import java.time.Instant
 import java.util.Base64
 
@@ -35,10 +36,17 @@ internal object MyPageCursorCodec {
         val epochSecond = parts[0].toLongOrNull() ?: throw invalidCursor()
         val nano = parts[1].toLongOrNull() ?: throw invalidCursor()
         val id = parts[2].toLongOrNull() ?: throw invalidCursor()
-        if (nano < 0 || id <= 0) throw invalidCursor()
+        if (nano !in 0L..NANOS_MAX || id <= 0) throw invalidCursor()
 
         return AuthoredCourseCursor(
-            createdAt = Instant.ofEpochSecond(epochSecond, nano),
+            // 범위 밖 epochSecond 는 DateTimeException → 전역 핸들러 500 이 되므로 잘못된 커서(400)로 변환한다.
+            // (nano 는 위에서 0..999_999_999 로 제한해 초 정규화로 인한 경계 왜곡을 막는다.)
+            createdAt =
+                try {
+                    Instant.ofEpochSecond(epochSecond, nano)
+                } catch (_: DateTimeException) {
+                    throw invalidCursor()
+                },
             id = id,
         )
     }
@@ -46,4 +54,6 @@ internal object MyPageCursorCodec {
     private fun invalidCursor() = BusinessException(ErrorCode.INVALID_INPUT, "유효하지 않은 마이페이지 코스 커서입니다.")
 
     private const val CURSOR_FIELD_COUNT = 3
+
+    private const val NANOS_MAX = 999_999_999L
 }
