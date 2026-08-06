@@ -9,6 +9,7 @@ import com.example.backend.course.application.port.outbound.CourseSummaryRow
 import com.example.backend.course.domain.model.Course
 import com.example.backend.course.domain.model.CourseStatus
 import com.example.backend.course.domain.model.CourseVisibility
+import org.jetbrains.exposed.v1.core.ResultRow
 import org.jetbrains.exposed.v1.core.SortOrder
 import org.jetbrains.exposed.v1.core.and
 import org.jetbrains.exposed.v1.core.eq
@@ -123,7 +124,7 @@ class CourseRepository {
             .map(::toDetailRow)
     }
 
-    private fun toDetailRow(it: org.jetbrains.exposed.v1.core.ResultRow): CourseDetailRow =
+    private fun toDetailRow(it: ResultRow): CourseDetailRow =
         CourseDetailRow(
             id = it[CourseTable.id].value,
             userId = it[CourseTable.userId],
@@ -179,7 +180,7 @@ class CourseRepository {
             .map(::toSummaryRow)
 
     /** 코스 목록 쿼리의 공통 컬럼을 범용 요약 읽기 모델로 변환한다. */
-    private fun toSummaryRow(it: org.jetbrains.exposed.v1.core.ResultRow): CourseSummaryRow =
+    private fun toSummaryRow(it: ResultRow): CourseSummaryRow =
         CourseSummaryRow(
             id = it[CourseTable.id].value,
             userId = it[CourseTable.userId],
