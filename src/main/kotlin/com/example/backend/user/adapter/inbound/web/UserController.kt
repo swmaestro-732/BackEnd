@@ -1,16 +1,22 @@
 package com.example.backend.user.adapter.inbound.web
 
+import com.example.backend.bootstrap.mock.MockGuard
 import com.example.backend.bootstrap.security.AccessTokenRequired
 import com.example.backend.bootstrap.security.CurrentUserId
 import com.example.backend.common.response.ApiResponse
 import com.example.backend.user.adapter.inbound.web.request.UpdateProfileRequest
 import com.example.backend.user.adapter.inbound.web.response.AccountProfileResponse
 import com.example.backend.user.adapter.inbound.web.response.AvailabilityResponse
+import com.example.backend.user.adapter.inbound.web.response.FollowListResponse
 import com.example.backend.user.adapter.inbound.web.response.FollowResponse
 import com.example.backend.user.application.port.inbound.AccountUseCase
+import com.example.backend.user.application.port.inbound.FollowQueryUseCase
 import com.example.backend.user.application.port.inbound.UserUseCase
 import com.example.backend.user.application.port.inbound.dto.UpdateProfileCommand
+import com.example.backend.user.application.port.inbound.dto.FollowListCommand
 import jakarta.validation.Valid
+import jakarta.validation.constraints.Max
+import jakarta.validation.constraints.Min
 import jakarta.validation.constraints.NotBlank
 import org.springframework.web.bind.annotation.DeleteMapping
 import org.springframework.web.bind.annotation.GetMapping
@@ -28,6 +34,7 @@ import org.springframework.web.bind.annotation.RestController
  * 현재 사용자("나")는 JWT 로 식별되므로 식별자 없는 컬렉션 경로(`/api/v1/users`)에 둔다:
  * 내 프로필 수정 `PATCH`, 회원 탈퇴 `DELETE`, 팔로우 `PUT`·`DELETE /followers/{userId}`(대상의 팔로워로 나를 추가·제거).
  * (내 프로필 단독 조회는 마이페이지 `GET /service/v1/mypage` 로 대체 — 중복 제거.)
+ * 팔로워·팔로잉 목록은 `GET /{userId}/followers`·`/{userId}/followings`(공개, 커서 페이지네이션).
  * 핸들 가용성은 `GET /availability`(공개). 다른 사용자 프로필은 마이페이지 `GET /service/v1/mypage/{handle}` 로.
  * "나" 기준 핸들러에만 [AccessTokenRequired] 로 access 토큰 인증을 강제한다(그 외는 공개).
  * 시드 데이터가 없는 개발 환경에서는 `?mock=true` 폴백을 제공한다.
@@ -37,6 +44,8 @@ import org.springframework.web.bind.annotation.RestController
 class UserController(
     private val userUseCase: UserUseCase,
     private val accountUseCase: AccountUseCase,
+    private val followQueryUseCase: FollowQueryUseCase,
+    private val mockGuard: MockGuard,
 ) {
     // 내 프로필 단독 조회는 제거 — 마이페이지(GET /service/v1/mypage)가 프로필을 포함하므로 중복.
 
@@ -85,6 +94,40 @@ class UserController(
         @RequestParam @NotBlank handle: String,
     ): ApiResponse<AvailabilityResponse> =
         ApiResponse.success(AvailabilityResponse(available = userUseCase.isHandleAvailable(handle)))
+
+    @GetMapping("/{userId}/followers")
+    fun followers(
+        @PathVariable userId: Long,
+        @CurrentUserId viewerId: Long?,
+        @RequestParam(required = false) cursor: String?,
+        @RequestParam(required = false) @Min(1) @Max(50) size: Int = 10,
+        @RequestParam(required = false) mock: Boolean = false,
+    ): ApiResponse<FollowListResponse> {
+        if (mock && mockGuard.isMockAllowed()) return ApiResponse.success(FollowListResponse.mock())
+
+        return ApiResponse.success(
+            FollowListResponse.from(
+                followQueryUseCase.getFollowers(FollowListCommand(userId, viewerId, cursor, size)),
+            ),
+        )
+    }
+
+    @GetMapping("/{userId}/followings")
+    fun followings(
+        @PathVariable userId: Long,
+        @CurrentUserId viewerId: Long?,
+        @RequestParam(required = false) cursor: String?,
+        @RequestParam(required = false) @Min(1) @Max(50) size: Int = 10,
+        @RequestParam(required = false) mock: Boolean = false,
+    ): ApiResponse<FollowListResponse> {
+        if (mock && mockGuard.isMockAllowed()) return ApiResponse.success(FollowListResponse.mock())
+
+        return ApiResponse.success(
+            FollowListResponse.from(
+                followQueryUseCase.getFollowings(FollowListCommand(userId, viewerId, cursor, size)),
+            ),
+        )
+    }
 
     /**
      * 회원 탈퇴 — 현재 로그인 사용자("나")를 소프트 삭제한다. `DELETE /api/v1/users`.
