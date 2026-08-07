@@ -8,8 +8,10 @@ import com.example.backend.course.application.port.inbound.dto.CourseDetailResul
 import com.example.backend.course.application.port.inbound.dto.CoursePlaceImageResult
 import com.example.backend.course.application.port.inbound.dto.CoursePlaceResult
 import com.example.backend.course.application.port.inbound.dto.CourseSummary
+import com.example.backend.course.application.port.inbound.dto.CourseSummaryPage
 import com.example.backend.course.application.port.inbound.dto.CreateCourseCommand
 import com.example.backend.course.application.port.inbound.dto.EditCourseCommand
+import com.example.backend.course.application.port.inbound.dto.FeedCursor
 import com.example.backend.course.application.port.outbound.CourseDetailRow
 import com.example.backend.course.application.port.outbound.CoursePersistencePort
 import com.example.backend.course.application.port.outbound.CoursePlaceImageRow
@@ -123,14 +125,23 @@ class CourseService(
             .map { it.toSummary() }
 
     /**
-     * 전체 공개(PUBLIC) 발행 코스를 저장수+최신순으로 [limit] 개 내려준다(피드용).
-     * 정렬은 findPublishedPublic 이 SQL(saves_cnt DESC, created_at DESC)로 수행하고,
-     * 모두 PUBLIC 이라 공개범위(isViewable) 필터 없이 그대로 매핑한다.
+     * 전체 공개(PUBLIC) 발행 코스를 저장수+최신순 복합 커서 페이지로 내려준다(피드용).
+     * 정렬은 findPublishedPublic 이 SQL(saves_cnt DESC, created_at DESC, id DESC)로 수행한다.
+     * 영속 포트가 [size]보다 한 건 더 조회한 결과로 hasNext를 판정하고 초과분을 잘라낸다.
      */
-    override fun listPublic(limit: Int): List<CourseSummary> =
-        coursePersistencePort
-            .findPublishedPublic(limit)
-            .map { it.toSummary() }
+    override fun listPublic(
+        cursor: FeedCursor?,
+        size: Int,
+    ): CourseSummaryPage {
+        // size 는 컨트롤러(@Min/@Max)가 검증하지만, 도메인 포트로 재사용될 때를 대비해 방어적으로 하한을 둔다.
+        // size<=0 이면 limit(size+1) 이 1건을 읽어 items 는 비는데 hasNext=true 가 되는 모순을 막는다.
+        val effectiveSize = size.coerceAtLeast(1)
+        val rows = coursePersistencePort.findPublishedPublic(cursor, effectiveSize)
+        return CourseSummaryPage(
+            items = rows.take(effectiveSize).map { it.toSummary() },
+            hasNext = rows.size > effectiveSize,
+        )
+    }
 
     private fun CourseSummaryRow.toSummary(): CourseSummary =
         CourseSummary(

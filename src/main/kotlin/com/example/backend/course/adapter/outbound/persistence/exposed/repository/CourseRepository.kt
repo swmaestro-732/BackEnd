@@ -4,6 +4,7 @@ import com.example.backend.common.exception.BusinessException
 import com.example.backend.common.response.ErrorCode
 import com.example.backend.course.adapter.outbound.persistence.CourseEntity
 import com.example.backend.course.adapter.outbound.persistence.CourseTable
+import com.example.backend.course.application.port.inbound.dto.FeedCursor
 import com.example.backend.course.application.port.outbound.CourseDetailRow
 import com.example.backend.course.application.port.outbound.CourseSummaryRow
 import com.example.backend.course.domain.model.Course
@@ -15,13 +16,16 @@ import org.jetbrains.exposed.v1.core.and
 import org.jetbrains.exposed.v1.core.eq
 import org.jetbrains.exposed.v1.core.inList
 import org.jetbrains.exposed.v1.core.isNull
+import org.jetbrains.exposed.v1.core.less
 import org.jetbrains.exposed.v1.core.minus
+import org.jetbrains.exposed.v1.core.or
 import org.jetbrains.exposed.v1.core.plus
 import org.jetbrains.exposed.v1.jdbc.selectAll
 import org.jetbrains.exposed.v1.jdbc.update
 import org.springframework.stereotype.Repository
 import kotlin.time.Clock
 import kotlin.time.toJavaInstant
+import kotlin.time.toKotlinInstant
 
 /**
  * courses 테이블 접근 리포지토리 — 코스 본문의 조회·삽입만 담당한다.
@@ -164,20 +168,45 @@ class CourseRepository {
             .map(::toSummaryRow)
 
     /**
-     * 전체 공개(visibility=PUBLIC)·발행·활성 코스 요약을 createdAt 내림차순으로 limit 개까지 읽는다(피드 후보).
+     * 전체 공개(visibility=PUBLIC)·발행·활성 코스 요약을
+     * savesCnt DESC, createdAt DESC, id DESC로 [size] + 1개까지 읽는다(피드 후보).
+     * [cursor]가 있으면 세 정렬 키가 가리키는 행보다 뒤에 있는 행만 keyset 조건으로 조회한다.
      * visibility 는 enumerationByName 컬럼이라 enum 값([CourseVisibility.PUBLIC])으로 비교하면 이름 문자열로 매칭된다.
      */
-    fun findPublishedPublic(limit: Int): List<CourseSummaryRow> =
-        CourseTable
+    fun findPublishedPublic(
+        cursor: FeedCursor?,
+        size: Int,
+    ): List<CourseSummaryRow> {
+        var condition =
+            (CourseTable.isPublished eq true) and
+                (CourseTable.status eq CourseStatus.ACTIVE) and
+                CourseTable.deletedAt.isNull() and
+                (CourseTable.visibility eq CourseVisibility.PUBLIC)
+
+        cursor?.let {
+            val cursorCreatedAt = it.createdAt.toKotlinInstant()
+            val afterCursor =
+                (CourseTable.savesCnt less it.savesCnt) or
+                    (
+                        (CourseTable.savesCnt eq it.savesCnt) and
+                            (
+                                (CourseTable.createdAt less cursorCreatedAt) or
+                                    ((CourseTable.createdAt eq cursorCreatedAt) and (CourseTable.id less it.id))
+                            )
+                    )
+            condition = condition and afterCursor
+        }
+
+        return CourseTable
             .selectAll()
-            .where {
-                (CourseTable.isPublished eq true) and
-                    (CourseTable.status eq CourseStatus.ACTIVE) and
-                    CourseTable.deletedAt.isNull() and
-                    (CourseTable.visibility eq CourseVisibility.PUBLIC)
-            }.orderBy(CourseTable.savesCnt to SortOrder.DESC, CourseTable.createdAt to SortOrder.DESC)
-            .limit(limit)
+            .where(condition)
+            .orderBy(
+                CourseTable.savesCnt to SortOrder.DESC,
+                CourseTable.createdAt to SortOrder.DESC,
+                CourseTable.id to SortOrder.DESC,
+            ).limit(size + 1)
             .map(::toSummaryRow)
+    }
 
     /** 코스 목록 쿼리의 공통 컬럼을 범용 요약 읽기 모델로 변환한다. */
     private fun toSummaryRow(it: ResultRow): CourseSummaryRow =

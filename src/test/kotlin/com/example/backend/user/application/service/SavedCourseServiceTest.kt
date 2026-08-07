@@ -5,6 +5,8 @@ import com.example.backend.common.response.ErrorCode
 import com.example.backend.course.application.port.inbound.CourseCounterUseCase
 import com.example.backend.course.application.port.inbound.CourseQueryUseCase
 import com.example.backend.course.application.port.inbound.dto.CourseSummary
+import com.example.backend.course.application.port.inbound.dto.CourseSummaryPage
+import com.example.backend.course.application.port.inbound.dto.FeedCursor
 import com.example.backend.user.application.port.inbound.dto.SavedCoursesCommand
 import com.example.backend.user.application.port.outbound.CourseFolderCountRow
 import com.example.backend.user.application.port.outbound.SavedCoursePersistencePort
@@ -32,7 +34,10 @@ class SavedCourseServiceTest {
 
             override fun listDraftsByAuthor(authorId: Long): List<CourseSummary> = emptyList()
 
-            override fun listPublic(limit: Int): List<CourseSummary> = emptyList()
+            override fun listPublic(
+                cursor: FeedCursor?,
+                size: Int,
+            ): CourseSummaryPage = CourseSummaryPage(items = emptyList(), hasNext = false)
         }
 
     private val fakePort =
