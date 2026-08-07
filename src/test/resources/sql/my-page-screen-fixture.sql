@@ -1,12 +1,15 @@
 -- 마이페이지 코스 공개범위별 카운트와 created_at/id 키셋 페이지 통합 테스트 픽스처.
 TRUNCATE TABLE users, courses RESTART IDENTITY CASCADE;
 
-INSERT INTO users (nickname, handle, bio, profile_image_url)
+-- 코스 개수는 이제 users 의 공개범위별 저장 카운터에서 읽는다(매 조회 GROUP BY 아님).
+-- 작성자(1)만 발행 코스가 있어 public=10·follower=1·private=1 로 시드한다(아래 courses 목록과 일치).
+-- 조회자별 마스킹 기대: 본인 12(10+1+1), 팔로워 11(10+1), 그외 10(10).
+INSERT INTO users (nickname, handle, bio, profile_image_url, public_courses_cnt, follower_courses_cnt, private_courses_cnt)
 VALUES
-    ('작성자', 'owner_handle', '걷고 기록하는 작성자입니다.', 'https://img/owner.jpg'),
-    ('비팔로워 조회자', 'outsider_handle', NULL, 'https://img/outsider.jpg'),
-    ('작성자의 팔로잉', 'reverse_follower_handle', NULL, 'https://img/reverse-follower.jpg'),
-    ('진짜 팔로워', 'follower_handle', NULL, 'https://img/follower.jpg');
+    ('작성자', 'owner_handle', '걷고 기록하는 작성자입니다.', 'https://img/owner.jpg', 10, 1, 1),
+    ('비팔로워 조회자', 'outsider_handle', NULL, 'https://img/outsider.jpg', 0, 0, 0),
+    ('작성자의 팔로잉', 'reverse_follower_handle', NULL, 'https://img/reverse-follower.jpg', 0, 0, 0),
+    ('진짜 팔로워', 'follower_handle', NULL, 'https://img/follower.jpg', 0, 0, 0);
 
 -- 팔로워 공개 카운트 노출/마스킹 검증용 관계:
 --   (4→1) 조회자4가 작성자1을 팔로우 → 작성자 페이지에서 isFollowing=true → 팔로워 공개 카운트 노출

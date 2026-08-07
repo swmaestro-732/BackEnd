@@ -34,5 +34,8 @@ class MyPageProfileAdapter(
             isFollower = isFollower,
             followersCnt = followersCnt,
             followingsCnt = followingsCnt,
+            publicCoursesCnt = publicCoursesCnt,
+            followerCoursesCnt = followerCoursesCnt,
+            privateCoursesCnt = privateCoursesCnt,
         )
 }

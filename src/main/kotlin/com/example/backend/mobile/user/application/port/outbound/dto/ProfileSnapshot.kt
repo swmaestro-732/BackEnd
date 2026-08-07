@@ -17,4 +17,8 @@ data class ProfileSnapshot(
     val isFollower: Boolean,
     val followersCnt: Int,
     val followingsCnt: Int,
+    /** 공개범위별 발행 코스 개수(저장 캐시). 화면 조합에서 조회자 마스킹 후 합산한다. */
+    val publicCoursesCnt: Int,
+    val followerCoursesCnt: Int,
+    val privateCoursesCnt: Int,
 )

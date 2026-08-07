@@ -6,7 +6,6 @@ import com.example.backend.mobile.user.application.MyPageCursorCodec
 import com.example.backend.mobile.user.application.port.outbound.MyPageCoursePort
 import com.example.backend.mobile.user.application.port.outbound.dto.AuthoredCourse
 import com.example.backend.mobile.user.application.port.outbound.dto.AuthoredCoursePage
-import com.example.backend.mobile.user.application.port.outbound.dto.CourseCounts
 import org.springframework.stereotype.Component
 
 /**
@@ -49,13 +48,4 @@ class MyPageCourseAdapter(
             hasNext = page.hasNext,
         )
     }
-
-    override fun countByVisibility(authorId: Long): CourseCounts =
-        courseQueryUseCase.countByAuthorGroupedByVisibility(authorId).let {
-            CourseCounts(
-                publicCount = it.publicCount,
-                followerCount = it.followerCount,
-                privateCount = it.privateCount,
-            )
-        }
 }

@@ -29,7 +29,8 @@ class MyPageService(
         size: Int,
     ): MyPageResult {
         val profile = profilePort.getMyProfile(userId)
-        val counts = coursePort.countByVisibility(userId)
+        // 내 페이지는 전부 공개(마스킹 없음). 개수는 프로필과 함께 읽은 저장 캐시에서 온다(추가 쿼리 없음).
+        val counts = profile.courseCounts()
         val page =
             coursePort.listByAuthor(
                 authorId = userId,
@@ -47,7 +48,8 @@ class MyPageService(
         size: Int,
     ): MyPageResult {
         val profile = profilePort.getProfileByHandle(handle, viewerId)
-        val counts = coursePort.countByVisibility(profile.id).maskFor(profile, viewerId)
+        // 개수는 프로필과 함께 읽은 저장 캐시에서 오며, 조회자 관계에 따라 마스킹한다(추가 쿼리 없음).
+        val counts = profile.courseCounts().maskFor(profile, viewerId)
         val page =
             coursePort.listByAuthor(
                 authorId = profile.id,
@@ -79,6 +81,14 @@ class MyPageService(
             hasNext = page.hasNext,
         )
     }
+
+    /** 프로필과 함께 읽어온 공개범위별 코스 개수 캐시를 BFF 카운트 DTO 로 옮긴다. */
+    private fun ProfileSnapshot.courseCounts(): CourseCounts =
+        CourseCounts(
+            publicCount = publicCoursesCnt,
+            followerCount = followerCoursesCnt,
+            privateCount = privateCoursesCnt,
+        )
 
     /** 타인 페이지에서는 관계에 따라 공개범위별 개수를 마스킹한다. 자신의 handle 조회는 내 페이지와 동일하게 전부 공개한다. */
     private fun CourseCounts.maskFor(
