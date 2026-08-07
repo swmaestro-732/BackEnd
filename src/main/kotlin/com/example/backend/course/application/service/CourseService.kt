@@ -12,6 +12,7 @@ import com.example.backend.course.application.port.inbound.dto.CourseSummary
 import com.example.backend.course.application.port.inbound.dto.CourseSummaryPage
 import com.example.backend.course.application.port.inbound.dto.CreateCourseCommand
 import com.example.backend.course.application.port.inbound.dto.EditCourseCommand
+import com.example.backend.course.application.port.outbound.AuthorCourseCountPort
 import com.example.backend.course.application.port.outbound.CourseDetailRow
 import com.example.backend.course.application.port.outbound.CoursePersistencePort
 import com.example.backend.course.application.port.outbound.CoursePlaceImageRow
@@ -25,7 +26,6 @@ import com.example.backend.course.domain.model.CourseVisibility
 import com.example.backend.place.application.port.inbound.PlaceQueryUseCase
 import com.example.backend.place.application.port.inbound.dto.PlaceSummary
 import com.example.backend.user.application.port.inbound.CourseInteractionUseCase
-import com.example.backend.user.application.port.inbound.UserCourseCountUseCase
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
 
@@ -44,7 +44,7 @@ class CourseService(
     private val coursePersistencePort: CoursePersistencePort,
     private val placeQueryUseCase: PlaceQueryUseCase,
     private val courseInteractionUseCase: CourseInteractionUseCase,
-    private val userCourseCountUseCase: UserCourseCountUseCase,
+    private val authorCourseCountPort: AuthorCourseCountPort,
 ) : CourseUseCase,
     CourseQueryUseCase {
     override fun getDetail(
@@ -407,8 +407,8 @@ class CourseService(
         added: CourseVisibility?,
     ) {
         fun delta(v: CourseVisibility) = (if (added == v) 1 else 0) - (if (removed == v) 1 else 0)
-        userCourseCountUseCase.applyCourseCountDelta(
-            userId = userId,
+        authorCourseCountPort.applyDelta(
+            authorId = userId,
             publicDelta = delta(CourseVisibility.PUBLIC),
             followerDelta = delta(CourseVisibility.FOLLOWER),
             privateDelta = delta(CourseVisibility.PRIVATE),
