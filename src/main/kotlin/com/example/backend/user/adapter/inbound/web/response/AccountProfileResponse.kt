@@ -26,7 +26,8 @@ data class AccountProfileResponse(
                 bio = result.bio,
                 followersCnt = result.followersCnt,
                 followingsCnt = result.followingsCnt,
-                coursesCnt = result.coursesCnt,
+                // 본인 계정 프로필이라 전체 공개범위가 보인다 → 세 버킷 합.
+                coursesCnt = result.publicCoursesCnt + result.followerCoursesCnt + result.privateCoursesCnt,
             )
 
         /**

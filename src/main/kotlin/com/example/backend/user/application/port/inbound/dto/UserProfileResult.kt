@@ -17,8 +17,7 @@ data class UserProfileResult(
     val isFollower: Boolean,
     val followersCnt: Int,
     val followingsCnt: Int,
-    val coursesCnt: Int,
-    /** 공개범위별 발행 코스 개수(저장 캐시). 마이페이지가 조회자 마스킹 후 합산해 노출한다. */
+    /** 공개범위별 발행 코스 개수(저장 캐시). 응답은 조회자 상황에 맞게 합산한 단일 coursesCnt 로 내려준다. */
     val publicCoursesCnt: Int,
     val followerCoursesCnt: Int,
     val privateCoursesCnt: Int,

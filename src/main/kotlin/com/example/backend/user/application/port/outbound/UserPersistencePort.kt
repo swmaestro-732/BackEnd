@@ -12,7 +12,6 @@ data class UserProfileRow(
     val bio: String?,
     val followersCnt: Int,
     val followingsCnt: Int,
-    val coursesCnt: Int,
     val publicCoursesCnt: Int,
     val followerCoursesCnt: Int,
     val privateCoursesCnt: Int,

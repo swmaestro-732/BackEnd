@@ -32,7 +32,6 @@ class AccountService(
             isFollower = false,
             followersCnt = row.followersCnt,
             followingsCnt = row.followingsCnt,
-            coursesCnt = row.coursesCnt,
             publicCoursesCnt = row.publicCoursesCnt,
             followerCoursesCnt = row.followerCoursesCnt,
             privateCoursesCnt = row.privateCoursesCnt,
