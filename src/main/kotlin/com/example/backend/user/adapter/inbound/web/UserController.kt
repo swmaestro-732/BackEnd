@@ -56,7 +56,7 @@ class UserController(
         @Valid @RequestBody request: UpdateProfileRequest,
         @RequestParam(required = false) mock: Boolean = false,
     ): ApiResponse<AccountProfileResponse> {
-        if (mock) {
+        if (mock && mockGuard.isMockAllowed()) {
             return ApiResponse.success(
                 AccountProfileResponse.mock(
                     nickname = request.nickname,
