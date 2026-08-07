@@ -9,6 +9,7 @@ import com.example.backend.course.application.port.outbound.CourseSummaryRow
 import com.example.backend.course.domain.model.Course
 import com.example.backend.course.domain.model.CourseStatus
 import com.example.backend.course.domain.model.CourseVisibility
+import org.jetbrains.exposed.v1.core.ResultRow
 import org.jetbrains.exposed.v1.core.SortOrder
 import org.jetbrains.exposed.v1.core.and
 import org.jetbrains.exposed.v1.core.eq
@@ -123,7 +124,7 @@ class CourseRepository {
             .map(::toDetailRow)
     }
 
-    private fun toDetailRow(it: org.jetbrains.exposed.v1.core.ResultRow): CourseDetailRow =
+    private fun toDetailRow(it: ResultRow): CourseDetailRow =
         CourseDetailRow(
             id = it[CourseTable.id].value,
             userId = it[CourseTable.userId],
@@ -138,7 +139,7 @@ class CourseRepository {
             isPublished = it[CourseTable.isPublished],
         )
 
-    /** 작성자의 발행·활성 코스 요약을 createdAt 내림차순으로 읽는다(공개범위 필터는 서비스). */
+    /** 작성자의 발행·활성 코스 요약을 updatedAt 내림차순으로 읽는다(공개범위 필터는 서비스). */
     fun findPublishedByAuthor(authorId: Long): List<CourseSummaryRow> =
         CourseTable
             .selectAll()
@@ -147,21 +148,20 @@ class CourseRepository {
                     (CourseTable.isPublished eq true) and
                     (CourseTable.status eq CourseStatus.ACTIVE) and
                     CourseTable.deletedAt.isNull()
-            }.orderBy(CourseTable.createdAt to SortOrder.DESC)
-            .map {
-                CourseSummaryRow(
-                    id = it[CourseTable.id].value,
-                    userId = it[CourseTable.userId],
-                    title = it[CourseTable.title],
-                    coverImageUrl = it[CourseTable.coverImageUrl],
-                    category = it[CourseTable.category],
-                    visibility = it[CourseTable.visibility],
-                    isPublished = it[CourseTable.isPublished],
-                    likesCnt = it[CourseTable.likesCnt],
-                    savesCnt = it[CourseTable.savesCnt],
-                    createdAt = it[CourseTable.createdAt].toJavaInstant(),
-                )
-            }
+            }.orderBy(CourseTable.updatedAt to SortOrder.DESC)
+            .map(::toSummaryRow)
+
+    /** 작성자의 임시저장·활성 코스 요약을 updatedAt 내림차순으로 읽는다. */
+    fun findDraftsByAuthor(authorId: Long): List<CourseSummaryRow> =
+        CourseTable
+            .selectAll()
+            .where {
+                (CourseTable.userId eq authorId) and
+                    (CourseTable.isPublished eq false) and
+                    (CourseTable.status eq CourseStatus.ACTIVE) and
+                    CourseTable.deletedAt.isNull()
+            }.orderBy(CourseTable.updatedAt to SortOrder.DESC)
+            .map(::toSummaryRow)
 
     /**
      * 전체 공개(visibility=PUBLIC)·발행·활성 코스 요약을 createdAt 내림차순으로 limit 개까지 읽는다(피드 후보).
@@ -177,18 +177,20 @@ class CourseRepository {
                     (CourseTable.visibility eq CourseVisibility.PUBLIC)
             }.orderBy(CourseTable.savesCnt to SortOrder.DESC, CourseTable.createdAt to SortOrder.DESC)
             .limit(limit)
-            .map {
-                CourseSummaryRow(
-                    id = it[CourseTable.id].value,
-                    userId = it[CourseTable.userId],
-                    title = it[CourseTable.title],
-                    coverImageUrl = it[CourseTable.coverImageUrl],
-                    category = it[CourseTable.category],
-                    visibility = it[CourseTable.visibility],
-                    isPublished = it[CourseTable.isPublished],
-                    likesCnt = it[CourseTable.likesCnt],
-                    savesCnt = it[CourseTable.savesCnt],
-                    createdAt = it[CourseTable.createdAt].toJavaInstant(),
-                )
-            }
+            .map(::toSummaryRow)
+
+    /** 코스 목록 쿼리의 공통 컬럼을 범용 요약 읽기 모델로 변환한다. */
+    private fun toSummaryRow(it: ResultRow): CourseSummaryRow =
+        CourseSummaryRow(
+            id = it[CourseTable.id].value,
+            userId = it[CourseTable.userId],
+            title = it[CourseTable.title],
+            coverImageUrl = it[CourseTable.coverImageUrl],
+            category = it[CourseTable.category],
+            visibility = it[CourseTable.visibility],
+            isPublished = it[CourseTable.isPublished],
+            likesCnt = it[CourseTable.likesCnt],
+            savesCnt = it[CourseTable.savesCnt],
+            createdAt = it[CourseTable.createdAt].toJavaInstant(),
+        )
 }
