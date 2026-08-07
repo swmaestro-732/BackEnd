@@ -1,5 +1,6 @@
 package com.example.backend.user.adapter.inbound.web.response
 
+import com.example.backend.user.application.port.inbound.dto.SavedPlacesResult
 import com.example.backend.user.domain.model.SavedPlaceCategory
 import java.time.Instant
 
@@ -42,6 +43,30 @@ data class SavedPlaceListResponse(
     )
 
     companion object {
+        /** 인바운드 포트 결과([SavedPlacesResult])를 웹 응답으로 변환한다. */
+        fun from(result: SavedPlacesResult): SavedPlaceListResponse =
+            SavedPlaceListResponse(
+                totalCount = result.totalCount.toInt(),
+                unvisitedCount = result.unvisitedCount.toInt(),
+                visitedCount = result.visitedCount.toInt(),
+                categoryCounts =
+                    result.categoryCounts.map {
+                        CategoryCount(category = it.category, count = it.count.toInt())
+                    },
+                nextCursor = result.nextCursor,
+                hasNext = result.hasNext,
+                savedPlaces =
+                    result.savedPlaces.map {
+                        SavedPlaceItem(
+                            id = it.id,
+                            placeId = it.placeId,
+                            category = it.category,
+                            visited = it.visited,
+                            savedAt = it.savedAt,
+                        )
+                    },
+            )
+
         /**
          * 목 저장 레코드 — 디자인(저장함 · 장소 · 리스트)의 예시 목록 반영. 최신 저장순 고정 응답.
          * placeId 는 장소 검색 모킹([com.example.backend.place.adapter.inbound.web.PlaceController])의

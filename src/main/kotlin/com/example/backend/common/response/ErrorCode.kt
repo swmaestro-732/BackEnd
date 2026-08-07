@@ -45,4 +45,5 @@ enum class ErrorCode(
 
     // ── 장소(place) ──
     PLACE_NOT_FOUND(404, 4043, "장소를 찾을 수 없습니다."),
+    PLACE_ALREADY_SAVED(409, 4094, "이미 저장한 장소입니다."),
 }
