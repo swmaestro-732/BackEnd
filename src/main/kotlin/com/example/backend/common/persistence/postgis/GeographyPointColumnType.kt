@@ -17,6 +17,9 @@ class GeographyPointColumnType : ColumnType<GeoPoint>() {
         }
 
     override fun valueFromDB(value: Any): GeoPoint {
+        // 같은 트랜잭션에서 insert 후 되읽을 때는 Exposed 캐시가 이미 변환된 GeoPoint 를 그대로 넘긴다. 그대로 반환한다.
+        if (value is GeoPoint) return value
+
         val ewkbHex =
             when (value) {
                 is String -> value

@@ -4,6 +4,7 @@ import com.example.backend.course.adapter.outbound.persistence.exposed.repositor
 import com.example.backend.course.adapter.outbound.persistence.exposed.repository.CourseRepository
 import com.example.backend.course.adapter.outbound.persistence.exposed.repository.CourseTagRepository
 import com.example.backend.course.adapter.outbound.persistence.exposed.repository.TagRepository
+import com.example.backend.course.application.port.inbound.dto.FeedCursor
 import com.example.backend.course.application.port.outbound.CourseDetailRow
 import com.example.backend.course.application.port.outbound.CoursePersistencePort
 import com.example.backend.course.application.port.outbound.CoursePlaceRow
@@ -33,7 +34,13 @@ class CoursePersistenceAdapter(
     override fun findPublishedByAuthor(authorId: Long): List<CourseSummaryRow> =
         courseRepository.findPublishedByAuthor(authorId)
 
-    override fun findPublishedPublic(limit: Int): List<CourseSummaryRow> = courseRepository.findPublishedPublic(limit)
+    override fun findDraftsByAuthor(authorId: Long): List<CourseSummaryRow> =
+        courseRepository.findDraftsByAuthor(authorId)
+
+    override fun findPublishedPublic(
+        cursor: FeedCursor?,
+        size: Int,
+    ): List<CourseSummaryRow> = courseRepository.findPublishedPublic(cursor, size)
 
     override fun existsById(courseId: Long): Boolean = courseRepository.existsById(courseId)
 

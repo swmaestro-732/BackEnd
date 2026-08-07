@@ -26,16 +26,15 @@ Authorization: Bearer {{accessToken}}
   "tags": ["성수", "데이트", "비 오는 날", "감성"],
   "visibility": "PUBLIC",
   "isPublished": true,
-  "forkedFromId": 2,
   "places": [
     {
-      "placeId": 101,
+      "placeId": 22,
       "orderNo": 0,
       "caption": "통창 자리 꼭 앉으세요. 비 오는 날 뷰가 최고예요!",
       "imageUrls": ["https://cdn.courmy.app/c1/p1-1.jpg", "https://cdn.courmy.app/c1/p1-2.jpg"]
     },
     {
-      "placeId": 104,
+      "placeId": 23,
       "orderNo": 1,
       "caption": null,
       "imageUrls": ["https://cdn.courmy.app/c1/p2-1.jpg"]

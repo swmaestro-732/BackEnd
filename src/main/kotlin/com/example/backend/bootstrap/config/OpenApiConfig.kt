@@ -64,6 +64,9 @@ class OpenApiConfig {
     fun userApi(): GroupedOpenApi = group("user", "com.example.backend.user")
 
     @Bean
+    fun areaApi(): GroupedOpenApi = group("area", "com.example.backend.area")
+
+    @Bean
     fun courseApi(): GroupedOpenApi = group("course", "com.example.backend.course")
 
     @Bean

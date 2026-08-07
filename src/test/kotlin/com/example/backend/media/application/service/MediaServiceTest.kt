@@ -4,6 +4,7 @@ import com.example.backend.bootstrap.config.MediaProperties
 import com.example.backend.common.exception.BusinessException
 import com.example.backend.common.response.ErrorCode
 import com.example.backend.media.application.port.inbound.dto.PresignCommand
+import com.example.backend.media.application.port.inbound.dto.PresignItem
 import com.example.backend.media.application.port.inbound.dto.UploadPurpose
 import com.example.backend.media.application.port.outbound.MediaStoragePort
 import org.junit.jupiter.api.Assertions.assertEquals
@@ -43,14 +44,14 @@ class MediaServiceTest {
     @Test
     fun `허용된 contentType이면 확장자를 매핑하고 profile 키 형식으로 발급한다`() {
         val result =
-            service.presign(
-                PresignCommand(
-                    userId = 1L,
-                    purpose = UploadPurpose.PROFILE,
-                    contentType = "image/jpeg",
-                    contentLength = 1024,
-                ),
-            )
+            service
+                .presign(
+                    PresignCommand(
+                        userId = 1L,
+                        purpose = UploadPurpose.PROFILE,
+                        images = listOf(PresignItem(contentType = "image/jpeg", contentLength = 1024)),
+                    ),
+                ).single()
 
         assertTrue(result.key.matches(Regex("""profile/1/[0-9a-f-]{36}\.jpg""")))
         assertEquals("https://cdn.example.com/${result.key}", result.imageUrl)
@@ -60,23 +61,23 @@ class MediaServiceTest {
     @Test
     fun `png와 webp도 허용한다`() {
         val png =
-            service.presign(
-                PresignCommand(
-                    userId = 1L,
-                    purpose = UploadPurpose.PROFILE,
-                    contentType = "image/png",
-                    contentLength = 1024,
-                ),
-            )
+            service
+                .presign(
+                    PresignCommand(
+                        userId = 1L,
+                        purpose = UploadPurpose.PROFILE,
+                        images = listOf(PresignItem(contentType = "image/png", contentLength = 1024)),
+                    ),
+                ).single()
         val webp =
-            service.presign(
-                PresignCommand(
-                    userId = 1L,
-                    purpose = UploadPurpose.PROFILE,
-                    contentType = "image/webp",
-                    contentLength = 1024,
-                ),
-            )
+            service
+                .presign(
+                    PresignCommand(
+                        userId = 1L,
+                        purpose = UploadPurpose.PROFILE,
+                        images = listOf(PresignItem(contentType = "image/webp", contentLength = 1024)),
+                    ),
+                ).single()
 
         assertTrue(png.key.endsWith(".png"))
         assertTrue(webp.key.endsWith(".webp"))
@@ -90,8 +91,7 @@ class MediaServiceTest {
                     PresignCommand(
                         userId = 1L,
                         purpose = UploadPurpose.PROFILE,
-                        contentType = "application/pdf",
-                        contentLength = 1024,
+                        images = listOf(PresignItem(contentType = "application/pdf", contentLength = 1024)),
                     ),
                 )
             }
@@ -107,8 +107,13 @@ class MediaServiceTest {
                     PresignCommand(
                         userId = 1L,
                         purpose = UploadPurpose.PROFILE,
-                        contentType = "image/jpeg",
-                        contentLength = mediaProperties.maxUploadBytes + 1,
+                        images =
+                            listOf(
+                                PresignItem(
+                                    contentType = "image/jpeg",
+                                    contentLength = mediaProperties.maxUploadBytes + 1,
+                                ),
+                            ),
                     ),
                 )
             }
@@ -124,8 +129,7 @@ class MediaServiceTest {
                     PresignCommand(
                         userId = 1L,
                         purpose = UploadPurpose.PROFILE,
-                        contentType = "image/jpeg",
-                        contentLength = 0,
+                        images = listOf(PresignItem(contentType = "image/jpeg", contentLength = 0)),
                     ),
                 )
             }

@@ -1,6 +1,7 @@
 package com.example.backend.place.application.service
 
 import com.example.backend.common.geo.Coordinate
+import com.example.backend.place.application.port.outbound.AreaCodeLookupPort
 import com.example.backend.place.application.port.outbound.ExternalPlaceSearchPort
 import com.example.backend.place.application.port.outbound.PlacePersistencePort
 import com.example.backend.place.domain.model.ExternalPlace
@@ -12,6 +13,7 @@ import com.example.backend.place.domain.model.PlaceStatus
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertNotNull
 import org.junit.jupiter.api.Test
+import org.springframework.transaction.support.TransactionOperations
 
 /**
  * 검색 결과 dedup 저장 검증 — 같은 장소를 두 번 검색해도 places 는 한 번만 저장되고 같은 내부 id 를 재사용한다.
@@ -31,7 +33,16 @@ class PlaceSearchServiceTest {
             ) = external
         }
     private val persistence = FakePlacePersistencePort()
-    private val service = PlaceSearchService(externalPort, persistence)
+
+    // 좌표→법정동 변환은 이 테스트의 관심사(dedup)가 아니라 항상 미확인(null)으로 둔다.
+    private val areaCodeLookup =
+        object : AreaCodeLookupPort {
+            override fun findLegalDongCode(coordinate: Coordinate): String? = null
+        }
+
+    // 단위 테스트는 실 DB 트랜잭션이 없으므로 콜백만 실행하는 withoutTransaction 을 쓴다.
+    private val service =
+        PlaceSearchService(externalPort, persistence, areaCodeLookup, TransactionOperations.withoutTransaction())
 
     @Test
     fun `같은 장소를 두 번 검색하면 저장은 한 번, id 는 재사용된다`() {

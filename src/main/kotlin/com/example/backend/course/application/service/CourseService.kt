@@ -1,5 +1,6 @@
 package com.example.backend.course.application.service
 
+import com.example.backend.area.application.port.inbound.AreaQueryUseCase
 import com.example.backend.common.exception.BusinessException
 import com.example.backend.common.response.ErrorCode
 import com.example.backend.course.application.port.inbound.CourseQueryUseCase
@@ -8,12 +9,15 @@ import com.example.backend.course.application.port.inbound.dto.CourseDetailResul
 import com.example.backend.course.application.port.inbound.dto.CoursePlaceImageResult
 import com.example.backend.course.application.port.inbound.dto.CoursePlaceResult
 import com.example.backend.course.application.port.inbound.dto.CourseSummary
+import com.example.backend.course.application.port.inbound.dto.CourseSummaryPage
 import com.example.backend.course.application.port.inbound.dto.CreateCourseCommand
 import com.example.backend.course.application.port.inbound.dto.EditCourseCommand
+import com.example.backend.course.application.port.inbound.dto.FeedCursor
 import com.example.backend.course.application.port.outbound.CourseDetailRow
 import com.example.backend.course.application.port.outbound.CoursePersistencePort
 import com.example.backend.course.application.port.outbound.CoursePlaceImageRow
 import com.example.backend.course.application.port.outbound.CoursePlaceRow
+import com.example.backend.course.application.port.outbound.CourseSummaryRow
 import com.example.backend.course.domain.model.Course
 import com.example.backend.course.domain.model.CourseCategory
 import com.example.backend.course.domain.model.CoursePlace
@@ -40,6 +44,7 @@ class CourseService(
     private val coursePersistencePort: CoursePersistencePort,
     private val placeQueryUseCase: PlaceQueryUseCase,
     private val courseInteractionUseCase: CourseInteractionUseCase,
+    private val areaQueryUseCase: AreaQueryUseCase,
 ) : CourseUseCase,
     CourseQueryUseCase {
     override fun getDetail(
@@ -113,39 +118,44 @@ class CourseService(
         coursePersistencePort
             .findPublishedByAuthor(authorId)
             .filter { isViewable(it.visibility, ownerId = it.userId, viewerId = viewerId) }
-            .map {
-                CourseSummary(
-                    id = it.id,
-                    authorId = it.userId,
-                    title = it.title,
-                    coverImageUrl = it.coverImageUrl,
-                    theme = it.category?.name,
-                    likesCnt = it.likesCnt,
-                    savesCnt = it.savesCnt,
-                    createdAt = it.createdAt,
-                )
-            }
+            .map { it.toSummary() }
+
+    /** 작성자 본인의 임시저장 코스 요약 목록 — 공개범위 필터 없이 영속 포트의 최근 수정순을 유지한다. */
+    override fun listDraftsByAuthor(authorId: Long): List<CourseSummary> =
+        coursePersistencePort
+            .findDraftsByAuthor(authorId)
+            .map { it.toSummary() }
 
     /**
-     * 전체 공개(PUBLIC) 발행 코스를 저장수+최신순으로 [limit] 개 내려준다(피드용).
-     * 정렬은 findPublishedPublic 이 SQL(saves_cnt DESC, created_at DESC)로 수행하고,
-     * 모두 PUBLIC 이라 공개범위(isViewable) 필터 없이 그대로 매핑한다.
+     * 전체 공개(PUBLIC) 발행 코스를 저장수+최신순 복합 커서 페이지로 내려준다(피드용).
+     * 정렬은 findPublishedPublic 이 SQL(saves_cnt DESC, created_at DESC, id DESC)로 수행한다.
+     * 영속 포트가 [size]보다 한 건 더 조회한 결과로 hasNext를 판정하고 초과분을 잘라낸다.
      */
-    override fun listPublic(limit: Int): List<CourseSummary> =
-        coursePersistencePort
-            .findPublishedPublic(limit)
-            .map {
-                CourseSummary(
-                    id = it.id,
-                    authorId = it.userId,
-                    title = it.title,
-                    coverImageUrl = it.coverImageUrl,
-                    theme = it.category?.name,
-                    likesCnt = it.likesCnt,
-                    savesCnt = it.savesCnt,
-                    createdAt = it.createdAt,
-                )
-            }
+    override fun listPublic(
+        cursor: FeedCursor?,
+        size: Int,
+    ): CourseSummaryPage {
+        // size 는 컨트롤러(@Min/@Max)가 검증하지만, 도메인 포트로 재사용될 때를 대비해 방어적으로 하한을 둔다.
+        // size<=0 이면 limit(size+1) 이 1건을 읽어 items 는 비는데 hasNext=true 가 되는 모순을 막는다.
+        val effectiveSize = size.coerceAtLeast(1)
+        val rows = coursePersistencePort.findPublishedPublic(cursor, effectiveSize)
+        return CourseSummaryPage(
+            items = rows.take(effectiveSize).map { it.toSummary() },
+            hasNext = rows.size > effectiveSize,
+        )
+    }
+
+    private fun CourseSummaryRow.toSummary(): CourseSummary =
+        CourseSummary(
+            id = id,
+            authorId = userId,
+            title = title,
+            coverImageUrl = coverImageUrl,
+            theme = category?.name,
+            likesCnt = likesCnt,
+            savesCnt = savesCnt,
+            createdAt = createdAt,
+        )
 
     /** 미삭제 코스 존재 확인(크로스 도메인) — 다른 도메인(user 저장함 등)이 이 포트로만 접근한다. */
     override fun existsById(courseId: Long): Boolean = coursePersistencePort.existsById(courseId)
@@ -181,14 +191,23 @@ class CourseService(
 
         // 참조 place 존재 검증(발행·임시저장 공통 — place_id 는 FK 가 없어 여기서만 걸러진다).
         val foundPlaces = requirePlacesExist(command.places.map { it.placeId })
-        // 불변식 검증·카테고리 도출은 Course.create 애그리거트 팩토리가 수행한다.
-        // 카테고리 도출은 발행 코스만 필요 — 검증차 조회한 place 요약을 그대로 재사용한다.
-        val placeCategories =
-            if (command.isPublished) {
-                foundPlaces.associate { it.id to it.category }
-            } else {
-                emptyMap()
+        val places =
+            command.places.map {
+                CoursePlace(
+                    placeId = it.placeId,
+                    orderNo = it.orderNo,
+                    caption = it.caption,
+                    imageUrls = it.imageUrls,
+                )
             }
+
+        // 파생 값(카테고리·지역코드·지역 이름) 도출 — 규칙은 도메인 순수 함수가, 조회(place 요약·지역 이름)는 서비스가 담당한다.
+        // 발행 코스만 도출하며(deriveXxx 가 임시저장이면 null), 검증차 조회한 place 요약을 그대로 재사용한다.
+        val category =
+            Course.deriveCategory(command.isPublished, places, foundPlaces.associate { it.id to it.category })
+        val areaCode =
+            Course.deriveAreaCode(command.isPublished, places, foundPlaces.associate { it.id to it.areaCode })
+
         val course =
             Course.create(
                 userId = command.userId,
@@ -199,16 +218,10 @@ class CourseService(
                 isPublished = command.isPublished,
                 forkedFromId = command.forkedFromId,
                 tags = command.tags,
-                places =
-                    command.places.map {
-                        CoursePlace(
-                            placeId = it.placeId,
-                            orderNo = it.orderNo,
-                            caption = it.caption,
-                            imageUrls = it.imageUrls,
-                        )
-                    },
-                placeCategoryByPlaceId = placeCategories,
+                places = places,
+                category = category,
+                areaCode = areaCode,
+                area = resolveAreaName(areaCode),
             )
         return coursePersistencePort.save(course)
     }
@@ -249,6 +262,17 @@ class CourseService(
         // 발행 코스의 장소 구성 불변(4003) 검증 뒤에 둬 기존 오류 우선순위를 유지한다.
         val foundPlaces = requirePlacesExist(places.map { it.placeId })
 
+        // 카테고리·지역코드 유지/재도출 판정이 공유한다 — placesChanged 는 DB 조회라 발행 편집에서 한 번만 계산한다.
+        val placesUnchanged = command.isPublished && !placesChanged(command.courseId, places)
+        val areaCode =
+            resolveEditedDerivedValue(command.isPublished, existing.areaCode, placesUnchanged) {
+                Course.deriveAreaCode(
+                    command.isPublished,
+                    places,
+                    foundPlaces.associate { it.id to it.areaCode },
+                )
+            }
+
         val course =
             Course.edit(
                 id = command.courseId,
@@ -260,31 +284,42 @@ class CourseService(
                 isPublished = command.isPublished,
                 tags = command.tags,
                 places = places,
-                category = resolveEditedCategory(command, existing, places, foundPlaces),
+                category =
+                    resolveEditedDerivedValue(command.isPublished, existing.category, placesUnchanged) {
+                        Course.deriveCategory(
+                            command.isPublished,
+                            places,
+                            foundPlaces.associate { it.id to it.category },
+                        )
+                    },
+                areaCode = areaCode,
+                // 지역 이름은 코드에서 결정적으로 풀리므로 유지/재도출 판정 없이 항상 코드로 재해석한다.
+                area = resolveAreaName(areaCode),
             )
         return coursePersistencePort.update(course)
     }
 
     /**
-     * 편집 코스의 카테고리를 해석한다. place 존재 검증은 호출부(edit)에서 이미 끝났고, 그 결과([foundPlaces])를 재사용한다.
+     * 편집 코스의 파생 값(카테고리·지역코드)을 해석한다 — 두 값이 같은 유지/재도출 규칙을 공유한다.
      * - 임시저장이면 null(생성과 동일).
-     * - 발행이면서 **기존 카테고리가 있고 장소 구성이 그대로면** 재도출 없이 기존 값을 유지한다 —
-     *   장소를 바꾸지 않은 편집(제목·설명 등)에서 외부 place 데이터 드리프트로 카테고리가 바뀌는 것을 막는다.
-     * - 그 외(초안→발행, 장소 변경, 카테고리 미지정 코스)에만 place 카테고리로 도출한다(생성과 동일 규칙).
+     * - 발행이면서 **기존 값이 있고 장소 구성이 그대로면**([placesUnchanged]) 재도출 없이 기존 값을 유지한다 —
+     *   장소를 바꾸지 않은 편집(제목·설명 등)에서 외부 place 데이터 드리프트로 값이 바뀌는 것을 막는다.
+     * - 그 외(초안→발행, 장소 변경, 값 미지정 코스)에만 [derive] 로 place 데이터에서 도출한다(생성과 동일 규칙).
      */
-    private fun resolveEditedCategory(
-        command: EditCourseCommand,
-        existing: CourseDetailRow,
-        places: List<CoursePlace>,
-        foundPlaces: List<PlaceSummary>,
-    ): CourseCategory? {
-        if (!command.isPublished) return null
-        if (existing.category != null && !placesChanged(command.courseId, places)) {
-            return existing.category
-        }
-        val placeCategories = foundPlaces.associate { it.id to it.category }
-        return Course.deriveCategory(command.isPublished, places, placeCategories)
+    private fun <T : Any> resolveEditedDerivedValue(
+        isPublished: Boolean,
+        existingValue: T?,
+        placesUnchanged: Boolean,
+        derive: () -> T?,
+    ): T? {
+        if (!isPublished) return null
+        if (existingValue != null && placesUnchanged) return existingValue
+        return derive()
     }
+
+    /** 지역코드(법정동코드)를 표시 이름으로 푼다 — 동 레벨은 동 이름("성수동1가"), 시군구 레벨은 시군구 이름("강남구"). */
+    private fun resolveAreaName(areaCode: String?): String? =
+        areaCode?.let { areaQueryUseCase.findAreaByCode(it)?.shortName }
 
     /**
      * 발행 코스가 참조하는 place_id 가 모두 실제로 존재하는지 검증하고, 조회한 장소 요약을 돌려준다.

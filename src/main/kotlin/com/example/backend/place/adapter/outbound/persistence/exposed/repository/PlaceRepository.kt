@@ -75,6 +75,7 @@ class PlaceRepository {
                 it[PlaceTable.category] = place.category
                 it[PlaceTable.location] = place.location
                 it[PlaceTable.address] = place.address
+                it[PlaceTable.areaCode] = place.areaCode
                 it[PlaceTable.imageUrl] = place.imageUrl
                 it[PlaceTable.businessStatus] = place.businessStatus
                 it[PlaceTable.kakaoPlaceId] = place.kakaoPlaceId
