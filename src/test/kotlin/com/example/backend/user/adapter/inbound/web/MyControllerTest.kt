@@ -22,9 +22,11 @@ import org.springframework.test.web.servlet.result.MockMvcResultMatchers.status
 @Sql(
     statements =
         [
-            "TRUNCATE TABLE follows, refresh_tokens, users RESTART IDENTITY CASCADE",
+            "TRUNCATE TABLE follows, refresh_tokens, tags, users RESTART IDENTITY CASCADE",
             "INSERT INTO users (nickname, handle, bio) VALUES ('나테스트', 'me_handle', '기존 자기소개')",
             "INSERT INTO users (nickname, handle) VALUES ('상대테스트', 'target_handle')",
+            // 관심 태그 검증용 코스 태그(id 1~4). likeTagIds 는 이 중에서만 유효하다.
+            "INSERT INTO tags (name) VALUES ('감성카페'), ('통창뷰'), ('데이트'), ('브런치')",
         ],
     executionPhase = Sql.ExecutionPhase.BEFORE_TEST_METHOD,
 )
@@ -352,18 +354,38 @@ class MyControllerTest
             patchLikeTags(listOf(4))
             assertEquals(setOf(4L), likeTagIdsOf(ME_ID))
 
+            // likeTagIds 를 보내지 않으면(null) 관심 태그는 그대로 둔다(빈 배열의 전체 해제와 구분).
+            patchBody("""{"nickname":"태그무관수정"}""")
+            assertEquals(setOf(4L), likeTagIdsOf(ME_ID))
+
             // 빈 배열 = 전체 해제.
             patchLikeTags(emptyList())
             assertEquals(emptySet<Long>(), likeTagIdsOf(ME_ID))
         }
 
-        private fun patchLikeTags(tagIds: List<Long>) {
+        @Test
+        fun `존재하지 않는 태그 id 로 수정하면 4001을 내려주고 저장하지 않는다`() {
             mockMvc
                 .perform(
                     patch("/api/v1/users")
                         .header(HttpHeaders.AUTHORIZATION, "Bearer ${tokenFor(ME_ID)}")
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content("""{"likeTagIds":$tagIds}"""),
+                        .content("""{"likeTagIds":[1,999]}"""),
+                ).andExpect(status().isBadRequest)
+                .andExpect(jsonPath("$.code").value(4001))
+
+            assertEquals(emptySet<Long>(), likeTagIdsOf(ME_ID))
+        }
+
+        private fun patchLikeTags(tagIds: List<Long>) = patchBody("""{"likeTagIds":$tagIds}""")
+
+        private fun patchBody(json: String) {
+            mockMvc
+                .perform(
+                    patch("/api/v1/users")
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer ${tokenFor(ME_ID)}")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(json),
                 ).andExpect(status().isOk)
         }
 

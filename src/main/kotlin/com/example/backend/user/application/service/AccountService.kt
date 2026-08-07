@@ -8,6 +8,7 @@ import com.example.backend.user.application.port.inbound.dto.FollowResult
 import com.example.backend.user.application.port.inbound.dto.UpdateProfileCommand
 import com.example.backend.user.application.port.inbound.dto.UserProfileResult
 import com.example.backend.user.application.port.outbound.FollowPersistencePort
+import com.example.backend.user.application.port.outbound.LikeTagValidationPort
 import com.example.backend.user.application.port.outbound.UserAreaPersistencePort
 import com.example.backend.user.application.port.outbound.UserLikeTagPort
 import com.example.backend.user.application.port.outbound.UserPersistencePort
@@ -21,6 +22,7 @@ class AccountService(
     private val userAreaPersistencePort: UserAreaPersistencePort,
     private val followPersistencePort: FollowPersistencePort,
     private val userLikeTagPort: UserLikeTagPort,
+    private val likeTagValidationPort: LikeTagValidationPort,
     private val mediaCleanupUseCase: MediaCleanupUseCase,
     private val userAreaResolver: UserAreaResolver,
 ) : AccountUseCase {
@@ -70,6 +72,14 @@ class AccountService(
             userPersistencePort.existsByHandle(handle)
         ) {
             throw BusinessException(ErrorCode.HANDLE_ALREADY_TAKEN)
+        }
+
+        // 관심 태그(코스 태그) 존재 검증 — 없는 id 가 하나라도 있으면 update·미디어 정리 전에 거부한다(FK 없음 방어).
+        if (!likeTagIds.isNullOrEmpty()) {
+            val missing = likeTagIds.toSet() - likeTagValidationPort.findExistingTagIds(likeTagIds)
+            if (missing.isNotEmpty()) {
+                throw BusinessException(ErrorCode.INVALID_INPUT, "존재하지 않는 태그가 포함되어 있습니다: ids=$missing")
+            }
         }
 
         val oldImageUrl = user.profileImageUrl
