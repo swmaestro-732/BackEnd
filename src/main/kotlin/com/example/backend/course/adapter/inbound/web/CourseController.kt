@@ -7,6 +7,7 @@ import com.example.backend.course.adapter.inbound.web.request.CreateCourseReques
 import com.example.backend.course.adapter.inbound.web.request.EditCourseRequest
 import com.example.backend.course.adapter.inbound.web.response.CourseDetailResponse
 import com.example.backend.course.adapter.inbound.web.response.CourseIdResponse
+import com.example.backend.course.application.port.inbound.CourseQueryUseCase
 import com.example.backend.course.application.port.inbound.CourseUseCase
 import jakarta.validation.Valid
 import org.springframework.http.HttpStatus
@@ -43,6 +44,7 @@ import org.springframework.web.bind.annotation.RestController
 @RequestMapping("/api/v1/courses")
 class CourseController(
     private val courseUseCase: CourseUseCase,
+    private val courseQueryUseCase: CourseQueryUseCase,
     private val mockGuard: MockGuard,
 ) {
     /**
@@ -57,7 +59,7 @@ class CourseController(
         @RequestParam(required = false) mock: Boolean = false,
     ): ApiResponse<CourseDetailResponse> {
         if (mock && mockGuard.isMockAllowed()) return ApiResponse.success(CourseDetailResponse.MOCK)
-        return ApiResponse.success(CourseDetailResponse.from(courseUseCase.getDetail(courseId, viewerId)))
+        return ApiResponse.success(CourseDetailResponse.from(courseQueryUseCase.getDetail(courseId, viewerId)))
     }
 
     /**

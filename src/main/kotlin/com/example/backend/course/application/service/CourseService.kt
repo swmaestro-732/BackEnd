@@ -2,14 +2,7 @@ package com.example.backend.course.application.service
 
 import com.example.backend.common.exception.BusinessException
 import com.example.backend.common.response.ErrorCode
-import com.example.backend.course.application.port.inbound.CourseQueryUseCase
 import com.example.backend.course.application.port.inbound.CourseUseCase
-import com.example.backend.course.application.port.inbound.dto.AuthorCourseCursor
-import com.example.backend.course.application.port.inbound.dto.CourseDetailResult
-import com.example.backend.course.application.port.inbound.dto.CoursePlaceImageResult
-import com.example.backend.course.application.port.inbound.dto.CoursePlaceResult
-import com.example.backend.course.application.port.inbound.dto.CourseSummary
-import com.example.backend.course.application.port.inbound.dto.CourseSummaryPage
 import com.example.backend.course.application.port.inbound.dto.CreateCourseCommand
 import com.example.backend.course.application.port.inbound.dto.EditCourseCommand
 import com.example.backend.course.application.port.outbound.AuthorCourseCountPort
@@ -17,7 +10,6 @@ import com.example.backend.course.application.port.outbound.CourseDetailRow
 import com.example.backend.course.application.port.outbound.CoursePersistencePort
 import com.example.backend.course.application.port.outbound.CoursePlaceImageRow
 import com.example.backend.course.application.port.outbound.CoursePlaceRow
-import com.example.backend.course.application.port.outbound.CourseSummaryRow
 import com.example.backend.course.domain.model.Course
 import com.example.backend.course.domain.model.CourseCategory
 import com.example.backend.course.domain.model.CoursePlace
@@ -25,176 +17,23 @@ import com.example.backend.course.domain.model.CourseStatus
 import com.example.backend.course.domain.model.CourseVisibility
 import com.example.backend.place.application.port.inbound.PlaceQueryUseCase
 import com.example.backend.place.application.port.inbound.dto.PlaceSummary
-import com.example.backend.user.application.port.inbound.CourseInteractionUseCase
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
 
 /**
- * 코스 유스케이스 — 상세 조회와 생성을 함께 담당한다.
+ * 코스 쓰기(커맨드) 유스케이스 — 생성·편집·삭제. 조회는 [CourseQueryService] 가 담당한다(커맨드/쿼리 분리).
  *
- * 조회(getDetail): status=ACTIVE·미삭제만 반환(그 외 404), PRIVATE 은 소유자만, FOLLOWER 는 소유자·팔로워만(그 외 404).
- * 생성(create): 발행/임시저장 공통. 불변식 검증과 카테고리 도출은 [Course] 애그리거트가 수행하고,
+ * 생성/편집: 발행·임시저장 공통. 불변식 검증과 카테고리 도출은 [Course] 애그리거트가 수행하고,
  * 서비스는 카테고리 도출에 필요한 place 카테고리(place 인바운드 포트)만 조회해 넘긴다.
- *
- * 기본은 읽기 전용 트랜잭션이고, 쓰기(create)만 메서드 레벨에서 재정의한다.
+ * 코스 발행/공개범위변경/삭제로 작성자의 공개범위별 코스 개수가 바뀌면 [AuthorCourseCountPort] 로 반영한다.
  */
 @Service
-@Transactional(readOnly = true)
+@Transactional
 class CourseService(
     private val coursePersistencePort: CoursePersistencePort,
     private val placeQueryUseCase: PlaceQueryUseCase,
-    private val courseInteractionUseCase: CourseInteractionUseCase,
     private val authorCourseCountPort: AuthorCourseCountPort,
-) : CourseUseCase,
-    CourseQueryUseCase {
-    override fun getDetail(
-        courseId: Long,
-        viewerId: Long?,
-    ): CourseDetailResult =
-        getDetails(listOf(courseId), viewerId).firstOrNull()
-            ?: throw BusinessException(ErrorCode.COURSE_NOT_FOUND, "코스를 찾을 수 없습니다: id=$courseId")
-
-    override fun getDetails(
-        courseIds: List<Long>,
-        viewerId: Long?,
-    ): List<CourseDetailResult> {
-        if (courseIds.isEmpty()) return emptyList()
-
-        // status=ACTIVE·미삭제·조회 가능(PRIVATE 소유자, FOLLOWER 소유자·팔로워)만 남긴다.
-        val viewableById =
-            coursePersistencePort
-                .findCourseDetails(courseIds)
-                .filter { it.status == CourseStatus.ACTIVE && isViewable(it.visibility, it.userId, viewerId) }
-                .associateBy { it.id }
-        if (viewableById.isEmpty()) return emptyList()
-
-        val viewableIds = viewableById.keys.toList()
-        val placesByCourse = coursePersistencePort.findPlacesByCourseIds(viewableIds)
-        val viewerByCourse =
-            viewerId
-                ?.let { courseInteractionUseCase.getViewerStates(it, viewableIds) }
-                .orEmpty()
-                .associateBy { it.courseId }
-
-        // 입력 순서를 유지해 반환한다(볼 수 없는 코스는 제외됨).
-        return courseIds.mapNotNull { viewableById[it] }.map { course ->
-            val places =
-                placesByCourse[course.id].orEmpty().map { place ->
-                    CoursePlaceResult(
-                        id = place.id,
-                        placeId = place.placeId,
-                        orderNo = place.orderNo,
-                        caption = place.caption,
-                        walkingMinutesToNext = place.walkingMinutes,
-                        images = place.images.map { CoursePlaceImageResult(it.imageUrl, it.orderNo) },
-                    )
-                }
-            val viewer = viewerByCourse[course.id]
-            CourseDetailResult(
-                id = course.id,
-                title = course.title,
-                coverImageUrl = course.coverImageUrl.orEmpty(),
-                theme = course.category?.name,
-                area = course.area,
-                description = course.description.orEmpty(),
-                visibility = course.visibility,
-                authorId = course.userId,
-                tracingsCnt = course.tracingsCnt,
-                places = places,
-                hasSaved = viewer?.hasSaved ?: false,
-                hasStartedCourse = viewer?.hasStartedCourse ?: false,
-            )
-        }
-    }
-
-    /**
-     * 작성자의 발행 코스 요약 목록 — 조회자(viewerId) 기준 공개범위(isViewable) 통과분만 내려준다.
-     * 본인 조회(viewerId==authorId)면 발행 코스 전체가 통과한다.
-     */
-    override fun listByAuthor(
-        authorId: Long,
-        viewerId: Long?,
-        cursor: AuthorCourseCursor?,
-        size: Int,
-    ): CourseSummaryPage {
-        val rows =
-            coursePersistencePort.findPublishedByAuthor(
-                authorId = authorId,
-                visibilities = viewableVisibilities(ownerId = authorId, viewerId = viewerId),
-                cursor = cursor,
-                size = size,
-            )
-        return CourseSummaryPage(
-            items = rows.take(size).map(::toCourseSummary),
-            hasNext = rows.size > size,
-        )
-    }
-
-    /**
-     * 전체 공개(PUBLIC) 발행 코스를 저장수+최신순으로 [limit] 개 내려준다(피드용).
-     * 정렬은 findPublishedPublic 이 SQL(saves_cnt DESC, created_at DESC)로 수행하고,
-     * 모두 PUBLIC 이라 공개범위(isViewable) 필터 없이 그대로 매핑한다.
-     */
-    override fun listPublic(limit: Int): List<CourseSummary> =
-        coursePersistencePort
-            .findPublishedPublic(limit)
-            .map(::toCourseSummary)
-
-    /** 미삭제 코스 존재 확인(크로스 도메인) — 다른 도메인(user 저장함 등)이 이 포트로만 접근한다. */
-    override fun existsById(courseId: Long): Boolean = coursePersistencePort.existsById(courseId)
-
-    /** 조회자에게 허용된 공개범위를 SQL 조건으로 전달해 필터 이후에도 페이지 크기와 hasNext가 정확하게 유지되게 한다. */
-    private fun viewableVisibilities(
-        ownerId: Long,
-        viewerId: Long?,
-    ): Set<CourseVisibility> =
-        when {
-            viewerId == ownerId -> {
-                CourseVisibility.entries.toSet()
-            }
-
-            viewerId != null && courseInteractionUseCase.isFollowing(viewerId, ownerId) -> {
-                setOf(CourseVisibility.PUBLIC, CourseVisibility.FOLLOWER)
-            }
-
-            else -> {
-                setOf(CourseVisibility.PUBLIC)
-            }
-        }
-
-    private fun toCourseSummary(row: CourseSummaryRow) =
-        CourseSummary(
-            id = row.id,
-            authorId = row.userId,
-            title = row.title,
-            coverImageUrl = row.coverImageUrl,
-            theme = row.category?.name,
-            likesCnt = row.likesCnt,
-            savesCnt = row.savesCnt,
-            createdAt = row.createdAt,
-        )
-
-    private fun isViewable(
-        visibility: CourseVisibility,
-        ownerId: Long,
-        viewerId: Long?,
-    ): Boolean =
-        when (visibility) {
-            CourseVisibility.PUBLIC -> {
-                true
-            }
-
-            CourseVisibility.FOLLOWER -> {
-                viewerId == ownerId ||
-                    (viewerId != null && courseInteractionUseCase.isFollowing(viewerId, ownerId))
-            }
-
-            CourseVisibility.PRIVATE -> {
-                viewerId == ownerId
-            }
-        }
-
-    @Transactional
+) : CourseUseCase {
     override fun create(command: CreateCourseCommand): Course {
         // fork 원본 코스가 실제로 존재하는지 검증(없으면 404).
         command.forkedFromId?.let { forkedFromId ->
@@ -244,7 +83,6 @@ class CourseService(
         return saved
     }
 
-    @Transactional
     override fun edit(command: EditCourseCommand): Course {
         // 존재·소유권 검증 — 없거나(삭제 포함)·비활성·타인 소유면 존재를 드러내지 않도록 404(COURSE_NOT_FOUND).
         val existing =
@@ -302,6 +140,31 @@ class CourseService(
             added = if (command.isPublished) command.visibility else null,
         )
         return updated
+    }
+
+    /**
+     * 코스 소프트 삭제. 존재·소유권을 검증한 뒤 deleted_at 스탬프만 찍는다(전체 치환·애그리거트 재구성 없음).
+     * 자식(장소·이미지·태그)은 그대로 두며, 모든 조회가 courses.deleted_at 로 걸러 도달 불가하다.
+     */
+    override fun delete(
+        userId: Long,
+        courseId: Long,
+    ) {
+        // 존재·소유권 검증 — 없거나(삭제 포함)·비활성·타인 소유면 존재를 드러내지 않도록 404(COURSE_NOT_FOUND).
+        val existing =
+            coursePersistencePort.findCourseDetail(courseId)
+                ?: throw BusinessException(ErrorCode.COURSE_NOT_FOUND, "코스를 찾을 수 없습니다: id=$courseId")
+        if (existing.status != CourseStatus.ACTIVE || existing.userId != userId) {
+            throw BusinessException(ErrorCode.COURSE_NOT_FOUND, "코스를 찾을 수 없습니다: id=$courseId")
+        }
+
+        coursePersistencePort.softDelete(courseId)
+        // 발행 코스였다면 삭제로 해당 공개범위 버킷 −1(임시저장은 애초에 안 잡혀 있었다).
+        adjustAuthorCourseCount(
+            userId = userId,
+            removed = if (existing.isPublished) existing.visibility else null,
+            added = null,
+        )
     }
 
     /**
@@ -371,35 +234,9 @@ class CourseService(
     }
 
     /**
-     * 코스 소프트 삭제. 존재·소유권을 검증한 뒤 deleted_at 스탬프만 찍는다(전체 치환·애그리거트 재구성 없음).
-     * 자식(장소·이미지·태그)은 그대로 두며, 모든 조회가 courses.deleted_at 로 걸러 도달 불가하다.
-     */
-    @Transactional
-    override fun delete(
-        userId: Long,
-        courseId: Long,
-    ) {
-        // 존재·소유권 검증 — 없거나(삭제 포함)·비활성·타인 소유면 존재를 드러내지 않도록 404(COURSE_NOT_FOUND).
-        val existing =
-            coursePersistencePort.findCourseDetail(courseId)
-                ?: throw BusinessException(ErrorCode.COURSE_NOT_FOUND, "코스를 찾을 수 없습니다: id=$courseId")
-        if (existing.status != CourseStatus.ACTIVE || existing.userId != userId) {
-            throw BusinessException(ErrorCode.COURSE_NOT_FOUND, "코스를 찾을 수 없습니다: id=$courseId")
-        }
-
-        coursePersistencePort.softDelete(courseId)
-        // 발행 코스였다면 삭제로 해당 공개범위 버킷 −1(임시저장은 애초에 안 잡혀 있었다).
-        adjustAuthorCourseCount(
-            userId = userId,
-            removed = if (existing.isPublished) existing.visibility else null,
-            added = null,
-        )
-    }
-
-    /**
      * 코스 상태 변화에 따른 작성자의 공개범위별 코스 개수 델타를 반영한다.
      * [removed]/[added] 는 "카운트되는 상태(발행·활성·미삭제)"의 공개범위이고, 그 상태가 아니면 null.
-     * 크로스 도메인 경계라 공개범위 enum 대신 버킷별 원시 int 델타로 넘긴다.
+     * 크로스 도메인 경계라 공개범위 enum 대신 버킷별 원시 int 델타로 넘긴다([AuthorCourseCountPort]).
      */
     private fun adjustAuthorCourseCount(
         userId: Long,
