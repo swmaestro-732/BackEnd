@@ -1,15 +1,17 @@
-package com.example.backend.mobile.course.adapter.inbound.web.response
+package com.example.backend.mobile.home.adapter.inbound.web.response
 
-import com.example.backend.mobile.course.application.port.inbound.dto.CourseFeedResult
+import com.example.backend.mobile.home.application.port.inbound.dto.HomeFeedResult
 import java.time.Instant
 
 /**
  * 웹 응답 DTO — 공개 코스 피드 화면 조합(BFF). 프론트 화면 계약 형태.
- * 저장수 내림차순·최신순으로 랭킹된 코스 목록([Item])을 내려준다.
+ * 저장수 내림차순·최신순으로 랭킹된 코스 목록([Item])과 nextCursor/hasNext를 내려준다.
  * 목([MOCK]) 응답에만 고정 예시를 채워 프론트가 형태를 확인할 수 있게 한다.
  */
-data class CourseFeedResponse(
+data class HomeFeedResponse(
     val courses: List<Item>,
+    val nextCursor: String?,
+    val hasNext: Boolean,
 ) {
     /** 피드 카드 한 장 — 코스 요약 + 지표(저장수는 실제 saved_courses 집계값). */
     data class Item(
@@ -24,8 +26,8 @@ data class CourseFeedResponse(
     )
 
     companion object {
-        fun from(result: CourseFeedResult): CourseFeedResponse =
-            CourseFeedResponse(
+        fun from(result: HomeFeedResult): HomeFeedResponse =
+            HomeFeedResponse(
                 courses =
                     result.courses.map {
                         Item(
@@ -39,6 +41,8 @@ data class CourseFeedResponse(
                             createdAt = it.createdAt,
                         )
                     },
+                nextCursor = result.nextCursor,
+                hasNext = result.hasNext,
             )
 
         private fun image(token: String) = "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9Gc$token&s=10"
@@ -47,8 +51,8 @@ data class CourseFeedResponse(
          * `?mock=true` 폴백 응답 — 시드/DB 없이 프론트가 붙어볼 수 있게 고정 피드 목을 내려준다.
          * 저장수 내림차순·최신순 정렬 결과를 흉내낸다(첫 카드가 저장수 최다).
          */
-        val MOCK: CourseFeedResponse =
-            CourseFeedResponse(
+        val MOCK: HomeFeedResponse =
+            HomeFeedResponse(
                 courses =
                     listOf(
                         Item(
@@ -82,6 +86,8 @@ data class CourseFeedResponse(
                             createdAt = Instant.parse("2026-07-28T09:45:00Z"),
                         ),
                     ),
+                nextCursor = null,
+                hasNext = false,
             )
     }
 }

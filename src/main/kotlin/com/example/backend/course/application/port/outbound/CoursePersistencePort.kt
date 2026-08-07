@@ -1,5 +1,6 @@
 package com.example.backend.course.application.port.outbound
 
+import com.example.backend.course.application.port.inbound.dto.FeedCursor
 import com.example.backend.course.domain.model.Course
 import com.example.backend.course.domain.model.CourseCategory
 import com.example.backend.course.domain.model.CourseStatus
@@ -79,10 +80,13 @@ interface CoursePersistencePort {
     fun findDraftsByAuthor(authorId: Long): List<CourseSummaryRow>
 
     /**
-     * 전체 공개(visibility=PUBLIC)·발행·활성·미삭제 코스 요약을 createdAt 내림차순으로 [limit] 개까지 읽는다.
-     * 모두 PUBLIC 이라 서비스의 공개범위 필터가 필요 없다(피드 후보용).
+     * 전체 공개(visibility=PUBLIC)·발행·활성·미삭제 코스 요약을 피드 정렬 순으로 읽는다.
+     * [cursor] 이후부터 hasNext 판별용 초과 1건을 포함해 최대 [size] + 1건을 반환한다.
      */
-    fun findPublishedPublic(limit: Int): List<CourseSummaryRow>
+    fun findPublishedPublic(
+        cursor: FeedCursor?,
+        size: Int,
+    ): List<CourseSummaryRow>
 
     /** 미삭제(deleted_at IS NULL) 코스가 존재하는지 확인한다(fork 원본 검증 등). */
     fun existsById(courseId: Long): Boolean
