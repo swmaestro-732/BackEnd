@@ -57,13 +57,12 @@ class UserController(
         @RequestParam(required = false) mock: Boolean = false,
     ): ApiResponse<AccountProfileResponse> {
         if (mock) {
-            val base = AccountProfileResponse.mock()
             return ApiResponse.success(
-                base.copy(
-                    nickname = request.nickname ?: base.nickname,
-                    handle = request.handle ?: base.handle,
-                    profileImageUrl = request.profileImageUrl ?: base.profileImageUrl,
-                    bio = request.bio ?: base.bio,
+                AccountProfileResponse.mock(
+                    nickname = request.nickname,
+                    handle = request.handle,
+                    profileImageUrl = request.profileImageUrl,
+                    bio = request.bio,
                 ),
             )
         }

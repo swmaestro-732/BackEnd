@@ -29,13 +29,22 @@ data class AccountProfileResponse(
                 coursesCnt = result.coursesCnt,
             )
 
-        fun mock(): AccountProfileResponse =
+        /**
+         * 목 프로필. 수정 목(`?mock=true`)에서 부분 수정 왕복을 흉내내도록, 넘긴 필드는 반영하고
+         * null 필드는 고정 목값을 유지한다(부분 수정 의미). 조회 목은 인자 없이 호출해 고정 목을 받는다.
+         */
+        fun mock(
+            nickname: String? = null,
+            handle: String? = null,
+            profileImageUrl: String? = null,
+            bio: String? = null,
+        ): AccountProfileResponse =
             AccountProfileResponse(
                 id = 1L,
-                nickname = "현우님",
-                handle = "hyunwoo",
-                profileImageUrl = "https://cdn.example.com/users/1.jpg",
-                bio = "안녕하세요, 커미입니다.",
+                nickname = nickname ?: "현우님",
+                handle = handle ?: "hyunwoo",
+                profileImageUrl = profileImageUrl ?: "https://cdn.example.com/users/1.jpg",
+                bio = bio ?: "안녕하세요, 커미입니다.",
                 followersCnt = 128,
                 followingsCnt = 88,
                 coursesCnt = 12,
