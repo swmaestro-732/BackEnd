@@ -34,7 +34,7 @@ class DirectionServiceTest {
     }
 
     @Test
-    fun `구간별 도보 시간을 계산하고 null 을 전파한다`() {
+    fun `구간별 도보 시간을 계산하고 산출 불가 구간은 -1 로 내린다`() {
         val service =
             DirectionService(
                 FakePort(
@@ -45,6 +45,22 @@ class DirectionServiceTest {
                 ),
             )
 
-        assertEquals(listOf(5, null), service.walkingSegments(listOf(a, b, c)))
+        // 산출 불가(null) 구간은 도보 불가라 -1.
+        assertEquals(listOf(5, -1), service.walkingSegments(listOf(a, b, c)))
+    }
+
+    @Test
+    fun `도보 1시간 초과 구간은 -1 로 내린다`() {
+        val service =
+            DirectionService(
+                FakePort(
+                    mapOf(
+                        (a to b) to 600, // 10분
+                        (b to c) to 3601, // 60분 초과 → 도보 불가
+                    ),
+                ),
+            )
+
+        assertEquals(listOf(10, -1), service.walkingSegments(listOf(a, b, c)))
     }
 }

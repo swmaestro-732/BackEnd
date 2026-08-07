@@ -10,6 +10,9 @@ interface WalkingDurationUseCase {
         to: Coordinate,
     ): Int?
 
-    /** 연속한 지점쌍별 도보 소요(분) 목록. 반환 크기 = points.size - 1. 각 구간은 산출 불가 시 null. */
-    fun walkingSegments(points: List<Coordinate>): List<Int?>
+    /**
+     * 연속한 지점쌍별 도보 소요(분) 목록. 반환 크기 = points.size - 1.
+     * 산출 불가(에러·서비스 불가 구간) 또는 1시간 초과 구간은 -1(도보 불가)로 내린다. 예: [10, -1, 8].
+     */
+    fun walkingSegments(points: List<Coordinate>): List<Int>
 }
