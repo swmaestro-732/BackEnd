@@ -35,13 +35,12 @@ data class MyPageScreenResponse(
                         nickname = "현우님",
                         handle = "hyunwoo",
                         profileImageUrl = "https://cdn.example.com/users/1.jpg",
+                        bio = "안녕하세요, 커미입니다.",
                         isFollowing = false,
                         isFollower = false,
                         followersCnt = 128,
                         followingsCnt = 88,
-                        publicCoursesCnt = 12,
-                        followerCoursesCnt = 3,
-                        privateCoursesCnt = 2,
+                        coursesCnt = 17,
                     ),
                 courses =
                     listOf(
@@ -67,13 +66,12 @@ data class MyPageProfileResponse(
     val nickname: String,
     val handle: String?,
     val profileImageUrl: String?,
+    val bio: String?,
     val isFollowing: Boolean,
     val isFollower: Boolean,
     val followersCnt: Int,
     val followingsCnt: Int,
-    val publicCoursesCnt: Int,
-    val followerCoursesCnt: Int,
-    val privateCoursesCnt: Int,
+    val coursesCnt: Int,
 ) {
     companion object {
         fun from(
@@ -85,13 +83,12 @@ data class MyPageProfileResponse(
                 nickname = profile.nickname,
                 handle = profile.handle,
                 profileImageUrl = profile.profileImageUrl,
+                bio = profile.bio,
                 isFollowing = profile.isFollowing,
                 isFollower = profile.isFollower,
                 followersCnt = profile.followersCnt,
                 followingsCnt = profile.followingsCnt,
-                publicCoursesCnt = counts.publicCount,
-                followerCoursesCnt = counts.followerCount,
-                privateCoursesCnt = counts.privateCount,
+                coursesCnt = counts.publicCount + counts.followerCount + counts.privateCount,
             )
     }
 }
