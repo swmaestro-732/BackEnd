@@ -139,7 +139,7 @@ class CourseRepository {
             isPublished = it[CourseTable.isPublished],
         )
 
-    /** 작성자의 발행·활성 코스 요약을 createdAt 내림차순으로 읽는다(공개범위 필터는 서비스). */
+    /** 작성자의 발행·활성 코스 요약을 updatedAt 내림차순으로 읽는다(공개범위 필터는 서비스). */
     fun findPublishedByAuthor(authorId: Long): List<CourseSummaryRow> =
         CourseTable
             .selectAll()
@@ -148,7 +148,7 @@ class CourseRepository {
                     (CourseTable.isPublished eq true) and
                     (CourseTable.status eq CourseStatus.ACTIVE) and
                     CourseTable.deletedAt.isNull()
-            }.orderBy(CourseTable.createdAt to SortOrder.DESC)
+            }.orderBy(CourseTable.updatedAt to SortOrder.DESC)
             .map(::toSummaryRow)
 
     /** 작성자의 임시저장·활성 코스 요약을 updatedAt 내림차순으로 읽는다. */
