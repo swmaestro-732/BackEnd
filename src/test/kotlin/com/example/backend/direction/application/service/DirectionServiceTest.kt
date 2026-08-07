@@ -1,10 +1,13 @@
 package com.example.backend.direction.application.service
 
+import com.example.backend.common.exception.BusinessException
 import com.example.backend.common.geo.Coordinate
+import com.example.backend.common.response.ErrorCode
 import com.example.backend.direction.application.port.outbound.PedestrianRoute
 import com.example.backend.direction.application.port.outbound.PedestrianRoutePort
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.assertThrows
 
 class DirectionServiceTest {
     private val a = Coordinate(latitude = 37.5445, longitude = 127.0578)
@@ -68,7 +71,7 @@ class DirectionServiceTest {
     }
 
     @Test
-    fun `일시적 오류(Unknown) 구간은 null 로 내린다(도보 불가와 구분)`() {
+    fun `일시적 오류(Unknown) 구간이 하나라도 있으면 DIRECTION_UNAVAILABLE 로 실패한다`() {
         val service =
             DirectionService(
                 FakePort(
@@ -79,7 +82,8 @@ class DirectionServiceTest {
                 ),
             )
 
-        // Unknown = 모름 → null (걸어갈 수 없는 -1 과 구분).
-        assertEquals(listOf(10, null), service.walkingSegments(listOf(a, b, c)))
+        // Unknown = 산출 불가 → -1(불가)로 속이지 않고 에러(503)로 실패한다.
+        val exception = assertThrows<BusinessException> { service.walkingSegments(listOf(a, b, c)) }
+        assertEquals(ErrorCode.DIRECTION_UNAVAILABLE, exception.errorCode)
     }
 }
