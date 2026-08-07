@@ -3,8 +3,8 @@ package com.example.backend.user.adapter.inbound.web.response
 import com.example.backend.user.application.port.inbound.dto.UserProfileResult
 
 /**
- * 내 계정 프로필(조회/수정) 응답 DTO. 본인 프로필이므로 팔로우 관계 플래그는 두지 않는다.
- * 카운트 3종(팔로워/팔로잉/코스)은 프로필 화면(마이 프로필)에 표시되는 요소 근거.
+ * 내 계정 프로필 수정(PATCH /api/v1/users) 응답 DTO — 편집한 프로필 필드만 돌려준다.
+ * 팔로워/팔로잉/코스 개수는 수정으로 바뀌지 않고 프로필 화면(마이페이지 BFF)이 따로 내려주므로 여기 두지 않는다.
  */
 data class AccountProfileResponse(
     val id: Long,
@@ -12,9 +12,6 @@ data class AccountProfileResponse(
     val handle: String?,
     val profileImageUrl: String?,
     val bio: String?,
-    val followersCnt: Int,
-    val followingsCnt: Int,
-    val coursesCnt: Int,
 ) {
     companion object {
         fun from(result: UserProfileResult): AccountProfileResponse =
@@ -24,10 +21,6 @@ data class AccountProfileResponse(
                 handle = result.handle,
                 profileImageUrl = result.profileImageUrl,
                 bio = result.bio,
-                followersCnt = result.followersCnt,
-                followingsCnt = result.followingsCnt,
-                // 본인 계정 프로필이라 전체 공개범위가 보인다 → 세 버킷 합.
-                coursesCnt = result.publicCoursesCnt + result.followerCoursesCnt + result.privateCoursesCnt,
             )
 
         /**
@@ -46,9 +39,6 @@ data class AccountProfileResponse(
                 handle = handle ?: "hyunwoo",
                 profileImageUrl = profileImageUrl ?: "https://cdn.example.com/users/1.jpg",
                 bio = bio ?: "안녕하세요, 커미입니다.",
-                followersCnt = 128,
-                followingsCnt = 88,
-                coursesCnt = 12,
             )
     }
 }
