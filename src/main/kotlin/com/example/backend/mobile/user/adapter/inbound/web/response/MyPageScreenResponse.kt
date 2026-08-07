@@ -35,7 +35,6 @@ data class MyPageScreenResponse(
                         followersCnt = 128,
                         followingsCnt = 88,
                         coursesCnt = 12,
-                        areas = listOf(MyPageAreaResponse(code = "1168010100", name = "역삼동")),
                     ),
                 courses =
                     listOf(
@@ -53,7 +52,7 @@ data class MyPageScreenResponse(
     }
 }
 
-/** 마이페이지 프로필 카드 — [ProfileSnapshot] 형태. 팔로우 플래그는 타인 조회 기준. areas 는 내 조회에서만 값이 있다. */
+/** 마이페이지 프로필 카드 — [ProfileSnapshot] 형태. 팔로우 플래그는 타인 조회 기준. */
 data class MyPageProfileResponse(
     val id: Long,
     val nickname: String,
@@ -64,7 +63,6 @@ data class MyPageProfileResponse(
     val followersCnt: Int,
     val followingsCnt: Int,
     val coursesCnt: Int,
-    val areas: List<MyPageAreaResponse>,
 ) {
     companion object {
         fun from(profile: ProfileSnapshot): MyPageProfileResponse =
@@ -78,16 +76,9 @@ data class MyPageProfileResponse(
                 followersCnt = profile.followersCnt,
                 followingsCnt = profile.followingsCnt,
                 coursesCnt = profile.coursesCnt,
-                areas = profile.areas.map { MyPageAreaResponse(code = it.code, name = it.name) },
             )
     }
 }
-
-/** 관심 지역 한 건 — code 는 10자리 법정동코드, name 은 표시 이름(동/시군구). */
-data class MyPageAreaResponse(
-    val code: String,
-    val name: String,
-)
 
 /** 마이페이지 코스 카드 — 작성자의 발행 코스 요약([AuthoredCourse]). theme 은 카테고리 이름. */
 data class MyPageCourseResponse(
