@@ -13,6 +13,9 @@ data class UserProfileRow(
     val followersCnt: Int,
     val followingsCnt: Int,
     val coursesCnt: Int,
+    val publicCoursesCnt: Int,
+    val followerCoursesCnt: Int,
+    val privateCoursesCnt: Int,
 )
 
 /**
@@ -35,6 +38,17 @@ interface UserPersistencePort {
     fun save(user: User): User
 
     fun update(user: User)
+
+    /**
+     * 작성자의 공개범위별 코스 개수 캐시를 증감한다(코스 발행/공개범위변경/삭제 시 호출).
+     * 0 인 델타는 무시하고, 하나라도 0 이 아니면 단일 UPDATE 로 반영한다. 크로스 도메인 경계라 원시 int 만 받는다.
+     */
+    fun applyCourseCountDelta(
+        userId: Long,
+        publicDelta: Int,
+        followerDelta: Int,
+        privateDelta: Int,
+    )
 
     fun softDelete(user: User)
 

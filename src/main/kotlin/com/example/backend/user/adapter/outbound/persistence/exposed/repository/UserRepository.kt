@@ -13,6 +13,7 @@ import org.jetbrains.exposed.v1.core.inList
 import org.jetbrains.exposed.v1.core.isNotNull
 import org.jetbrains.exposed.v1.core.isNull
 import org.jetbrains.exposed.v1.core.neq
+import org.jetbrains.exposed.v1.core.plus
 import org.jetbrains.exposed.v1.jdbc.insert
 import org.jetbrains.exposed.v1.jdbc.selectAll
 import org.jetbrains.exposed.v1.jdbc.update
@@ -61,6 +62,9 @@ class UserRepository(
                     followersCnt = it.followersCnt,
                     followingsCnt = it.followingsCnt,
                     coursesCnt = it.coursesCnt,
+                    publicCoursesCnt = it.publicCoursesCnt,
+                    followerCoursesCnt = it.followerCoursesCnt,
+                    privateCoursesCnt = it.privateCoursesCnt,
                 )
             }
 
@@ -79,8 +83,29 @@ class UserRepository(
                     followersCnt = it.followersCnt,
                     followingsCnt = it.followingsCnt,
                     coursesCnt = it.coursesCnt,
+                    publicCoursesCnt = it.publicCoursesCnt,
+                    followerCoursesCnt = it.followerCoursesCnt,
+                    privateCoursesCnt = it.privateCoursesCnt,
                 )
             }
+    }
+
+    /**
+     * 공개범위별 코스 개수 캐시를 증감한다(0 델타 컬럼은 건드리지 않고, 하나라도 0 이 아니면 단일 UPDATE).
+     * FollowRepository 의 followersCnt ±1 과 동일한 컬럼 증감 패턴.
+     */
+    fun applyCourseCountDelta(
+        userId: Long,
+        publicDelta: Int,
+        followerDelta: Int,
+        privateDelta: Int,
+    ) {
+        if (publicDelta == 0 && followerDelta == 0 && privateDelta == 0) return
+        UserTable.update({ UserTable.id eq userId }) {
+            if (publicDelta != 0) it[publicCoursesCnt] = publicCoursesCnt + publicDelta
+            if (followerDelta != 0) it[followerCoursesCnt] = followerCoursesCnt + followerDelta
+            if (privateDelta != 0) it[privateCoursesCnt] = privateCoursesCnt + privateDelta
+        }
     }
 
     /** 탈퇴(soft delete) 사용자는 제외하고 요약 정보만 읽는다. */

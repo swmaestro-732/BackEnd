@@ -23,6 +23,11 @@ internal object UserTable : LongIdTable("users") {
     val followersCnt = integer("followers_cnt")
     val followingsCnt = integer("followings_cnt")
     val coursesCnt = integer("courses_cnt")
+
+    // 공개범위별 발행 코스 개수 캐시(마이페이지가 매 조회 GROUP BY 대신 읽는다). CourseService 가 ±1 로 유지.
+    val publicCoursesCnt = integer("public_courses_cnt")
+    val followerCoursesCnt = integer("follower_courses_cnt")
+    val privateCoursesCnt = integer("private_courses_cnt")
     val status = short("status")
     val socialProvider = varchar("social_provider", 20).nullable()
     val socialId = varchar("social_id", 255).nullable()
@@ -45,6 +50,9 @@ internal class UserEntity(
     var followersCnt by UserTable.followersCnt
     var followingsCnt by UserTable.followingsCnt
     var coursesCnt by UserTable.coursesCnt
+    var publicCoursesCnt by UserTable.publicCoursesCnt
+    var followerCoursesCnt by UserTable.followerCoursesCnt
+    var privateCoursesCnt by UserTable.privateCoursesCnt
     var status by UserTable.status
     var socialProvider by UserTable.socialProvider
     var socialId by UserTable.socialId
