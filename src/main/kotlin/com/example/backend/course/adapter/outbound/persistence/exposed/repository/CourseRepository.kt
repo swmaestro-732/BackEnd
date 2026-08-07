@@ -12,7 +12,6 @@ import com.example.backend.course.domain.model.CourseStatus
 import com.example.backend.course.domain.model.CourseVisibility
 import org.jetbrains.exposed.v1.core.SortOrder
 import org.jetbrains.exposed.v1.core.and
-import org.jetbrains.exposed.v1.core.count
 import org.jetbrains.exposed.v1.core.eq
 import org.jetbrains.exposed.v1.core.inList
 import org.jetbrains.exposed.v1.core.isNull
@@ -177,20 +176,6 @@ class CourseRepository {
             .orderBy(CourseTable.createdAt to SortOrder.DESC, CourseTable.id to SortOrder.DESC)
             .limit(size + 1)
             .map(::toSummaryRow)
-    }
-
-    /** 작성자의 발행·활성·미삭제 코스 개수를 visibility GROUP BY 한 번으로 집계한다. */
-    fun countPublishedByAuthorGroupedByVisibility(authorId: Long): Map<CourseVisibility, Int> {
-        val courseCount = CourseTable.id.count()
-        return CourseTable
-            .select(CourseTable.visibility, courseCount)
-            .where {
-                (CourseTable.userId eq authorId) and
-                    (CourseTable.isPublished eq true) and
-                    (CourseTable.status eq CourseStatus.ACTIVE) and
-                    CourseTable.deletedAt.isNull()
-            }.groupBy(CourseTable.visibility)
-            .associate { row -> row[CourseTable.visibility] to row[courseCount].toInt() }
     }
 
     /**

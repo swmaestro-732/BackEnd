@@ -7,7 +7,6 @@ import com.example.backend.course.application.port.inbound.CourseQueryUseCase
 import com.example.backend.course.application.port.inbound.dto.AuthorCourseCursor
 import com.example.backend.course.application.port.inbound.dto.CourseSummary
 import com.example.backend.course.application.port.inbound.dto.CourseSummaryPage
-import com.example.backend.course.application.port.inbound.dto.CourseVisibilityCounts
 import com.example.backend.user.application.port.inbound.dto.SavedCoursesCommand
 import com.example.backend.user.application.port.outbound.CourseFolderCountRow
 import com.example.backend.user.application.port.outbound.SavedCoursePersistencePort
@@ -34,9 +33,6 @@ class SavedCourseServiceTest {
                 cursor: AuthorCourseCursor?,
                 size: Int,
             ): CourseSummaryPage = CourseSummaryPage(emptyList(), hasNext = false)
-
-            override fun countByAuthorGroupedByVisibility(authorId: Long): CourseVisibilityCounts =
-                CourseVisibilityCounts(publicCount = 0, followerCount = 0, privateCount = 0)
 
             override fun listPublic(limit: Int): List<CourseSummary> = emptyList()
         }

@@ -39,9 +39,6 @@ class CoursePersistenceAdapter(
         size: Int,
     ): List<CourseSummaryRow> = courseRepository.findPublishedByAuthor(authorId, visibilities, cursor, size)
 
-    override fun countPublishedByAuthorGroupedByVisibility(authorId: Long): Map<CourseVisibility, Int> =
-        courseRepository.countPublishedByAuthorGroupedByVisibility(authorId)
-
     override fun findPublishedPublic(limit: Int): List<CourseSummaryRow> = courseRepository.findPublishedPublic(limit)
 
     override fun existsById(courseId: Long): Boolean = courseRepository.existsById(courseId)

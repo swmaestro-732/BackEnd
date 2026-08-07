@@ -80,9 +80,6 @@ interface CoursePersistencePort {
         size: Int,
     ): List<CourseSummaryRow>
 
-    /** 작성자의 발행·활성·미삭제 코스 개수를 공개범위별로 집계한다. 없는 공개범위는 결과 맵에서 빠질 수 있다. */
-    fun countPublishedByAuthorGroupedByVisibility(authorId: Long): Map<CourseVisibility, Int>
-
     /**
      * 전체 공개(visibility=PUBLIC)·발행·활성·미삭제 코스 요약을 createdAt 내림차순으로 [limit] 개까지 읽는다.
      * 모두 PUBLIC 이라 서비스의 공개범위 필터가 필요 없다(피드 후보용).

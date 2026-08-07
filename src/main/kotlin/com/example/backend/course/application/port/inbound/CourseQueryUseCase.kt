@@ -3,7 +3,6 @@ package com.example.backend.course.application.port.inbound
 import com.example.backend.course.application.port.inbound.dto.AuthorCourseCursor
 import com.example.backend.course.application.port.inbound.dto.CourseSummary
 import com.example.backend.course.application.port.inbound.dto.CourseSummaryPage
-import com.example.backend.course.application.port.inbound.dto.CourseVisibilityCounts
 
 /**
  * 인바운드 포트 — 코스 조회(크로스 도메인·목록). 상세·쓰기는 [CourseUseCase] 가 담당한다.
@@ -27,9 +26,6 @@ interface CourseQueryUseCase {
         cursor: AuthorCourseCursor?,
         size: Int,
     ): CourseSummaryPage
-
-    /** 작성자의 발행·활성·미삭제 코스 개수를 공개범위별로 집계한다. */
-    fun countByAuthorGroupedByVisibility(authorId: Long): CourseVisibilityCounts
 
     /**
      * 전체 공개(PUBLIC)·발행·활성 코스를 최신순으로 [limit] 개까지 내려준다.

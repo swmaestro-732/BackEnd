@@ -10,7 +10,6 @@ import com.example.backend.course.application.port.inbound.dto.CoursePlaceImageR
 import com.example.backend.course.application.port.inbound.dto.CoursePlaceResult
 import com.example.backend.course.application.port.inbound.dto.CourseSummary
 import com.example.backend.course.application.port.inbound.dto.CourseSummaryPage
-import com.example.backend.course.application.port.inbound.dto.CourseVisibilityCounts
 import com.example.backend.course.application.port.inbound.dto.CreateCourseCommand
 import com.example.backend.course.application.port.inbound.dto.EditCourseCommand
 import com.example.backend.course.application.port.outbound.CourseDetailRow
@@ -26,6 +25,7 @@ import com.example.backend.course.domain.model.CourseVisibility
 import com.example.backend.place.application.port.inbound.PlaceQueryUseCase
 import com.example.backend.place.application.port.inbound.dto.PlaceSummary
 import com.example.backend.user.application.port.inbound.CourseInteractionUseCase
+import com.example.backend.user.application.port.inbound.UserCourseCountUseCase
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
 
@@ -44,6 +44,7 @@ class CourseService(
     private val coursePersistencePort: CoursePersistencePort,
     private val placeQueryUseCase: PlaceQueryUseCase,
     private val courseInteractionUseCase: CourseInteractionUseCase,
+    private val userCourseCountUseCase: UserCourseCountUseCase,
 ) : CourseUseCase,
     CourseQueryUseCase {
     override fun getDetail(
@@ -126,15 +127,6 @@ class CourseService(
         return CourseSummaryPage(
             items = rows.take(size).map(::toCourseSummary),
             hasNext = rows.size > size,
-        )
-    }
-
-    override fun countByAuthorGroupedByVisibility(authorId: Long): CourseVisibilityCounts {
-        val counts = coursePersistencePort.countPublishedByAuthorGroupedByVisibility(authorId)
-        return CourseVisibilityCounts(
-            publicCount = counts[CourseVisibility.PUBLIC] ?: 0,
-            followerCount = counts[CourseVisibility.FOLLOWER] ?: 0,
-            privateCount = counts[CourseVisibility.PRIVATE] ?: 0,
         )
     }
 
@@ -242,7 +234,14 @@ class CourseService(
                     },
                 placeCategoryByPlaceId = placeCategories,
             )
-        return coursePersistencePort.save(course)
+        val saved = coursePersistencePort.save(course)
+        // 발행 코스만 개수에 잡힌다(임시저장은 제외). 발행이면 해당 공개범위 버킷 +1.
+        adjustAuthorCourseCount(
+            userId = command.userId,
+            removed = null,
+            added = if (command.isPublished) command.visibility else null,
+        )
+        return saved
     }
 
     @Transactional
@@ -294,7 +293,15 @@ class CourseService(
                 places = places,
                 category = resolveEditedCategory(command, existing, places, foundPlaces),
             )
-        return coursePersistencePort.update(course)
+        val updated = coursePersistencePort.update(course)
+        // 편집은 ACTIVE 코스만 통과한다(위 가드). 발행 상태·공개범위 전이만큼 작성자 카운터를 조정한다
+        // (초안→발행 +1, 발행→초안 −1, 공개범위 변경 시 old −1·new +1, 변화 없으면 0).
+        adjustAuthorCourseCount(
+            userId = command.userId,
+            removed = if (existing.isPublished) existing.visibility else null,
+            added = if (command.isPublished) command.visibility else null,
+        )
+        return updated
     }
 
     /**
@@ -381,5 +388,30 @@ class CourseService(
         }
 
         coursePersistencePort.softDelete(courseId)
+        // 발행 코스였다면 삭제로 해당 공개범위 버킷 −1(임시저장은 애초에 안 잡혀 있었다).
+        adjustAuthorCourseCount(
+            userId = userId,
+            removed = if (existing.isPublished) existing.visibility else null,
+            added = null,
+        )
+    }
+
+    /**
+     * 코스 상태 변화에 따른 작성자의 공개범위별 코스 개수 델타를 반영한다.
+     * [removed]/[added] 는 "카운트되는 상태(발행·활성·미삭제)"의 공개범위이고, 그 상태가 아니면 null.
+     * 크로스 도메인 경계라 공개범위 enum 대신 버킷별 원시 int 델타로 넘긴다.
+     */
+    private fun adjustAuthorCourseCount(
+        userId: Long,
+        removed: CourseVisibility?,
+        added: CourseVisibility?,
+    ) {
+        fun delta(v: CourseVisibility) = (if (added == v) 1 else 0) - (if (removed == v) 1 else 0)
+        userCourseCountUseCase.applyCourseCountDelta(
+            userId = userId,
+            publicDelta = delta(CourseVisibility.PUBLIC),
+            followerDelta = delta(CourseVisibility.FOLLOWER),
+            privateDelta = delta(CourseVisibility.PRIVATE),
+        )
     }
 }
