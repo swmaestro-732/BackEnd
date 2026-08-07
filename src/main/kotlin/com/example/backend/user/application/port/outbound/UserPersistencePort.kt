@@ -9,6 +9,7 @@ data class UserProfileRow(
     val nickname: String,
     val handle: String?,
     val profileImageUrl: String?,
+    val bio: String?,
     val followersCnt: Int,
     val followingsCnt: Int,
     val coursesCnt: Int,

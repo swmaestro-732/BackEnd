@@ -29,6 +29,7 @@ class MyPageProfileAdapter(
             nickname = nickname,
             handle = handle,
             profileImageUrl = profileImageUrl,
+            bio = bio,
             isFollowing = isFollowing,
             isFollower = isFollower,
             followersCnt = followersCnt,

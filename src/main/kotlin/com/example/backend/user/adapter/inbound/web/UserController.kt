@@ -63,12 +63,19 @@ class UserController(
                     nickname = request.nickname ?: base.nickname,
                     handle = request.handle ?: base.handle,
                     profileImageUrl = request.profileImageUrl ?: base.profileImageUrl,
+                    bio = request.bio ?: base.bio,
                 ),
             )
         }
         return ApiResponse.success(
             AccountProfileResponse.from(
-                accountUseCase.updateProfile(userId, request.nickname, request.handle, request.profileImageUrl),
+                accountUseCase.updateProfile(
+                    userId = userId,
+                    nickname = request.nickname,
+                    handle = request.handle,
+                    profileImageUrl = request.profileImageUrl,
+                    bio = request.bio,
+                ),
             ),
         )
     }

@@ -1,12 +1,12 @@
 -- 마이페이지 코스 공개범위별 카운트와 created_at/id 키셋 페이지 통합 테스트 픽스처.
 TRUNCATE TABLE users, courses RESTART IDENTITY CASCADE;
 
-INSERT INTO users (nickname, handle, profile_image_url)
+INSERT INTO users (nickname, handle, bio, profile_image_url)
 VALUES
-    ('작성자', 'owner_handle', 'https://img/owner.jpg'),
-    ('비팔로워 조회자', 'outsider_handle', 'https://img/outsider.jpg'),
-    ('작성자의 팔로잉', 'reverse_follower_handle', 'https://img/reverse-follower.jpg'),
-    ('진짜 팔로워', 'follower_handle', 'https://img/follower.jpg');
+    ('작성자', 'owner_handle', '걷고 기록하는 작성자입니다.', 'https://img/owner.jpg'),
+    ('비팔로워 조회자', 'outsider_handle', NULL, 'https://img/outsider.jpg'),
+    ('작성자의 팔로잉', 'reverse_follower_handle', NULL, 'https://img/reverse-follower.jpg'),
+    ('진짜 팔로워', 'follower_handle', NULL, 'https://img/follower.jpg');
 
 -- 팔로워 공개 카운트 노출/마스킹 검증용 관계:
 --   (4→1) 조회자4가 작성자1을 팔로우 → 작성자 페이지에서 isFollowing=true → 팔로워 공개 카운트 노출

@@ -57,6 +57,7 @@ class UserRepository(
                     nickname = it.nickname,
                     handle = it.handle,
                     profileImageUrl = it.profileImageUrl,
+                    bio = it.bio,
                     followersCnt = it.followersCnt,
                     followingsCnt = it.followingsCnt,
                     coursesCnt = it.coursesCnt,
@@ -74,6 +75,7 @@ class UserRepository(
                     nickname = it.nickname,
                     handle = it.handle,
                     profileImageUrl = it.profileImageUrl,
+                    bio = it.bio,
                     followersCnt = it.followersCnt,
                     followingsCnt = it.followingsCnt,
                     coursesCnt = it.coursesCnt,
@@ -99,12 +101,14 @@ class UserRepository(
                 .insert {
                     it[nickname] = user.nickname
                     it[profileImageUrl] = user.profileImageUrl
+                    it[bio] = user.bio
                 }[UserTable.id]
                 .value
         return User.reconstitute(
             id = id,
             nickname = user.nickname,
             profileImageUrl = user.profileImageUrl,
+            bio = user.bio,
         )
     }
 
@@ -116,6 +120,7 @@ class UserRepository(
                 it[nickname] = user.nickname
                 it[handle] = user.handle
                 it[profileImageUrl] = user.profileImageUrl
+                it[bio] = user.bio
             }
         check(updated == 1) { "갱신할 활성 사용자를 찾지 못했습니다: id=$id" }
     }
@@ -201,6 +206,7 @@ class UserRepository(
                     it[nickname] = user.nickname
                     it[handle] = user.handle
                     it[profileImageUrl] = user.profileImageUrl
+                    it[bio] = user.bio
                     it[socialProvider] = provider.name
                     it[UserTable.socialId] = socialId
                 }[UserTable.id]
@@ -210,6 +216,7 @@ class UserRepository(
             nickname = user.nickname,
             handle = user.handle,
             profileImageUrl = user.profileImageUrl,
+            bio = user.bio,
             socialProvider = provider,
             socialId = socialId,
         )
@@ -227,6 +234,7 @@ class UserRepository(
                 it[nickname] = user.nickname
                 it[handle] = user.handle
                 it[profileImageUrl] = user.profileImageUrl
+                it[bio] = user.bio
             }
         check(updated == 1) { "재활성화할 탈퇴 계정을 찾지 못했습니다(동시 재활성화 가능): id=$id" }
         return User.reconstitute(
@@ -234,6 +242,7 @@ class UserRepository(
             nickname = user.nickname,
             handle = user.handle,
             profileImageUrl = user.profileImageUrl,
+            bio = user.bio,
             socialProvider = provider,
             socialId = socialId,
             status = UserStatus.ACTIVE,

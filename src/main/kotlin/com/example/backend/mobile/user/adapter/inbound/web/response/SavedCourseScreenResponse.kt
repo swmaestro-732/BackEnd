@@ -405,6 +405,7 @@ data class SavedCourseScreenResponse(
                                 handle = item.author.handle,
                                 nickname = item.author.nickname,
                                 profileImageUrl = item.author.profileImageUrl,
+                                bio = item.author.bio,
                             ),
                         places = resolvedPlaces,
                     ),
@@ -465,6 +466,7 @@ data class CourseAuthorSummaryResponse(
     val handle: String?,
     val nickname: String,
     val profileImageUrl: String?,
+    val bio: String? = null,
 )
 
 /** 코스에 담긴 장소 한 곳 — 지도 핀(location) + 장소 상세(이름·카테고리·주소)·코스 사진·캡션. */

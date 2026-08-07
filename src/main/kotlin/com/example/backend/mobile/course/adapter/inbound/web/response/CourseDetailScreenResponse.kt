@@ -234,6 +234,7 @@ data class AuthorResponse(
     val profileImageUrl: String,
     val isFollowing: Boolean,
     val isFollower: Boolean,
+    val bio: String? = null,
 ) {
     companion object {
         fun from(profile: UserProfileResult): AuthorResponse =
@@ -244,6 +245,7 @@ data class AuthorResponse(
                 profileImageUrl = profile.profileImageUrl ?: "",
                 isFollowing = profile.isFollowing,
                 isFollower = profile.isFollower,
+                bio = profile.bio,
             )
     }
 }

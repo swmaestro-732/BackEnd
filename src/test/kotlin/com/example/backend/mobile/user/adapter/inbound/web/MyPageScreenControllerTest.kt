@@ -14,7 +14,7 @@ import org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get
 import org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath
 import org.springframework.test.web.servlet.result.MockMvcResultMatchers.status
 
-/** 마이페이지 공개범위별 코스 카운트와 10개 고정 커서 페이지의 통합 테스트. */
+/** 마이페이지 조회자 가시 코스 카운트와 10개 고정 커서 페이지의 통합 테스트. */
 @AutoConfigureMockMvc
 @Sql(scripts = ["/sql/my-page-screen-fixture.sql"], executionPhase = Sql.ExecutionPhase.BEFORE_TEST_METHOD)
 class MyPageScreenControllerTest
@@ -24,15 +24,13 @@ class MyPageScreenControllerTest
         private val jwtTokenProvider: JwtTokenProvider,
     ) : IntegrationTestBase() {
         @Test
-        fun `본인 페이지는 공개범위별 발행 코스 개수를 모두 내려준다`() {
+        fun `본인 페이지는 조회 가능한 발행 코스 합계와 bio를 내려준다`() {
             mockMvc
                 .perform(get(MY_PAGE_PATH).header(HttpHeaders.AUTHORIZATION, bearer(OWNER_ID)))
                 .andExpect(status().isOk)
                 .andExpect(jsonPath("$.code").value(2000))
-                .andExpect(jsonPath("$.data.profile.publicCoursesCnt").value(10))
-                .andExpect(jsonPath("$.data.profile.followerCoursesCnt").value(1))
-                .andExpect(jsonPath("$.data.profile.privateCoursesCnt").value(1))
-                .andExpect(jsonPath("$.data.profile.coursesCnt").doesNotExist())
+                .andExpect(jsonPath("$.data.profile.coursesCnt").value(12))
+                .andExpect(jsonPath("$.data.profile.bio").value("걷고 기록하는 작성자입니다."))
         }
 
         @Test
@@ -89,21 +87,19 @@ class MyPageScreenControllerTest
         }
 
         @Test
-        fun `비팔로워가 타인 페이지를 보면 팔로워와 비공개 코스 개수를 마스킹한다`() {
+        fun `비팔로워가 타인 페이지를 보면 공개 코스 합계만 내려준다`() {
             mockMvc
                 .perform(
                     get("$MY_PAGE_PATH/owner_handle")
                         .header(HttpHeaders.AUTHORIZATION, bearer(OUTSIDER_ID)),
                 ).andExpect(status().isOk)
-                .andExpect(jsonPath("$.data.profile.publicCoursesCnt").value(10))
-                .andExpect(jsonPath("$.data.profile.followerCoursesCnt").value(0))
-                .andExpect(jsonPath("$.data.profile.privateCoursesCnt").value(0))
+                .andExpect(jsonPath("$.data.profile.coursesCnt").value(10))
                 .andExpect(jsonPath("$.data.courses.length()").value(10))
                 .andExpect(jsonPath("$.data.hasNext").value(false))
         }
 
         @Test
-        fun `조회자가 대상을 팔로우하면 타인 페이지에 팔로워 공개 코스 개수를 노출한다`() {
+        fun `조회자가 대상을 팔로우하면 공개와 팔로워 공개 코스 합계를 내려준다`() {
             // 조회자4 → 작성자1 팔로우(isFollowing=true)일 때만 팔로워 공개 카운트가 보인다.
             mockMvc
                 .perform(
@@ -111,13 +107,11 @@ class MyPageScreenControllerTest
                         .header(HttpHeaders.AUTHORIZATION, bearer(FOLLOWER_ID)),
                 ).andExpect(status().isOk)
                 .andExpect(jsonPath("$.data.profile.isFollowing").value(true))
-                .andExpect(jsonPath("$.data.profile.publicCoursesCnt").value(10))
-                .andExpect(jsonPath("$.data.profile.followerCoursesCnt").value(1))
-                .andExpect(jsonPath("$.data.profile.privateCoursesCnt").value(0))
+                .andExpect(jsonPath("$.data.profile.coursesCnt").value(11))
         }
 
         @Test
-        fun `대상만 조회자를 팔로우하는 역방향 관계에서는 팔로워 공개 코스 개수를 마스킹한다`() {
+        fun `대상만 조회자를 팔로우하는 역방향 관계에서는 공개 코스 합계만 내려준다`() {
             // 작성자1 → 조회자3(isFollower=true, isFollowing=false)은 노출 조건이 아니다 → 0으로 마스킹.
             mockMvc
                 .perform(
@@ -126,8 +120,7 @@ class MyPageScreenControllerTest
                 ).andExpect(status().isOk)
                 .andExpect(jsonPath("$.data.profile.isFollower").value(true))
                 .andExpect(jsonPath("$.data.profile.isFollowing").value(false))
-                .andExpect(jsonPath("$.data.profile.followerCoursesCnt").value(0))
-                .andExpect(jsonPath("$.data.profile.privateCoursesCnt").value(0))
+                .andExpect(jsonPath("$.data.profile.coursesCnt").value(10))
         }
 
         @Test
@@ -142,13 +135,12 @@ class MyPageScreenControllerTest
         }
 
         @Test
-        fun `mock 응답도 세 카운트와 종료된 페이지 메타를 내려준다`() {
+        fun `mock 응답도 코스 합계와 bio 및 종료된 페이지 메타를 내려준다`() {
             mockMvc
                 .perform(get("$MY_PAGE_PATH?mock=true").header(HttpHeaders.AUTHORIZATION, bearer(OWNER_ID)))
                 .andExpect(status().isOk)
-                .andExpect(jsonPath("$.data.profile.publicCoursesCnt").value(12))
-                .andExpect(jsonPath("$.data.profile.followerCoursesCnt").value(3))
-                .andExpect(jsonPath("$.data.profile.privateCoursesCnt").value(2))
+                .andExpect(jsonPath("$.data.profile.coursesCnt").value(17))
+                .andExpect(jsonPath("$.data.profile.bio").value("안녕하세요, 커미입니다."))
                 .andExpect(jsonPath("$.data.nextCursor").isEmpty)
                 .andExpect(jsonPath("$.data.hasNext").value(false))
         }

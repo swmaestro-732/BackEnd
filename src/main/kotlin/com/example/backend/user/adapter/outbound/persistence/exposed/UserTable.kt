@@ -18,6 +18,7 @@ import org.jetbrains.exposed.v1.datetime.timestamp
 internal object UserTable : LongIdTable("users") {
     val nickname = varchar("nickname", 20)
     val handle = varchar("handle", 30).nullable()
+    val bio = text("bio").nullable()
     val profileImageUrl = text("profile_image_url").nullable()
     val followersCnt = integer("followers_cnt")
     val followingsCnt = integer("followings_cnt")
@@ -39,6 +40,7 @@ internal class UserEntity(
 
     var nickname by UserTable.nickname
     var handle by UserTable.handle
+    var bio by UserTable.bio
     var profileImageUrl by UserTable.profileImageUrl
     var followersCnt by UserTable.followersCnt
     var followingsCnt by UserTable.followingsCnt
@@ -54,6 +56,7 @@ internal class UserEntity(
             id = id.value,
             nickname = nickname,
             handle = handle,
+            bio = bio,
             profileImageUrl = profileImageUrl,
             socialProvider = socialProvider?.let(SocialProvider::valueOf),
             socialId = socialId,
