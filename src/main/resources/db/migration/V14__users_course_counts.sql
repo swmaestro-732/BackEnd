@@ -2,6 +2,8 @@
 -- users 에 공개범위별 저장 카운터로 옮긴다(followers_cnt/saves_cnt 와 동일한 캐시 컬럼 패턴).
 -- 조회자별 마스킹(본인=전체, 팔로워=공개+팔로워, 그외=공개)을 위해 버킷을 나눠 저장하고,
 -- 코스 발행/공개범위변경/삭제 시 CourseService 가 ±1 로 유지한다.
+-- 아무도 증감하지 않던 단일 총합 컬럼 courses_cnt 는 이 세 버킷으로 대체되므로 함께 제거한다
+-- (응답 coursesCnt 는 조회자 상황에 맞게 세 버킷을 합산해 계산).
 ALTER TABLE users
     ADD COLUMN public_courses_cnt   INT NOT NULL DEFAULT 0,
     ADD COLUMN follower_courses_cnt INT NOT NULL DEFAULT 0,
@@ -24,3 +26,5 @@ FROM (
     GROUP BY c.user_id
 ) counts
 WHERE u.id = counts.user_id;
+
+ALTER TABLE users DROP COLUMN courses_cnt;
