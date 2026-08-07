@@ -1,26 +1,42 @@
 package com.example.backend.media.adapter.inbound.web.request
 
 import com.example.backend.media.application.port.inbound.dto.PresignCommand
+import com.example.backend.media.application.port.inbound.dto.PresignItem
 import com.example.backend.media.application.port.inbound.dto.UploadPurpose
+import jakarta.validation.Valid
 import jakarta.validation.constraints.NotBlank
+import jakarta.validation.constraints.NotEmpty
 import jakarta.validation.constraints.NotNull
 import jakarta.validation.constraints.Positive
+import jakarta.validation.constraints.Size
 
-/** 프리사인 업로드 URL 요청 DTO. */
+/** 여러 이미지의 프리사인 업로드 URL 요청 DTO. */
 data class PresignRequest(
     @field:NotNull
     val purpose: UploadPurpose?,
-    @field:NotBlank
-    val contentType: String?,
-    @field:NotNull
-    @field:Positive
-    val contentLength: Long?,
+    @field:NotEmpty
+    @field:Size(max = 10)
+    @field:Valid
+    val images: List<@NotNull Item?>,
 ) {
     fun toCommand(userId: Long): PresignCommand =
         PresignCommand(
             userId = userId,
             purpose = purpose!!,
-            contentType = contentType!!,
-            contentLength = contentLength!!,
+            images = images.map { it!!.toCommandItem() },
         )
+
+    data class Item(
+        @field:NotBlank
+        val contentType: String?,
+        @field:NotNull
+        @field:Positive
+        val contentLength: Long?,
+    ) {
+        fun toCommandItem(): PresignItem =
+            PresignItem(
+                contentType = contentType!!,
+                contentLength = contentLength!!,
+            )
+    }
 }

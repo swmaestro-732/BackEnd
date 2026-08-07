@@ -17,8 +17,8 @@ import org.springframework.web.bind.annotation.RestController
 class UploadController(
     private val presignUploadUseCase: PresignUploadUseCase,
 ) {
-    /** 클라이언트는 발급받은 uploadUrl 로 동일 Content-Type 헤더를 실어 PUT 한 뒤, imageUrl 을 프로필 수정 등에 사용한다. */
-    @PostMapping("/presign")
+    /** 클라이언트는 각 uploadUrl 로 동일 Content-Type 헤더를 실어 PUT 한 뒤, imageUrl 을 프로필 수정 등에 사용한다. */
+    @PostMapping("/presigned-urls")
     fun presign(
         @CurrentUserId userId: Long,
         @Valid @RequestBody request: PresignRequest,
