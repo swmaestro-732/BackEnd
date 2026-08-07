@@ -364,7 +364,12 @@ class MyControllerTest
         }
 
         @Test
-        fun `존재하지 않는 태그 id 로 수정하면 4001을 내려주고 저장하지 않는다`() {
+        fun `존재하지 않는 태그 id 로 수정하면 4001을 내려주고 기존 태그를 유지한다`() {
+            // 먼저 유효한 태그를 저장한다 — 실패 시 삭제-후-검증(잘못된 순서)이면 이 태그가 지워진다.
+            patchLikeTags(listOf(1, 2, 3))
+            assertEquals(setOf(1L, 2L, 3L), likeTagIdsOf(ME_ID))
+
+            // 존재하지 않는 태그(999)가 섞이면 update·치환 전에 4001 로 거부한다.
             mockMvc
                 .perform(
                     patch("/api/v1/users")
@@ -374,7 +379,8 @@ class MyControllerTest
                 ).andExpect(status().isBadRequest)
                 .andExpect(jsonPath("$.code").value(4001))
 
-            assertEquals(emptySet<Long>(), likeTagIdsOf(ME_ID))
+            // 검증이 치환보다 먼저라 기존 태그는 그대로 유지된다.
+            assertEquals(setOf(1L, 2L, 3L), likeTagIdsOf(ME_ID))
         }
 
         private fun patchLikeTags(tagIds: List<Long>) = patchBody("""{"likeTagIds":$tagIds}""")
