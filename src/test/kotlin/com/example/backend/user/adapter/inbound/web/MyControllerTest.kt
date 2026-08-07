@@ -2,11 +2,13 @@ package com.example.backend.user.adapter.inbound.web
 
 import com.example.backend.bootstrap.security.JwtTokenProvider
 import com.example.backend.support.IntegrationTestBase
+import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Test
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc
 import org.springframework.http.HttpHeaders
 import org.springframework.http.MediaType
+import org.springframework.jdbc.core.JdbcTemplate
 import org.springframework.test.context.jdbc.Sql
 import org.springframework.test.web.servlet.MockMvc
 import org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete
@@ -31,6 +33,7 @@ class MyControllerTest
     constructor(
         private val mockMvc: MockMvc,
         private val jwtTokenProvider: JwtTokenProvider,
+        private val jdbcTemplate: JdbcTemplate,
     ) : IntegrationTestBase() {
         // 내 프로필 단독 조회는 마이페이지(GET /service/v1/mypage)로 대체돼 제거됨 — 관련 테스트 삭제.
 
@@ -339,6 +342,36 @@ class MyControllerTest
         }
 
         private fun tokenFor(userId: Long) = jwtTokenProvider.issueAccessToken(userId)
+
+        @Test
+        fun `관심 태그(likeTagIds)를 수정하면 user_like_tags 가 전체 치환된다`() {
+            patchLikeTags(listOf(1, 2, 3))
+            assertEquals(setOf(1L, 2L, 3L), likeTagIdsOf(ME_ID))
+
+            // 전체 치환 — 기존 제거·새 집합으로 교체.
+            patchLikeTags(listOf(4))
+            assertEquals(setOf(4L), likeTagIdsOf(ME_ID))
+
+            // 빈 배열 = 전체 해제.
+            patchLikeTags(emptyList())
+            assertEquals(emptySet<Long>(), likeTagIdsOf(ME_ID))
+        }
+
+        private fun patchLikeTags(tagIds: List<Long>) {
+            mockMvc
+                .perform(
+                    patch("/api/v1/users")
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer ${tokenFor(ME_ID)}")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""{"likeTagIds":$tagIds}"""),
+                ).andExpect(status().isOk)
+        }
+
+        private fun likeTagIdsOf(userId: Long): Set<Long> =
+            jdbcTemplate
+                .queryForList("SELECT tag_id FROM user_like_tags WHERE user_id = ?", Long::class.java, userId)
+                .filterNotNull()
+                .toSet()
 
         private companion object {
             const val ME_ID = 1L
