@@ -17,4 +17,12 @@ data class ProfileSnapshot(
     val followersCnt: Int,
     val followingsCnt: Int,
     val coursesCnt: Int,
+    /** 관심 지역 — 내 마이페이지에서만 값이 있고, 타인 조회는 빈 리스트다(개인 설정 비노출). */
+    val areas: List<AreaSnapshot>,
+)
+
+/** 관심 지역 한 건 — code 는 10자리 법정동코드, name 은 표시 이름(동/시군구). */
+data class AreaSnapshot(
+    val code: String,
+    val name: String,
 )

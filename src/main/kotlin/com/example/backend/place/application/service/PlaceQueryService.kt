@@ -46,5 +46,6 @@ class PlaceQueryService(
             latitude = location.latitude,
             longitude = location.longitude,
             address = address,
+            areaCode = areaCode,
         )
 }

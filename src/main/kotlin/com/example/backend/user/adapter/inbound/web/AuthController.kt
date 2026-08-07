@@ -46,7 +46,7 @@ class AuthController(
         return ApiResponse.success(SocialLoginResponse.from(result))
     }
 
-    /** 회원가입/프로필 설정. handle·areaCodes·likeTagIds 는 아직 저장하지 않는다. */
+    /** 회원가입/프로필 설정. areaCodes 는 user_areas 에 법정동코드로 저장한다. likeTagIds 는 아직 저장하지 않는다. */
     @PostMapping("/signup")
     fun signup(
         @Valid @RequestBody request: SignupRequest,
@@ -69,6 +69,7 @@ class AuthController(
                     nickname = request.nickname,
                     handle = request.handle,
                     profileImageUrl = request.profileImageUrl,
+                    areaCodes = request.areaCodes.orEmpty(),
                 ),
             )
         return ApiResponse.success(SignupResponse.from(result))
