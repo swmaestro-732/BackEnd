@@ -57,13 +57,13 @@ class UserController(
         @Valid @RequestBody request: UpdateProfileRequest,
         @RequestParam(required = false) mock: Boolean = false,
     ): ApiResponse<AccountProfileResponse> {
-        if (mock) {
-            val base = AccountProfileResponse.mock()
+        if (mock && mockGuard.isMockAllowed()) {
             return ApiResponse.success(
-                base.copy(
-                    nickname = request.nickname ?: base.nickname,
-                    handle = request.handle ?: base.handle,
-                    profileImageUrl = request.profileImageUrl ?: base.profileImageUrl,
+                AccountProfileResponse.mock(
+                    nickname = request.nickname,
+                    handle = request.handle,
+                    profileImageUrl = request.profileImageUrl,
+                    bio = request.bio,
                 ),
             )
         }
@@ -75,7 +75,9 @@ class UserController(
                         nickname = request.nickname,
                         handle = request.handle,
                         profileImageUrl = request.profileImageUrl,
+                        bio = request.bio,
                         areaCodes = request.areaCodes,
+                        likeTagIds = request.likeTagIds,
                     ),
                 ),
             ),

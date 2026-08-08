@@ -48,4 +48,7 @@ enum class ErrorCode(
 
     // ── 지역(area) ──
     AREA_NOT_FOUND(404, 4044, "지역을 찾을 수 없습니다."),
+
+    // ── 경로(direction) ──
+    DIRECTION_UNAVAILABLE(503, 5030, "도보 경로 서비스를 일시적으로 이용할 수 없습니다."),
 }

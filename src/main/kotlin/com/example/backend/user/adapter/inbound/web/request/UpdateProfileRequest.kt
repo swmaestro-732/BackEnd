@@ -14,5 +14,8 @@ data class UpdateProfileRequest(
     @field:Size(min = 1)
     val handle: String? = null,
     val profileImageUrl: String? = null,
+    val bio: String? = null,
     val areaCodes: List<String>? = null,
+    /** 관심 카테고리(코스 태그 id 목록). null=변경 안 함, 빈 배열=전체 해제, 값 있으면 전체 치환. */
+    val likeTagIds: List<Long>? = null,
 )

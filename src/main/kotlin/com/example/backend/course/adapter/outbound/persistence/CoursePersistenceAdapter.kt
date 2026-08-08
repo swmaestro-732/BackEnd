@@ -4,12 +4,14 @@ import com.example.backend.course.adapter.outbound.persistence.exposed.repositor
 import com.example.backend.course.adapter.outbound.persistence.exposed.repository.CourseRepository
 import com.example.backend.course.adapter.outbound.persistence.exposed.repository.CourseTagRepository
 import com.example.backend.course.adapter.outbound.persistence.exposed.repository.TagRepository
+import com.example.backend.course.application.port.inbound.dto.AuthorCourseCursor
 import com.example.backend.course.application.port.inbound.dto.FeedCursor
 import com.example.backend.course.application.port.outbound.CourseDetailRow
 import com.example.backend.course.application.port.outbound.CoursePersistencePort
 import com.example.backend.course.application.port.outbound.CoursePlaceRow
 import com.example.backend.course.application.port.outbound.CourseSummaryRow
 import com.example.backend.course.domain.model.Course
+import com.example.backend.course.domain.model.CourseVisibility
 import org.springframework.stereotype.Component
 
 /**
@@ -31,8 +33,12 @@ class CoursePersistenceAdapter(
     override fun findCourseDetails(courseIds: List<Long>): List<CourseDetailRow> =
         courseRepository.findDetails(courseIds)
 
-    override fun findPublishedByAuthor(authorId: Long): List<CourseSummaryRow> =
-        courseRepository.findPublishedByAuthor(authorId)
+    override fun findPublishedByAuthor(
+        authorId: Long,
+        visibilities: Set<CourseVisibility>,
+        cursor: AuthorCourseCursor?,
+        size: Int,
+    ): List<CourseSummaryRow> = courseRepository.findPublishedByAuthor(authorId, visibilities, cursor, size)
 
     override fun findDraftsByAuthor(authorId: Long): List<CourseSummaryRow> =
         courseRepository.findDraftsByAuthor(authorId)

@@ -1,5 +1,6 @@
 package com.example.backend.course.application.port.outbound
 
+import com.example.backend.course.application.port.inbound.dto.AuthorCourseCursor
 import com.example.backend.course.application.port.inbound.dto.FeedCursor
 import com.example.backend.course.domain.model.Course
 import com.example.backend.course.domain.model.CourseCategory
@@ -71,10 +72,16 @@ interface CoursePersistencePort {
     fun findCourseDetails(courseIds: List<Long>): List<CourseDetailRow>
 
     /**
-     * 작성자의 발행 코스 요약 목록 — isPublished=true·status=ACTIVE·deleted_at IS NULL, createdAt 내림차순.
-     * 공개범위(visibility) 필터는 서비스가 조회자 기준으로 수행한다.
+     * 작성자의 발행 코스 요약 목록 — isPublished=true·status=ACTIVE·deleted_at IS NULL,
+     * createdAt DESC, id DESC. [visibilities]에 포함된 공개범위만 [cursor] 이후부터
+     * hasNext 판별용 초과 1건을 포함해 최대 [size] + 1건 반환한다.
      */
-    fun findPublishedByAuthor(authorId: Long): List<CourseSummaryRow>
+    fun findPublishedByAuthor(
+        authorId: Long,
+        visibilities: Set<CourseVisibility>,
+        cursor: AuthorCourseCursor?,
+        size: Int,
+    ): List<CourseSummaryRow>
 
     /**
      * 작성자의 임시저장 코스 요약 목록 — isPublished=false·status=ACTIVE·deleted_at IS NULL, updatedAt 내림차순.

@@ -16,6 +16,11 @@ class RecommendedTagServiceTest {
             ): List<String> = placeBasedTags.take(limit)
 
             override fun findPopularTagNames(limit: Int): List<String> = popularTags.take(limit)
+
+            override fun findExistingTagIds(tagIds: List<Long>): Set<Long> = emptySet()
+
+            // 추천 태그와 무관한 포트 메서드(코스 상세 해시태그) — 이 테스트에서는 쓰이지 않는다.
+            override fun findTagNamesByCourseId(courseId: Long): List<String> = emptyList()
         }
 
     private val service = RecommendedTagService(fakePort)

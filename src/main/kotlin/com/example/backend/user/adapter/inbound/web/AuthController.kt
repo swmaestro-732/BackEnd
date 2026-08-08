@@ -7,15 +7,12 @@ import com.example.backend.user.adapter.inbound.web.request.LogoutRequest
 import com.example.backend.user.adapter.inbound.web.request.SignupRequest
 import com.example.backend.user.adapter.inbound.web.request.SocialLoginRequest
 import com.example.backend.user.adapter.inbound.web.request.TokenReissueRequest
-import com.example.backend.user.adapter.inbound.web.response.AvailabilityResponse
 import com.example.backend.user.adapter.inbound.web.response.SignupResponse
 import com.example.backend.user.adapter.inbound.web.response.SocialLoginResponse
 import com.example.backend.user.adapter.inbound.web.response.TokenResponse
 import com.example.backend.user.application.port.inbound.AuthUseCase
 import com.example.backend.user.application.port.inbound.dto.SignupCommand
 import jakarta.validation.Valid
-import jakarta.validation.constraints.NotBlank
-import org.springframework.web.bind.annotation.GetMapping
 import org.springframework.web.bind.annotation.PostMapping
 import org.springframework.web.bind.annotation.RequestBody
 import org.springframework.web.bind.annotation.RequestMapping
@@ -100,24 +97,5 @@ class AuthController(
         val refreshToken = request?.refreshToken ?: throw BusinessException(ErrorCode.INVALID_INPUT)
         authUseCase.logout(refreshToken)
         return ApiResponse.ok()
-    }
-
-    /**
-     * 아이디(핸들) 사용 가능 여부. 예약어와 이미 사용 중인 값은 제외한다.
-     *
-     * Deprecated: 인증 플로우가 아니라 users 리소스 조회이므로 `GET /api/v1/users/availability?handle=` 로 대체한다.
-     * 신·구 병행 유지 중 — 클라이언트 전환 완료 후 이 엔드포인트와 [RESERVED_LOGIN_IDS]·[AuthUseCase.isLoginIdTaken] 를 제거한다.
-     */
-    @GetMapping("/login-id/availability")
-    fun checkLoginIdAvailability(
-        @RequestParam @NotBlank loginId: String,
-    ): ApiResponse<AvailabilityResponse> {
-        val available = loginId.lowercase() !in RESERVED_LOGIN_IDS && !authUseCase.isLoginIdTaken(loginId)
-        return ApiResponse.success(AvailabilityResponse(available = available))
-    }
-
-    private companion object {
-        /** 사용 불가로 내려줄 예약어. */
-        val RESERVED_LOGIN_IDS = setOf("admin", "courmy", "test")
     }
 }
