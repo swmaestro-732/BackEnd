@@ -29,6 +29,13 @@ class UserPersistenceAdapter(
 
     override fun update(user: User) = userRepository.update(user)
 
+    override fun applyCourseCountDelta(
+        userId: Long,
+        publicDelta: Int,
+        followerDelta: Int,
+        privateDelta: Int,
+    ) = userRepository.applyCourseCountDelta(userId, publicDelta, followerDelta, privateDelta)
+
     override fun softDelete(user: User) = userRepository.softDelete(user)
 
     override fun existsByNickname(nickname: String): Boolean = userRepository.existsByNickname(nickname)

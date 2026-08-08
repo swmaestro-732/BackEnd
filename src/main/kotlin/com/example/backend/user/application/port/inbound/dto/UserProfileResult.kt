@@ -10,13 +10,17 @@ data class UserProfileResult(
     val nickname: String,
     val handle: String?,
     val profileImageUrl: String?,
+    val bio: String?,
     /** 조회자가 이 사용자를 팔로우하는지(내가 → 대상). */
     val isFollowing: Boolean,
     /** 이 사용자가 조회자를 팔로우하는지(대상 → 나, 즉 내 팔로워). */
     val isFollower: Boolean,
     val followersCnt: Int,
     val followingsCnt: Int,
-    val coursesCnt: Int,
+    /** 공개범위별 발행 코스 개수(저장 캐시). 응답은 조회자 상황에 맞게 합산한 단일 coursesCnt 로 내려준다. */
+    val publicCoursesCnt: Int,
+    val followerCoursesCnt: Int,
+    val privateCoursesCnt: Int,
     /** 관심 지역 — 내 계정 조회(AccountUseCase.getProfile)에서만 채운다. 타인 프로필·작성자 카드는 노출하지 않는다(빈 리스트). */
     val areas: List<UserAreaResult> = emptyList(),
 )

@@ -31,11 +31,14 @@ class AccountService(
             nickname = row.nickname,
             handle = row.handle,
             profileImageUrl = row.profileImageUrl,
+            bio = row.bio,
             isFollowing = false,
             isFollower = false,
             followersCnt = row.followersCnt,
             followingsCnt = row.followingsCnt,
-            coursesCnt = row.coursesCnt,
+            publicCoursesCnt = row.publicCoursesCnt,
+            followerCoursesCnt = row.followerCoursesCnt,
+            privateCoursesCnt = row.privateCoursesCnt,
             areas = userAreaResolver.resolve(userAreaPersistencePort.findAreaCodes(userId)),
         )
     }
@@ -52,6 +55,7 @@ class AccountService(
         val nickname = command.nickname
         val handle = command.handle
         val profileImageUrl = command.profileImageUrl
+        val bio = command.bio
         if (nickname != null &&
             nickname != user.nickname &&
             userPersistencePort.existsByNickname(nickname)
@@ -66,7 +70,13 @@ class AccountService(
         }
 
         val oldImageUrl = user.profileImageUrl
-        val updated = user.updateProfile(nickname, handle, profileImageUrl)
+        val updated =
+            user.updateProfile(
+                nickname = nickname,
+                handle = handle,
+                profileImageUrl = profileImageUrl,
+                bio = bio,
+            )
         userPersistencePort.update(updated)
         // 프로필 이미지가 새 값으로 교체되면 참조 끊긴 옛 이미지(고아)를 정리한다(재사용 함수).
         if (profileImageUrl != null && profileImageUrl != oldImageUrl) {

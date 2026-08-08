@@ -13,6 +13,7 @@ data class User private constructor(
     val nickname: String,
     val handle: String?,
     val profileImageUrl: String?,
+    val bio: String?,
     val socialProvider: SocialProvider?,
     val socialId: String?,
     val status: UserStatus,
@@ -25,6 +26,7 @@ data class User private constructor(
         fun create(
             nickname: String,
             profileImageUrl: String? = null,
+            bio: String? = null,
         ): User {
             require(nickname.isNotBlank()) { "닉네임은 비어 있을 수 없습니다." }
             require(nickname.length <= MAX_NICKNAME_LENGTH) { "닉네임은 최대 ${MAX_NICKNAME_LENGTH}자입니다." }
@@ -33,6 +35,7 @@ data class User private constructor(
                 nickname = nickname,
                 handle = null,
                 profileImageUrl = profileImageUrl,
+                bio = bio,
                 socialProvider = null,
                 socialId = null,
                 status = UserStatus.ACTIVE,
@@ -46,6 +49,7 @@ data class User private constructor(
             socialProvider: SocialProvider,
             socialId: String,
             handle: String? = null,
+            bio: String? = null,
         ): User {
             require(nickname.isNotBlank()) { "닉네임은 비어 있을 수 없습니다." }
             require(nickname.length <= MAX_NICKNAME_LENGTH) { "닉네임은 최대 ${MAX_NICKNAME_LENGTH}자입니다." }
@@ -59,6 +63,7 @@ data class User private constructor(
                 nickname = nickname,
                 handle = handle,
                 profileImageUrl = profileImageUrl,
+                bio = bio,
                 socialProvider = socialProvider,
                 socialId = socialId,
                 status = UserStatus.ACTIVE,
@@ -74,6 +79,7 @@ data class User private constructor(
             socialId: String? = null,
             status: UserStatus = UserStatus.ACTIVE,
             handle: String? = null,
+            bio: String? = null,
         ): User {
             // 소셜 provider 와 socialId 는 한 쌍 — 함께 있거나 함께 없어야 한다(둘 중 하나만 있으면 size == 1).
             require(listOfNotNull(socialProvider, socialId).size != 1) {
@@ -84,6 +90,7 @@ data class User private constructor(
                 nickname = nickname,
                 handle = handle,
                 profileImageUrl = profileImageUrl,
+                bio = bio,
                 socialProvider = socialProvider,
                 socialId = socialId,
                 status = status,
@@ -96,6 +103,7 @@ data class User private constructor(
         nickname: String? = null,
         handle: String? = null,
         profileImageUrl: String? = null,
+        bio: String? = null,
     ): User {
         val newNickname = nickname ?: this.nickname
         val newHandle = handle ?: this.handle
@@ -109,6 +117,7 @@ data class User private constructor(
             nickname = newNickname,
             handle = newHandle,
             profileImageUrl = profileImageUrl ?: this.profileImageUrl,
+            bio = bio ?: this.bio,
         )
     }
 

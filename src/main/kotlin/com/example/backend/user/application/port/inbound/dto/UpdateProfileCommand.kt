@@ -8,5 +8,6 @@ data class UpdateProfileCommand(
     val nickname: String? = null,
     val handle: String? = null,
     val profileImageUrl: String? = null,
+    val bio: String? = null,
     val areaCodes: List<String>? = null,
 )

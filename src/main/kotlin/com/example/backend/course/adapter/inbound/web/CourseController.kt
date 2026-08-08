@@ -76,7 +76,7 @@ class CourseController(
         @RequestParam(required = false) mock: Boolean = false,
     ): ApiResponse<CourseDetailResponse> {
         if (mock && mockGuard.isMockAllowed()) return ApiResponse.success(CourseDetailResponse.MOCK)
-        return ApiResponse.success(CourseDetailResponse.from(courseUseCase.getDetail(courseId, viewerId)))
+        return ApiResponse.success(CourseDetailResponse.from(courseQueryUseCase.getDetail(courseId, viewerId)))
     }
 
     /**

@@ -66,11 +66,14 @@ class UserService(
             nickname = row.nickname,
             handle = row.handle,
             profileImageUrl = row.profileImageUrl,
+            bio = row.bio,
             isFollowing = isFollowing,
             isFollower = isFollower,
             followersCnt = row.followersCnt,
             followingsCnt = row.followingsCnt,
-            coursesCnt = row.coursesCnt,
+            publicCoursesCnt = row.publicCoursesCnt,
+            followerCoursesCnt = row.followerCoursesCnt,
+            privateCoursesCnt = row.privateCoursesCnt,
         )
 
     override fun getProfileByHandle(

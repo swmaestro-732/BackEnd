@@ -14,5 +14,6 @@ data class UpdateProfileRequest(
     @field:Size(min = 1)
     val handle: String? = null,
     val profileImageUrl: String? = null,
+    val bio: String? = null,
     val areaCodes: List<String>? = null,
 )

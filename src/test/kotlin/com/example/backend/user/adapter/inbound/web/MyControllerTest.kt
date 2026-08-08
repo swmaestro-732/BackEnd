@@ -21,7 +21,7 @@ import org.springframework.test.web.servlet.result.MockMvcResultMatchers.status
     statements =
         [
             "TRUNCATE TABLE follows, refresh_tokens, users RESTART IDENTITY CASCADE",
-            "INSERT INTO users (nickname, handle) VALUES ('나테스트', 'me_handle')",
+            "INSERT INTO users (nickname, handle, bio) VALUES ('나테스트', 'me_handle', '기존 자기소개')",
             "INSERT INTO users (nickname, handle) VALUES ('상대테스트', 'target_handle')",
         ],
     executionPhase = Sql.ExecutionPhase.BEFORE_TEST_METHOD,
@@ -50,7 +50,7 @@ class MyControllerTest
                         .header(HttpHeaders.AUTHORIZATION, "Bearer ${tokenFor(999)}")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(
-                            """{"nickname":"목닉네임","handle":"mock_handle","profileImageUrl":"https://example.com/mock.jpg"}""",
+                            """{"nickname":"목닉네임","handle":"mock_handle","profileImageUrl":"https://example.com/mock.jpg","bio":"목 자기소개"}""",
                         ),
                 ).andExpect(status().isOk)
                 .andExpect(jsonPath("$.code").value(2000))
@@ -58,6 +58,7 @@ class MyControllerTest
                 .andExpect(jsonPath("$.data.nickname").value("목닉네임"))
                 .andExpect(jsonPath("$.data.handle").value("mock_handle"))
                 .andExpect(jsonPath("$.data.profileImageUrl").value("https://example.com/mock.jpg"))
+                .andExpect(jsonPath("$.data.bio").value("목 자기소개"))
         }
 
         @Test
@@ -84,6 +85,20 @@ class MyControllerTest
                 ).andExpect(status().isOk)
                 .andExpect(jsonPath("$.code").value(2000))
                 .andExpect(jsonPath("$.data.nickname").value("새닉네임"))
+                .andExpect(jsonPath("$.data.bio").value("기존 자기소개"))
+        }
+
+        @Test
+        fun `내 bio를 수정한다`() {
+            mockMvc
+                .perform(
+                    patch("/api/v1/users")
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer ${tokenFor(ME_ID)}")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""{"bio":"새 자기소개"}"""),
+                ).andExpect(status().isOk)
+                .andExpect(jsonPath("$.code").value(2000))
+                .andExpect(jsonPath("$.data.bio").value("새 자기소개"))
         }
 
         @Test

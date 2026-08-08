@@ -18,6 +18,7 @@ class UserTest {
         assertEquals("hello", user.nickname)
         assertNull(user.handle)
         assertNull(user.profileImageUrl)
+        assertNull(user.bio)
         assertNull(user.socialProvider)
         assertNull(user.socialId)
         assertEquals(UserStatus.ACTIVE, user.status)
@@ -174,6 +175,18 @@ class UserTest {
     }
 
     @Test
+    fun `updateProfile 은 bio만 변경한다`() {
+        val user = existingUser()
+
+        val updated = user.updateProfile(bio = "새 자기소개")
+
+        assertEquals(user.nickname, updated.nickname)
+        assertEquals(user.handle, updated.handle)
+        assertEquals(user.profileImageUrl, updated.profileImageUrl)
+        assertEquals("새 자기소개", updated.bio)
+    }
+
+    @Test
     fun `updateProfile 은 모든 값이 null 이면 원본을 유지한다`() {
         val user = existingUser()
 
@@ -246,5 +259,6 @@ class UserTest {
             nickname = "기존닉네임",
             handle = "original_handle",
             profileImageUrl = "https://example.com/original.jpg",
+            bio = "기존 자기소개",
         )
 }
