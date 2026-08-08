@@ -12,6 +12,7 @@ import com.example.backend.course.application.port.inbound.dto.CourseSummaryPage
 import com.example.backend.course.application.port.inbound.dto.FeedCursor
 import com.example.backend.course.application.port.outbound.CoursePersistencePort
 import com.example.backend.course.application.port.outbound.CourseSummaryRow
+import com.example.backend.course.application.port.outbound.CourseTagQueryPort
 import com.example.backend.course.application.port.outbound.ViewerInteractionPort
 import com.example.backend.course.domain.model.CourseStatus
 import com.example.backend.course.domain.model.CourseVisibility
@@ -29,13 +30,17 @@ import org.springframework.transaction.annotation.Transactional
 @Transactional(readOnly = true)
 class CourseQueryService(
     private val coursePersistencePort: CoursePersistencePort,
+    private val courseTagQueryPort: CourseTagQueryPort,
     private val viewerInteractionPort: ViewerInteractionPort,
 ) : CourseQueryUseCase {
     override fun getDetail(
         courseId: Long,
         viewerId: Long?,
     ): CourseDetailResult =
-        getDetails(listOf(courseId), viewerId).firstOrNull()
+        getDetails(listOf(courseId), viewerId)
+            .firstOrNull()
+            // 해시태그는 코스 상세 화면에서만 쓰므로 단건 조회에서만 읽는다 — 배치([getDetails])는 쿼리를 늘리지 않는다.
+            ?.copy(tags = courseTagQueryPort.findTagNamesByCourseId(courseId))
             ?: throw BusinessException(ErrorCode.COURSE_NOT_FOUND, "코스를 찾을 수 없습니다: id=$courseId")
 
     override fun getDetails(
@@ -80,6 +85,8 @@ class CourseQueryService(
                 coverImageUrl = course.coverImageUrl.orEmpty(),
                 theme = course.category?.name,
                 area = course.area,
+                // 배치 조회는 태그를 읽지 않는다(코스 상세 화면 전용) — [getDetail] 이 단건으로 채운다.
+                tags = emptyList(),
                 description = course.description.orEmpty(),
                 visibility = course.visibility,
                 authorId = course.userId,

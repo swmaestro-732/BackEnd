@@ -23,7 +23,11 @@ interface CourseQueryUseCase {
         viewerId: Long?,
     ): CourseDetailResult
 
-    /** 코스 상세 배치(목록 화면 조합용) — 볼 수 없는 코스는 제외하고 입력 순서를 유지한다. */
+    /**
+     * 코스 상세 배치(목록 화면 조합용) — 볼 수 없는 코스는 제외하고 입력 순서를 유지한다.
+     * [getDetail] 과 달리 해시태그(`tags`)는 채우지 않는다 — 코스 상세 화면 전용 필드라
+     * 목록에서 코스 수만큼 쿼리를 늘리지 않기 위함이다.
+     */
     fun getDetails(
         courseIds: List<Long>,
         viewerId: Long?,

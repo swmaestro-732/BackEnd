@@ -39,8 +39,8 @@ data class Course private constructor(
     val places: List<CoursePlace>,
 ) {
     companion object {
-        /** 발행 코스가 담아야 하는 최소 장소 수(임시저장은 제한 없음). */
-        private const val MIN_PUBLISHED_PLACES = 2
+        /** 코스가 담아야 하는 최소 장소 수 — 발행·임시저장 공통. */
+        private const val MIN_PLACES = 2
 
         /**
          * 신규 생성. 파생 값(카테고리·지역코드·지역 이름)은 서비스가 [deriveCategory]·[deriveAreaCode] 로 도출하고
@@ -134,8 +134,9 @@ data class Course private constructor(
             if (isPublished && title.isBlank()) {
                 throw BusinessException(ErrorCode.INVALID_INPUT, "코스를 발행하려면 제목이 필요합니다.")
             }
-            if (isPublished && places.size < MIN_PUBLISHED_PLACES) {
-                throw BusinessException(ErrorCode.INVALID_INPUT, "코스를 발행하려면 장소를 2곳 이상 담아야 합니다.")
+            // 장소 최소 개수는 임시저장에도 적용된다 — 빌더에서 장소를 2곳 담아야 저장(임시저장 포함)할 수 있다.
+            if (places.size < MIN_PLACES) {
+                throw BusinessException(ErrorCode.INVALID_INPUT, "코스에는 장소를 2곳 이상 담아야 합니다.")
             }
             if (isPublished && coverImageUrl.isNullOrBlank()) {
                 throw BusinessException(ErrorCode.INVALID_INPUT, "코스를 발행하려면 커버 이미지가 필요합니다.")
