@@ -55,6 +55,13 @@ class AuthServiceTest {
 
             override fun update(user: User) = Unit
 
+            override fun applyCourseCountDelta(
+                userId: Long,
+                publicDelta: Int,
+                followerDelta: Int,
+                privateDelta: Int,
+            ) = Unit
+
             override fun softDelete(user: User) = Unit
 
             override fun existsByNickname(nickname: String): Boolean = false

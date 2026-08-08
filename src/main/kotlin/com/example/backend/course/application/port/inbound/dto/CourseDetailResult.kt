@@ -15,6 +15,12 @@ data class CourseDetailResult(
     val theme: String?,
     /** 코스 지역(예: "성수"). 미입력이면 null. */
     val area: String?,
+    /**
+     * 작성자가 단 해시태그(course_tags → tags.name). 순서는 보장하지 않으며, 없으면 빈 리스트.
+     * **단건 조회([com.example.backend.course.application.port.inbound.CourseUseCase.getDetail])에서만 채워진다** —
+     * 코스 상세 화면 전용 필드라 배치 조회(`getDetails`)는 쿼리를 아끼려고 항상 빈 리스트로 둔다.
+     */
+    val tags: List<String>,
     val description: String,
     /** 코스 공개 범위(PUBLIC·FOLLOWER·PRIVATE). */
     val visibility: CourseVisibility,

@@ -4,7 +4,10 @@ TRUNCATE TABLE users, places, courses, course_places, course_place_images, cours
     RESTART IDENTITY CASCADE;
 
 -- 사용자: 1 = 코스 소유자, 2 = 타인
-INSERT INTO users (nickname) VALUES ('코스작성자'), ('타인');
+-- 소유자(1)의 발행 코스 개수 캐시: 아래 course 1(PUBLIC·발행)만 잡혀 public=1(course 2 는 임시저장이라 제외).
+-- 코스 생성/발행/삭제 시 이 캐시가 ±1 로 유지되는지 CourseCountMaintenanceTest 가 검증한다.
+INSERT INTO users (nickname, public_courses_cnt, follower_courses_cnt, private_courses_cnt)
+VALUES ('코스작성자', 1, 0, 0), ('타인', 1, 0, 0);
 
 -- 장소: 발행 코스 카테고리 도출 입력(CAFE → CAFETOUR). location 은 NOT NULL 이라 임의 좌표를 넣는다.
 INSERT INTO places (name, category, location, address)
@@ -38,3 +41,8 @@ INSERT INTO course_place_images (course_place_id, image_url, order_no)
 VALUES
     (1, 'https://img/place-a.jpg', 0),
     (2, 'https://img/place-b.jpg', 0);
+
+-- course 1 의 해시태그 2개. 응답 순서는 보장하지 않으므로(course_tags 에 순서 컬럼 없음)
+-- 테스트도 순서를 검증하지 않는다. course 2·3·4 는 태그가 없어 응답에서 빈 배열이 된다.
+INSERT INTO tags (name) VALUES ('데이트'), ('감성카페');
+INSERT INTO course_tags (course_id, tag_id) VALUES (1, 1), (1, 2);

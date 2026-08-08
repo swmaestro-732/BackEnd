@@ -1,6 +1,6 @@
 package com.example.backend.mobile.user.application.service
 
-import com.example.backend.course.application.port.inbound.CourseUseCase
+import com.example.backend.course.application.port.inbound.CourseQueryUseCase
 import com.example.backend.mobile.user.application.port.inbound.SavedCourseScreenCommand
 import com.example.backend.mobile.user.application.port.inbound.SavedCourseScreenUseCase
 import com.example.backend.mobile.user.application.port.inbound.dto.SavedCourseScreenResult
@@ -14,10 +14,10 @@ import org.springframework.transaction.annotation.Transactional
 
 /**
  * 저장함 코스 탭 화면 조합 서비스 (BFF). 도메인 인바운드 포트들을 조합해 한 화면 응답 재료를 만든다 —
- * 저장 레코드·폴더·완주 여부([SavedCourseUseCase]·[CourseInteractionUseCase]) → 코스 상세([CourseUseCase])
+ * 저장 레코드·폴더·완주 여부([SavedCourseUseCase]·[CourseInteractionUseCase]) → 코스 상세([CourseQueryUseCase])
  * → 작성자 프로필([UserUseCase]) → 코스 장소 좌표([PlaceQueryUseCase]).
  *
- * 코스 상세는 [CourseUseCase.getDetails] 로 페이지 전체를 배치 조회한다(코스별 N+1 회피) — 삭제·비공개로
+ * 코스 상세는 [CourseQueryUseCase.getDetails] 로 페이지 전체를 배치 조회한다(코스별 N+1 회피) — 삭제·비공개로
  * 볼 수 없게 된 코스는 결과에서 빠지므로 여기서 예외를 잡을 필요가 없다. 조합 한 번을 하나의 읽기 트랜잭션으로
  * 묶어 일관된 스냅샷을 본다.
  */
@@ -25,7 +25,7 @@ import org.springframework.transaction.annotation.Transactional
 @Transactional(readOnly = true)
 class SavedCourseScreenService(
     private val savedCourseUseCase: SavedCourseUseCase,
-    private val courseUseCase: CourseUseCase,
+    private val courseQueryUseCase: CourseQueryUseCase,
     private val userUseCase: UserUseCase,
     private val placeQueryUseCase: PlaceQueryUseCase,
     private val courseInteractionUseCase: CourseInteractionUseCase,
@@ -44,7 +44,7 @@ class SavedCourseScreenService(
         val folders = savedCourseUseCase.getFolders(command.userId)
 
         val courseById =
-            courseUseCase
+            courseQueryUseCase
                 .getDetails(saved.savedCourses.map { it.courseId }, command.userId)
                 .associateBy { it.id }
         val recordsWithCourse =

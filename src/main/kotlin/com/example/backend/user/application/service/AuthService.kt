@@ -137,8 +137,6 @@ class AuthService(
         refreshTokenPort.revoke(refreshToken)
     }
 
-    override fun isLoginIdTaken(loginId: String): Boolean = userPersistencePort.existsByHandle(loginId)
-
     override fun issueDevAccessToken(): String = authTokenPort.issueAccessToken(DEV_USER_ID)
 
     /**

@@ -20,8 +20,6 @@ interface AuthUseCase {
 
     fun logout(refreshToken: String)
 
-    fun isLoginIdTaken(loginId: String): Boolean
-
     /** Kakao 설정이 없는 개발 환경의 mock 폴백용 access token. */
     fun issueDevAccessToken(): String
 }

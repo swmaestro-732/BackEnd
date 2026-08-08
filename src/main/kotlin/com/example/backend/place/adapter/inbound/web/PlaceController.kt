@@ -6,6 +6,7 @@ import com.example.backend.common.response.ApiResponse
 import com.example.backend.common.response.ErrorCode
 import com.example.backend.place.adapter.inbound.web.response.PlaceSearchResponse
 import com.example.backend.place.application.port.inbound.PlaceQueryUseCase
+import io.swagger.v3.oas.annotations.tags.Tag
 import jakarta.validation.constraints.Max
 import jakarta.validation.constraints.Min
 import org.springframework.web.bind.annotation.GetMapping
@@ -27,6 +28,7 @@ import org.springframework.web.bind.annotation.RestController
  * 장소 상세는 화면 조합이라 BFF 경로로 이관했다 → `GET /service/v1/places/{placeId}`
  * ([com.example.backend.mobile.place.adapter.inbound.web.PlaceDetailScreenController]).
  */
+@Tag(name = "Place")
 @RestController
 @RequestMapping("/api/v1/places")
 class PlaceController(

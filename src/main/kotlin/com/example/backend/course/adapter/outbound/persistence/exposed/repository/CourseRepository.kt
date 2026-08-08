@@ -4,6 +4,7 @@ import com.example.backend.common.exception.BusinessException
 import com.example.backend.common.response.ErrorCode
 import com.example.backend.course.adapter.outbound.persistence.CourseEntity
 import com.example.backend.course.adapter.outbound.persistence.CourseTable
+import com.example.backend.course.application.port.inbound.dto.AuthorCourseCursor
 import com.example.backend.course.application.port.inbound.dto.FeedCursor
 import com.example.backend.course.application.port.outbound.CourseDetailRow
 import com.example.backend.course.application.port.outbound.CourseSummaryRow
@@ -20,6 +21,7 @@ import org.jetbrains.exposed.v1.core.less
 import org.jetbrains.exposed.v1.core.minus
 import org.jetbrains.exposed.v1.core.or
 import org.jetbrains.exposed.v1.core.plus
+import org.jetbrains.exposed.v1.jdbc.select
 import org.jetbrains.exposed.v1.jdbc.selectAll
 import org.jetbrains.exposed.v1.jdbc.update
 import org.springframework.stereotype.Repository
@@ -148,17 +150,40 @@ class CourseRepository {
             isPublished = it[CourseTable.isPublished],
         )
 
-    /** 작성자의 발행·활성 코스 요약을 updatedAt 내림차순으로 읽는다(공개범위 필터는 서비스). */
-    fun findPublishedByAuthor(authorId: Long): List<CourseSummaryRow> =
-        CourseTable
+    /**
+     * 작성자의 발행·활성 코스 요약을 createdAt DESC, id DESC로 [size] + 1개까지 읽는다.
+     * [cursor]가 있으면 두 정렬 키가 가리키는 행보다 뒤에 있고 [visibilities]에 포함된 행만 조회한다.
+     */
+    fun findPublishedByAuthor(
+        authorId: Long,
+        visibilities: Set<CourseVisibility>,
+        cursor: AuthorCourseCursor?,
+        size: Int,
+    ): List<CourseSummaryRow> {
+        if (visibilities.isEmpty()) return emptyList()
+
+        var condition =
+            (CourseTable.userId eq authorId) and
+                (CourseTable.isPublished eq true) and
+                (CourseTable.status eq CourseStatus.ACTIVE) and
+                CourseTable.deletedAt.isNull() and
+                (CourseTable.visibility inList visibilities)
+
+        cursor?.let {
+            val cursorCreatedAt = it.createdAt.toKotlinInstant()
+            val afterCursor =
+                (CourseTable.createdAt less cursorCreatedAt) or
+                    ((CourseTable.createdAt eq cursorCreatedAt) and (CourseTable.id less it.id))
+            condition = condition and afterCursor
+        }
+
+        return CourseTable
             .selectAll()
-            .where {
-                (CourseTable.userId eq authorId) and
-                    (CourseTable.isPublished eq true) and
-                    (CourseTable.status eq CourseStatus.ACTIVE) and
-                    CourseTable.deletedAt.isNull()
-            }.orderBy(CourseTable.updatedAt to SortOrder.DESC)
+            .where(condition)
+            .orderBy(CourseTable.createdAt to SortOrder.DESC, CourseTable.id to SortOrder.DESC)
+            .limit(size + 1)
             .map(::toSummaryRow)
+    }
 
     /** 작성자의 임시저장·활성 코스 요약을 updatedAt 내림차순으로 읽는다. */
     fun findDraftsByAuthor(authorId: Long): List<CourseSummaryRow> =

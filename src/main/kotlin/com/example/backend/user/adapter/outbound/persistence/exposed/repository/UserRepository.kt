@@ -13,6 +13,7 @@ import org.jetbrains.exposed.v1.core.inList
 import org.jetbrains.exposed.v1.core.isNotNull
 import org.jetbrains.exposed.v1.core.isNull
 import org.jetbrains.exposed.v1.core.neq
+import org.jetbrains.exposed.v1.core.plus
 import org.jetbrains.exposed.v1.jdbc.insert
 import org.jetbrains.exposed.v1.jdbc.selectAll
 import org.jetbrains.exposed.v1.jdbc.update
@@ -57,9 +58,12 @@ class UserRepository(
                     nickname = it.nickname,
                     handle = it.handle,
                     profileImageUrl = it.profileImageUrl,
+                    bio = it.bio,
                     followersCnt = it.followersCnt,
                     followingsCnt = it.followingsCnt,
-                    coursesCnt = it.coursesCnt,
+                    publicCoursesCnt = it.publicCoursesCnt,
+                    followerCoursesCnt = it.followerCoursesCnt,
+                    privateCoursesCnt = it.privateCoursesCnt,
                 )
             }
 
@@ -74,11 +78,32 @@ class UserRepository(
                     nickname = it.nickname,
                     handle = it.handle,
                     profileImageUrl = it.profileImageUrl,
+                    bio = it.bio,
                     followersCnt = it.followersCnt,
                     followingsCnt = it.followingsCnt,
-                    coursesCnt = it.coursesCnt,
+                    publicCoursesCnt = it.publicCoursesCnt,
+                    followerCoursesCnt = it.followerCoursesCnt,
+                    privateCoursesCnt = it.privateCoursesCnt,
                 )
             }
+    }
+
+    /**
+     * 공개범위별 코스 개수 캐시를 증감한다(0 델타 컬럼은 건드리지 않고, 하나라도 0 이 아니면 단일 UPDATE).
+     * FollowRepository 의 followersCnt ±1 과 동일한 컬럼 증감 패턴.
+     */
+    fun applyCourseCountDelta(
+        userId: Long,
+        publicDelta: Int,
+        followerDelta: Int,
+        privateDelta: Int,
+    ) {
+        if (publicDelta == 0 && followerDelta == 0 && privateDelta == 0) return
+        UserTable.update({ UserTable.id eq userId }) {
+            if (publicDelta != 0) it[publicCoursesCnt] = publicCoursesCnt + publicDelta
+            if (followerDelta != 0) it[followerCoursesCnt] = followerCoursesCnt + followerDelta
+            if (privateDelta != 0) it[privateCoursesCnt] = privateCoursesCnt + privateDelta
+        }
     }
 
     /** 탈퇴(soft delete) 사용자는 제외하고 요약 정보만 읽는다. */
@@ -99,12 +124,14 @@ class UserRepository(
                 .insert {
                     it[nickname] = user.nickname
                     it[profileImageUrl] = user.profileImageUrl
+                    it[bio] = user.bio
                 }[UserTable.id]
                 .value
         return User.reconstitute(
             id = id,
             nickname = user.nickname,
             profileImageUrl = user.profileImageUrl,
+            bio = user.bio,
         )
     }
 
@@ -116,6 +143,7 @@ class UserRepository(
                 it[nickname] = user.nickname
                 it[handle] = user.handle
                 it[profileImageUrl] = user.profileImageUrl
+                it[bio] = user.bio
             }
         check(updated == 1) { "갱신할 활성 사용자를 찾지 못했습니다: id=$id" }
     }
@@ -201,6 +229,7 @@ class UserRepository(
                     it[nickname] = user.nickname
                     it[handle] = user.handle
                     it[profileImageUrl] = user.profileImageUrl
+                    it[bio] = user.bio
                     it[socialProvider] = provider.name
                     it[UserTable.socialId] = socialId
                 }[UserTable.id]
@@ -210,6 +239,7 @@ class UserRepository(
             nickname = user.nickname,
             handle = user.handle,
             profileImageUrl = user.profileImageUrl,
+            bio = user.bio,
             socialProvider = provider,
             socialId = socialId,
         )
@@ -227,6 +257,7 @@ class UserRepository(
                 it[nickname] = user.nickname
                 it[handle] = user.handle
                 it[profileImageUrl] = user.profileImageUrl
+                it[bio] = user.bio
             }
         check(updated == 1) { "재활성화할 탈퇴 계정을 찾지 못했습니다(동시 재활성화 가능): id=$id" }
         return User.reconstitute(
@@ -234,6 +265,7 @@ class UserRepository(
             nickname = user.nickname,
             handle = user.handle,
             profileImageUrl = user.profileImageUrl,
+            bio = user.bio,
             socialProvider = provider,
             socialId = socialId,
             status = UserStatus.ACTIVE,

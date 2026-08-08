@@ -30,11 +30,14 @@ class MyPageProfileAdapter(
             nickname = nickname,
             handle = handle,
             profileImageUrl = profileImageUrl,
+            bio = bio,
             isFollowing = isFollowing,
             isFollower = isFollower,
             followersCnt = followersCnt,
             followingsCnt = followingsCnt,
-            coursesCnt = coursesCnt,
+            publicCoursesCnt = publicCoursesCnt,
+            followerCoursesCnt = followerCoursesCnt,
+            privateCoursesCnt = privateCoursesCnt,
             areas = areas.map { AreaSnapshot(code = it.code, name = it.name) },
         )
 }

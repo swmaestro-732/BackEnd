@@ -4,6 +4,7 @@ import com.example.backend.common.response.ApiResponse
 import com.example.backend.direction.adapter.inbound.web.request.WalkingRequest
 import com.example.backend.direction.adapter.inbound.web.response.WalkingResponse
 import com.example.backend.direction.application.port.inbound.WalkingDurationUseCase
+import io.swagger.v3.oas.annotations.tags.Tag
 import jakarta.validation.Valid
 import org.springframework.web.bind.annotation.PostMapping
 import org.springframework.web.bind.annotation.RequestBody
@@ -15,6 +16,7 @@ import org.springframework.web.bind.annotation.RestController
  *
  * 방문 순서대로 나열한 좌표 목록을 받아 구간별 도보 시간과 총합(분)을 내려준다.
  */
+@Tag(name = "Place")
 @RestController
 @RequestMapping("/api/v1/directions")
 class DirectionController(

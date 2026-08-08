@@ -4,6 +4,8 @@ import com.example.backend.common.exception.BusinessException
 import com.example.backend.common.response.ErrorCode
 import com.example.backend.course.application.port.inbound.CourseCounterUseCase
 import com.example.backend.course.application.port.inbound.CourseQueryUseCase
+import com.example.backend.course.application.port.inbound.dto.AuthorCourseCursor
+import com.example.backend.course.application.port.inbound.dto.CourseDetailResult
 import com.example.backend.course.application.port.inbound.dto.CourseSummary
 import com.example.backend.course.application.port.inbound.dto.CourseSummaryPage
 import com.example.backend.course.application.port.inbound.dto.FeedCursor
@@ -27,10 +29,22 @@ class SavedCourseServiceTest {
 
             override fun existsById(courseId: Long): Boolean = courseId in existing
 
+            override fun getDetail(
+                courseId: Long,
+                viewerId: Long?,
+            ): CourseDetailResult = error("이 테스트에서 사용하지 않는다")
+
+            override fun getDetails(
+                courseIds: List<Long>,
+                viewerId: Long?,
+            ): List<CourseDetailResult> = emptyList()
+
             override fun listByAuthor(
                 authorId: Long,
                 viewerId: Long?,
-            ): List<CourseSummary> = emptyList()
+                cursor: AuthorCourseCursor?,
+                size: Int,
+            ): CourseSummaryPage = CourseSummaryPage(emptyList(), hasNext = false)
 
             override fun listDraftsByAuthor(authorId: Long): List<CourseSummary> = emptyList()
 

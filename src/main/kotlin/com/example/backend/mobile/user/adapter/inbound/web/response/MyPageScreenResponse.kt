@@ -2,6 +2,7 @@ package com.example.backend.mobile.user.adapter.inbound.web.response
 
 import com.example.backend.mobile.user.application.port.inbound.dto.MyPageResult
 import com.example.backend.mobile.user.application.port.outbound.dto.AuthoredCourse
+import com.example.backend.mobile.user.application.port.outbound.dto.CourseCounts
 import com.example.backend.mobile.user.application.port.outbound.dto.ProfileSnapshot
 import java.time.Instant
 
@@ -13,12 +14,16 @@ import java.time.Instant
 data class MyPageScreenResponse(
     val profile: MyPageProfileResponse,
     val courses: List<MyPageCourseResponse>,
+    val nextCursor: String?,
+    val hasNext: Boolean,
 ) {
     companion object {
         fun from(result: MyPageResult): MyPageScreenResponse =
             MyPageScreenResponse(
-                profile = MyPageProfileResponse.from(result.profile),
+                profile = MyPageProfileResponse.from(result.profile, result.courseCounts),
                 courses = result.courses.map(MyPageCourseResponse::from),
+                nextCursor = result.nextCursor,
+                hasNext = result.hasNext,
             )
 
         /** `?mock=true` 폴백 — 로그인 사용자 목(id=1 · AccountProfileResponse.mock)과 값을 맞춰 둔다. */
@@ -30,11 +35,12 @@ data class MyPageScreenResponse(
                         nickname = "현우님",
                         handle = "hyunwoo",
                         profileImageUrl = "https://cdn.example.com/users/1.jpg",
+                        bio = "안녕하세요, 커미입니다.",
                         isFollowing = false,
                         isFollower = false,
                         followersCnt = 128,
                         followingsCnt = 88,
-                        coursesCnt = 12,
+                        coursesCnt = 17,
                     ),
                 courses =
                     listOf(
@@ -48,6 +54,8 @@ data class MyPageScreenResponse(
                             createdAt = Instant.parse("2026-03-10T02:00:00Z"),
                         ),
                     ),
+                nextCursor = null,
+                hasNext = false,
             )
     }
 }
@@ -58,6 +66,7 @@ data class MyPageProfileResponse(
     val nickname: String,
     val handle: String?,
     val profileImageUrl: String?,
+    val bio: String?,
     val isFollowing: Boolean,
     val isFollower: Boolean,
     val followersCnt: Int,
@@ -65,17 +74,21 @@ data class MyPageProfileResponse(
     val coursesCnt: Int,
 ) {
     companion object {
-        fun from(profile: ProfileSnapshot): MyPageProfileResponse =
+        fun from(
+            profile: ProfileSnapshot,
+            counts: CourseCounts,
+        ): MyPageProfileResponse =
             MyPageProfileResponse(
                 id = profile.id,
                 nickname = profile.nickname,
                 handle = profile.handle,
                 profileImageUrl = profile.profileImageUrl,
+                bio = profile.bio,
                 isFollowing = profile.isFollowing,
                 isFollower = profile.isFollower,
                 followersCnt = profile.followersCnt,
                 followingsCnt = profile.followingsCnt,
-                coursesCnt = profile.coursesCnt,
+                coursesCnt = counts.publicCount + counts.followerCount + counts.privateCount,
             )
     }
 }

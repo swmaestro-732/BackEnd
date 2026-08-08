@@ -39,6 +39,7 @@ data class CourseDetailResponse(
                         title = "비 오는 날 성수 감성 카페 코스",
                         coverImageUrl = image("THb4AHDBpbwjQOwLbBj3pgro4xFRpvBdRRZDTcbVmMkg"),
                         theme = "데이트",
+                        tags = listOf("감성카페", "비오는날", "성수동"),
                         description =
                             "비가 오면 더 예쁜 성수 카페만 골라 담았어요. 전부 도보로 이어지고, " +
                                 "장소마다 제 팁을 남겨뒀으니 참고하세요 🌧️",
