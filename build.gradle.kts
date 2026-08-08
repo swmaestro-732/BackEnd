@@ -37,8 +37,12 @@ dependencies {
     implementation("org.springframework.boot:spring-boot-starter-security")
     implementation("org.springframework.boot:spring-boot-starter-validation")
     implementation("org.springframework.boot:spring-boot-starter-webmvc")
-    implementation("org.springframework.boot:spring-boot-starter-actuator") // health
+    implementation("org.springframework.boot:spring-boot-starter-actuator") // health + /actuator/prometheus
     implementation("org.springframework.boot:spring-boot-starter-aspectj") // AOP (Spring Boot 4에서 starter-aop 대체)
+    // 관측 — 메트릭(Prometheus 스크레이프) + 분산 트레이싱(OTLP → Tempo). 버전은 Boot BOM 관리.
+    runtimeOnly("io.micrometer:micrometer-registry-prometheus")
+    implementation("io.micrometer:micrometer-tracing-bridge-otel")
+    implementation("io.opentelemetry:opentelemetry-exporter-otlp")
     // OpenAPI 명세 + Swagger UI (springdoc 3.x = Spring Boot 4 호환)
     implementation("org.springdoc:springdoc-openapi-starter-webmvc-ui:3.0.3")
     implementation("org.flywaydb:flyway-database-postgresql")
