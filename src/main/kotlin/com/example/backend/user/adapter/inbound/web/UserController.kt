@@ -13,6 +13,7 @@ import com.example.backend.user.application.port.inbound.AccountUseCase
 import com.example.backend.user.application.port.inbound.FollowQueryUseCase
 import com.example.backend.user.application.port.inbound.UserUseCase
 import com.example.backend.user.application.port.inbound.dto.FollowListCommand
+import com.example.backend.user.application.port.inbound.dto.UpdateProfileCommand
 import jakarta.validation.Valid
 import jakarta.validation.constraints.Max
 import jakarta.validation.constraints.Min
@@ -69,11 +70,14 @@ class UserController(
         return ApiResponse.success(
             AccountProfileResponse.from(
                 accountUseCase.updateProfile(
-                    userId = userId,
-                    nickname = request.nickname,
-                    handle = request.handle,
-                    profileImageUrl = request.profileImageUrl,
-                    bio = request.bio,
+                    userId,
+                    UpdateProfileCommand(
+                        nickname = request.nickname,
+                        handle = request.handle,
+                        profileImageUrl = request.profileImageUrl,
+                        bio = request.bio,
+                        areaCodes = request.areaCodes,
+                    ),
                 ),
             ),
         )

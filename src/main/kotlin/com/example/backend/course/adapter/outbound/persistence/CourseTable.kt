@@ -27,6 +27,9 @@ internal object CourseTable : LongIdTable("courses") {
     val description = text("description").nullable()
     val category = enumerationByName<CourseCategory>("category", 50).nullable()
     val area = varchar("area", 100).nullable()
+
+    // 법정동코드 10자리(V12). sigungu_code 는 DB 파생 컬럼(앞 5자리 자동 계산)이라 매핑하지 않는다.
+    val areaCode = varchar("area_code", 10).nullable()
     val visitDate = date("visit_date").nullable()
     val isPublished = bool("is_published")
     val visibility = enumerationByName<CourseVisibility>("visibility", 32)
@@ -57,6 +60,7 @@ internal class CourseEntity(
     var description by CourseTable.description
     var category by CourseTable.category
     var area by CourseTable.area
+    var areaCode by CourseTable.areaCode
     var visitDate by CourseTable.visitDate
     var isPublished by CourseTable.isPublished
     var visibility by CourseTable.visibility
@@ -84,6 +88,7 @@ internal class CourseEntity(
             coverImageUrl = coverImageUrl,
             category = category,
             area = area,
+            areaCode = areaCode,
             visitDate = visitDate,
             visibility = visibility,
             isPublished = isPublished,

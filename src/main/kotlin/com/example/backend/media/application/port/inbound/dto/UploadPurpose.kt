@@ -5,4 +5,6 @@ enum class UploadPurpose(
     val keyPrefix: String,
 ) {
     PROFILE("profile"),
+    COURSE("course"),
+    PLACE("place"),
 }

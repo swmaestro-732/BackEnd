@@ -1,5 +1,5 @@
 -- 코스 CRUD 컨트롤러 통합 테스트 픽스처.
--- RESTART IDENTITY 로 serial id 를 예측 가능하게 고정한다(users 1·2, places 1·2, courses 1·2·3).
+-- RESTART IDENTITY 로 serial id 를 예측 가능하게 고정한다(users 1·2, places 1·2, courses 1·2·3·4).
 TRUNCATE TABLE users, places, courses, course_places, course_place_images, course_tags, tags
     RESTART IDENTITY CASCADE;
 
@@ -19,13 +19,17 @@ VALUES
 INSERT INTO courses (user_id, title, description, cover_image_url, category, is_published, visibility, tracings_cnt)
 VALUES (1, '공개 발행 코스', '설명입니다', 'https://img/cover.jpg', 'CAFETOUR', true, 'PUBLIC', 1200);
 
--- course 2: 비공개(PRIVATE)·임시저장 코스, 소유자 1. 공개범위/편집 테스트 대상.
-INSERT INTO courses (user_id, title, is_published, visibility)
-VALUES (1, '비공개 초안', false, 'PRIVATE');
+-- course 2: 비공개(PRIVATE)·임시저장 코스, 소유자 1. 공개범위/편집 및 초안 목록 테스트 대상(수정일이 더 오래됨).
+INSERT INTO courses (user_id, title, is_published, visibility, created_at, updated_at)
+VALUES (1, '비공개 초안', false, 'PRIVATE', '2026-07-01T00:00:00Z', '2026-08-01T00:00:00Z');
 
--- course 3: 공개·발행 코스, 소유자 2(타인). 소유권 검증(편집·삭제 404) 테스트 대상.
-INSERT INTO courses (user_id, title, cover_image_url, category, is_published, visibility)
-VALUES (2, '남의 코스', 'https://img/other.jpg', 'CAFETOUR', true, 'PUBLIC');
+-- course 3: 타인의 임시저장 코스. 소유권 검증(편집·삭제 404)과 작성자별 초안 격리 테스트 대상.
+INSERT INTO courses (user_id, title, is_published, visibility, created_at, updated_at)
+VALUES (2, '남의 초안', false, 'PUBLIC', '2026-07-03T00:00:00Z', '2026-08-03T00:00:00Z');
+
+-- course 4: 소유자 1의 두 번째 임시저장 코스. course 2보다 최근에 수정되어 목록에서 먼저 나와야 한다.
+INSERT INTO courses (user_id, title, is_published, visibility, created_at, updated_at)
+VALUES (1, '최근 수정 초안', false, 'PRIVATE', '2026-07-02T00:00:00Z', '2026-08-02T00:00:00Z');
 
 -- course 1 의 장소 2곳(order_no 0·1)과 각 장소 사진 1장.
 INSERT INTO course_places (course_id, place_id, order_no, caption, walking_minutes)

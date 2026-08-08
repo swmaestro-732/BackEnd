@@ -5,11 +5,13 @@ import com.example.backend.common.response.ErrorCode
 import com.example.backend.course.adapter.outbound.persistence.CourseEntity
 import com.example.backend.course.adapter.outbound.persistence.CourseTable
 import com.example.backend.course.application.port.inbound.dto.AuthorCourseCursor
+import com.example.backend.course.application.port.inbound.dto.FeedCursor
 import com.example.backend.course.application.port.outbound.CourseDetailRow
 import com.example.backend.course.application.port.outbound.CourseSummaryRow
 import com.example.backend.course.domain.model.Course
 import com.example.backend.course.domain.model.CourseStatus
 import com.example.backend.course.domain.model.CourseVisibility
+import org.jetbrains.exposed.v1.core.ResultRow
 import org.jetbrains.exposed.v1.core.SortOrder
 import org.jetbrains.exposed.v1.core.and
 import org.jetbrains.exposed.v1.core.eq
@@ -44,6 +46,8 @@ class CourseRepository {
                 description = course.description
                 coverImageUrl = course.coverImageUrl
                 category = course.category
+                area = course.area
+                areaCode = course.areaCode
                 isPublished = course.isPublished
                 visibility = course.visibility
                 forkedFromId = course.forkedFromId
@@ -65,6 +69,8 @@ class CourseRepository {
                 it[description] = course.description
                 it[coverImageUrl] = course.coverImageUrl
                 it[category] = course.category
+                it[area] = course.area
+                it[areaCode] = course.areaCode
                 it[isPublished] = course.isPublished
                 it[visibility] = course.visibility
                 it[updatedAt] = now
@@ -128,7 +134,7 @@ class CourseRepository {
             .map(::toDetailRow)
     }
 
-    private fun toDetailRow(it: org.jetbrains.exposed.v1.core.ResultRow): CourseDetailRow =
+    private fun toDetailRow(it: ResultRow): CourseDetailRow =
         CourseDetailRow(
             id = it[CourseTable.id].value,
             userId = it[CourseTable.userId],
@@ -137,6 +143,7 @@ class CourseRepository {
             description = it[CourseTable.description],
             category = it[CourseTable.category],
             area = it[CourseTable.area],
+            areaCode = it[CourseTable.areaCode],
             tracingsCnt = it[CourseTable.tracingsCnt],
             status = it[CourseTable.status],
             visibility = it[CourseTable.visibility],
@@ -178,23 +185,61 @@ class CourseRepository {
             .map(::toSummaryRow)
     }
 
-    /**
-     * 전체 공개(visibility=PUBLIC)·발행·활성 코스 요약을 createdAt 내림차순으로 limit 개까지 읽는다(피드 후보).
-     * visibility 는 enumerationByName 컬럼이라 enum 값([CourseVisibility.PUBLIC])으로 비교하면 이름 문자열로 매칭된다.
-     */
-    fun findPublishedPublic(limit: Int): List<CourseSummaryRow> =
+    /** 작성자의 임시저장·활성 코스 요약을 updatedAt 내림차순으로 읽는다. */
+    fun findDraftsByAuthor(authorId: Long): List<CourseSummaryRow> =
         CourseTable
             .selectAll()
             .where {
-                (CourseTable.isPublished eq true) and
+                (CourseTable.userId eq authorId) and
+                    (CourseTable.isPublished eq false) and
                     (CourseTable.status eq CourseStatus.ACTIVE) and
-                    CourseTable.deletedAt.isNull() and
-                    (CourseTable.visibility eq CourseVisibility.PUBLIC)
-            }.orderBy(CourseTable.savesCnt to SortOrder.DESC, CourseTable.createdAt to SortOrder.DESC)
-            .limit(limit)
+                    CourseTable.deletedAt.isNull()
+            }.orderBy(CourseTable.updatedAt to SortOrder.DESC)
             .map(::toSummaryRow)
 
-    private fun toSummaryRow(it: org.jetbrains.exposed.v1.core.ResultRow): CourseSummaryRow =
+    /**
+     * 전체 공개(visibility=PUBLIC)·발행·활성 코스 요약을
+     * savesCnt DESC, createdAt DESC, id DESC로 [size] + 1개까지 읽는다(피드 후보).
+     * [cursor]가 있으면 세 정렬 키가 가리키는 행보다 뒤에 있는 행만 keyset 조건으로 조회한다.
+     * visibility 는 enumerationByName 컬럼이라 enum 값([CourseVisibility.PUBLIC])으로 비교하면 이름 문자열로 매칭된다.
+     */
+    fun findPublishedPublic(
+        cursor: FeedCursor?,
+        size: Int,
+    ): List<CourseSummaryRow> {
+        var condition =
+            (CourseTable.isPublished eq true) and
+                (CourseTable.status eq CourseStatus.ACTIVE) and
+                CourseTable.deletedAt.isNull() and
+                (CourseTable.visibility eq CourseVisibility.PUBLIC)
+
+        cursor?.let {
+            val cursorCreatedAt = it.createdAt.toKotlinInstant()
+            val afterCursor =
+                (CourseTable.savesCnt less it.savesCnt) or
+                    (
+                        (CourseTable.savesCnt eq it.savesCnt) and
+                            (
+                                (CourseTable.createdAt less cursorCreatedAt) or
+                                    ((CourseTable.createdAt eq cursorCreatedAt) and (CourseTable.id less it.id))
+                            )
+                    )
+            condition = condition and afterCursor
+        }
+
+        return CourseTable
+            .selectAll()
+            .where(condition)
+            .orderBy(
+                CourseTable.savesCnt to SortOrder.DESC,
+                CourseTable.createdAt to SortOrder.DESC,
+                CourseTable.id to SortOrder.DESC,
+            ).limit(size + 1)
+            .map(::toSummaryRow)
+    }
+
+    /** 코스 목록 쿼리의 공통 컬럼을 범용 요약 읽기 모델로 변환한다. */
+    private fun toSummaryRow(it: ResultRow): CourseSummaryRow =
         CourseSummaryRow(
             id = it[CourseTable.id].value,
             userId = it[CourseTable.userId],

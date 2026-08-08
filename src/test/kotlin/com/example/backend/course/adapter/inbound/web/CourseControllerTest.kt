@@ -17,8 +17,8 @@ import org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPat
 import org.springframework.test.web.servlet.result.MockMvcResultMatchers.status
 
 /**
- * 코스 CRUD 컨트롤러(`/api/v1/courses`) 통합 테스트 — 생성·상세·편집·삭제.
- * 픽스처(course-crud-fixture.sql)로 소유자(1)·타인(2)·장소·코스 3건을 심고,
+ * 코스 컨트롤러(`/api/v1/courses`) 통합 테스트 — 생성·상세·임시저장 목록·편집·삭제.
+ * 픽스처(course-crud-fixture.sql)로 소유자(1)·타인(2)·장소·코스 4건을 심고,
  * 작성자 식별은 JWT(subject=userId)로 한다.
  */
 @AutoConfigureMockMvc
@@ -259,6 +259,38 @@ class CourseControllerTest
                 .andExpect(jsonPath("$.code").value(4041))
         }
 
+        // ─────────────────────────── 임시저장 목록 (GET /api/v1/courses/drafts) ───────────────────────────
+
+        @Test
+        fun `내 임시저장 코스만 최근 수정순으로 조회한다`() {
+            mockMvc
+                .perform(
+                    get("/api/v1/courses/drafts")
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer ${tokenFor(OWNER_ID)}"),
+                ).andExpect(status().isOk)
+                .andExpect(jsonPath("$.code").value(2000))
+                .andExpect(jsonPath("$.data.length()").value(2))
+                .andExpect(jsonPath("$.data[0].id").value(RECENT_DRAFT_ID))
+                .andExpect(jsonPath("$.data[0].authorId").value(OWNER_ID))
+                .andExpect(jsonPath("$.data[0].title").value("최근 수정 초안"))
+                .andExpect(jsonPath("$.data[1].id").value(PRIVATE_COURSE_ID))
+                .andExpect(jsonPath("$.data[1].authorId").value(OWNER_ID))
+                .andExpect(jsonPath("$.data[1].title").value("비공개 초안"))
+        }
+
+        @Test
+        fun `임시저장 목록 mock=true면 DB와 무관하게 목 목록을 내려준다`() {
+            mockMvc
+                .perform(
+                    get("/api/v1/courses/drafts")
+                        .param("mock", "true")
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer ${tokenFor(OWNER_ID)}"),
+                ).andExpect(status().isOk)
+                .andExpect(jsonPath("$.code").value(2000))
+                .andExpect(jsonPath("$.data.length()").value(1))
+                .andExpect(jsonPath("$.data[0].id").value(PRIVATE_COURSE_ID))
+        }
+
         // ─────────────────────────── 상세 (GET /api/v1/courses/{id}) ───────────────────────────
 
         @Test
@@ -481,5 +513,6 @@ class CourseControllerTest
             const val PUBLIC_COURSE_ID = 1L
             const val PRIVATE_COURSE_ID = 2L
             const val OTHERS_COURSE_ID = 3L
+            const val RECENT_DRAFT_ID = 4L
         }
     }

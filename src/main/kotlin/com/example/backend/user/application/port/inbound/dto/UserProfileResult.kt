@@ -21,4 +21,6 @@ data class UserProfileResult(
     val publicCoursesCnt: Int,
     val followerCoursesCnt: Int,
     val privateCoursesCnt: Int,
+    /** 관심 지역 — 내 계정 조회(AccountUseCase.getProfile)에서만 채운다. 타인 프로필·작성자 카드는 노출하지 않는다(빈 리스트). */
+    val areas: List<UserAreaResult> = emptyList(),
 )

@@ -1,5 +1,7 @@
 package com.example.backend.user.application.service
 
+import com.example.backend.area.application.port.inbound.AreaQueryUseCase
+import com.example.backend.area.application.port.inbound.dto.AreaDescriptor
 import com.example.backend.common.exception.BusinessException
 import com.example.backend.common.response.ErrorCode
 import com.example.backend.user.application.port.outbound.AuthTokenPort
@@ -7,6 +9,7 @@ import com.example.backend.user.application.port.outbound.RefreshTokenPort
 import com.example.backend.user.application.port.outbound.RefreshTokenRecord
 import com.example.backend.user.application.port.outbound.SocialIdentity
 import com.example.backend.user.application.port.outbound.SocialVerificationPort
+import com.example.backend.user.application.port.outbound.UserAreaPersistencePort
 import com.example.backend.user.application.port.outbound.UserPersistencePort
 import com.example.backend.user.application.port.outbound.UserProfileRow
 import com.example.backend.user.domain.model.SocialProvider
@@ -124,12 +127,31 @@ class AuthServiceTest {
             override fun revokeAllByUser(userId: Long) = Unit
         }
 
+    private val userAreaPersistencePort =
+        object : UserAreaPersistencePort {
+            override fun replaceAreas(
+                userId: Long,
+                areaCodes: List<String>,
+            ) = Unit
+
+            override fun findAreaCodes(userId: Long): List<String> = emptyList()
+        }
+
+    private val areaQueryUseCase =
+        object : AreaQueryUseCase {
+            override fun searchAreas(keyword: String): List<AreaDescriptor> = emptyList()
+
+            override fun findAreaByCode(code: String): AreaDescriptor? = null
+        }
+
     private val service =
         AuthService(
             socialVerificationPort = socialVerificationPort,
             userPersistencePort = userPersistencePort,
+            userAreaPersistencePort = userAreaPersistencePort,
             authTokenPort = authTokenPort,
             refreshTokenPort = refreshTokenPort,
+            userAreaResolver = UserAreaResolver(areaQueryUseCase),
         )
 
     @Test

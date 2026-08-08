@@ -1,5 +1,6 @@
 package com.example.backend.user.adapter.inbound.web.response
 
+import com.example.backend.user.application.port.inbound.dto.UserAreaResult
 import com.example.backend.user.application.port.inbound.dto.UserProfileResult
 
 /**
@@ -12,6 +13,7 @@ data class AccountProfileResponse(
     val handle: String?,
     val profileImageUrl: String?,
     val bio: String?,
+    val areas: List<UserAreaResponse>,
 ) {
     companion object {
         fun from(result: UserProfileResult): AccountProfileResponse =
@@ -21,6 +23,7 @@ data class AccountProfileResponse(
                 handle = result.handle,
                 profileImageUrl = result.profileImageUrl,
                 bio = result.bio,
+                areas = result.areas.map(UserAreaResponse::from),
             )
 
         /**
@@ -39,6 +42,17 @@ data class AccountProfileResponse(
                 handle = handle ?: "hyunwoo",
                 profileImageUrl = profileImageUrl ?: "https://cdn.example.com/users/1.jpg",
                 bio = bio ?: "안녕하세요, 커미입니다.",
+                areas = listOf(UserAreaResponse(code = "1168010100", name = "역삼동")),
             )
+    }
+}
+
+/** 관심 지역 한 건 — code 는 저장된 10자리 법정동코드, name 은 표시 이름(동/시군구). */
+data class UserAreaResponse(
+    val code: String,
+    val name: String,
+) {
+    companion object {
+        fun from(result: UserAreaResult): UserAreaResponse = UserAreaResponse(code = result.code, name = result.name)
     }
 }
