@@ -2,15 +2,17 @@ package com.example.backend.direction.adapter.outbound.tmap
 
 import com.example.backend.bootstrap.config.TmapProperties
 import com.example.backend.common.geo.Coordinate
+import com.example.backend.direction.application.port.outbound.PedestrianRoute
 import org.hamcrest.Matchers.containsString
 import org.junit.jupiter.api.Assertions.assertEquals
-import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Test
+import org.springframework.http.HttpStatus
 import org.springframework.http.MediaType
 import org.springframework.test.web.client.MockRestServiceServer
 import org.springframework.test.web.client.match.MockRestRequestMatchers.header
 import org.springframework.test.web.client.match.MockRestRequestMatchers.requestTo
 import org.springframework.test.web.client.response.MockRestResponseCreators.withServerError
+import org.springframework.test.web.client.response.MockRestResponseCreators.withStatus
 import org.springframework.test.web.client.response.MockRestResponseCreators.withSuccess
 import org.springframework.web.client.RestClient
 
@@ -30,7 +32,7 @@ class TmapPedestrianAdapterTest {
     }
 
     @Test
-    fun `properties_totalTime 초를 반환한다`() {
+    fun `properties_totalTime 초를 Reachable 로 반환한다`() {
         val (adapter, server) = adapterWith()
         val body =
             """
@@ -43,34 +45,48 @@ class TmapPedestrianAdapterTest {
             .andExpect(header("appKey", "app-key"))
             .andRespond(withSuccess(body, MediaType.APPLICATION_JSON))
 
-        val seconds = adapter.walkingSeconds(from, to)
+        val route = adapter.walkingRoute(from, to)
 
         server.verify()
-        assertEquals(540, seconds)
+        assertEquals(PedestrianRoute.Reachable(540), route)
     }
 
     @Test
-    fun `호출이 실패하면 null 을 반환한다`() {
+    fun `NoServiceArea(3102) 는 Unreachable 로 반환한다`() {
+        val (adapter, server) = adapterWith()
+        val errorBody =
+            """
+            {"error":{"id":"400","category":"tmap","code":"3102","message":"NoServiceArea"}}
+            """.trimIndent()
+        server
+            .expect(requestTo(containsString("/tmap/routes/pedestrian")))
+            .andRespond(withStatus(HttpStatus.BAD_REQUEST).body(errorBody).contentType(MediaType.APPLICATION_JSON))
+
+        assertEquals(PedestrianRoute.Unreachable, adapter.walkingRoute(from, to))
+    }
+
+    @Test
+    fun `서버 오류는 Unknown 으로 반환한다`() {
         val (adapter, server) = adapterWith()
         server.expect(requestTo(containsString("/tmap/routes/pedestrian"))).andRespond(withServerError())
 
-        assertNull(adapter.walkingSeconds(from, to))
+        assertEquals(PedestrianRoute.Unknown, adapter.walkingRoute(from, to))
     }
 
     @Test
-    fun `features 가 비어 있으면 null 을 반환한다`() {
+    fun `features 가 비어 있으면 Unknown 으로 반환한다`() {
         val (adapter, server) = adapterWith()
         server
             .expect(requestTo(containsString("/tmap/routes/pedestrian")))
             .andRespond(withSuccess("""{"type":"FeatureCollection","features":[]}""", MediaType.APPLICATION_JSON))
 
-        assertNull(adapter.walkingSeconds(from, to))
+        assertEquals(PedestrianRoute.Unknown, adapter.walkingRoute(from, to))
     }
 
     @Test
-    fun `appKey 가 비어 있으면 호출하지 않고 null 을 반환한다`() {
+    fun `appKey 가 비어 있으면 호출하지 않고 Unknown 으로 반환한다`() {
         val (adapter, _) = adapterWith(appKey = "")
 
-        assertNull(adapter.walkingSeconds(from, to))
+        assertEquals(PedestrianRoute.Unknown, adapter.walkingRoute(from, to))
     }
 }
