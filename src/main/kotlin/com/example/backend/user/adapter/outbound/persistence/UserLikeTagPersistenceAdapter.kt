@@ -13,4 +13,6 @@ class UserLikeTagPersistenceAdapter(
         userId: Long,
         tagIds: List<Long>,
     ) = userLikeTagRepository.replaceLikeTags(userId, tagIds)
+
+    override fun findLikeTagIds(userId: Long): List<Long> = userLikeTagRepository.findTagIdsByUserId(userId)
 }

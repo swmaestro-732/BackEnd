@@ -10,4 +10,7 @@ interface UserLikeTagPort {
         userId: Long,
         tagIds: List<Long>,
     )
+
+    /** 사용자의 관심 태그 id 목록을 조회한다. 저장 순서를 담는 컬럼이 없어 tag_id 오름차순으로 안정 정렬한다. */
+    fun findLikeTagIds(userId: Long): List<Long>
 }

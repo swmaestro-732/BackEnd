@@ -5,11 +5,13 @@ import com.example.backend.area.application.port.inbound.dto.AreaDescriptor
 import com.example.backend.common.exception.BusinessException
 import com.example.backend.common.response.ErrorCode
 import com.example.backend.user.application.port.outbound.AuthTokenPort
+import com.example.backend.user.application.port.outbound.LikeTagPort
 import com.example.backend.user.application.port.outbound.RefreshTokenPort
 import com.example.backend.user.application.port.outbound.RefreshTokenRecord
 import com.example.backend.user.application.port.outbound.SocialIdentity
 import com.example.backend.user.application.port.outbound.SocialVerificationPort
 import com.example.backend.user.application.port.outbound.UserAreaPersistencePort
+import com.example.backend.user.application.port.outbound.UserLikeTagPort
 import com.example.backend.user.application.port.outbound.UserPersistencePort
 import com.example.backend.user.application.port.outbound.UserProfileRow
 import com.example.backend.user.domain.model.SocialProvider
@@ -144,14 +146,33 @@ class AuthServiceTest {
             override fun findAreaByCode(code: String): AreaDescriptor? = null
         }
 
+    private val userLikeTagPort =
+        object : UserLikeTagPort {
+            override fun replaceLikeTags(
+                userId: Long,
+                tagIds: List<Long>,
+            ) = Unit
+
+            override fun findLikeTagIds(userId: Long): List<Long> = emptyList()
+        }
+
+    private val likeTagPort =
+        object : LikeTagPort {
+            override fun findExistingTagIds(tagIds: List<Long>): Set<Long> = tagIds.toSet()
+
+            override fun findTagNames(tagIds: List<Long>): Map<Long, String> = emptyMap()
+        }
+
     private val service =
         AuthService(
             socialVerificationPort = socialVerificationPort,
             userPersistencePort = userPersistencePort,
             userAreaPersistencePort = userAreaPersistencePort,
+            userLikeTagPort = userLikeTagPort,
             authTokenPort = authTokenPort,
             refreshTokenPort = refreshTokenPort,
             userAreaResolver = UserAreaResolver(areaQueryUseCase),
+            userLikeTagResolver = UserLikeTagResolver(likeTagPort),
         )
 
     @Test

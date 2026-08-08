@@ -22,7 +22,7 @@ data class SocialLoginRequest(
     val idToken: String,
 )
 
-/** 회원가입(프로필 설정) 요청 DTO. areaCodes 는 법정동코드(10자리) 목록이다. likeTagIds 는 아직 저장하지 않는다. */
+/** 회원가입(프로필 설정) 요청 DTO. areaCodes 는 법정동코드(10자리), likeTagIds 는 관심 테마(코스 태그 id) 목록이다. */
 data class SignupRequest(
     @field:NotBlank
     val registrationToken: String,

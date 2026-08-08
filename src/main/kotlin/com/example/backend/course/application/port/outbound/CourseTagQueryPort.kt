@@ -13,4 +13,7 @@ interface CourseTagQueryPort {
 
     /** 주어진 태그 id 중 실제 tags 에 존재하는 것만 반환한다(존재 검증용). */
     fun findExistingTagIds(tagIds: List<Long>): Set<Long>
+
+    /** 주어진 태그 id 의 이름을 id → name 으로 반환한다. 없는 id 는 결과에서 빠진다(순서 없음). */
+    fun findTagNames(tagIds: List<Long>): Map<Long, String>
 }

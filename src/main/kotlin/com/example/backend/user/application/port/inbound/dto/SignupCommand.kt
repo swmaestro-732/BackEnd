@@ -7,4 +7,6 @@ data class SignupCommand(
     val profileImageUrl: String?,
     /** 온보딩에서 선택한 관심 지역 법정동코드(10자리) 목록. 미선택이면 빈 리스트. */
     val areaCodes: List<String> = emptyList(),
+    /** 온보딩에서 선택한 관심 테마(코스 태그 id) 목록. 미선택이면 빈 리스트. */
+    val likeTagIds: List<Long> = emptyList(),
 )

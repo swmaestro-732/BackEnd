@@ -18,6 +18,8 @@ class RecommendedTagServiceTest {
             override fun findPopularTagNames(limit: Int): List<String> = popularTags.take(limit)
 
             override fun findExistingTagIds(tagIds: List<Long>): Set<Long> = emptySet()
+
+            override fun findTagNames(tagIds: List<Long>): Map<Long, String> = emptyMap()
         }
 
     private val service = RecommendedTagService(fakePort)
