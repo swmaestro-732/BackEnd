@@ -25,8 +25,6 @@ import org.springframework.test.web.servlet.result.MockMvcResultMatchers.status
             "TRUNCATE TABLE follows, refresh_tokens, tags, users RESTART IDENTITY CASCADE",
             "INSERT INTO users (nickname, handle, bio) VALUES ('나테스트', 'me_handle', '기존 자기소개')",
             "INSERT INTO users (nickname, handle) VALUES ('상대테스트', 'target_handle')",
-            // 관심 태그 검증용 코스 태그(id 1~4). likeTagIds 는 이 중에서만 유효하다.
-            "INSERT INTO tags (name) VALUES ('감성카페'), ('통창뷰'), ('데이트'), ('브런치')",
         ],
     executionPhase = Sql.ExecutionPhase.BEFORE_TEST_METHOD,
 )
@@ -346,44 +344,45 @@ class MyControllerTest
         private fun tokenFor(userId: Long) = jwtTokenProvider.issueAccessToken(userId)
 
         @Test
-        fun `관심 태그(likeTagIds)를 수정하면 user_like_tags 가 전체 치환된다`() {
-            patchLikeTags(listOf(1, 2, 3))
-            assertEquals(setOf(1L, 2L, 3L), likeTagIdsOf(ME_ID))
+        fun `관심 테마(likeThemes)를 수정하면 user_like_categories 가 전체 치환된다`() {
+            patchLikeThemes(listOf("DATE", "HEALING", "FOOD"))
+            assertEquals(setOf("DATE", "HEALING", "FOOD"), likeThemesOf(ME_ID))
 
             // 전체 치환 — 기존 제거·새 집합으로 교체.
-            patchLikeTags(listOf(4))
-            assertEquals(setOf(4L), likeTagIdsOf(ME_ID))
+            patchLikeThemes(listOf("CAFETOUR"))
+            assertEquals(setOf("CAFETOUR"), likeThemesOf(ME_ID))
 
-            // likeTagIds 를 보내지 않으면(null) 관심 태그는 그대로 둔다(빈 배열의 전체 해제와 구분).
-            patchBody("""{"nickname":"태그무관수정"}""")
-            assertEquals(setOf(4L), likeTagIdsOf(ME_ID))
+            // likeThemes 를 보내지 않으면(null) 관심 테마는 그대로 둔다(빈 배열의 전체 해제와 구분).
+            patchBody("""{"nickname":"테마무관수정"}""")
+            assertEquals(setOf("CAFETOUR"), likeThemesOf(ME_ID))
 
             // 빈 배열 = 전체 해제.
-            patchLikeTags(emptyList())
-            assertEquals(emptySet<Long>(), likeTagIdsOf(ME_ID))
+            patchLikeThemes(emptyList())
+            assertEquals(emptySet<String>(), likeThemesOf(ME_ID))
         }
 
         @Test
-        fun `존재하지 않는 태그 id 로 수정하면 4001을 내려주고 기존 태그를 유지한다`() {
-            // 먼저 유효한 태그를 저장한다 — 실패 시 삭제-후-검증(잘못된 순서)이면 이 태그가 지워진다.
-            patchLikeTags(listOf(1, 2, 3))
-            assertEquals(setOf(1L, 2L, 3L), likeTagIdsOf(ME_ID))
+        fun `존재하지 않는 관심 테마로 수정하면 4001을 내려주고 기존 테마를 유지한다`() {
+            // 먼저 유효한 테마를 저장한다 — 실패 시 삭제-후-검증(잘못된 순서)이면 이 값이 지워진다.
+            patchLikeThemes(listOf("DATE", "HEALING", "FOOD"))
+            assertEquals(setOf("DATE", "HEALING", "FOOD"), likeThemesOf(ME_ID))
 
-            // 존재하지 않는 태그(999)가 섞이면 update·치환 전에 4001 로 거부한다.
+            // 코스 카테고리가 아닌 값(NOPE)이 섞이면 update·치환 전에 4001 로 거부한다.
             mockMvc
                 .perform(
                     patch("/api/v1/users")
                         .header(HttpHeaders.AUTHORIZATION, "Bearer ${tokenFor(ME_ID)}")
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content("""{"likeTagIds":[1,999]}"""),
+                        .content("""{"likeThemes":["DATE","NOPE"]}"""),
                 ).andExpect(status().isBadRequest)
                 .andExpect(jsonPath("$.code").value(4001))
 
-            // 검증이 치환보다 먼저라 기존 태그는 그대로 유지된다.
-            assertEquals(setOf(1L, 2L, 3L), likeTagIdsOf(ME_ID))
+            // 검증이 치환보다 먼저라 기존 테마는 그대로 유지된다.
+            assertEquals(setOf("DATE", "HEALING", "FOOD"), likeThemesOf(ME_ID))
         }
 
-        private fun patchLikeTags(tagIds: List<Long>) = patchBody("""{"likeTagIds":$tagIds}""")
+        private fun patchLikeThemes(themes: List<String>) =
+            patchBody(themes.joinToString(prefix = """{"likeThemes":[""", postfix = "]}") { "\"$it\"" })
 
         private fun patchBody(json: String) {
             mockMvc
@@ -395,9 +394,9 @@ class MyControllerTest
                 ).andExpect(status().isOk)
         }
 
-        private fun likeTagIdsOf(userId: Long): Set<Long> =
+        private fun likeThemesOf(userId: Long): Set<String> =
             jdbcTemplate
-                .queryForList("SELECT tag_id FROM user_like_tags WHERE user_id = ?", Long::class.java, userId)
+                .queryForList("SELECT category FROM user_like_categories WHERE user_id = ?", String::class.java, userId)
                 .filterNotNull()
                 .toSet()
 
