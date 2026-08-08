@@ -7,9 +7,11 @@ import org.junit.jupiter.api.Test
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc
 import org.springframework.http.HttpHeaders
+import org.springframework.http.MediaType
 import org.springframework.test.context.jdbc.Sql
 import org.springframework.test.web.servlet.MockMvc
 import org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get
+import org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post
 import org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath
 import org.springframework.test.web.servlet.result.MockMvcResultMatchers.status
 
@@ -65,6 +67,50 @@ class CourseMobileControllerTest
                 .andExpect(jsonPath("$.data.course.places[1].location.longitude").value(127.06))
                 // 리뷰 조회 유스케이스 도입 전까지 실 응답의 리뷰 요약은 null 이다(목 값 노출 금지)
                 .andExpect(jsonPath("$.data.reviewSummary").isEmpty)
+        }
+
+        @Test
+        fun `도보 이동 불가(-1) 구간은 그대로 내려주되 화면 합계에서는 빠진다`() {
+            // 화면 합계(stats.walkingMinutes)는 도메인 상세와 별도 매퍼라 여기서도 검증한다.
+            // 코스 생성은 도메인 API 로 하고(BFF 에는 생성이 없다) 조합 응답을 읽는다.
+            val body =
+                """
+                {
+                  "title": "도보 시간 코스",
+                  "thumbnailUrl": "https://img/cover.jpg",
+                  "visibility": "PUBLIC",
+                  "isPublished": true,
+                  "places": [
+                    {"placeId": 1, "orderNo": 0, "imageUrls": ["https://img/a.jpg"], "walkingMinutes": 7},
+                    {"placeId": 2, "orderNo": 1, "imageUrls": ["https://img/b.jpg"], "walkingMinutes": -1},
+                    {"placeId": 1, "orderNo": 2, "imageUrls": ["https://img/c.jpg"], "walkingMinutes": null}
+                  ]
+                }
+                """.trimIndent()
+
+            val created =
+                mockMvc
+                    .perform(
+                        post("/api/v1/courses")
+                            .header(HttpHeaders.AUTHORIZATION, "Bearer ${tokenFor(OWNER_ID)}")
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(body),
+                    ).andExpect(status().isCreated)
+                    .andReturn()
+            val courseId =
+                Regex(""""courseId"\s*:\s*(\d+)""")
+                    .find(created.response.contentAsString)
+                    ?.groupValues
+                    ?.get(1)
+                    ?: error("응답에서 courseId 를 찾지 못했습니다")
+
+            mockMvc
+                .perform(get("/service/v1/courses/$courseId"))
+                .andExpect(status().isOk)
+                .andExpect(jsonPath("$.data.course.places[1].walkingMinutesToNext").value(-1))
+                .andExpect(jsonPath("$.data.course.places[2].walkingMinutesToNext").doesNotExist())
+                // -1 을 더했다면 6 이 된다 — 양수만 더해 7.
+                .andExpect(jsonPath("$.data.course.stats.walkingMinutes").value(7))
         }
 
         @Test

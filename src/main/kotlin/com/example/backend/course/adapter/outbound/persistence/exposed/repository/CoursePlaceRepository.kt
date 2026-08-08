@@ -32,7 +32,8 @@ class CoursePlaceRepository(
                     placeId = place.placeId
                     orderNo = place.orderNo.toShort()
                     caption = place.caption
-                    // walking_minutes 는 서버 자동 계산(후속) — 생성 시 null.
+                    // 요청이 보낸 값을 그대로 저장한다 — -1(도보 이동 불가)·null(마지막 장소) 포함.
+                    walkingMinutes = place.walkingMinutes
                 }.id.value
 
         place.imageUrls.forEachIndexed { index, url ->

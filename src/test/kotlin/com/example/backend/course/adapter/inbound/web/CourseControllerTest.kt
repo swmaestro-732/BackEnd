@@ -312,6 +312,107 @@ class CourseControllerTest
         }
 
         @Test
+        fun `장소별 도보 시간을 요청대로 저장하고 상세에서 내려준다`() {
+            // 세 값을 한 번에 검증한다: 정상(7분) · 도보 이동 불가(-1) · 마지막 장소(null).
+            // 같은 placeId 를 다시 담아도 되며(orderNo 만 중복 불가) 픽스처 장소 2곳으로 3구간을 만든다.
+            val body =
+                """
+                {
+                  "title": "도보 시간 코스",
+                  "thumbnailUrl": "https://img/cover.jpg",
+                  "visibility": "PUBLIC",
+                  "isPublished": true,
+                  "places": [
+                    {"placeId": 1, "orderNo": 0, "imageUrls": ["https://img/a.jpg"], "walkingMinutes": 7},
+                    {"placeId": 2, "orderNo": 1, "imageUrls": ["https://img/b.jpg"], "walkingMinutes": -1},
+                    {"placeId": 1, "orderNo": 2, "imageUrls": ["https://img/c.jpg"], "walkingMinutes": null}
+                  ]
+                }
+                """.trimIndent()
+
+            val response =
+                mockMvc
+                    .perform(
+                        post("/api/v1/courses")
+                            .header(HttpHeaders.AUTHORIZATION, "Bearer ${tokenFor(OWNER_ID)}")
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(body),
+                    ).andExpect(status().isCreated)
+                    .andReturn()
+
+            mockMvc
+                .perform(get("/api/v1/courses/${extractCourseId(response.response.contentAsString)}"))
+                .andExpect(status().isOk)
+                .andExpect(jsonPath("$.data.course.places[0].walkingMinutesToNext").value(7))
+                // -1(도보 이동 불가)은 눌러 담지 않고 그대로 내려준다 — 프론트가 "도보 이동 불가"로 표시해야 하므로.
+                .andExpect(jsonPath("$.data.course.places[1].walkingMinutesToNext").value(-1))
+                .andExpect(jsonPath("$.data.course.places[2].walkingMinutesToNext").doesNotExist())
+                // 합계는 양수만 — -1 과 null 은 빠져서 7 이다(-1 을 더했다면 6 이 된다).
+                .andExpect(jsonPath("$.data.course.stats.walkingMinutes").value(7))
+        }
+
+        @Test
+        fun `도보 시간이 -2 이하면 4002를 내려준다`() {
+            // -1 은 도보 이동 불가 센티널이라 허용하고, 그보다 작은 값만 하한(@Min)으로 막는다.
+            val body =
+                """
+                {
+                  "title": "도보 시간 코스",
+                  "visibility": "PRIVATE",
+                  "isPublished": false,
+                  "places": [
+                    {"placeId": 1, "orderNo": 0, "imageUrls": [], "walkingMinutes": -2},
+                    {"placeId": 2, "orderNo": 1, "imageUrls": []}
+                  ]
+                }
+                """.trimIndent()
+
+            mockMvc
+                .perform(
+                    post("/api/v1/courses")
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer ${tokenFor(OWNER_ID)}")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(body),
+                ).andExpect(status().isBadRequest)
+                .andExpect(jsonPath("$.code").value(4002))
+        }
+
+        @Test
+        fun `walkingMinutes 를 생략하면 null 로 저장된다`() {
+            // 선택 필드라 기존 클라이언트 요청(도보 시간 미포함)이 그대로 동작해야 한다.
+            val body =
+                """
+                {
+                  "title": "도보 시간 없는 코스",
+                  "visibility": "PRIVATE",
+                  "isPublished": false,
+                  "places": [
+                    {"placeId": 1, "orderNo": 0, "imageUrls": []},
+                    {"placeId": 2, "orderNo": 1, "imageUrls": []}
+                  ]
+                }
+                """.trimIndent()
+
+            val response =
+                mockMvc
+                    .perform(
+                        post("/api/v1/courses")
+                            .header(HttpHeaders.AUTHORIZATION, "Bearer ${tokenFor(OWNER_ID)}")
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(body),
+                    ).andExpect(status().isCreated)
+                    .andReturn()
+
+            mockMvc
+                .perform(
+                    get("/api/v1/courses/${extractCourseId(response.response.contentAsString)}")
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer ${tokenFor(OWNER_ID)}"),
+                ).andExpect(status().isOk)
+                .andExpect(jsonPath("$.data.course.places[0].walkingMinutesToNext").doesNotExist())
+                .andExpect(jsonPath("$.data.course.stats.walkingMinutes").value(0))
+        }
+
+        @Test
         fun `코스 상세는 해시태그를 함께 내려준다`() {
             // 순서는 계약이 아니라(course_tags 에 순서 컬럼 없음) 구성만 검증한다.
             mockMvc

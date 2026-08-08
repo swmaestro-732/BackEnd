@@ -262,7 +262,12 @@ data class CourseStatsResponse(
         fun from(course: CourseDetailResult): CourseStatsResponse =
             CourseStatsResponse(
                 placeCount = course.places.size,
-                walkingMinutes = course.places.sumOf { it.walkingMinutesToNext ?: 0 },
+                // 도보 시간 합계는 양수만 더한다 — -1(도보 이동 불가)·null(마지막 장소)은 소요 시간이 아니라 제외.
+                walkingMinutes =
+                    course.places
+                        .mapNotNull { it.walkingMinutesToNext }
+                        .filter { it > 0 }
+                        .sum(),
                 tracingCount = course.tracingsCnt,
             )
     }

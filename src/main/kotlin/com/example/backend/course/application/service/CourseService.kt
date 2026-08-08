@@ -205,6 +205,7 @@ class CourseService(
                     orderNo = it.orderNo,
                     caption = it.caption,
                     imageUrls = it.imageUrls,
+                    walkingMinutes = it.walkingMinutes,
                 )
             }
 
@@ -250,6 +251,7 @@ class CourseService(
                     orderNo = it.orderNo,
                     caption = it.caption,
                     imageUrls = it.imageUrls,
+                    walkingMinutes = it.walkingMinutes,
                 )
             }
 

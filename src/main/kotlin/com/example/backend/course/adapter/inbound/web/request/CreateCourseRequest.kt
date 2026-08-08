@@ -67,6 +67,7 @@ data class CreateCourseRequest(
                         orderNo = it.orderNo,
                         caption = it.caption,
                         imageUrls = it.imageUrls,
+                        walkingMinutes = it.walkingMinutes,
                     )
                 },
         )

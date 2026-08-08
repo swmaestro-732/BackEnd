@@ -23,6 +23,8 @@ data class CreateCoursePlaceCommand(
     val orderNo: Int,
     val caption: String?,
     val imageUrls: List<String>,
+    /** 다음 장소까지 도보 소요 시간(분). -1 은 도보 이동 불가, null 은 마지막 장소. */
+    val walkingMinutes: Int?,
 )
 
 /**
