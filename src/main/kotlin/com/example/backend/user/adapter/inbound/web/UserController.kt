@@ -77,6 +77,7 @@ class UserController(
                         profileImageUrl = request.profileImageUrl,
                         bio = request.bio,
                         areaCodes = request.areaCodes,
+                        likeTagIds = request.likeTagIds,
                     ),
                 ),
             ),
