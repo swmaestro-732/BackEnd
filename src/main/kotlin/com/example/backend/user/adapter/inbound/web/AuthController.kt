@@ -43,7 +43,7 @@ class AuthController(
         return ApiResponse.success(SocialLoginResponse.from(result))
     }
 
-    /** 회원가입/프로필 설정. areaCodes 는 user_areas 에, likeThemes(관심 테마)는 user_like_tags 에 저장한다. */
+    /** 회원가입/프로필 설정. areaCodes 는 user_areas 에, likeThemes(관심 테마)는 user_like_categories 에 저장한다. */
     @PostMapping("/signup")
     fun signup(
         @Valid @RequestBody request: SignupRequest,

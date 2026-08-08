@@ -344,7 +344,7 @@ class MyControllerTest
         private fun tokenFor(userId: Long) = jwtTokenProvider.issueAccessToken(userId)
 
         @Test
-        fun `관심 테마(likeThemes)를 수정하면 user_like_tags 가 전체 치환된다`() {
+        fun `관심 테마(likeThemes)를 수정하면 user_like_categories 가 전체 치환된다`() {
             patchLikeThemes(listOf("DATE", "HEALING", "FOOD"))
             assertEquals(setOf("DATE", "HEALING", "FOOD"), likeThemesOf(ME_ID))
 
@@ -396,7 +396,7 @@ class MyControllerTest
 
         private fun likeThemesOf(userId: Long): Set<String> =
             jdbcTemplate
-                .queryForList("SELECT category FROM user_like_tags WHERE user_id = ?", String::class.java, userId)
+                .queryForList("SELECT category FROM user_like_categories WHERE user_id = ?", String::class.java, userId)
                 .filterNotNull()
                 .toSet()
 

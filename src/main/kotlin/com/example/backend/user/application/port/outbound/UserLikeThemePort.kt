@@ -1,7 +1,7 @@
 package com.example.backend.user.application.port.outbound
 
 /**
- * 아웃바운드 포트 — 사용자의 관심 테마 저장. `user_like_tags` 조인 테이블을 다룬다.
+ * 아웃바운드 포트 — 사용자의 관심 테마 저장. `user_like_categories` 조인 테이블을 다룬다.
  * 값은 course 도메인 `CourseCategory` 이름이라 FK 없이 문자열로만 저장한다(크로스 도메인 참조).
  */
 interface UserLikeThemePort {
