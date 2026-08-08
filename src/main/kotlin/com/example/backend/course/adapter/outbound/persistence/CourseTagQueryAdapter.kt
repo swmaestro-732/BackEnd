@@ -4,6 +4,7 @@ import com.example.backend.course.application.port.outbound.CourseTagQueryPort
 import org.jetbrains.exposed.v1.core.JoinType
 import org.jetbrains.exposed.v1.core.SortOrder
 import org.jetbrains.exposed.v1.core.countDistinct
+import org.jetbrains.exposed.v1.core.eq
 import org.jetbrains.exposed.v1.core.inList
 import org.jetbrains.exposed.v1.jdbc.select
 import org.springframework.stereotype.Repository
@@ -15,6 +16,17 @@ import org.springframework.stereotype.Repository
 @Repository
 class CourseTagQueryAdapter : CourseTagQueryPort {
     private val courseCount = CourseTagTable.courseId.countDistinct()
+
+    /**
+     * 코스 한 건의 태그명. 정렬하지 않고 DB 가 준 순서 그대로 내보낸다 —
+     * 표시 순서를 쓰는 화면이 없어 `ORDER BY` 비용을 두지 않는다.
+     */
+    override fun findTagNamesByCourseId(courseId: Long): List<String> =
+        CourseTagTable
+            .join(TagTable, JoinType.INNER, CourseTagTable.tagId, TagTable.id)
+            .select(TagTable.name)
+            .where { CourseTagTable.courseId eq courseId }
+            .map { it[TagTable.name] }
 
     override fun findTagNamesByPlaceIds(
         placeIds: List<Long>,

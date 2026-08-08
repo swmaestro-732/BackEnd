@@ -32,14 +32,14 @@ class CourseCountMaintenanceTest
     ) : IntegrationTestBase() {
         @Test
         fun `발행 PUBLIC 코스를 생성하면 작성자 public 카운트가 +1 된다`() {
-            createCourse(visibility = "PUBLIC", published = true, withPlaces = true)
+            createCourse(visibility = "PUBLIC", published = true)
 
             assertCounts(public = 2, follower = 0, private = 0)
         }
 
         @Test
         fun `임시저장 코스를 생성하면 카운트는 그대로다`() {
-            createCourse(visibility = "PRIVATE", published = false, withPlaces = false)
+            createCourse(visibility = "PRIVATE", published = false)
 
             assertCounts(public = 1, follower = 0, private = 0)
         }
@@ -85,24 +85,19 @@ class CourseCountMaintenanceTest
         private fun createCourse(
             visibility: String,
             published: Boolean,
-            withPlaces: Boolean,
         ) {
+            // 장소 2곳 이상은 발행·임시저장 공통 규칙이라 임시저장도 빈 배열로는 생성할 수 없다.
             val places =
-                if (withPlaces) {
-                    """
-                    ,
-                    "places": [
-                      {"placeId": 1, "orderNo": 0, "caption": "카페A", "imageUrls": ["https://img/a.jpg"]},
-                      {"placeId": 2, "orderNo": 1, "caption": "카페B", "imageUrls": ["https://img/b.jpg"]}
-                    ]
-                    """.trimIndent()
-                } else {
-                    ""","places": []"""
-                }
+                """
+                "places": [
+                  {"placeId": 1, "orderNo": 0, "caption": "카페A", "imageUrls": ["https://img/a.jpg"]},
+                  {"placeId": 2, "orderNo": 1, "caption": "카페B", "imageUrls": ["https://img/b.jpg"]}
+                ]
+                """.trimIndent()
             // 발행 코스는 커버(thumbnailUrl)가 필수라 항상 넣는다(임시저장도 있어도 무방).
             val body =
                 """
-                {"title": "카운트 테스트", "thumbnailUrl": "https://img/cover.jpg", "visibility": "$visibility", "isPublished": $published$places}
+                {"title": "카운트 테스트", "thumbnailUrl": "https://img/cover.jpg", "visibility": "$visibility", "isPublished": $published, $places}
                 """.trimIndent()
             mockMvc
                 .perform(

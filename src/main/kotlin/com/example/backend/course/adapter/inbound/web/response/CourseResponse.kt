@@ -9,6 +9,8 @@ data class CourseResponse(
     val coverImageUrl: String,
     /** 코스 테마 = 카테고리(단일). 미선택 draft 는 null. */
     val theme: String?,
+    /** 작성자가 단 해시태그. 테마(카테고리)와 별개이며, 순서는 보장하지 않고 없으면 빈 배열. */
+    val tags: List<String>,
     val description: String,
     /** 코스 공개 범위(PUBLIC·FOLLOWER·PRIVATE). enum 이름 그대로 직렬화된다. */
     val visibility: CourseVisibility,
@@ -24,6 +26,7 @@ data class CourseResponse(
                 title = result.title,
                 coverImageUrl = result.coverImageUrl,
                 theme = result.theme,
+                tags = result.tags,
                 description = result.description,
                 visibility = result.visibility,
                 stats = CourseStatsResponse.from(result),
