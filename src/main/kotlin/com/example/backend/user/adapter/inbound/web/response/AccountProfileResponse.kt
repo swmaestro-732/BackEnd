@@ -1,7 +1,6 @@
 package com.example.backend.user.adapter.inbound.web.response
 
 import com.example.backend.user.application.port.inbound.dto.UserAreaResult
-import com.example.backend.user.application.port.inbound.dto.UserLikeTagResult
 import com.example.backend.user.application.port.inbound.dto.UserProfileResult
 
 /**
@@ -15,7 +14,8 @@ data class AccountProfileResponse(
     val handle: String?,
     val profileImageUrl: String?,
     val bio: String?,
-    val likeTags: List<UserLikeTagResponse>,
+    /** 관심 테마 — 코스 카테고리 이름(예: `CAFETOUR`). 한글 라벨은 클라이언트가 매핑한다(코스 상세 `theme` 와 동일). */
+    val likeThemes: List<String>,
     val areas: List<UserAreaResponse>,
 ) {
     companion object {
@@ -26,7 +26,7 @@ data class AccountProfileResponse(
                 handle = result.handle,
                 profileImageUrl = result.profileImageUrl,
                 bio = result.bio,
-                likeTags = result.likeTags.map(UserLikeTagResponse::from),
+                likeThemes = result.likeThemes,
                 areas = result.areas.map(UserAreaResponse::from),
             )
 
@@ -46,24 +46,9 @@ data class AccountProfileResponse(
                 handle = handle ?: "hyunwoo",
                 profileImageUrl = profileImageUrl ?: "https://cdn.example.com/users/1.jpg",
                 bio = bio ?: "안녕하세요, 커미입니다.",
-                likeTags =
-                    listOf(
-                        UserLikeTagResponse(id = 1L, name = "카페 투어"),
-                        UserLikeTagResponse(id = 2L, name = "문화·예술"),
-                    ),
+                likeThemes = listOf("CAFETOUR", "CULTURE"),
                 areas = listOf(UserAreaResponse(code = "1168010100", name = "역삼동")),
             )
-    }
-}
-
-/** 관심 테마 한 건 — id 는 코스 태그(tags) id, name 은 표시 이름. 수정 시 [id] 를 likeTagIds 로 되돌려 보낸다. */
-data class UserLikeTagResponse(
-    val id: Long,
-    val name: String,
-) {
-    companion object {
-        fun from(result: UserLikeTagResult): UserLikeTagResponse =
-            UserLikeTagResponse(id = result.id, name = result.name)
     }
 }
 

@@ -5,13 +5,13 @@ import com.example.backend.area.application.port.inbound.dto.AreaDescriptor
 import com.example.backend.common.exception.BusinessException
 import com.example.backend.common.response.ErrorCode
 import com.example.backend.user.application.port.outbound.AuthTokenPort
-import com.example.backend.user.application.port.outbound.LikeTagPort
+import com.example.backend.user.application.port.outbound.LikeThemePort
 import com.example.backend.user.application.port.outbound.RefreshTokenPort
 import com.example.backend.user.application.port.outbound.RefreshTokenRecord
 import com.example.backend.user.application.port.outbound.SocialIdentity
 import com.example.backend.user.application.port.outbound.SocialVerificationPort
 import com.example.backend.user.application.port.outbound.UserAreaPersistencePort
-import com.example.backend.user.application.port.outbound.UserLikeTagPort
+import com.example.backend.user.application.port.outbound.UserLikeThemePort
 import com.example.backend.user.application.port.outbound.UserPersistencePort
 import com.example.backend.user.application.port.outbound.UserProfileRow
 import com.example.backend.user.domain.model.SocialProvider
@@ -146,21 +146,20 @@ class AuthServiceTest {
             override fun findAreaByCode(code: String): AreaDescriptor? = null
         }
 
-    private val userLikeTagPort =
-        object : UserLikeTagPort {
-            override fun replaceLikeTags(
+    private val userLikeThemePort =
+        object : UserLikeThemePort {
+            override fun replaceLikeThemes(
                 userId: Long,
-                tagIds: List<Long>,
+                themes: List<String>,
             ) = Unit
 
-            override fun findLikeTagIds(userId: Long): List<Long> = emptyList()
+            override fun findLikeThemes(userId: Long): List<String> = emptyList()
         }
 
-    private val likeTagPort =
-        object : LikeTagPort {
-            override fun findExistingTagIds(tagIds: List<Long>): Set<Long> = tagIds.toSet()
-
-            override fun findTagNames(tagIds: List<Long>): Map<Long, String> = emptyMap()
+    // 관심 테마 정본은 course 도메인 소유라, user 테스트는 enum 을 참조하지 않고 이름만 흉내낸다.
+    private val likeThemePort =
+        object : LikeThemePort {
+            override fun listThemeNames(): List<String> = listOf("DATE", "CAFETOUR", "CULTURE")
         }
 
     private val service =
@@ -168,11 +167,11 @@ class AuthServiceTest {
             socialVerificationPort = socialVerificationPort,
             userPersistencePort = userPersistencePort,
             userAreaPersistencePort = userAreaPersistencePort,
-            userLikeTagPort = userLikeTagPort,
+            userLikeThemePort = userLikeThemePort,
             authTokenPort = authTokenPort,
             refreshTokenPort = refreshTokenPort,
             userAreaResolver = UserAreaResolver(areaQueryUseCase),
-            userLikeTagResolver = UserLikeTagResolver(likeTagPort),
+            userLikeThemeResolver = UserLikeThemeResolver(likeThemePort),
         )
 
     @Test

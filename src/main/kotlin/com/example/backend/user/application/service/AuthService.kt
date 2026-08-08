@@ -12,7 +12,7 @@ import com.example.backend.user.application.port.outbound.AuthTokenPort
 import com.example.backend.user.application.port.outbound.RefreshTokenPort
 import com.example.backend.user.application.port.outbound.SocialVerificationPort
 import com.example.backend.user.application.port.outbound.UserAreaPersistencePort
-import com.example.backend.user.application.port.outbound.UserLikeTagPort
+import com.example.backend.user.application.port.outbound.UserLikeThemePort
 import com.example.backend.user.application.port.outbound.UserPersistencePort
 import com.example.backend.user.domain.model.SocialProvider
 import com.example.backend.user.domain.model.User
@@ -27,11 +27,11 @@ class AuthService(
     private val socialVerificationPort: SocialVerificationPort,
     private val userPersistencePort: UserPersistencePort,
     private val userAreaPersistencePort: UserAreaPersistencePort,
-    private val userLikeTagPort: UserLikeTagPort,
+    private val userLikeThemePort: UserLikeThemePort,
     private val authTokenPort: AuthTokenPort,
     private val refreshTokenPort: RefreshTokenPort,
     private val userAreaResolver: UserAreaResolver,
-    private val userLikeTagResolver: UserLikeTagResolver,
+    private val userLikeThemeResolver: UserLikeThemeResolver,
 ) : AuthUseCase {
     @Transactional
     override fun socialLogin(
@@ -67,7 +67,7 @@ class AuthService(
             throw BusinessException(ErrorCode.SOCIAL_ACCOUNT_ALREADY_REGISTERED)
         }
         val areaCodes = userAreaResolver.normalizeAndValidate(command.areaCodes)
-        val likeTagIds = userLikeTagResolver.validate(command.likeTagIds)
+        val likeThemes = userLikeThemeResolver.validate(command.likeThemes)
         val withdrawn = userPersistencePort.findWithdrawnBySocial(identity.provider, identity.socialId)
         val saved =
             if (withdrawn != null) {
@@ -101,7 +101,7 @@ class AuthService(
         val userId = checkNotNull(saved.id) { "영속화된 User 는 id 를 가진다." }
         // 재가입(재활성화)이면 이전 관심 지역·테마가 남아 있을 수 있어 빈 리스트여도 전체 치환한다.
         userAreaPersistencePort.replaceAreas(userId, areaCodes)
-        userLikeTagPort.replaceLikeTags(userId, likeTagIds)
+        userLikeThemePort.replaceLikeThemes(userId, likeThemes)
         return SignupResult(
             accessToken = authTokenPort.issueAccessToken(userId),
             refreshToken = refreshTokenPort.issue(userId),

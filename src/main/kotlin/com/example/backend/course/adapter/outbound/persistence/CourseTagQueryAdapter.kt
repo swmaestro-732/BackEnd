@@ -38,21 +38,4 @@ class CourseTagQueryAdapter : CourseTagQueryPort {
             .orderBy(courseCount to SortOrder.DESC, TagTable.name to SortOrder.ASC)
             .limit(limit)
             .map { it[TagTable.name] }
-
-    override fun findExistingTagIds(tagIds: List<Long>): Set<Long> {
-        if (tagIds.isEmpty()) return emptySet()
-        return TagTable
-            .select(TagTable.id)
-            .where { TagTable.id inList tagIds }
-            .map { it[TagTable.id].value }
-            .toSet()
-    }
-
-    override fun findTagNames(tagIds: List<Long>): Map<Long, String> {
-        if (tagIds.isEmpty()) return emptyMap()
-        return TagTable
-            .select(TagTable.id, TagTable.name)
-            .where { TagTable.id inList tagIds }
-            .associate { it[TagTable.id].value to it[TagTable.name] }
-    }
 }
