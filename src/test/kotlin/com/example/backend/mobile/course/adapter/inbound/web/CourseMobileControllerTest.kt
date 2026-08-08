@@ -2,6 +2,7 @@ package com.example.backend.mobile.course.adapter.inbound.web
 
 import com.example.backend.bootstrap.security.JwtTokenProvider
 import com.example.backend.support.IntegrationTestBase
+import org.hamcrest.Matchers.containsInAnyOrder
 import org.junit.jupiter.api.Test
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc
@@ -35,6 +36,8 @@ class CourseMobileControllerTest
                 .andExpect(jsonPath("$.data.course.id").value("$PUBLIC_COURSE_ID"))
                 .andExpect(jsonPath("$.data.course.title").value("공개 발행 코스"))
                 .andExpect(jsonPath("$.data.course.themes[0]").value("CAFETOUR"))
+                // 해시태그(course_tags)는 테마(카테고리)와 별개 필드다. 순서는 계약이 아니라 구성만 검증한다.
+                .andExpect(jsonPath("$.data.course.tags", containsInAnyOrder("감성카페", "데이트")))
                 .andExpect(jsonPath("$.data.course.stats.placeCount").value(2))
                 .andExpect(jsonPath("$.data.course.stats.walkingMinutes").value(5))
                 .andExpect(jsonPath("$.data.course.stats.tracingCount").value(1200))
@@ -82,6 +85,8 @@ class CourseMobileControllerTest
                 ).andExpect(status().isOk)
                 .andExpect(jsonPath("$.data.course.title").value("비공개 초안"))
                 .andExpect(jsonPath("$.data.course.places.length()").value(0))
+                // 태그를 안 단 코스는 빈 배열(키 누락 아님)
+                .andExpect(jsonPath("$.data.course.tags.length()").value(0))
                 .andExpect(jsonPath("$.data.course.author.id").value(OWNER_ID))
 
             // 타인: 존재를 드러내지 않도록 404

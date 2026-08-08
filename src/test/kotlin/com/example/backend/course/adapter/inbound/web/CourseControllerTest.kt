@@ -2,6 +2,7 @@ package com.example.backend.course.adapter.inbound.web
 
 import com.example.backend.bootstrap.security.JwtTokenProvider
 import com.example.backend.support.IntegrationTestBase
+import org.hamcrest.Matchers.containsInAnyOrder
 import org.junit.jupiter.api.Test
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc
@@ -308,6 +309,59 @@ class CourseControllerTest
                 .andExpect(jsonPath("$.data.course.places.length()").value(2))
                 .andExpect(jsonPath("$.data.course.stats.walkingMinutes").value(5))
                 .andExpect(jsonPath("$.data.course.stats.tracingCount").value(1200))
+        }
+
+        @Test
+        fun `코스 상세는 해시태그를 함께 내려준다`() {
+            // 순서는 계약이 아니라(course_tags 에 순서 컬럼 없음) 구성만 검증한다.
+            mockMvc
+                .perform(get("/api/v1/courses/$PUBLIC_COURSE_ID"))
+                .andExpect(status().isOk)
+                .andExpect(jsonPath("$.data.course.tags", containsInAnyOrder("감성카페", "데이트")))
+        }
+
+        @Test
+        fun `태그가 없는 코스는 tags 가 빈 배열이다`() {
+            mockMvc
+                .perform(
+                    get("/api/v1/courses/$PRIVATE_COURSE_ID")
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer ${tokenFor(OWNER_ID)}"),
+                ).andExpect(status().isOk)
+                .andExpect(jsonPath("$.data.course.tags").isArray)
+                .andExpect(jsonPath("$.data.course.tags.length()").value(0))
+        }
+
+        @Test
+        fun `생성 요청의 태그가 상세 조회에 그대로 나온다`() {
+            val body =
+                """
+                {
+                  "title": "태그 라운드트립",
+                  "thumbnailUrl": "https://img/cover.jpg",
+                  "tags": ["데이트", "감성카페"],
+                  "visibility": "PUBLIC",
+                  "isPublished": true,
+                  "places": [
+                    {"placeId": 1, "orderNo": 0, "caption": "카페A", "imageUrls": ["https://img/a.jpg"]},
+                    {"placeId": 2, "orderNo": 1, "caption": "카페B", "imageUrls": ["https://img/b.jpg"]}
+                  ]
+                }
+                """.trimIndent()
+
+            val response =
+                mockMvc
+                    .perform(
+                        post("/api/v1/courses")
+                            .header(HttpHeaders.AUTHORIZATION, "Bearer ${tokenFor(OWNER_ID)}")
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(body),
+                    ).andExpect(status().isCreated)
+                    .andReturn()
+
+            mockMvc
+                .perform(get("/api/v1/courses/${extractCourseId(response.response.contentAsString)}"))
+                .andExpect(status().isOk)
+                .andExpect(jsonPath("$.data.course.tags", containsInAnyOrder("감성카페", "데이트")))
         }
 
         @Test

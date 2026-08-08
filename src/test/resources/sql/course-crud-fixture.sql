@@ -38,3 +38,8 @@ INSERT INTO course_place_images (course_place_id, image_url, order_no)
 VALUES
     (1, 'https://img/place-a.jpg', 0),
     (2, 'https://img/place-b.jpg', 0);
+
+-- course 1 의 해시태그 2개. 응답 순서는 보장하지 않으므로(course_tags 에 순서 컬럼 없음)
+-- 테스트도 순서를 검증하지 않는다. course 2·3·4 는 태그가 없어 응답에서 빈 배열이 된다.
+INSERT INTO tags (name) VALUES ('데이트'), ('감성카페');
+INSERT INTO course_tags (course_id, tag_id) VALUES (1, 1), (1, 2);
