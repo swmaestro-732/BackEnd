@@ -23,4 +23,9 @@ data class UserProfileResult(
     val privateCoursesCnt: Int,
     /** 관심 지역 — 내 계정 조회(AccountUseCase.getProfile)에서만 채운다. 타인 프로필·작성자 카드는 노출하지 않는다(빈 리스트). */
     val areas: List<UserAreaResult> = emptyList(),
+    /**
+     * 관심 테마(코스 카테고리 이름) — 관심 지역과 동일하게 내 계정 조회에서만 채운다(타인 프로필은 빈 리스트).
+     * 한글 라벨 매핑은 클라이언트 담당(코스 상세의 `theme` 와 동일 규칙).
+     */
+    val likeThemes: List<String> = emptyList(),
 )

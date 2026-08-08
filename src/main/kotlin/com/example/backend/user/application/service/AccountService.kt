@@ -8,9 +8,8 @@ import com.example.backend.user.application.port.inbound.dto.FollowResult
 import com.example.backend.user.application.port.inbound.dto.UpdateProfileCommand
 import com.example.backend.user.application.port.inbound.dto.UserProfileResult
 import com.example.backend.user.application.port.outbound.FollowPersistencePort
-import com.example.backend.user.application.port.outbound.LikeTagValidationPort
 import com.example.backend.user.application.port.outbound.UserAreaPersistencePort
-import com.example.backend.user.application.port.outbound.UserLikeTagPort
+import com.example.backend.user.application.port.outbound.UserLikeThemePort
 import com.example.backend.user.application.port.outbound.UserPersistencePort
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
@@ -21,10 +20,10 @@ class AccountService(
     private val userPersistencePort: UserPersistencePort,
     private val userAreaPersistencePort: UserAreaPersistencePort,
     private val followPersistencePort: FollowPersistencePort,
-    private val userLikeTagPort: UserLikeTagPort,
-    private val likeTagValidationPort: LikeTagValidationPort,
+    private val userLikeThemePort: UserLikeThemePort,
     private val mediaCleanupUseCase: MediaCleanupUseCase,
     private val userAreaResolver: UserAreaResolver,
+    private val userLikeThemeResolver: UserLikeThemeResolver,
 ) : AccountUseCase {
     override fun getProfile(userId: Long): UserProfileResult {
         val row =
@@ -44,6 +43,7 @@ class AccountService(
             followerCoursesCnt = row.followerCoursesCnt,
             privateCoursesCnt = row.privateCoursesCnt,
             areas = userAreaResolver.resolve(userAreaPersistencePort.findAreaCodes(userId)),
+            likeThemes = userLikeThemePort.findLikeThemes(userId),
         )
     }
 
@@ -60,7 +60,7 @@ class AccountService(
         val handle = command.handle
         val profileImageUrl = command.profileImageUrl
         val bio = command.bio
-        val likeTagIds = command.likeTagIds
+        val likeThemes = command.likeThemes
         if (nickname != null &&
             nickname != user.nickname &&
             userPersistencePort.existsByNickname(nickname)
@@ -74,13 +74,8 @@ class AccountService(
             throw BusinessException(ErrorCode.HANDLE_ALREADY_TAKEN)
         }
 
-        // 관심 태그(코스 태그) 존재 검증 — 없는 id 가 하나라도 있으면 update·미디어 정리 전에 거부한다(FK 없음 방어).
-        if (!likeTagIds.isNullOrEmpty()) {
-            val missing = likeTagIds.toSet() - likeTagValidationPort.findExistingTagIds(likeTagIds)
-            if (missing.isNotEmpty()) {
-                throw BusinessException(ErrorCode.INVALID_INPUT, "존재하지 않는 태그가 포함되어 있습니다: ids=$missing")
-            }
-        }
+        // 관심 테마 검증 — 유효한 코스 카테고리가 아닌 값이 섞이면 update·미디어 정리 전에 거부한다(FK 없음 방어).
+        val validatedLikeThemes = likeThemes?.let(userLikeThemeResolver::validate)
 
         val oldImageUrl = user.profileImageUrl
         val updated =
@@ -91,8 +86,8 @@ class AccountService(
                 bio = bio,
             )
         userPersistencePort.update(updated)
-        // 관심 카테고리(코스 태그)는 보낸 경우에만 전체 치환한다(null=미변경, 빈 배열=전체 해제).
-        if (likeTagIds != null) userLikeTagPort.replaceLikeTags(userId, likeTagIds)
+        // 관심 테마는 보낸 경우에만 전체 치환한다(null=미변경, 빈 배열=전체 해제).
+        if (validatedLikeThemes != null) userLikeThemePort.replaceLikeThemes(userId, validatedLikeThemes)
         // 프로필 이미지가 새 값으로 교체되면 참조 끊긴 옛 이미지(고아)를 정리한다(재사용 함수).
         if (profileImageUrl != null && profileImageUrl != oldImageUrl) {
             mediaCleanupUseCase.deleteByUrl(oldImageUrl)
