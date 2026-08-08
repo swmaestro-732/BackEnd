@@ -141,7 +141,11 @@ class CourseService(
                 places = places,
                 category =
                     resolveEditedDerivedValue(command.isPublished, existing.category, placesUnchanged) {
-                        Course.deriveCategory(command.isPublished, places, foundPlaces.associate { it.id to it.category })
+                        Course.deriveCategory(
+                            command.isPublished,
+                            places,
+                            foundPlaces.associate { it.id to it.category },
+                        )
                     },
                 areaCode = areaCode,
                 // 지역 이름은 코드에서 결정적으로 풀리므로 유지/재도출 판정 없이 항상 코드로 재해석한다.
