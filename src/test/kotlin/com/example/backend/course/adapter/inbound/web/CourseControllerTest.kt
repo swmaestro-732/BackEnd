@@ -74,7 +74,8 @@ class CourseControllerTest
         }
 
         @Test
-        fun `임시저장 코스는 장소 없이도 생성된다`() {
+        fun `임시저장이어도 장소가 2곳 미만이면 4001을 내려준다`() {
+            // 장소 최소 개수(2곳)는 발행 전용이 아니라 임시저장에도 적용된다.
             val body =
                 """
                 {
@@ -91,9 +92,8 @@ class CourseControllerTest
                         .header(HttpHeaders.AUTHORIZATION, "Bearer ${tokenFor(OWNER_ID)}")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(body),
-                ).andExpect(status().isCreated)
-                .andExpect(jsonPath("$.code").value(2000))
-                .andExpect(jsonPath("$.data.courseId").isNumber)
+                ).andExpect(status().isBadRequest)
+                .andExpect(jsonPath("$.code").value(4001))
         }
 
         @Test
@@ -172,15 +172,17 @@ class CourseControllerTest
         }
 
         @Test
-        fun `임시저장은 제목이 비어 있어도 생성된다`() {
-            // 제목은 발행 코스만 필수 — 임시저장(draft)은 빈 제목을 허용한다.
+        fun `임시저장은 제목 없이도 생성된다`() {
+            // 제목은 발행 코스만 필수 — 임시저장(draft)은 title 키 자체를 생략할 수 있다.
             val body =
                 """
                 {
-                  "title": "",
                   "visibility": "PRIVATE",
                   "isPublished": false,
-                  "places": []
+                  "places": [
+                    {"placeId": 1, "orderNo": 0, "caption": "카페A", "imageUrls": []},
+                    {"placeId": 2, "orderNo": 1, "caption": "카페B", "imageUrls": []}
+                  ]
                 }
                 """.trimIndent()
 
@@ -361,7 +363,10 @@ class CourseControllerTest
                   "description": "수정된 설명",
                   "visibility": "PRIVATE",
                   "isPublished": false,
-                  "places": []
+                  "places": [
+                    {"placeId": 1, "orderNo": 0, "caption": "카페A", "imageUrls": []},
+                    {"placeId": 2, "orderNo": 1, "caption": "카페B", "imageUrls": []}
+                  ]
                 }
                 """.trimIndent()
 
