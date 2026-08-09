@@ -2,10 +2,9 @@ package com.example.backend.user.application.service
 
 import com.example.backend.common.exception.BusinessException
 import com.example.backend.common.response.ErrorCode
-import com.example.backend.course.application.port.inbound.CourseCounterUseCase
-import com.example.backend.course.application.port.inbound.CourseUseCase
 import com.example.backend.user.application.port.inbound.UserUseCase
 import com.example.backend.user.application.port.inbound.dto.UserProfileResult
+import com.example.backend.user.application.port.outbound.CourseCleanupPort
 import com.example.backend.user.application.port.outbound.FollowPersistencePort
 import com.example.backend.user.application.port.outbound.RefreshTokenPort
 import com.example.backend.user.application.port.outbound.SavedCoursePersistencePort
@@ -30,8 +29,7 @@ class UserService(
     private val savedCoursePersistencePort: SavedCoursePersistencePort,
     private val userAreaPersistencePort: UserAreaPersistencePort,
     private val userLikeThemePort: UserLikeThemePort,
-    private val courseUseCase: CourseUseCase,
-    private val courseCounterUseCase: CourseCounterUseCase,
+    private val courseCleanupPort: CourseCleanupPort,
 ) : UserUseCase {
     override fun getProfile(
         userId: Long,
@@ -108,7 +106,7 @@ class UserService(
 
         // 소유 데이터를 먼저 정리해 (같은 소셜로) 재가입 시 "처음 계정처럼" 시작하게 한다 — 전 과정 단일 트랜잭션.
         // 1) 저장 코스: 원저자 saves_cnt 를 먼저 보정한 뒤 저장 레코드·폴더를 지운다.
-        savedCoursePersistencePort.findAliveSavedCourseIds(userId).forEach(courseCounterUseCase::decreaseSavesCount)
+        courseCleanupPort.decreaseSavesCounts(savedCoursePersistencePort.findAliveSavedCourseIds(userId))
         savedCoursePersistencePort.deleteAllByUser(userId)
         // 2) 팔로우: 양방향 삭제 + 상대 카운터 보정.
         followPersistencePort.purgeFollowsOf(userId)
@@ -116,7 +114,7 @@ class UserService(
         userAreaPersistencePort.replaceAreas(userId, emptyList())
         userLikeThemePort.replaceLikeThemes(userId, emptyList())
         // 4) 작성 코스: 전부 소프트 삭제(피드·프로필에서 사라짐).
-        courseUseCase.deleteAllByAuthor(userId)
+        courseCleanupPort.softDeleteCoursesByAuthor(userId)
         // 5) users 행: 탈퇴 스탬프 + 핸들 해제 + bio·카운터 리셋.
         userPersistencePort.softDelete(user.withdraw())
         // 6) 리프레시 토큰 폐기.
