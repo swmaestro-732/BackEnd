@@ -7,6 +7,7 @@ import com.example.backend.user.application.port.outbound.UserProfileRow
 import com.example.backend.user.domain.model.SocialProvider
 import com.example.backend.user.domain.model.User
 import com.example.backend.user.domain.model.UserStatus
+import org.jetbrains.exposed.v1.core.SortOrder
 import org.jetbrains.exposed.v1.core.and
 import org.jetbrains.exposed.v1.core.eq
 import org.jetbrains.exposed.v1.core.inList
@@ -15,6 +16,7 @@ import org.jetbrains.exposed.v1.core.isNull
 import org.jetbrains.exposed.v1.core.neq
 import org.jetbrains.exposed.v1.core.plus
 import org.jetbrains.exposed.v1.jdbc.insert
+import org.jetbrains.exposed.v1.jdbc.select
 import org.jetbrains.exposed.v1.jdbc.selectAll
 import org.jetbrains.exposed.v1.jdbc.update
 import org.springframework.stereotype.Repository
@@ -146,6 +148,16 @@ class UserRepository(
                 it[bio] = user.bio
             }
         check(updated == 1) { "갱신할 활성 사용자를 찾지 못했습니다: id=$id" }
+    }
+
+    fun lockActive(userIds: List<Long>): Set<Long> {
+        if (userIds.isEmpty()) return emptySet()
+        return UserTable
+            .select(UserTable.id)
+            .where { (UserTable.id inList userIds) and UserTable.deletedAt.isNull() }
+            .orderBy(UserTable.id to SortOrder.ASC)
+            .forUpdate()
+            .mapTo(mutableSetOf()) { it[UserTable.id].value }
     }
 
     fun softDelete(user: User) {

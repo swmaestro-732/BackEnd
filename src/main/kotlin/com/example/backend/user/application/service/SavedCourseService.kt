@@ -9,6 +9,7 @@ import com.example.backend.user.application.port.inbound.dto.SavedCourseFolderCo
 import com.example.backend.user.application.port.inbound.dto.SavedCoursesCommand
 import com.example.backend.user.application.port.inbound.dto.SavedCoursesResult
 import com.example.backend.user.application.port.outbound.SavedCoursePersistencePort
+import com.example.backend.user.application.port.outbound.UserPersistencePort
 import com.example.backend.user.domain.model.SavedCourse
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
@@ -29,6 +30,7 @@ class SavedCourseService(
     private val savedCoursePersistencePort: SavedCoursePersistencePort,
     private val courseQueryUseCase: CourseQueryUseCase,
     private val courseCounterUseCase: CourseCounterUseCase,
+    private val userPersistencePort: UserPersistencePort,
 ) : SavedCourseUseCase {
     @Transactional
     override fun save(
@@ -36,6 +38,10 @@ class SavedCourseService(
         courseId: Long,
         folderId: Long?,
     ): SavedCourse {
+        // 사용자 행을 FOR UPDATE 로 잠가 동시 탈퇴 정리와 직렬화한다(탈퇴 계정에 저장 유입 차단).
+        if (userPersistencePort.lockActive(listOf(userId)).isEmpty()) {
+            throw BusinessException(ErrorCode.USER_NOT_FOUND, "사용자를 찾을 수 없습니다: id=$userId")
+        }
         if (!courseQueryUseCase.existsById(courseId)) {
             throw BusinessException(ErrorCode.COURSE_NOT_FOUND, "저장할 코스를 찾을 수 없습니다: courseId=$courseId")
         }
@@ -60,6 +66,10 @@ class SavedCourseService(
         userId: Long,
         courseId: Long,
     ) {
+        // save 와 같은 행 잠금으로 직렬화한다 — 저장 취소 삭제는 멱등이라 사용자 존재만 검증한다.
+        if (userPersistencePort.lockActive(listOf(userId)).isEmpty()) {
+            throw BusinessException(ErrorCode.USER_NOT_FOUND, "사용자를 찾을 수 없습니다: id=$userId")
+        }
         // 실제로 살아있던 저장을 지웠을 때만 카운터를 내린다 — 멱등 취소(이미 없음)는 no-op 라 언더플로를 막는다.
         if (savedCoursePersistencePort.deleteByUserAndCourse(userId, courseId)) {
             courseCounterUseCase.decreaseSavesCount(courseId)
