@@ -123,10 +123,13 @@ class AccountService(
         followerId: Long,
         targetId: Long,
     ): FollowResult {
-        // follow 와 같은 행 잠금으로 직렬화한다 — 언팔로우 삭제는 멱등이라 대상 존재만 검증한다.
+        // follow 와 같은 행 잠금으로 직렬화한다. 삭제는 멱등이지만 두 사용자 모두 활성일 때만 진행한다(follow 와 대칭).
         val active = userPersistencePort.lockActive(listOf(followerId, targetId))
         if (targetId !in active) {
             throw BusinessException(ErrorCode.USER_NOT_FOUND, "사용자를 찾을 수 없습니다: id=$targetId")
+        }
+        if (followerId !in active) {
+            throw BusinessException(ErrorCode.USER_NOT_FOUND, "사용자를 찾을 수 없습니다: id=$followerId")
         }
         followPersistencePort.unfollow(followerId, targetId)
         val followersCnt = userPersistencePort.findProfile(targetId)!!.followersCnt

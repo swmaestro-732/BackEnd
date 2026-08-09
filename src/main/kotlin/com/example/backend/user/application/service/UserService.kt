@@ -100,13 +100,15 @@ class UserService(
 
     @Transactional
     override fun withdraw(userId: Long) {
+        // 이 사용자 행을 먼저 FOR UPDATE 로 잠가, 탈퇴 정리 도중 유입되는 이 사용자 대상 쓰기(팔로우·저장)를 직렬화한다.
+        // (같은 행 잠금을 follow/save 도 획득 → 정리 후 유입분이 잔여 행·카운터를 남기지 못한다.)
+        // 잠금 결과가 비면 그 사이 다른 트랜잭션이 이미 탈퇴시킨 것 → 활성 상태를 확인한 뒤에야 조회·정리한다(중복 탈퇴 방어).
+        if (userId !in userPersistencePort.lockActive(listOf(userId))) {
+            throw BusinessException(ErrorCode.USER_NOT_FOUND, "사용자를 찾을 수 없습니다: id=$userId")
+        }
         val user =
             userPersistencePort.findById(userId)
                 ?: throw BusinessException(ErrorCode.USER_NOT_FOUND, "사용자를 찾을 수 없습니다: id=$userId")
-
-        // 이 사용자 행을 FOR UPDATE 로 잠가, 탈퇴 정리 도중 유입되는 이 사용자 대상 쓰기(팔로우·저장)를 직렬화한다.
-        // (같은 행 잠금을 follow/save 도 획득 → 정리 후 유입분이 잔여 행·카운터를 남기지 못한다.)
-        userPersistencePort.lockActive(listOf(userId))
 
         // 소유 데이터를 먼저 정리해 (같은 소셜로) 재가입 시 "처음 계정처럼" 시작하게 한다 — 전 과정 단일 트랜잭션.
         // 1) 저장 코스: 원저자 saves_cnt 를 먼저 보정한 뒤 저장 레코드·폴더를 지운다.

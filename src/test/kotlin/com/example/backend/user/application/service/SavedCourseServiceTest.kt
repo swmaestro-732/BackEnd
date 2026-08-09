@@ -132,8 +132,12 @@ class SavedCourseServiceTest {
             var increasedCourseIds: MutableList<Long> = mutableListOf()
             var decreasedCourseIds: MutableList<Long> = mutableListOf()
 
-            override fun increaseSavesCount(courseId: Long) {
+            // 실제 갱신 행 수를 반환한다. 0 = 코스가 (동시 삭제 등으로) 비활성 → save 가 롤백해야 한다.
+            var increaseReturn = 1
+
+            override fun increaseSavesCount(courseId: Long): Int {
                 increasedCourseIds += courseId
+                return increaseReturn
             }
 
             override fun decreaseSavesCount(courseId: Long) {
@@ -217,6 +221,16 @@ class SavedCourseServiceTest {
 
         assertEquals(ErrorCode.USER_NOT_FOUND, ex.errorCode)
         assertNull(fakePort.insertArgs)
+    }
+
+    @Test
+    fun `저장 중 코스가 비활성화되면(saves_cnt 0행) COURSE_NOT_FOUND 로 롤백한다`() {
+        fakeCourseQuery.existing = setOf(42L) // 존재 검증 시점엔 활성
+        fakeCourseCounter.increaseReturn = 0 // 삽입 후 증가 시점엔 삭제됨(0행)
+
+        val ex = assertThrows<BusinessException> { service.save(userId = 1L, courseId = 42L, folderId = null) }
+
+        assertEquals(ErrorCode.COURSE_NOT_FOUND, ex.errorCode)
     }
 
     @Test

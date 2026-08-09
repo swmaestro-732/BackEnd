@@ -56,8 +56,11 @@ class SavedCourseService(
         }
 
         val saved = savedCoursePersistencePort.insert(userId, courseId, folderId)
-        // courses.saves_cnt 낙관적 +1 — 코스 도메인이 자기 카운터를 소유한다. 같은 트랜잭션에 묶이며 추후 비동기 집계로 옮긴다.
-        courseCounterUseCase.increaseSavesCount(courseId)
+        // courses.saves_cnt 낙관적 +1 — 코스 도메인이 자기 카운터를 소유한다(같은 트랜잭션).
+        // 0행이면 코스가 그 사이 비활성(작성자 탈퇴 등으로 soft delete)된 것 → 방금 삽입까지 롤백해 저장 행·카운터 불일치를 막는다.
+        if (courseCounterUseCase.increaseSavesCount(courseId) == 0) {
+            throw BusinessException(ErrorCode.COURSE_NOT_FOUND, "저장할 코스를 찾을 수 없습니다: courseId=$courseId")
+        }
         return saved
     }
 
