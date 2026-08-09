@@ -2,10 +2,15 @@ package com.example.backend.user.application.service
 
 import com.example.backend.common.exception.BusinessException
 import com.example.backend.common.response.ErrorCode
+import com.example.backend.course.application.port.inbound.CourseCounterUseCase
+import com.example.backend.course.application.port.inbound.CourseUseCase
 import com.example.backend.user.application.port.inbound.UserUseCase
 import com.example.backend.user.application.port.inbound.dto.UserProfileResult
 import com.example.backend.user.application.port.outbound.FollowPersistencePort
 import com.example.backend.user.application.port.outbound.RefreshTokenPort
+import com.example.backend.user.application.port.outbound.SavedCoursePersistencePort
+import com.example.backend.user.application.port.outbound.UserAreaPersistencePort
+import com.example.backend.user.application.port.outbound.UserLikeThemePort
 import com.example.backend.user.application.port.outbound.UserPersistencePort
 import com.example.backend.user.application.port.outbound.UserProfileRow
 import org.springframework.stereotype.Service
@@ -22,6 +27,11 @@ class UserService(
     private val userPersistencePort: UserPersistencePort,
     private val followPersistencePort: FollowPersistencePort,
     private val refreshTokenPort: RefreshTokenPort,
+    private val savedCoursePersistencePort: SavedCoursePersistencePort,
+    private val userAreaPersistencePort: UserAreaPersistencePort,
+    private val userLikeThemePort: UserLikeThemePort,
+    private val courseUseCase: CourseUseCase,
+    private val courseCounterUseCase: CourseCounterUseCase,
 ) : UserUseCase {
     override fun getProfile(
         userId: Long,
@@ -95,7 +105,21 @@ class UserService(
         val user =
             userPersistencePort.findById(userId)
                 ?: throw BusinessException(ErrorCode.USER_NOT_FOUND, "사용자를 찾을 수 없습니다: id=$userId")
+
+        // 소유 데이터를 먼저 정리해 (같은 소셜로) 재가입 시 "처음 계정처럼" 시작하게 한다 — 전 과정 단일 트랜잭션.
+        // 1) 저장 코스: 원저자 saves_cnt 를 먼저 보정한 뒤 저장 레코드·폴더를 지운다.
+        savedCoursePersistencePort.findAliveSavedCourseIds(userId).forEach(courseCounterUseCase::decreaseSavesCount)
+        savedCoursePersistencePort.deleteAllByUser(userId)
+        // 2) 팔로우: 양방향 삭제 + 상대 카운터 보정.
+        followPersistencePort.purgeFollowsOf(userId)
+        // 3) 관심 지역·테마: 빈 목록으로 전체 치환(=전부 삭제).
+        userAreaPersistencePort.replaceAreas(userId, emptyList())
+        userLikeThemePort.replaceLikeThemes(userId, emptyList())
+        // 4) 작성 코스: 전부 소프트 삭제(피드·프로필에서 사라짐).
+        courseUseCase.deleteAllByAuthor(userId)
+        // 5) users 행: 탈퇴 스탬프 + 핸들 해제 + bio·카운터 리셋.
         userPersistencePort.softDelete(user.withdraw())
+        // 6) 리프레시 토큰 폐기.
         refreshTokenPort.revokeAllByUser(userId)
     }
 

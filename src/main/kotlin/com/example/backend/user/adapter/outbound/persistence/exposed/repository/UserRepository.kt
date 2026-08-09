@@ -156,6 +156,14 @@ class UserRepository(
             // handle 은 탈퇴 시 즉시 해제(NULL)해 재사용 가능하게 한다 — 죽은 계정이 핸들을 영구 점유하지 않도록.
             // handle 은 nullable 이고 UNIQUE 는 NULL 다중 허용이라, existsByHandle 은 NULL 아닌 값만 매칭돼 자연히 활성 행만 본다.
             it[handle] = null
+            // 재가입(reactivate)이 "처음 계정처럼" 시작하도록 잔여 프로필·카운터를 함께 비운다.
+            // 관계·코스·저장 등 소유 데이터는 UserService.withdraw 오케스트레이션이 앞서 정리한다.
+            it[bio] = null
+            it[followersCnt] = 0
+            it[followingsCnt] = 0
+            it[publicCoursesCnt] = 0
+            it[followerCoursesCnt] = 0
+            it[privateCoursesCnt] = 0
         }
     }
 

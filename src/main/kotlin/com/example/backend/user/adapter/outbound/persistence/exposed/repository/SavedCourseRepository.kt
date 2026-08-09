@@ -14,6 +14,7 @@ import org.jetbrains.exposed.v1.core.inSubQuery
 import org.jetbrains.exposed.v1.core.isNull
 import org.jetbrains.exposed.v1.core.less
 import org.jetbrains.exposed.v1.core.notInSubQuery
+import org.jetbrains.exposed.v1.jdbc.deleteWhere
 import org.jetbrains.exposed.v1.jdbc.select
 import org.jetbrains.exposed.v1.jdbc.selectAll
 import org.jetbrains.exposed.v1.jdbc.update
@@ -68,6 +69,18 @@ class SavedCourseRepository {
         }) {
             it[deletedAt] = Clock.System.now()
         } > 0
+
+    /** 사용자가 지금 살아있게 저장 중인(deleted_at IS NULL) 코스 id 목록 — 탈퇴 정리 시 원저자 saves_cnt 보정용. */
+    fun findAliveSavedCourseIds(userId: Long): List<Long> =
+        SavedCourseTable
+            .select(SavedCourseTable.courseId)
+            .where { (SavedCourseTable.userId eq userId) and SavedCourseTable.deletedAt.isNull() }
+            .map { it[SavedCourseTable.courseId] }
+
+    /** 사용자의 저장 코스 레코드를 전부 하드 삭제한다(살아있는 것·이미 소프트 삭제된 것 모두 — 탈퇴 정리). */
+    fun deleteAllByUser(userId: Long) {
+        SavedCourseTable.deleteWhere { SavedCourseTable.userId eq userId }
+    }
 
     fun count(
         userId: Long,

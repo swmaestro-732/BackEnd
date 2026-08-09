@@ -75,6 +75,8 @@ class CoursePersistenceAdapter(
 
     override fun softDelete(courseId: Long): Int = courseRepository.softDelete(courseId)
 
+    override fun softDeleteAllByAuthor(authorId: Long): Int = courseRepository.softDeleteAllByAuthor(authorId)
+
     override fun increaseSavesCount(courseId: Long): Int = courseRepository.increaseSavesCount(courseId)
 
     override fun decreaseSavesCount(courseId: Long): Int = courseRepository.decreaseSavesCount(courseId)

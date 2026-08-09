@@ -99,6 +99,10 @@ class SavedCourseServiceTest {
                 return true
             }
 
+            override fun findAliveSavedCourseIds(userId: Long): List<Long> = emptyList()
+
+            override fun deleteAllByUser(userId: Long) {}
+
             override fun count(
                 userId: Long,
                 folderId: Long?,

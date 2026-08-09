@@ -10,6 +10,7 @@ import org.jetbrains.exposed.v1.core.and
 import org.jetbrains.exposed.v1.core.count
 import org.jetbrains.exposed.v1.core.eq
 import org.jetbrains.exposed.v1.core.isNull
+import org.jetbrains.exposed.v1.jdbc.deleteWhere
 import org.jetbrains.exposed.v1.jdbc.select
 import org.jetbrains.exposed.v1.jdbc.selectAll
 import org.springframework.stereotype.Repository
@@ -56,5 +57,10 @@ class SavedCourseFolderRepository {
                     count = row[savedCount].toInt(),
                 )
             }
+    }
+
+    /** 사용자의 저장 폴더를 전부 하드 삭제한다(회원 탈퇴 정리 — 저장 코스를 먼저 지운 뒤 호출해 FK 위반을 피한다). */
+    fun deleteAllByUser(userId: Long) {
+        SavedCourseFolderTable.deleteWhere { SavedCourseFolderTable.userId eq userId }
     }
 }
