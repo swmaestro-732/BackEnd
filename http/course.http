@@ -118,6 +118,97 @@ Authorization: Bearer {{accessToken}}
   ]
 }
 
+### 코스 포크 (모킹) — 경로 courseId 는 "원본", 응답 courseId 는 새로 만들어진 "내" 코스.
+# 포크가 원본에서 가져오는 건 장소 구성(placeId·orderNo)뿐이고 caption·imageUrls·제목·커버·태그·공개설정은
+# 포크하는 사람이 빌더 화면에서 새로 입력한다(기능 정의서 7.2.1 게시물 만들기) — 요청 모양은 코스 생성과 같다.
+# 모킹이라 저장 없이 고정 courseId 를 반환하고 토큰도 필요 없다(실구현 전환 시 Authorization 필수).
+POST http://localhost:8080/api/v1/courses/1/forks
+Content-Type: application/json
+
+{
+  "title": "내가 다시 걸은 성수 카페 코스",
+  "description": "원본 보고 따라갔다가 제 사진으로 다시 정리했어요.",
+  "thumbnailUrl": "https://cdn.courmy.app/c42/cover.jpg",
+  "tags": ["성수동", "감성카페"],
+  "visibility": "PUBLIC",
+  "isPublished": true,
+  "places": [
+    {
+      "placeId": 101,
+      "orderNo": 0,
+      "caption": "통창 자리에서 찍은 내 사진",
+      "imageUrls": ["https://cdn.courmy.app/c42/p1-1.jpg"],
+      "walkingMinutes": 6
+    },
+    {
+      "placeId": 102,
+      "orderNo": 1,
+      "caption": "2층이 한산해요",
+      "imageUrls": ["https://cdn.courmy.app/c42/p2-1.jpg"],
+      "walkingMinutes": null
+    }
+  ]
+}
+
+### 코스 포크 — 임시저장 (포크만 해두고 나중에 편집) — 사진 0장·제목 생략 허용
+POST http://localhost:8080/api/v1/courses/1/forks
+Content-Type: application/json
+
+{
+  "description": null,
+  "thumbnailUrl": null,
+  "tags": [],
+  "visibility": "PRIVATE",
+  "isPublished": false,
+  "places": [
+    {"placeId": 101, "orderNo": 0, "caption": null, "imageUrls": []}
+  ]
+}
+
+### 코스 포크 — 400 / 4002 VALIDATION_FAILED (fieldErrors 포함)
+# 발생 경우: title 200자 초과 · caption 200자 초과 · placeId 0 이하 · orderNo 음수 · places 10개 초과 · 태그 50자 초과
+# 아래 예시는 placeId 가 0 이하 → fieldErrors[0].field = "places[0].placeId"
+POST http://localhost:8080/api/v1/courses/1/forks
+Content-Type: application/json
+
+{
+  "title": "검증 실패 확인용",
+  "description": null,
+  "thumbnailUrl": null,
+  "tags": [],
+  "visibility": "PUBLIC",
+  "isPublished": true,
+  "places": [
+    {"placeId": -1, "orderNo": 0, "caption": null, "imageUrls": ["https://cdn.courmy.app/1.jpg"]}
+  ]
+}
+
+### 코스 포크 — 400 / 4001 INVALID_INPUT (본문 누락·파싱 실패·visibility 오타)
+POST http://localhost:8080/api/v1/courses/1/forks
+Content-Type: application/json
+
+{
+  "description": null,
+  "thumbnailUrl": null,
+  "tags": [],
+  "visibility": "EVERYONE",
+  "isPublished": false,
+  "places": []
+}
+
+### 코스 포크 — mockError 주입 (예: 404 / 4041 — 실구현에선 원본 없음·조회 권한 없음)
+POST http://localhost:8080/api/v1/courses/99999/forks?mockError=4041
+Content-Type: application/json
+
+{
+  "description": null,
+  "thumbnailUrl": null,
+  "tags": [],
+  "visibility": "PUBLIC",
+  "isPublished": false,
+  "places": []
+}
+
 ### 코스 삭제 (실구현, soft delete) — 소유자만·deleted_at 스탬프. data 없이 message "코스가 삭제되었습니다." 반환.
 DELETE http://localhost:8080/api/v1/courses/1
 Authorization: Bearer {{accessToken}}
