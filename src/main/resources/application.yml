@@ -22,14 +22,19 @@ management:
     health:
       show-details: never
   # 분산 트레이싱(OTLP → Tempo). 기본 비활성 — 앱 EC2가 모니터링 호스트를 찾으면
-  # MANAGEMENT_TRACING_ENABLED=true + MANAGEMENT_OTLP_TRACING_ENDPOINT env 로 활성화(fail-soft).
+  # MANAGEMENT_TRACING_EXPORT_ENABLED=true + MANAGEMENT_OTLP_TRACING_ENDPOINT env 로 활성화(fail-soft).
+  # Spring Boot 4: export/propagation 토글은 management.tracing.export.enabled(management.tracing.enabled 는 4.0 deprecated),
+  # OTLP endpoint 는 management.opentelemetry.tracing.export.otlp.* 로 이동.
   tracing:
-    enabled: false
+    export:
+      enabled: false
     sampling:
       probability: 0.1
-  otlp:
+  opentelemetry:
     tracing:
-      endpoint: ${MANAGEMENT_OTLP_TRACING_ENDPOINT:}
+      export:
+        otlp:
+          endpoint: ${MANAGEMENT_OTLP_TRACING_ENDPOINT:}
 
 jwt:
   # 서명 시크릿은 반드시 env(JWT_SECRET, 32바이트+)로 주입한다. 코드에 사용 가능한 기본값을 두지 않는다(fail-fast).
