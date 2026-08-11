@@ -121,10 +121,13 @@ class UserService(
         userLikeThemePort.replaceLikeThemes(userId, emptyList())
         // 4) 작성 코스: 전부 소프트 삭제(피드·프로필에서 사라짐).
         courseCleanupPort.softDeleteCoursesByAuthor(userId)
-        // 5) users 행: 탈퇴 스탬프 + 핸들 해제 + bio·카운터 리셋.
+        // 5) users 행: 탈퇴 스탬프 + 핸들 해제 + bio·프로필이미지·카운터 리셋.
         userPersistencePort.softDelete(user.withdraw())
         // 6) 리프레시 토큰 폐기.
         refreshTokenPort.revokeAllByUser(userId)
+        // TODO(추후): 저장 장소(saved_places)·코스 따라가기/완주 기록(tracing_courses)·추가 장소(added_places)·
+        //  리뷰(course_reviews/place_reviews) 는 아직 쓰기 경로가 없어(스텁) 정리 대상에서 제외했다.
+        //  각 기능이 실제로 저장되기 시작하면 이 정리 단계에 함께 추가해 "처음 계정처럼" 불변식을 유지할 것.
     }
 
     private companion object {
