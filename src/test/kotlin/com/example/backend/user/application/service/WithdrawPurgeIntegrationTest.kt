@@ -22,9 +22,9 @@ import org.springframework.test.context.jdbc.Sql
         "TRUNCATE TABLE follows, saved_courses, saved_course_folders, user_like_categories, " +
             "user_areas, courses, users RESTART IDENTITY CASCADE",
         // A(1) — 탈퇴 대상. 카운터를 실제 관계/코스 수와 맞춰 preset.
-        "INSERT INTO users (nickname, handle, bio, status, social_provider, social_id, " +
+        "INSERT INTO users (nickname, handle, bio, profile_image_url, status, social_provider, social_id, " +
             "followers_cnt, followings_cnt, public_courses_cnt, follower_courses_cnt, private_courses_cnt) " +
-            "VALUES ('탈퇴대상', 'a_handle', '내 소개입니다', 0, 'KAKAO', 'a-social', 1, 1, 2, 0, 0)",
+            "VALUES ('탈퇴대상', 'a_handle', '내 소개입니다', 'https://cdn/a.jpg', 0, 'KAKAO', 'a-social', 1, 1, 2, 0, 0)",
         // B(2) — A 와 상호 팔로우.
         "INSERT INTO users (nickname, handle, status, followers_cnt, followings_cnt) " +
             "VALUES ('유저비', 'b_handle', 0, 1, 1)",
@@ -75,6 +75,7 @@ class WithdrawPurgeIntegrationTest
             assertEquals(3, intOf("SELECT status FROM users WHERE id = 1")) // WITHDRAWN
             assertEquals(1L, count("SELECT count(*) FROM users WHERE id = 1 AND deleted_at IS NOT NULL"))
             assertNull(jdbc.queryForObject("SELECT bio FROM users WHERE id = 1", String::class.java))
+            assertNull(jdbc.queryForObject("SELECT profile_image_url FROM users WHERE id = 1", String::class.java))
             assertNull(jdbc.queryForObject("SELECT handle FROM users WHERE id = 1", String::class.java))
             assertEquals(0, intOf("SELECT followers_cnt FROM users WHERE id = 1"))
             assertEquals(0, intOf("SELECT followings_cnt FROM users WHERE id = 1"))

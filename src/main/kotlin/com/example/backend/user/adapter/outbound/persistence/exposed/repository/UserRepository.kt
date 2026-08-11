@@ -170,6 +170,7 @@ class UserRepository(
             it[handle] = null
             // 재가입(reactivate)이 "처음 계정처럼" 시작하도록 잔여 프로필·카운터를 함께 비운다.
             // 관계·코스·저장 등 소유 데이터는 UserService.withdraw 오케스트레이션이 앞서 정리한다.
+            it[profileImageUrl] = null
             it[bio] = null
             it[followersCnt] = 0
             it[followingsCnt] = 0
