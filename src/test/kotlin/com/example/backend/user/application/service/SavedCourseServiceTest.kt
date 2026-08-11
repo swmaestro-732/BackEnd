@@ -13,7 +13,11 @@ import com.example.backend.user.application.port.inbound.dto.SavedCoursesCommand
 import com.example.backend.user.application.port.outbound.CourseFolderCountRow
 import com.example.backend.user.application.port.outbound.SavedCoursePersistencePort
 import com.example.backend.user.application.port.outbound.SavedCourseRow
+import com.example.backend.user.application.port.outbound.UserPersistencePort
+import com.example.backend.user.application.port.outbound.UserProfileRow
 import com.example.backend.user.domain.model.SavedCourse
+import com.example.backend.user.domain.model.SocialProvider
+import com.example.backend.user.domain.model.User
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertNull
@@ -99,6 +103,10 @@ class SavedCourseServiceTest {
                 return true
             }
 
+            override fun findAliveSavedCourseIds(userId: Long): List<Long> = emptyList()
+
+            override fun deleteAllByUser(userId: Long) {}
+
             override fun count(
                 userId: Long,
                 folderId: Long?,
@@ -124,8 +132,12 @@ class SavedCourseServiceTest {
             var increasedCourseIds: MutableList<Long> = mutableListOf()
             var decreasedCourseIds: MutableList<Long> = mutableListOf()
 
-            override fun increaseSavesCount(courseId: Long) {
+            // 실제 갱신 행 수를 반환한다. 0 = 코스가 (동시 삭제 등으로) 비활성 → save 가 롤백해야 한다.
+            var increaseReturn = 1
+
+            override fun increaseSavesCount(courseId: Long): Int {
                 increasedCourseIds += courseId
+                return increaseReturn
             }
 
             override fun decreaseSavesCount(courseId: Long) {
@@ -133,11 +145,93 @@ class SavedCourseServiceTest {
             }
         }
 
-    private val service = SavedCourseService(fakePort, fakeCourseQuery, fakeCourseCounter)
+    private val fakeUserPort =
+        object : UserPersistencePort {
+            // 기본은 전부 활성으로 취급(락 통과). 특정 테스트에서 탈퇴 유저를 흉내내려면 이 집합을 좁힌다.
+            var activeUserIds: Set<Long>? = null
+
+            override fun lockActive(userIds: List<Long>): Set<Long> =
+                activeUserIds?.let { active -> userIds.filterTo(mutableSetOf()) { it in active } }
+                    ?: userIds.toSet()
+
+            override fun findAll(): List<User> = TODO()
+
+            override fun findById(id: Long): User? = TODO()
+
+            override fun findByHandle(handle: String): User? = TODO()
+
+            override fun findProfile(userId: Long): UserProfileRow? = TODO()
+
+            override fun findProfiles(userIds: List<Long>): List<UserProfileRow> = TODO()
+
+            override fun save(user: User): User = TODO()
+
+            override fun update(user: User) = TODO()
+
+            override fun applyCourseCountDelta(
+                userId: Long,
+                publicDelta: Int,
+                followerDelta: Int,
+                privateDelta: Int,
+            ) = TODO()
+
+            override fun softDelete(user: User) = TODO()
+
+            override fun existsByNickname(nickname: String): Boolean = TODO()
+
+            override fun existsByHandle(handle: String): Boolean = TODO()
+
+            override fun findBySocial(
+                provider: SocialProvider,
+                socialId: String,
+            ): User? = TODO()
+
+            override fun findWithdrawnBySocial(
+                provider: SocialProvider,
+                socialId: String,
+            ): User? = TODO()
+
+            override fun existsByNicknameExcludingUser(
+                nickname: String,
+                excludeUserId: Long,
+            ): Boolean = TODO()
+
+            override fun existsByHandleExcludingUser(
+                handle: String,
+                excludeUserId: Long,
+            ): Boolean = TODO()
+
+            override fun saveWithSocial(user: User): User = TODO()
+
+            override fun reactivate(user: User): User = TODO()
+        }
+
+    private val service = SavedCourseService(fakePort, fakeCourseQuery, fakeCourseCounter, fakeUserPort)
 
     private fun row(id: Long) = SavedCourseRow(id = id, folderId = null, courseId = id * 10, savedAt = Instant.EPOCH)
 
     // --- save ---
+
+    @Test
+    fun `탈퇴(비활성) 사용자면 USER_NOT_FOUND 를 던지고 저장하지 않는다`() {
+        fakeUserPort.activeUserIds = emptySet() // 락 대상이 활성 행 없음 = 탈퇴/부재
+        fakeCourseQuery.existing = setOf(42L)
+
+        val ex = assertThrows<BusinessException> { service.save(userId = 1L, courseId = 42L, folderId = null) }
+
+        assertEquals(ErrorCode.USER_NOT_FOUND, ex.errorCode)
+        assertNull(fakePort.insertArgs)
+    }
+
+    @Test
+    fun `저장 중 코스가 비활성화되면(saves_cnt 0행) COURSE_NOT_FOUND 로 롤백한다`() {
+        fakeCourseQuery.existing = setOf(42L) // 존재 검증 시점엔 활성
+        fakeCourseCounter.increaseReturn = 0 // 삽입 후 증가 시점엔 삭제됨(0행)
+
+        val ex = assertThrows<BusinessException> { service.save(userId = 1L, courseId = 42L, folderId = null) }
+
+        assertEquals(ErrorCode.COURSE_NOT_FOUND, ex.errorCode)
+    }
 
     @Test
     fun `저장할 코스가 없으면 COURSE_NOT_FOUND 를 던진다`() {

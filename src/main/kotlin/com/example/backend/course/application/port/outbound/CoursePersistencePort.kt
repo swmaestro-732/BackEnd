@@ -122,6 +122,12 @@ interface CoursePersistencePort {
     fun softDelete(courseId: Long): Int
 
     /**
+     * 작성자의 살아있는(deleted_at IS NULL) 코스를 전부 소프트 삭제하고 영향받은 행 수를 반환한다.
+     * 회원 탈퇴 시 호출된다 — 작성자 카운터는 users 행이 함께 0으로 리셋되므로 여기선 코스 행만 정리한다.
+     */
+    fun softDeleteAllByAuthor(authorId: Long): Int
+
+    /**
      * 저장 수(saves_cnt)를 1 증가시킨다 — 미삭제(deleted_at IS NULL) 행에만 적용하고 영향받은 행 수를 반환한다.
      * 코스 저장(다른 도메인) 시 호출된다. 정합성은 추후 비동기 집계로 옮긴다.
      */

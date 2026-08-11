@@ -20,6 +20,8 @@ class FollowPersistenceAdapter(
         followingId: Long,
     ): Boolean = followRepository.unfollow(followerId, followingId)
 
+    override fun purgeFollowsOf(userId: Long) = followRepository.purgeFollowsOf(userId)
+
     override fun isFollowing(
         followerId: Long,
         followingId: Long,

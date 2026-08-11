@@ -189,6 +189,12 @@ class CourseService(
         )
     }
 
+    override fun deleteAllByAuthor(authorId: Long) {
+        // 회원 탈퇴 정리 — 작성자의 살아있는 코스를 전부 소프트 삭제한다.
+        // 작성자 공개범위별 카운터는 user 도메인이 탈퇴 시 users 행과 함께 0으로 리셋하므로 여기선 코스 행만 정리한다.
+        coursePersistencePort.softDeleteAllByAuthor(authorId)
+    }
+
     /**
      * 편집 코스의 파생 값(카테고리·지역코드)을 해석한다 — 두 값이 같은 유지/재도출 규칙을 공유한다.
      * - 임시저장이면 null(생성과 동일).
