@@ -55,6 +55,9 @@ dependencies {
     // AWS SDK v2 (raw — spring-cloud-aws 는 아직 Boot 4.x 지원이 뒤처져 있음). S3Presigner 는 s3 모듈 소속.
     implementation(platform("software.amazon.awssdk:bom:2.49.0"))
     implementation("software.amazon.awssdk:s3")
+    // OpenSearch(AWS) 연결 — VPC 도메인에 HTTPS + FGAC basic auth. ApacheHttpClient5 전송.
+    implementation("org.opensearch.client:opensearch-java:2.25.0")
+    implementation("org.apache.httpcomponents.client5:httpclient5")
     testImplementation("org.springframework.boot:spring-boot-starter-flyway-test")
     testImplementation("org.springframework.boot:spring-boot-starter-jdbc-test")
     testImplementation("org.springframework.boot:spring-boot-starter-security-test")
