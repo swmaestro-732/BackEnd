@@ -19,4 +19,13 @@ interface CourseAccessPort {
 
     /** 코스 저장 수(saves_cnt)를 1 감소시킨다 — 실제 저장 취소가 일어난 경우만 호출한다. */
     fun decreaseSavesCount(courseId: Long)
+
+    /** 코스에 담긴 place_id 목록 — 따라가기 체크인 대상(코스 소속 장소) 검증용. */
+    fun getCoursePlaceIds(courseId: Long): List<Long>
+
+    /**
+     * 코스 따라가기 수(tracings_cnt)를 1 증가시키고 실제 갱신된 행 수를 반환한다 — 코스 완주 시 호출한다.
+     * 0 이면 코스가 (동시 삭제 등으로) 활성이 아님.
+     */
+    fun increaseTracingsCount(courseId: Long): Int
 }

@@ -19,4 +19,9 @@ class CourseAccessAdapter(
     override fun increaseSavesCount(courseId: Long): Int = courseCounterUseCase.increaseSavesCount(courseId)
 
     override fun decreaseSavesCount(courseId: Long) = courseCounterUseCase.decreaseSavesCount(courseId)
+
+    override fun getCoursePlaceIds(courseId: Long): List<Long> =
+        courseQueryUseCase.getDetail(courseId, null).places.map { it.placeId }
+
+    override fun increaseTracingsCount(courseId: Long): Int = courseCounterUseCase.increaseTracingsCount(courseId)
 }

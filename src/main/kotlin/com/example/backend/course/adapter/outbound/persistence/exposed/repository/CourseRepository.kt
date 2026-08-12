@@ -118,6 +118,12 @@ class CourseRepository {
             it[savesCnt] = savesCnt - 1
         }
 
+    /** deleted_at IS NULL 인 행의 tracings_cnt 를 1 증가시킨다. 반환은 영향받은 행 수(0 또는 1). */
+    fun increaseTracingsCount(courseId: Long): Int =
+        CourseTable.update({ (CourseTable.id eq courseId) and CourseTable.deletedAt.isNull() }) {
+            it[tracingsCnt] = tracingsCnt + 1
+        }
+
     /** deleted_at IS NULL 인 코스가 존재하는지만 확인한다(fork 원본 검증 등, 본문 미적재). */
     fun existsById(courseId: Long): Boolean =
         !CourseTable

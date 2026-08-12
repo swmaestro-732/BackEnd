@@ -21,4 +21,10 @@ interface CourseInteractionPort {
         userId: Long,
         courseIds: List<Long>,
     ): Set<Long>
+
+    /** 주어진 코스들 중 사용자가 따라가기를 시작한(진행중 포함) 코스의 id 집합을 반환한다(배치 조회자 상태용). */
+    fun findStartedCourseIds(
+        userId: Long,
+        courseIds: List<Long>,
+    ): Set<Long>
 }

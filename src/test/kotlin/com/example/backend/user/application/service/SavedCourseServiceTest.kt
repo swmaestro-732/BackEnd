@@ -40,6 +40,10 @@ class SavedCourseServiceTest {
             override fun decreaseSavesCount(courseId: Long) {
                 decreasedCourseIds += courseId
             }
+
+            override fun getCoursePlaceIds(courseId: Long): List<Long> = emptyList()
+
+            override fun increaseTracingsCount(courseId: Long): Int = 1
         }
 
     private val fakePort =

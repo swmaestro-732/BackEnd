@@ -14,4 +14,10 @@ interface CourseCounterUseCase {
 
     /** 저장 수(saves_cnt)를 1 감소시킨다 — 저장 취소 시 호출한다(실제 취소된 경우만). 정합성은 추후 비동기 집계로 옮긴다. */
     fun decreaseSavesCount(courseId: Long)
+
+    /**
+     * 따라가기 수(tracings_cnt)를 1 증가시키고 실제 갱신된 행 수를 반환한다 — 코스 완주 시 호출한다.
+     * 미삭제(deleted_at IS NULL) 행에만 적용하므로, 0 이면 코스가 (동시 삭제 등으로) 활성 상태가 아님을 뜻한다.
+     */
+    fun increaseTracingsCount(courseId: Long): Int
 }

@@ -19,4 +19,9 @@ class CourseInteractionAdapter(
         userId: Long,
         courseIds: List<Long>,
     ): Set<Long> = courseInteractionRepository.findSavedCourseIds(userId, courseIds)
+
+    override fun findStartedCourseIds(
+        userId: Long,
+        courseIds: List<Long>,
+    ): Set<Long> = courseInteractionRepository.findStartedCourseIds(userId, courseIds)
 }

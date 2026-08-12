@@ -138,4 +138,10 @@ interface CoursePersistencePort {
      * 저장 취소(다른 도메인)가 실제로 일어났을 때만 호출된다. 정합성은 추후 비동기 집계로 옮긴다.
      */
     fun decreaseSavesCount(courseId: Long): Int
+
+    /**
+     * 따라가기 수(tracings_cnt)를 1 증가시킨다 — 미삭제(deleted_at IS NULL) 행에만 적용하고 영향받은 행 수를 반환한다.
+     * 코스 완주(다른 도메인) 시 호출된다. 정합성은 추후 비동기 집계로 옮긴다.
+     */
+    fun increaseTracingsCount(courseId: Long): Int
 }

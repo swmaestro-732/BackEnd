@@ -20,4 +20,7 @@ class CourseCounterService(
     override fun decreaseSavesCount(courseId: Long) {
         coursePersistencePort.decreaseSavesCount(courseId)
     }
+
+    @Transactional
+    override fun increaseTracingsCount(courseId: Long): Int = coursePersistencePort.increaseTracingsCount(courseId)
 }

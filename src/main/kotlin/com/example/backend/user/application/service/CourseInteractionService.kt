@@ -19,11 +19,13 @@ class CourseInteractionService(
     ): List<CourseViewerState> {
         if (courseIds.isEmpty()) return emptyList()
         val saved = courseInteractionPort.findSavedCourseIds(userId, courseIds)
+        val started = courseInteractionPort.findStartedCourseIds(userId, courseIds)
         val completedAt = courseInteractionPort.findCompletedAt(userId, courseIds)
         return courseIds.map { courseId ->
             CourseViewerState(
                 courseId = courseId,
                 hasSaved = courseId in saved,
+                hasStarted = courseId in started,
                 completedAt = completedAt[courseId],
             )
         }

@@ -42,6 +42,9 @@ enum class ErrorCode(
     NICKNAME_ALREADY_TAKEN(409, 4091, "이미 사용 중인 닉네임입니다."),
     HANDLE_ALREADY_TAKEN(409, 4092, "이미 사용 중인 핸들입니다."),
     COURSE_ALREADY_SAVED(409, 4093, "이미 저장한 코스입니다."),
+    TRACING_NOT_FOUND(404, 4045, "따라가기를 찾을 수 없습니다."),
+    TRACING_ALREADY_STARTED(409, 4094, "이미 따라가는 중인 코스입니다."),
+    PLACE_NOT_IN_COURSE(400, 4004, "코스에 포함되지 않은 장소입니다."),
 
     // ── 장소(place) ──
     PLACE_NOT_FOUND(404, 4043, "장소를 찾을 수 없습니다."),

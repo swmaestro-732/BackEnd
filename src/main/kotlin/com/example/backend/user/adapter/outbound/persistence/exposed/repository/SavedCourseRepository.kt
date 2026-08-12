@@ -11,6 +11,7 @@ import org.jetbrains.exposed.v1.core.and
 import org.jetbrains.exposed.v1.core.eq
 import org.jetbrains.exposed.v1.core.inList
 import org.jetbrains.exposed.v1.core.inSubQuery
+import org.jetbrains.exposed.v1.core.isNotNull
 import org.jetbrains.exposed.v1.core.isNull
 import org.jetbrains.exposed.v1.core.less
 import org.jetbrains.exposed.v1.core.notInSubQuery
@@ -149,7 +150,7 @@ class SavedCourseRepository {
         return condition
     }
 
-    /** (user, course) 가 tracing_courses 에 있으면 완주로 본다 — completed=true 는 in, false 는 not in. */
+    /** (user, course) 가 tracing_courses 에 완주(completed_at IS NOT NULL)로 있으면 완주로 본다 — completed=true 는 in, false 는 not in. */
     private fun completedOp(
         userId: Long,
         completed: Boolean,
@@ -157,7 +158,7 @@ class SavedCourseRepository {
         val tracedCourseIds =
             TracingCourseTable
                 .select(TracingCourseTable.courseId)
-                .where { TracingCourseTable.userId eq userId }
+                .where { (TracingCourseTable.userId eq userId) and TracingCourseTable.completedAt.isNotNull() }
         return if (completed) {
             SavedCourseTable.courseId inSubQuery tracedCourseIds
         } else {
