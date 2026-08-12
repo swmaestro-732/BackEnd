@@ -1,0 +1,7 @@
+# prod 프로파일 오버라이드. SPRING_PROFILES_ACTIVE=prod 일 때 application.yml 위에 병합.
+# Swagger/OpenAPI 문서 완전 비활성 — 외부 노출 차단. (dev/기본 프로파일은 springdoc 기본값 on)
+springdoc:
+  api-docs:
+    enabled: false
+  swagger-ui:
+    enabled: false
