@@ -5,7 +5,7 @@ import com.example.backend.common.geo.Coordinate
 import com.example.backend.place.application.port.outbound.ExternalPlaceSearchPort
 import com.example.backend.place.domain.model.ExternalPlace
 import com.example.backend.place.domain.model.ExternalPlaceSource
-import org.slf4j.LoggerFactory
+import io.github.oshai.kotlinlogging.KotlinLogging
 import org.springframework.beans.factory.annotation.Qualifier
 import org.springframework.stereotype.Component
 import org.springframework.web.client.RestClient
@@ -23,7 +23,7 @@ class KakaoLocalSearchClient(
     private val kakaoRestClient: RestClient,
     private val kakaoLocalProperties: KakaoLocalProperties,
 ) : ExternalPlaceSearchPort {
-    private val log = LoggerFactory.getLogger(javaClass)
+    private val log = KotlinLogging.logger {}
 
     override fun search(
         query: String,
@@ -50,7 +50,7 @@ class KakaoLocalSearchClient(
                     .body(KakaoLocalResponse::class.java)
             response?.documents.orEmpty().mapNotNull { it.toExternalPlace() }
         } catch (exception: Exception) {
-            log.warn("카카오 로컬 검색 호출 실패: query={}", query, exception)
+            log.warn(exception) { "카카오 로컬 검색 호출 실패: query=$query" }
             emptyList()
         }
 
