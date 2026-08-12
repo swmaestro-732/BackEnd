@@ -56,7 +56,11 @@ dependencies {
     implementation(platform("software.amazon.awssdk:bom:2.49.0"))
     implementation("software.amazon.awssdk:s3")
     // OpenSearch(AWS) 연결 — VPC 도메인에 HTTPS + FGAC basic auth. ApacheHttpClient5 전송.
-    implementation("org.opensearch.client:opensearch-java:2.25.0")
+    // httpclient5 기반 ApacheHttpClient5 전송만 쓰므로, 구형 RestClient 전송(opensearch-rest-client)이
+    // 끌고 오는 httpclient 4.x 스택(httpclient/httpcore/httpasyncclient)은 제외한다 — 안 쓰는 중복 무게 제거.
+    implementation("org.opensearch.client:opensearch-java:2.25.0") {
+        exclude(group = "org.opensearch.client", module = "opensearch-rest-client")
+    }
     implementation("org.apache.httpcomponents.client5:httpclient5")
     testImplementation("org.springframework.boot:spring-boot-starter-flyway-test")
     testImplementation("org.springframework.boot:spring-boot-starter-jdbc-test")
