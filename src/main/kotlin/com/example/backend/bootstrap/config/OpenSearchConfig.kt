@@ -33,8 +33,10 @@ class OpenSearchConfig(
     @Bean(destroyMethod = "close")
     fun openSearchTransport(): OpenSearchTransport {
         // @ConditionalOnExpression 의 유효성 판정과 동일하게 trim 한 값을 써서, 양끝 공백이 있어도 HttpHost 가 정상 생성되게 한다.
+        // 프로덕션 시크릿은 스킴 없는 호스트만 담으므로 https:443 으로 붙인다(기존 동작 유지).
+        // 스킴이 포함된 경우(예: 로컬/CI Testcontainers http://host:port)는 그대로 파싱해 임의 스킴·포트를 허용한다.
         val endpoint = properties.endpoint.trim()
-        val host = HttpHost("https", endpoint, 443)
+        val host = if ("://" in endpoint) HttpHost.create(endpoint) else HttpHost("https", endpoint, 443)
         val credentialsProvider =
             BasicCredentialsProvider().apply {
                 setCredentials(
@@ -59,6 +61,9 @@ class OpenSearchConfig(
                 it
                     .setDefaultCredentialsProvider(credentialsProvider)
                     .setDefaultRequestConfig(requestConfig)
+                    // httpclient5 의 자동 콘텐츠 압축을 끈다 — 켜두면 opensearch-java 가 Content-Encoding: gzip 을 보고
+                    // 다시 gunzip 하려다 이중 처리로 ZipException(Not in GZIP format) 이 난다. 꺼서 평문 응답으로 파싱.
+                    .disableContentCompression()
             }.build()
     }
 
