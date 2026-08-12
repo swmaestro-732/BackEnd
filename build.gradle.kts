@@ -70,6 +70,10 @@ dependencies {
     testImplementation("org.jetbrains.kotlin:kotlin-test-junit5")
     // 아키텍처 경계(헥사고날·도메인 분리)를 테스트로 강제
     testImplementation("com.tngtech.archunit:archunit-junit5:1.3.0")
+
+    // OpenSearch 실연결 통합테스트용(태그드 opensearchIt 태스크에서만 사용) — 실제 OpenSearch 컨테이너 기동.
+    // Spring Boot BOM 이 testcontainers 버전을 관리하지 않아 명시적으로 핀한다.
+    testImplementation("org.testcontainers:junit-jupiter:1.20.4")
     testRuntimeOnly("org.junit.platform:junit-platform-launcher")
 }
 
@@ -81,11 +85,7 @@ kotlin {
 
 tasks.withType<Test> {
     useJUnitPlatform()
-}
-
-// 메인 test: 아키텍처(ArchUnit) 테스트는 제외 — 전용 archTest 에서만 실행(이중 실행 방지).
-tasks.test {
-    filter { excludeTestsMatching("com.example.backend.architecture.*") }
+    // 컨텍스트 부팅에 필요한 더미 env — test·opensearchIt 공통(archTest 는 컨텍스트 미부팅이라 무시됨).
     // JWT 시크릿은 코드 기본값 없이 env 주입 — 테스트는 전용 더미(운영용 아님).
     environment("JWT_SECRET", "test-only-jwt-secret-not-for-production-0123456789")
     // S3 프리사인은 네트워크 호출 없이 로컬 서명만 계산하지만, 버킷명은 비어 있으면 SDK가 거부한다.
@@ -94,7 +94,26 @@ tasks.test {
     // DefaultCredentialsProvider 가 EC2 인스턴스 메타데이터까지 폴백하며 네트워크를 타지 않도록 더미 고정 자격증명 주입.
     environment("AWS_ACCESS_KEY_ID", "test-access-key")
     environment("AWS_SECRET_ACCESS_KEY", "test-secret-key")
+}
+
+// 메인 test: 아키텍처(ArchUnit) 테스트와 OpenSearch 실연결 통합테스트는 제외 —
+// 각각 전용 archTest·opensearchIt 에서만 실행(PR CI 를 무겁게 하지 않음).
+tasks.test {
+    filter {
+        excludeTestsMatching("com.example.backend.architecture.*")
+        excludeTestsMatching("com.example.backend.bootstrap.config.OpenSearchIntegrationTest")
+    }
     finalizedBy(tasks.jacocoTestReport) // 테스트 후 커버리지 리포트 생성
+}
+
+// OpenSearch 실연결 통합테스트(Testcontainers 로 실제 OpenSearch 기동). build/check 에 연결하지 않아
+// 일반 test·PR CI 에서는 실행되지 않고, 로컬(`./gradlew opensearchIt`)·전용 워크플로에서만 돈다.
+tasks.register<Test>("opensearchIt") {
+    description = "OpenSearch 실연결 통합테스트(Testcontainers)"
+    group = "verification"
+    testClassesDirs = sourceSets["test"].output.classesDirs
+    classpath = sourceSets["test"].runtimeClasspath
+    filter { includeTestsMatching("com.example.backend.bootstrap.config.OpenSearchIntegrationTest") }
 }
 
 // ArchUnit 아키텍처 경계 규칙만 실행하는 전용 태스크(DB 불필요). CI 의 architecture 잡이 사용.
