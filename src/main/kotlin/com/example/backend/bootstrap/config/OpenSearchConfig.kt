@@ -8,6 +8,7 @@ import org.apache.hc.core5.http.HttpHost
 import org.apache.hc.core5.util.Timeout
 import org.opensearch.client.json.jackson.JacksonJsonpMapper
 import org.opensearch.client.opensearch.OpenSearchClient
+import org.opensearch.client.transport.OpenSearchTransport
 import org.opensearch.client.transport.httpclient5.ApacheHttpClient5TransportBuilder
 import org.springframework.boot.autoconfigure.condition.ConditionalOnExpression
 import org.springframework.boot.health.contributor.HealthIndicator
@@ -25,9 +26,15 @@ import org.springframework.context.annotation.Configuration
 class OpenSearchConfig(
     private val properties: OpenSearchProperties,
 ) {
-    @Bean
-    fun openSearchClient(): OpenSearchClient {
-        val host = HttpHost("https", properties.endpoint, 443)
+    /**
+     * transport 는 커넥션풀·I/O 리액터 스레드를 쥔 [Closeable] 이므로 별도 빈으로 등록해
+     * destroyMethod = "close" 로 컨텍스트 종료 시 정리한다(OpenSearchClient 자체는 Closeable 이 아님).
+     */
+    @Bean(destroyMethod = "close")
+    fun openSearchTransport(): OpenSearchTransport {
+        // @ConditionalOnExpression 의 유효성 판정과 동일하게 trim 한 값을 써서, 양끝 공백이 있어도 HttpHost 가 정상 생성되게 한다.
+        val endpoint = properties.endpoint.trim()
+        val host = HttpHost("https", endpoint, 443)
         val credentialsProvider =
             BasicCredentialsProvider().apply {
                 setCredentials(
@@ -35,25 +42,28 @@ class OpenSearchConfig(
                     UsernamePasswordCredentials(properties.username, properties.password.toCharArray()),
                 )
             }
-        // 연결/응답 타임아웃을 ALB 헬스체크 타임아웃보다 짧게 둔다 — OpenSearch 불통 시 health() 가 매달리면
-        // /actuator/health 응답이 늦어져 ALB 가 인스턴스를 죽인다. 2초 안에 실패시켜 UNKNOWN 으로 떨어지게 한다.
+        // 타임아웃 3종을 모두 ALB 헬스체크 타임아웃보다 짧게(2초) 둔다 — OpenSearch 불통·풀 고갈 시 health() 가
+        // 매달리면 /actuator/health 응답이 늦어져 ALB 가 인스턴스를 죽인다. 빠르게 실패시켜 UNKNOWN 으로 떨어지게 한다.
+        // (connect=TCP 연결, response=응답 대기, connectionRequest=풀에서 커넥션 대여 대기)
         val requestConfig =
             RequestConfig
                 .custom()
                 .setConnectTimeout(Timeout.ofSeconds(2))
                 .setResponseTimeout(Timeout.ofSeconds(2))
+                .setConnectionRequestTimeout(Timeout.ofSeconds(2))
                 .build()
-        val transport =
-            ApacheHttpClient5TransportBuilder
-                .builder(host)
-                .setMapper(JacksonJsonpMapper())
-                .setHttpClientConfigCallback {
-                    it
-                        .setDefaultCredentialsProvider(credentialsProvider)
-                        .setDefaultRequestConfig(requestConfig)
-                }.build()
-        return OpenSearchClient(transport)
+        return ApacheHttpClient5TransportBuilder
+            .builder(host)
+            .setMapper(JacksonJsonpMapper())
+            .setHttpClientConfigCallback {
+                it
+                    .setDefaultCredentialsProvider(credentialsProvider)
+                    .setDefaultRequestConfig(requestConfig)
+            }.build()
     }
+
+    @Bean
+    fun openSearchClient(transport: OpenSearchTransport): OpenSearchClient = OpenSearchClient(transport)
 
     /** 연결 상태를 `/actuator/health` 에 노출(불통 시 UNKNOWN — ALB 보호). 엔드포인트 있을 때만 등록된다. */
     @Bean

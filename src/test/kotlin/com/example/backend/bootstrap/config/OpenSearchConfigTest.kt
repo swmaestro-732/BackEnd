@@ -20,8 +20,9 @@ import org.springframework.test.web.servlet.result.MockMvcResultMatchers.status
  */
 @AutoConfigureMockMvc
 @TestPropertySource(
+    // endpoint 양끝에 공백을 넣어 가드(@ConditionalOnExpression)·HttpHost 양쪽의 trim 정규화를 회귀 검증한다.
     properties = [
-        "opensearch.endpoint=localhost",
+        "opensearch.endpoint= localhost ",
         "opensearch.username=admin",
         "opensearch.password=admin",
     ],
