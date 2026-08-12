@@ -39,10 +39,10 @@ import java.time.Instant
  * - [edit] 코스 편집(`PATCH /api/v1/courses/{courseId}`): **실구현** — 인바운드 포트([CourseUseCase])로
  *   전체 치환 갱신한다. 작성자 식별이 필요해 `@CurrentUserId`(JWT subject)로 userId 를 받으며, 소유자만 편집 가능하다.
  *   시드/DB 없이 프론트가 붙어볼 수 있도록 `?mock=true` 면 갱신 없이 고정 목([CourseIdResponse.MOCK])을 반환한다.
- * - [fork] 코스 포크(`POST /api/v1/courses/{courseId}/forks`): **모킹 API** — 저장 없이 고정된 새 코스 id
- *   ([CourseIdResponse.FORK_MOCK])를 반환한다. 실제 구현 시 인바운드 포트(UseCase) 연동으로 교체하고,
- *   포크 주체 식별을 위해 `@CurrentUserId`(JWT subject)로 userId 를 받는다 — 모킹 단계에서는 토큰 없이도
- *   호출할 수 있도록 받지 않는다.
+ * - [fork] 코스 포크(`POST /api/v1/courses/{courseId}/forks`): **실구현** — 인바운드 포트([CourseUseCase])로
+ *   원본의 장소 구성 위에 포크하는 사람의 콘텐츠를 얹어 새 코스로 저장한다(courses.forked_from_id 로 출처 표시).
+ *   원본을 볼 수 없으면 404 이며, 포크 주체 식별이 필요해 `@CurrentUserId`(JWT subject)로 userId 를 받는다.
+ *   시드/DB 없이 프론트가 붙어볼 수 있도록 `?mock=true` 면 저장 없이 고정 목([CourseIdResponse.MOCK])을 반환한다.
  * - [delete] 코스 삭제(`DELETE /api/v1/courses/{courseId}`): **실구현** — 인바운드 포트([CourseUseCase])로
  *   소프트 삭제한다(deleted_at 스탬프·status=DELETED). 소유자만 삭제 가능하며(그 외 404), data 없이 안내 메시지만 내려준다.
  *   시드/DB 없이 프론트가 붙어볼 수 있도록 `?mock=true` 면 삭제 없이 고정 성공 메시지를 반환한다.
@@ -127,7 +127,7 @@ class CourseController(
     }
 
     /**
-     * 코스 포크(노션 명세 · Course · course-fork). **모킹 API**.
+     * 코스 포크(노션 명세 · Course · course-fork). 인바운드 포트([CourseUseCase])로 새 코스를 저장한다.
      *
      * 노션 "코스 포크" 페이지가 본문 미작성이라 계약을 기능 정의서(7.2 포크하기 → **7.2.1 게시물 만들기**)와
      * 코스 생성 계약에서 도출했다. 포크는 원본에서 **장소 구성(어디를 어떤 순서로)만** 가져오고,
@@ -136,17 +136,26 @@ class CourseController(
      * (디자인 밴드 F 는 포크 버튼 → 완료 화면만 그려 두어 중간 빌더 단계가 생략돼 있다 — 디자인 갱신 필요.)
      *
      * 경로 `{courseId}` 는 **원본** 코스 id, 응답 `courseId` 는 새로 만들어진 **내** 코스 id다.
-     * 실구현 시 courses(`forked_from_id` = 원본 id)·course_places·course_place_images·course_tags 를 한 트랜잭션으로
-     * 저장하고, 원본이 없거나 조회 권한이 없으면 코스 상세와 동일하게 404 COURSE_NOT_FOUND 로 응답한다
-     * (존재를 드러내지 않는 은닉 규칙). 발행 시 장소 2곳 이상 같은 비즈니스 규칙 검증도 그때 도메인이 맡는다 —
-     * 모킹 단계에서는 요청의 필드 형식·범위(Bean Validation)만 보고 응답은 고정이다.
+     * 원본을 볼 수 없으면(없음·삭제·비활성·PRIVATE 타인·FOLLOWER 비팔로워) 코스 상세와 동일하게
+     * 404 COURSE_NOT_FOUND 로 응답한다(존재를 드러내지 않는 은닉 규칙).
+     * 원본 장소를 규칙만큼 담지 않으면 400 FORK_PLACES_NOT_KEPT 다 — 원본이 4곳 이하면 전부,
+     * 5곳 이상이면 절반 이상을 그대로 담아야 하고 장소 추가는 자유롭다. 포크 주체 식별이 필요해
+     * `@CurrentUserId`(JWT subject)로 userId 를 받으므로 유효한 토큰이 필요하다.
+     * `?mock=true` 이고 [MockGuard] 가 모킹을 허용할 때만 DB 저장 없이 고정 목([CourseIdResponse.MOCK])을
+     * 반환하고, 그 외에는 정상 유스케이스 경로를 탄다.
      */
     @PostMapping("/{courseId}/forks")
     @ResponseStatus(HttpStatus.CREATED)
     fun fork(
+        @CurrentUserId userId: Long,
         @PathVariable courseId: Long,
         @Valid @RequestBody request: ForkCourseRequest,
-    ): ApiResponse<CourseIdResponse> = ApiResponse.success(CourseIdResponse.MOCK)
+        @RequestParam(required = false) mock: Boolean = false,
+    ): ApiResponse<CourseIdResponse> {
+        if (mock && mockGuard.isMockAllowed()) return ApiResponse.success(CourseIdResponse.MOCK)
+        val course = courseUseCase.fork(request.toCommand(userId, courseId))
+        return ApiResponse.success(CourseIdResponse(courseId = requireNotNull(course.id)))
+    }
 
     /**
      * 코스 삭제(소프트 삭제). 인바운드 포트([CourseUseCase])로 deleted_at 을 찍고 status 를 DELETED 로 전이한다.
