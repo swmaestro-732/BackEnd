@@ -31,8 +31,8 @@ data class EditCourseRequest(
     // courses.title 은 NOT NULL 이라 생략 시 빈 문자열로 저장한다.
     @field:Size(max = 200)
     val title: String = "",
-    val description: String?,
-    val thumbnailUrl: String?,
+    val description: String? = null,
+    val thumbnailUrl: String? = null,
     val tags: List<
         @NotBlank
         @Size(max = MAX_TAG_LENGTH)
