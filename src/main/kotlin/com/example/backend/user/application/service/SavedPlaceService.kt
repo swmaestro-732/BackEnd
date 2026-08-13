@@ -2,10 +2,10 @@ package com.example.backend.user.application.service
 
 import com.example.backend.common.exception.BusinessException
 import com.example.backend.common.response.ErrorCode
-import com.example.backend.place.application.port.inbound.PlaceQueryUseCase
 import com.example.backend.user.application.port.inbound.SavedPlaceUseCase
 import com.example.backend.user.application.port.inbound.dto.SavedPlacesCommand
 import com.example.backend.user.application.port.inbound.dto.SavedPlacesResult
+import com.example.backend.user.application.port.outbound.PlaceAccessPort
 import com.example.backend.user.application.port.outbound.SavedPlacePersistencePort
 import com.example.backend.user.domain.model.SavedPlace
 import com.example.backend.user.domain.model.SavedPlaceCategory
@@ -15,9 +15,9 @@ import org.springframework.transaction.annotation.Transactional
 /**
  * 장소 저장 유스케이스 — 저장·저장 취소와 저장 장소 조회를 함께 담당한다.
  *
- * 저장(save): 저장할 장소가 실제로 존재하는지 장소 인바운드 포트로 검증하고(그 외 404),
+ * 저장(save): 저장할 장소가 실제로 존재하는지 검증하고(그 외 404),
  *   이미 저장한 장소면 중복 저장으로 막는다(409) — 장소당 저장 레코드는 1개다.
- *   place_id 는 cross-domain(FK 없음)이라 존재 검증은 [PlaceQueryUseCase] 로 하고,
+ *   place_id 는 cross-domain(FK 없음)이라 존재 검증은 아웃바운드 [PlaceAccessPort] 로 하고(코어는 place 를 직접 알지 않는다),
  *   이때 받은 장소 카테고리를 [SavedPlaceCategory] 스냅샷으로 복사해 저장한다(MSA 대비 비정규화).
  * 취소(unsave): (userId, placeId) 저장 레코드를 소프트 삭제한다 — 없어도 성공하는 멱등 연산(코스 저장 취소 선례).
  * 조회(getSavedPlaces): 저장 레코드를 최신 저장순(id 내림차순)으로 커서 페이지네이션해 반환한다.
@@ -28,7 +28,7 @@ import org.springframework.transaction.annotation.Transactional
 @Transactional(readOnly = true)
 class SavedPlaceService(
     private val savedPlacePersistencePort: SavedPlacePersistencePort,
-    private val placeQueryUseCase: PlaceQueryUseCase,
+    private val placeAccessPort: PlaceAccessPort,
 ) : SavedPlaceUseCase {
     @Transactional
     override fun save(
@@ -36,7 +36,7 @@ class SavedPlaceService(
         placeId: Long,
     ): SavedPlace {
         val place =
-            placeQueryUseCase.findPlacesById(listOf(placeId)).firstOrNull()
+            placeAccessPort.findPlace(placeId)
                 ?: throw BusinessException(ErrorCode.PLACE_NOT_FOUND, "저장할 장소를 찾을 수 없습니다: placeId=$placeId")
 
         if (savedPlacePersistencePort.existsSavedPlace(userId, placeId)) {

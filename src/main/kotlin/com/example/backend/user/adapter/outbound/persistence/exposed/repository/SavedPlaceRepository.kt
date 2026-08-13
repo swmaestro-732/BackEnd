@@ -1,6 +1,5 @@
 package com.example.backend.user.adapter.outbound.persistence.exposed.repository
 
-import com.example.backend.user.adapter.outbound.persistence.exposed.SavedPlaceEntity
 import com.example.backend.user.adapter.outbound.persistence.exposed.SavedPlaceTable
 import com.example.backend.user.application.port.outbound.SavedPlaceCategoryCountRow
 import com.example.backend.user.application.port.outbound.SavedPlaceRow
@@ -14,6 +13,7 @@ import org.jetbrains.exposed.v1.core.eq
 import org.jetbrains.exposed.v1.core.isNotNull
 import org.jetbrains.exposed.v1.core.isNull
 import org.jetbrains.exposed.v1.core.less
+import org.jetbrains.exposed.v1.jdbc.insert
 import org.jetbrains.exposed.v1.jdbc.select
 import org.jetbrains.exposed.v1.jdbc.selectAll
 import org.jetbrains.exposed.v1.jdbc.update
@@ -38,20 +38,36 @@ class SavedPlaceRepository {
             .empty()
             .not()
 
+    /**
+     * 저장 레코드를 넣고 도메인 모델로 돌려준다(DSL — [UserRepository.save] 와 같은 형식).
+     * created_at 은 테이블 clientDefault 대신 여기서 만든 [now] 를 명시해 넣는다 —
+     * 그래야 삽입 후 재조회 없이 반환 객체를 조립할 수 있다.
+     */
     fun insert(
         userId: Long,
         placeId: Long,
         category: SavedPlaceCategory?,
-    ): SavedPlace =
-        SavedPlaceEntity
-            .new {
-                this.userId = userId
-                this.placeId = placeId
-                this.category = category
-                this.visited = false // 저장 직후는 미방문 — 방문 처리 PATCH 로만 전환된다.
-                // created_at 은 테이블 clientDefault 가 채운다.
-            }.also { it.refresh(flush = true) }
-            .toDomain()
+    ): SavedPlace {
+        val now = Clock.System.now()
+        val id =
+            SavedPlaceTable
+                .insert {
+                    it[SavedPlaceTable.userId] = userId
+                    it[SavedPlaceTable.placeId] = placeId
+                    it[SavedPlaceTable.category] = category
+                    it[visited] = false // 저장 직후는 미방문 — 방문 처리 PATCH 로만 전환된다.
+                    it[createdAt] = now
+                }[SavedPlaceTable.id]
+                .value
+        return SavedPlace(
+            id = id,
+            userId = userId,
+            placeId = placeId,
+            category = category,
+            visited = false,
+            savedAt = now.toJavaInstant(),
+        )
+    }
 
     /**
      * 소프트 삭제 — 살아있는(deleted_at IS NULL) 행에만 삭제 스탬프를 찍는다.
