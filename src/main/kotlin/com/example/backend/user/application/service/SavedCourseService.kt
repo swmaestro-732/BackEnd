@@ -2,12 +2,11 @@ package com.example.backend.user.application.service
 
 import com.example.backend.common.exception.BusinessException
 import com.example.backend.common.response.ErrorCode
-import com.example.backend.course.application.port.inbound.CourseCounterUseCase
-import com.example.backend.course.application.port.inbound.CourseQueryUseCase
 import com.example.backend.user.application.port.inbound.SavedCourseUseCase
 import com.example.backend.user.application.port.inbound.dto.SavedCourseFolderCount
 import com.example.backend.user.application.port.inbound.dto.SavedCoursesCommand
 import com.example.backend.user.application.port.inbound.dto.SavedCoursesResult
+import com.example.backend.user.application.port.outbound.CourseAccessPort
 import com.example.backend.user.application.port.outbound.SavedCoursePersistencePort
 import com.example.backend.user.application.port.outbound.UserPersistencePort
 import com.example.backend.user.domain.model.SavedCourse
@@ -19,7 +18,7 @@ import org.springframework.transaction.annotation.Transactional
  *
  * 저장(save): 저장할 코스가 실제로 존재하는지 코스 인바운드 포트로 검증하고(그 외 404),
  *   folderId 가 있으면 소유권을 검증하고(그 외 400), 이미 저장한 코스면 중복 저장으로 막는다(409).
- *   — 코스당 저장 레코드는 1개다. course_id 는 cross-domain(FK 없음)이라 존재 검증은 [CourseQueryUseCase] 로 한다.
+ *   — 코스당 저장 레코드는 1개다. course_id 는 cross-domain(FK 없음)이라 존재 검증은 [CourseAccessPort] 로 한다(ACL).
  * 조회(getSavedCourses): 저장 레코드를 최신 저장순(id 내림차순)으로 커서 페이지네이션해 반환한다.
  *
  * 기본은 읽기 전용 트랜잭션이고, 쓰기(save)만 메서드 레벨에서 재정의한다.
@@ -28,8 +27,7 @@ import org.springframework.transaction.annotation.Transactional
 @Transactional(readOnly = true)
 class SavedCourseService(
     private val savedCoursePersistencePort: SavedCoursePersistencePort,
-    private val courseQueryUseCase: CourseQueryUseCase,
-    private val courseCounterUseCase: CourseCounterUseCase,
+    private val courseAccessPort: CourseAccessPort,
     private val userPersistencePort: UserPersistencePort,
 ) : SavedCourseUseCase {
     @Transactional
@@ -42,7 +40,7 @@ class SavedCourseService(
         if (userPersistencePort.lockActive(listOf(userId)).isEmpty()) {
             throw BusinessException(ErrorCode.USER_NOT_FOUND, "사용자를 찾을 수 없습니다: id=$userId")
         }
-        if (!courseQueryUseCase.existsById(courseId)) {
+        if (!courseAccessPort.existsCourse(courseId)) {
             throw BusinessException(ErrorCode.COURSE_NOT_FOUND, "저장할 코스를 찾을 수 없습니다: courseId=$courseId")
         }
 
@@ -58,7 +56,7 @@ class SavedCourseService(
         val saved = savedCoursePersistencePort.insert(userId, courseId, folderId)
         // courses.saves_cnt 낙관적 +1 — 코스 도메인이 자기 카운터를 소유한다(같은 트랜잭션).
         // 0행이면 코스가 그 사이 비활성(작성자 탈퇴 등으로 soft delete)된 것 → 방금 삽입까지 롤백해 저장 행·카운터 불일치를 막는다.
-        if (courseCounterUseCase.increaseSavesCount(courseId) == 0) {
+        if (courseAccessPort.increaseSavesCount(courseId) == 0) {
             throw BusinessException(ErrorCode.COURSE_NOT_FOUND, "저장할 코스를 찾을 수 없습니다: courseId=$courseId")
         }
         return saved
@@ -75,7 +73,7 @@ class SavedCourseService(
         }
         // 실제로 살아있던 저장을 지웠을 때만 카운터를 내린다 — 멱등 취소(이미 없음)는 no-op 라 언더플로를 막는다.
         if (savedCoursePersistencePort.deleteByUserAndCourse(userId, courseId)) {
-            courseCounterUseCase.decreaseSavesCount(courseId)
+            courseAccessPort.decreaseSavesCount(courseId)
         }
     }
 
