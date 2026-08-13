@@ -1,13 +1,19 @@
 name: OpenSearch IT
 
 # OpenSearch 실연결 통합테스트(Testcontainers). 무거워서(이미지 풀+기동) 매 PR CI 에는 넣지 않고,
-# OpenSearch 관련 코드가 바뀐 develop 푸시에서만 돈다. 수동 실행(workflow_dispatch)도 허용.
+# OpenSearch 관련 코드가 바뀐 PR(main/develop)·develop 푸시에서 돈다. 수동 실행(workflow_dispatch)도 허용.
 on:
   push:
     branches: [develop]
     paths:
       - "**/OpenSearch*.kt" # Config·Properties·HealthIndicator·통합테스트
       - "build.gradle.kts" # opensearch-java·httpclient5·testcontainers 의존성
+      - ".github/workflows/opensearch-it.yml"
+  pull_request:
+    branches: [main, develop]
+    paths:
+      - "**/OpenSearch*.kt"
+      - "build.gradle.kts"
       - ".github/workflows/opensearch-it.yml"
   workflow_dispatch:
 
