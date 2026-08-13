@@ -1,6 +1,7 @@
 package com.example.backend.user.adapter.inbound.web
 
 import com.example.backend.bootstrap.mock.MockGuard
+import com.example.backend.bootstrap.security.AccessTokenRequired
 import com.example.backend.bootstrap.security.CurrentUserId
 import com.example.backend.common.response.ApiResponse
 import com.example.backend.user.adapter.inbound.web.request.SavePlaceRequest
@@ -32,7 +33,7 @@ import org.springframework.web.bind.annotation.RestController
  *
  * - [save] 장소 저장(`POST /api/v1/places/save`): **실구현** — 인바운드 포트([SavedPlaceUseCase])로 저장한다.
  *   장소 존재를 검증하고(그 외 404), 이미 저장한 장소면 중복 저장으로 막는다(409). 장소당 저장 레코드는 1개다.
- *   저장 주체 식별이 필요해 `@CurrentUserId`(JWT subject)로 userId 를 받으므로 유효한 토큰이 필요하다.
+ *   저장 주체 식별이 필요해 `@CurrentUserId`(JWT subject)로 userId 를 받는다.
  * - [unsave] 장소 저장 취소(`DELETE /api/v1/places/save/{placeId}`): **실구현** — 저장의 역연산이라 경로를 대칭으로 두고
  *   placeId 로 (user, place) 저장 레코드를 지운다. 저장돼 있지 않아도 오류 없이 성공한다(멱등 — 코스 저장 취소 선례와 동일).
  * - [list] 저장 장소 조회(`GET /api/v1/my/saved-places`): **실구현** — 인바운드 포트([SavedPlaceUseCase])로 조회한다.
@@ -40,6 +41,11 @@ import org.springframework.web.bind.annotation.RestController
  *   커서 페이지네이션해 반환한다 — 장소 상세(이름·평점·거리 등)는 화면 조합 API(`GET /service/v1/my/saved-places`)가 담당한다.
  * - [visit] 저장 장소 방문 처리(`PATCH /api/v1/my/saved-places/{savedPlaceId}`): **모킹 API**(실구현은 별도 티켓).
  *   경로 변수는 장소 id가 아니라 **저장 레코드 id**([SavedPlaceListResponse.SavedPlaceItem.id])다.
+ *
+ * 저장/취소 경로는 `/api/v1/places/...` 라 SecurityConfig 의 `/api` 하위 permitAll 에 걸려 경로로는 열려 있다.
+ * "나" 기준 쓰기 액션이므로 [AccessTokenRequired] 메서드 시큐리티로 access 토큰을 강제한다 —
+ * 회원가입 목적 토큰(purpose != access)으로는 남의 저장함에 쓸 수 없다(UserController 선례와 동일).
+ * 조회(`/api/v1/my` 하위)는 경로 규칙이 이미 같은 조건(purpose == access)을 건다.
  *
  * 시드/DB 없이 프론트가 붙어볼 수 있도록 `?mock=true` 면 저장/조회 없이 고정 목([SavedPlaceListResponse.mock])을
  * 반환한다(코스 저장 선례와 동일 규칙). 모킹 에러(`?mockError=<code>`)는 전역 아스펙트([com.example.backend.bootstrap.mock.MockErrorAspect])가 주입한다.
@@ -51,6 +57,7 @@ class SavedPlaceController(
 ) {
     @PostMapping("/api/v1/places/save")
     @ResponseStatus(HttpStatus.CREATED)
+    @AccessTokenRequired
     fun save(
         @CurrentUserId userId: Long,
         @Valid @RequestBody request: SavePlaceRequest,
@@ -63,6 +70,7 @@ class SavedPlaceController(
     }
 
     @DeleteMapping("/api/v1/places/save/{placeId}")
+    @AccessTokenRequired
     fun unsave(
         @CurrentUserId userId: Long,
         @PathVariable placeId: Long,
