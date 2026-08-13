@@ -17,6 +17,26 @@ data class CreateCoursePlaceRequest(
     @field:Min(0)
     val orderNo: Int,
     @field:Size(max = 200)
-    val caption: String?,
-    val imageUrls: List<@NotBlank String>,
-)
+    val caption: String? = null,
+    /**
+     * 장소 사진 URL 목록. 임시저장은 사진 없이 저장할 수 있어야 하므로 **키 자체를 생략할 수 있다**(기본값 빈 목록) —
+     * 기본값이 없으면 `imageUrls: []` 라도 반드시 실어 보내야 해서 도메인의 "임시저장 0장 허용" 규칙에 닿지 못한다.
+     */
+    val imageUrls: List<@NotBlank String> = emptyList(),
+    /**
+     * 다음 장소까지 도보 소요 시간(분). **양수만 허용하지 않는다** — 세 가지 값을 받는다:
+     * - 정상: 0 이상의 분
+     * - [UNREACHABLE_ON_FOOT](-1): 걸어서 갈 수 없는 구간
+     * - null: 마지막 장소(다음 장소가 없음)
+     *
+     * 그래서 `@Positive` 가 아니라 `@Min(-1)` 로 하한만 막는다(-2 이하는 의미 없는 값이라 거부).
+     * "마지막 장소만 null" 은 강제하지 않는다 — 클라이언트가 중간 구간을 미측정 상태로 보낼 수 있어서다.
+     */
+    @field:Min(UNREACHABLE_ON_FOOT)
+    val walkingMinutes: Int? = null,
+) {
+    companion object {
+        /** 도보 이동 불가 구간을 나타내는 센티널. 소요 시간이 아니므로 합계·표시에서 제외해야 한다. */
+        const val UNREACHABLE_ON_FOOT = -1L
+    }
+}

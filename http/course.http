@@ -26,16 +26,15 @@ Authorization: Bearer {{accessToken}}
   "tags": ["성수", "데이트", "비 오는 날", "감성"],
   "visibility": "PUBLIC",
   "isPublished": true,
-  "forkedFromId": 2,
   "places": [
     {
-      "placeId": 101,
+      "placeId": 22,
       "orderNo": 0,
       "caption": "통창 자리 꼭 앉으세요. 비 오는 날 뷰가 최고예요!",
       "imageUrls": ["https://cdn.courmy.app/c1/p1-1.jpg", "https://cdn.courmy.app/c1/p1-2.jpg"]
     },
     {
-      "placeId": 104,
+      "placeId": 23,
       "orderNo": 1,
       "caption": null,
       "imageUrls": ["https://cdn.courmy.app/c1/p2-1.jpg"]
@@ -60,28 +59,29 @@ Authorization: Bearer {{accessToken}}
   ]
 }
 
-### 코스 생성 — 임시저장 (정상) — 장소·커버 없이도 저장, category 는 null(발행 시 도출)
+### 코스 생성 — 임시저장 (정상) — 제목·커버·사진 없이도 저장, category 는 null(발행 시 도출)
+### 장소 2곳은 임시저장에도 필수. imageUrls 는 생략 가능(0장 허용).
 POST http://localhost:8080/api/v1/courses
 Content-Type: application/json
 Authorization: Bearer {{accessToken}}
 
 {
-  "title": "작성 중인 코스",
-  "description": null,
-  "thumbnailUrl": null,
-  "tags": [],
   "visibility": "PRIVATE",
   "isPublished": false,
-  "places": []
+  "places": [
+    {"placeId": 22, "orderNo": 0},
+    {"placeId": 23, "orderNo": 1}
+  ]
 }
 
 ### 400 / 4001 INVALID_INPUT — 비즈니스 규칙 위반·본문 파싱 실패
 # 발생 경우:
-# - 발행(isPublished=true)인데 places 2곳 미만  ← 아래 예시(0곳)
+# - places 2곳 미만 (발행·임시저장 공통)  ← 아래 예시(0곳)
+# - 발행인데 title 없음
 # - 발행인데 thumbnailUrl(커버) 없음
 # - 발행인데 장소 사진(imageUrls) 0장 (임시저장은 0장 허용)
 # - places 의 orderNo 중복
-# - JSON 손상, 필수 필드 누락(title 등), 타입 오류, visibility 오타(EVERYONE 등)
+# - JSON 손상, 필수 필드 누락(visibility·isPublished·placeId·orderNo), 타입 오류, visibility 오타(EVERYONE 등)
 POST http://localhost:8080/api/v1/courses
 Content-Type: application/json
 Authorization: Bearer {{accessToken}}

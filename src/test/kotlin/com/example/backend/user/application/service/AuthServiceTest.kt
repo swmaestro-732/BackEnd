@@ -1,12 +1,17 @@
 package com.example.backend.user.application.service
 
+import com.example.backend.area.application.port.inbound.AreaQueryUseCase
+import com.example.backend.area.application.port.inbound.dto.AreaDescriptor
 import com.example.backend.common.exception.BusinessException
 import com.example.backend.common.response.ErrorCode
 import com.example.backend.user.application.port.outbound.AuthTokenPort
+import com.example.backend.user.application.port.outbound.LikeThemePort
 import com.example.backend.user.application.port.outbound.RefreshTokenPort
 import com.example.backend.user.application.port.outbound.RefreshTokenRecord
 import com.example.backend.user.application.port.outbound.SocialIdentity
 import com.example.backend.user.application.port.outbound.SocialVerificationPort
+import com.example.backend.user.application.port.outbound.UserAreaPersistencePort
+import com.example.backend.user.application.port.outbound.UserLikeThemePort
 import com.example.backend.user.application.port.outbound.UserPersistencePort
 import com.example.backend.user.application.port.outbound.UserProfileRow
 import com.example.backend.user.domain.model.SocialProvider
@@ -42,6 +47,8 @@ class AuthServiceTest {
 
             override fun findById(id: Long): User? = byId
 
+            override fun lockActive(userIds: List<Long>): Set<Long> = userIds.toSet()
+
             override fun findByHandle(handle: String): User? = null
 
             override fun findProfile(userId: Long): UserProfileRow? = null
@@ -51,6 +58,13 @@ class AuthServiceTest {
             override fun save(user: User): User = user
 
             override fun update(user: User) = Unit
+
+            override fun applyCourseCountDelta(
+                userId: Long,
+                publicDelta: Int,
+                followerDelta: Int,
+                privateDelta: Int,
+            ) = Unit
 
             override fun softDelete(user: User) = Unit
 
@@ -117,12 +131,49 @@ class AuthServiceTest {
             override fun revokeAllByUser(userId: Long) = Unit
         }
 
+    private val userAreaPersistencePort =
+        object : UserAreaPersistencePort {
+            override fun replaceAreas(
+                userId: Long,
+                areaCodes: List<String>,
+            ) = Unit
+
+            override fun findAreaCodes(userId: Long): List<String> = emptyList()
+        }
+
+    private val areaQueryUseCase =
+        object : AreaQueryUseCase {
+            override fun searchAreas(keyword: String): List<AreaDescriptor> = emptyList()
+
+            override fun findAreaByCode(code: String): AreaDescriptor? = null
+        }
+
+    private val userLikeThemePort =
+        object : UserLikeThemePort {
+            override fun replaceLikeThemes(
+                userId: Long,
+                themes: List<String>,
+            ) = Unit
+
+            override fun findLikeThemes(userId: Long): List<String> = emptyList()
+        }
+
+    // 관심 테마 정본은 course 도메인 소유라, user 테스트는 enum 을 참조하지 않고 이름만 흉내낸다.
+    private val likeThemePort =
+        object : LikeThemePort {
+            override fun listThemeNames(): List<String> = listOf("DATE", "CAFETOUR", "CULTURE")
+        }
+
     private val service =
         AuthService(
             socialVerificationPort = socialVerificationPort,
             userPersistencePort = userPersistencePort,
+            userAreaPersistencePort = userAreaPersistencePort,
+            userLikeThemePort = userLikeThemePort,
             authTokenPort = authTokenPort,
             refreshTokenPort = refreshTokenPort,
+            userAreaResolver = UserAreaResolver(areaQueryUseCase),
+            userLikeThemeResolver = UserLikeThemeResolver(likeThemePort),
         )
 
     @Test

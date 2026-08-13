@@ -19,8 +19,8 @@ private const val MAX_PLACES = 10
  * courses/course_places/course_place_images 스키마에서 도출한 필드.
  *
  * 필드 형식·범위는 Bean Validation 으로 검증한다(→ 400 VALIDATION_FAILED + fieldErrors).
- * 교차 필드·비즈니스 규칙(발행 시 장소 1곳 이상, orderNo 중복 금지)은 애노테이션으로 표현할 수 없어
- * 컨트롤러가 직접 검증한다(→ 400 INVALID_INPUT).
+ * 교차 필드·비즈니스 규칙(장소 2곳 이상, orderNo 중복 금지)은 애노테이션으로 표현할 수 없어
+ * 도메인([com.example.backend.course.domain.model.Course])이 검증한다(→ 400 INVALID_INPUT).
  *
  * - tags: 태그 이름 목록. 추천 태그 응답(RecommendedTagsResponse)과 동일하게 이름 문자열 기반.
  * - thumbnailUrl: 코스 커버 이미지(courses.cover_image_url).
@@ -30,11 +30,12 @@ private const val MAX_PLACES = 10
  */
 data class CreateCourseRequest(
     // 제목 필수 여부는 발행/임시저장에 따라 갈리는 비즈니스 규칙이라 도메인(Course)에서 검증한다
-    // (임시저장은 빈 제목 허용, 발행만 필수). 여기선 길이 제한(@Size)만 본다.
+    // (임시저장은 제목 자체를 생략할 수 있고, 발행만 필수). 여기선 길이 제한(@Size)만 본다.
+    // courses.title 은 NOT NULL 이라 생략 시 빈 문자열로 저장한다.
     @field:Size(max = 200)
-    val title: String,
-    val description: String?,
-    val thumbnailUrl: String?,
+    val title: String = "",
+    val description: String? = null,
+    val thumbnailUrl: String? = null,
     val tags: List<
         @NotBlank
         @Size(max = MAX_TAG_LENGTH)
@@ -66,6 +67,7 @@ data class CreateCourseRequest(
                         orderNo = it.orderNo,
                         caption = it.caption,
                         imageUrls = it.imageUrls,
+                        walkingMinutes = it.walkingMinutes,
                     )
                 },
         )

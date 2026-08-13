@@ -23,6 +23,7 @@ data class Course private constructor(
     val coverImageUrl: String?,
     val category: CourseCategory?,
     val area: String?,
+    val areaCode: String?,
     val visitDate: LocalDate?,
     val visibility: CourseVisibility,
     val isPublished: Boolean,
@@ -38,9 +39,13 @@ data class Course private constructor(
     val places: List<CoursePlace>,
 ) {
     companion object {
-        /** 발행 코스가 담아야 하는 최소 장소 수(임시저장은 제한 없음). */
-        private const val MIN_PUBLISHED_PLACES = 2
+        /** 코스가 담아야 하는 최소 장소 수 — 발행·임시저장 공통. */
+        private const val MIN_PLACES = 2
 
+        /**
+         * 신규 생성. 파생 값(카테고리·지역코드·지역 이름)은 서비스가 [deriveCategory]·[deriveAreaCode] 로 도출하고
+         * 지역 이름을 area 모듈에서 조회해 넘긴다 — 도메인은 조회(포트 호출)를 하지 않으므로 결과만 받는다.
+         */
         fun create(
             userId: Long,
             title: String,
@@ -51,7 +56,9 @@ data class Course private constructor(
             forkedFromId: Long?,
             tags: List<String>,
             places: List<CoursePlace>,
-            placeCategoryByPlaceId: Map<Long, String>,
+            category: CourseCategory?,
+            areaCode: String?,
+            area: String?,
         ): Course =
             build(
                 id = null,
@@ -64,13 +71,15 @@ data class Course private constructor(
                 forkedFromId = forkedFromId,
                 tags = tags,
                 places = places,
-                category = deriveCategory(isPublished, places, placeCategoryByPlaceId),
+                category = category,
+                areaCode = areaCode,
+                area = area,
             )
 
         /**
          * 코스 편집(전체 치환). 이미 영속화된 코스([id])의 전체 상태를 요청 값으로 덮어쓴다.
-         * 불변식은 [create] 와 동일하다. 카테고리는 생성과 달리 **서비스가 이미 해석해** 넘긴다([category]) —
-         * 기존 카테고리가 있고 장소 구성이 그대로면 재도출 없이 유지하고, 그 외에만 [deriveCategory] 결과를 넘긴다.
+         * 불변식은 [create] 와 동일하다. 카테고리·지역코드는 생성과 달리 **서비스가 이미 해석해** 넘긴다([category]·[areaCode]) —
+         * 기존 값이 있고 장소 구성이 그대로면 재도출 없이 유지하고, 그 외에만 [deriveCategory]·[deriveAreaCode] 결과를 넘긴다.
          * 소유권·존재 여부는 서비스가 사전 검증한다.
          */
         fun edit(
@@ -84,6 +93,8 @@ data class Course private constructor(
             tags: List<String>,
             places: List<CoursePlace>,
             category: CourseCategory?,
+            areaCode: String?,
+            area: String?,
         ): Course =
             build(
                 id = id,
@@ -98,9 +109,12 @@ data class Course private constructor(
                 tags = tags,
                 places = places,
                 category = category,
+                areaCode = areaCode,
+                area = area,
             )
 
-        /** 생성·편집 공통 — 도메인 불변식을 강제해 애그리거트를 만든다(카테고리는 호출부가 도출·결정). */
+        /** 생성·편집 공통 — 도메인 불변식을 강제해 애그리거트를 만든다(카테고리·지역코드는 호출부가 도출·결정). */
+        @Suppress("LongParameterList")
         private fun build(
             id: Long?,
             userId: Long,
@@ -113,13 +127,16 @@ data class Course private constructor(
             tags: List<String>,
             places: List<CoursePlace>,
             category: CourseCategory?,
+            areaCode: String?,
+            area: String?,
         ): Course {
             // 제목은 발행 코스만 필수다 — 임시저장(draft)은 제목 없이 저장할 수 있다(빌더 상단 "임시저장").
             if (isPublished && title.isBlank()) {
                 throw BusinessException(ErrorCode.INVALID_INPUT, "코스를 발행하려면 제목이 필요합니다.")
             }
-            if (isPublished && places.size < MIN_PUBLISHED_PLACES) {
-                throw BusinessException(ErrorCode.INVALID_INPUT, "코스를 발행하려면 장소를 2곳 이상 담아야 합니다.")
+            // 장소 최소 개수는 임시저장에도 적용된다 — 빌더에서 장소를 2곳 담아야 저장(임시저장 포함)할 수 있다.
+            if (places.size < MIN_PLACES) {
+                throw BusinessException(ErrorCode.INVALID_INPUT, "코스에는 장소를 2곳 이상 담아야 합니다.")
             }
             if (isPublished && coverImageUrl.isNullOrBlank()) {
                 throw BusinessException(ErrorCode.INVALID_INPUT, "코스를 발행하려면 커버 이미지가 필요합니다.")
@@ -139,7 +156,8 @@ data class Course private constructor(
                 description = description,
                 coverImageUrl = coverImageUrl,
                 category = category,
-                area = null,
+                area = area,
+                areaCode = areaCode,
                 visitDate = null,
                 visibility = visibility,
                 isPublished = isPublished,
@@ -171,6 +189,7 @@ data class Course private constructor(
             coverImageUrl: String?,
             category: CourseCategory?,
             area: String?,
+            areaCode: String?,
             visitDate: LocalDate?,
             visibility: CourseVisibility,
             isPublished: Boolean,
@@ -194,6 +213,7 @@ data class Course private constructor(
                 coverImageUrl = coverImageUrl,
                 category = category,
                 area = area,
+                areaCode = areaCode,
                 visitDate = visitDate,
                 visibility = visibility,
                 isPublished = isPublished,
@@ -225,5 +245,38 @@ data class Course private constructor(
             val orderedNames = places.sortedBy { it.orderNo }.mapNotNull { placeCategoryByPlaceId[it.placeId] }
             return CourseCategory.fromPlaceCategoryNames(orderedNames)
         }
+
+        /**
+         * 코스 지역코드(법정동코드 10자리) 도출 규칙 — 발행 코스만 담은 장소들의 지역으로 정한다(임시저장은 null).
+         * [deriveCategory] 와 같은 최빈값 규칙을 시군구(코드 앞 5자리) 레벨에 적용한다:
+         * orderNo 순으로 장소의 법정동코드를 모아 최다 빈도 시군구를 고르고(동률은 앞선 장소 우선),
+         * 그 시군구 안 장소들이 모두 같은 읍면동이면 동 코드(10자리)로 세분화, 아니면 시군구 코드 + "00000" 패딩.
+         * 코드가 없는 장소(area_code 미확인)는 표본에서 빠지며, 전부 없으면 null.
+         *
+         * 최하위 공통 지역(LCA) 대신 최빈값을 쓰는 이유: 아웃라이어 장소 하나가 지역을 시도 레벨로
+         * 뭉개는 것을 막고, 시군구 필터(sigungu_code prefix)에 코스가 대표 지역으로 잡히게 하기 위함.
+         */
+        fun deriveAreaCode(
+            isPublished: Boolean,
+            places: List<CoursePlace>,
+            placeAreaCodeByPlaceId: Map<Long, String?>,
+        ): String? {
+            if (!isPublished) return null
+            val orderedCodes = places.sortedBy { it.orderNo }.mapNotNull { placeAreaCodeByPlaceId[it.placeId] }
+            if (orderedCodes.isEmpty()) return null
+
+            val sigunguCounts = orderedCodes.groupingBy { it.take(SIGUNGU_CODE_LENGTH) }.eachCount()
+            val maxCount = sigunguCounts.values.max()
+            // orderNo 오름차순으로 순회하며 최다 빈도 시군구 중 먼저 나온 것 → 동률은 앞선 장소 우선(카테고리와 동일).
+            val sigungu =
+                orderedCodes.map { it.take(SIGUNGU_CODE_LENGTH) }.first { sigunguCounts.getValue(it) == maxCount }
+
+            val dongCodes = orderedCodes.filter { it.startsWith(sigungu) }.distinct()
+            return dongCodes.singleOrNull() ?: sigungu.padEnd(AREA_CODE_LENGTH, '0')
+        }
+
+        /** 법정동코드 자릿수 — 앞 5자리=시군구, 전체 10자리=읍면동(시군구 레벨은 뒤를 0 으로 패딩). */
+        private const val SIGUNGU_CODE_LENGTH = 5
+        private const val AREA_CODE_LENGTH = 10
     }
 }

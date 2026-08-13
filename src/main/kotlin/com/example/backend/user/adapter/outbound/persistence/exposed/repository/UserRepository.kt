@@ -7,13 +7,16 @@ import com.example.backend.user.application.port.outbound.UserProfileRow
 import com.example.backend.user.domain.model.SocialProvider
 import com.example.backend.user.domain.model.User
 import com.example.backend.user.domain.model.UserStatus
+import org.jetbrains.exposed.v1.core.SortOrder
 import org.jetbrains.exposed.v1.core.and
 import org.jetbrains.exposed.v1.core.eq
 import org.jetbrains.exposed.v1.core.inList
 import org.jetbrains.exposed.v1.core.isNotNull
 import org.jetbrains.exposed.v1.core.isNull
 import org.jetbrains.exposed.v1.core.neq
+import org.jetbrains.exposed.v1.core.plus
 import org.jetbrains.exposed.v1.jdbc.insert
+import org.jetbrains.exposed.v1.jdbc.select
 import org.jetbrains.exposed.v1.jdbc.selectAll
 import org.jetbrains.exposed.v1.jdbc.update
 import org.springframework.stereotype.Repository
@@ -57,9 +60,12 @@ class UserRepository(
                     nickname = it.nickname,
                     handle = it.handle,
                     profileImageUrl = it.profileImageUrl,
+                    bio = it.bio,
                     followersCnt = it.followersCnt,
                     followingsCnt = it.followingsCnt,
-                    coursesCnt = it.coursesCnt,
+                    publicCoursesCnt = it.publicCoursesCnt,
+                    followerCoursesCnt = it.followerCoursesCnt,
+                    privateCoursesCnt = it.privateCoursesCnt,
                 )
             }
 
@@ -74,11 +80,32 @@ class UserRepository(
                     nickname = it.nickname,
                     handle = it.handle,
                     profileImageUrl = it.profileImageUrl,
+                    bio = it.bio,
                     followersCnt = it.followersCnt,
                     followingsCnt = it.followingsCnt,
-                    coursesCnt = it.coursesCnt,
+                    publicCoursesCnt = it.publicCoursesCnt,
+                    followerCoursesCnt = it.followerCoursesCnt,
+                    privateCoursesCnt = it.privateCoursesCnt,
                 )
             }
+    }
+
+    /**
+     * 공개범위별 코스 개수 캐시를 증감한다(0 델타 컬럼은 건드리지 않고, 하나라도 0 이 아니면 단일 UPDATE).
+     * FollowRepository 의 followersCnt ±1 과 동일한 컬럼 증감 패턴.
+     */
+    fun applyCourseCountDelta(
+        userId: Long,
+        publicDelta: Int,
+        followerDelta: Int,
+        privateDelta: Int,
+    ) {
+        if (publicDelta == 0 && followerDelta == 0 && privateDelta == 0) return
+        UserTable.update({ UserTable.id eq userId }) {
+            if (publicDelta != 0) it[publicCoursesCnt] = publicCoursesCnt + publicDelta
+            if (followerDelta != 0) it[followerCoursesCnt] = followerCoursesCnt + followerDelta
+            if (privateDelta != 0) it[privateCoursesCnt] = privateCoursesCnt + privateDelta
+        }
     }
 
     /** 탈퇴(soft delete) 사용자는 제외하고 요약 정보만 읽는다. */
@@ -99,12 +126,14 @@ class UserRepository(
                 .insert {
                     it[nickname] = user.nickname
                     it[profileImageUrl] = user.profileImageUrl
+                    it[bio] = user.bio
                 }[UserTable.id]
                 .value
         return User.reconstitute(
             id = id,
             nickname = user.nickname,
             profileImageUrl = user.profileImageUrl,
+            bio = user.bio,
         )
     }
 
@@ -116,8 +145,19 @@ class UserRepository(
                 it[nickname] = user.nickname
                 it[handle] = user.handle
                 it[profileImageUrl] = user.profileImageUrl
+                it[bio] = user.bio
             }
         check(updated == 1) { "갱신할 활성 사용자를 찾지 못했습니다: id=$id" }
+    }
+
+    fun lockActive(userIds: List<Long>): Set<Long> {
+        if (userIds.isEmpty()) return emptySet()
+        return UserTable
+            .select(UserTable.id)
+            .where { (UserTable.id inList userIds) and UserTable.deletedAt.isNull() }
+            .orderBy(UserTable.id to SortOrder.ASC)
+            .forUpdate()
+            .mapTo(mutableSetOf()) { it[UserTable.id].value }
     }
 
     fun softDelete(user: User) {
@@ -128,6 +168,15 @@ class UserRepository(
             // handle 은 탈퇴 시 즉시 해제(NULL)해 재사용 가능하게 한다 — 죽은 계정이 핸들을 영구 점유하지 않도록.
             // handle 은 nullable 이고 UNIQUE 는 NULL 다중 허용이라, existsByHandle 은 NULL 아닌 값만 매칭돼 자연히 활성 행만 본다.
             it[handle] = null
+            // 재가입(reactivate)이 "처음 계정처럼" 시작하도록 잔여 프로필·카운터를 함께 비운다.
+            // 관계·코스·저장 등 소유 데이터는 UserService.withdraw 오케스트레이션이 앞서 정리한다.
+            it[profileImageUrl] = null
+            it[bio] = null
+            it[followersCnt] = 0
+            it[followingsCnt] = 0
+            it[publicCoursesCnt] = 0
+            it[followerCoursesCnt] = 0
+            it[privateCoursesCnt] = 0
         }
     }
 
@@ -201,6 +250,7 @@ class UserRepository(
                     it[nickname] = user.nickname
                     it[handle] = user.handle
                     it[profileImageUrl] = user.profileImageUrl
+                    it[bio] = user.bio
                     it[socialProvider] = provider.name
                     it[UserTable.socialId] = socialId
                 }[UserTable.id]
@@ -210,6 +260,7 @@ class UserRepository(
             nickname = user.nickname,
             handle = user.handle,
             profileImageUrl = user.profileImageUrl,
+            bio = user.bio,
             socialProvider = provider,
             socialId = socialId,
         )
@@ -227,6 +278,7 @@ class UserRepository(
                 it[nickname] = user.nickname
                 it[handle] = user.handle
                 it[profileImageUrl] = user.profileImageUrl
+                it[bio] = user.bio
             }
         check(updated == 1) { "재활성화할 탈퇴 계정을 찾지 못했습니다(동시 재활성화 가능): id=$id" }
         return User.reconstitute(
@@ -234,6 +286,7 @@ class UserRepository(
             nickname = user.nickname,
             handle = user.handle,
             profileImageUrl = user.profileImageUrl,
+            bio = user.bio,
             socialProvider = provider,
             socialId = socialId,
             status = UserStatus.ACTIVE,

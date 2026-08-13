@@ -12,6 +12,7 @@ import org.jetbrains.exposed.v1.core.inList
 import org.jetbrains.exposed.v1.core.isNull
 import org.jetbrains.exposed.v1.core.less
 import org.jetbrains.exposed.v1.core.minus
+import org.jetbrains.exposed.v1.core.or
 import org.jetbrains.exposed.v1.core.plus
 import org.jetbrains.exposed.v1.jdbc.deleteWhere
 import org.jetbrains.exposed.v1.jdbc.insertIgnore
@@ -63,6 +64,41 @@ class FollowRepository {
             }
         }
         return deleted
+    }
+
+    /**
+     * 사용자의 팔로우 관계를 양방향으로 전부 제거하고 상대방 카운터를 보정한다(회원 탈퇴 정리).
+     * - 내가 팔로우한 대상: 각 상대의 followers_cnt −1.
+     * - 나를 팔로우한 사용자: 각 상대의 followings_cnt −1.
+     * 내 자신의 카운터는 탈퇴 시 users 행이 함께 0으로 리셋되므로 여기서 건드리지 않는다.
+     * (follows 는 (follower_id, following_id) 유니크라 각 상대는 최대 1행 → inList 일괄 −1 이 정확하다.)
+     */
+    fun purgeFollowsOf(userId: Long) {
+        val followingIds =
+            FollowTable
+                .select(FollowTable.followingId)
+                .where { FollowTable.followerId eq userId }
+                .map { it[FollowTable.followingId] }
+        val followerIds =
+            FollowTable
+                .select(FollowTable.followerId)
+                .where { FollowTable.followingId eq userId }
+                .map { it[FollowTable.followerId] }
+
+        if (followingIds.isNotEmpty()) {
+            UserTable.update({ UserTable.id inList followingIds }) {
+                it[followersCnt] = followersCnt - 1
+            }
+        }
+        if (followerIds.isNotEmpty()) {
+            UserTable.update({ UserTable.id inList followerIds }) {
+                it[followingsCnt] = followingsCnt - 1
+            }
+        }
+
+        FollowTable.deleteWhere {
+            (FollowTable.followerId eq userId) or (FollowTable.followingId eq userId)
+        }
     }
 
     fun isFollowing(

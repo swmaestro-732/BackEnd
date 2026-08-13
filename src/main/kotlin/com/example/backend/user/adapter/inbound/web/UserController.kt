@@ -13,6 +13,7 @@ import com.example.backend.user.application.port.inbound.AccountUseCase
 import com.example.backend.user.application.port.inbound.FollowQueryUseCase
 import com.example.backend.user.application.port.inbound.UserUseCase
 import com.example.backend.user.application.port.inbound.dto.FollowListCommand
+import com.example.backend.user.application.port.inbound.dto.UpdateProfileCommand
 import jakarta.validation.Valid
 import jakarta.validation.constraints.Max
 import jakarta.validation.constraints.Min
@@ -31,8 +32,9 @@ import org.springframework.web.bind.annotation.RestController
  * 인바운드 어댑터 — users 리소스(user 도메인). Request → Command, Result → Response 로 매핑한다.
  *
  * 현재 사용자("나")는 JWT 로 식별되므로 식별자 없는 컬렉션 경로(`/api/v1/users`)에 둔다:
- * 내 프로필 수정 `PATCH`, 회원 탈퇴 `DELETE`, 팔로우 `PUT`·`DELETE /followers/{userId}`(대상의 팔로워로 나를 추가·제거).
- * (내 프로필 단독 조회는 마이페이지 `GET /service/v1/mypage` 로 대체 — 중복 제거.)
+ * 내 프로필 조회 `GET`(편집 화면용), 수정 `PATCH`, 회원 탈퇴 `DELETE`,
+ * 팔로우 `PUT`·`DELETE /followers/{userId}`(대상의 팔로워로 나를 추가·제거).
+ * (프로필을 **보여주는** 화면은 마이페이지 `GET /service/v1/mypage` 담당 — `GET` 은 편집 폼 채우기용이라 역할이 다르다.)
  * 팔로워·팔로잉 목록은 `GET /{userId}/followers`·`/{userId}/followings`(공개, 커서 페이지네이션).
  * 핸들 가용성은 `GET /availability`(공개). 다른 사용자 프로필은 마이페이지 `GET /service/v1/mypage/{handle}` 로.
  * "나" 기준 핸들러에만 [AccessTokenRequired] 로 access 토큰 인증을 강제한다(그 외는 공개).
@@ -46,7 +48,21 @@ class UserController(
     private val followQueryUseCase: FollowQueryUseCase,
     private val mockGuard: MockGuard,
 ) {
-    // 내 프로필 단독 조회는 제거 — 마이페이지(GET /service/v1/mypage)가 프로필을 포함하므로 중복.
+    /**
+     * 내 프로필 조회 — **프로필 편집 화면**이 폼을 채우는 데 쓴다. `GET /api/v1/users`.
+     *
+     * 마이페이지(`GET /service/v1/mypage`)와 겹치지 않는다 — 마이페이지는 보여주기용(카운트·코스 목록)이고,
+     * 여기는 편집 대상 필드(프로필 사진·닉네임·핸들·소개·관심 테마·관심 지역)만 [PATCH][updateMyProfile] 와 같은 모양으로 내려준다.
+     */
+    @GetMapping
+    @AccessTokenRequired
+    fun getMyProfile(
+        @CurrentUserId userId: Long,
+        @RequestParam(required = false) mock: Boolean = false,
+    ): ApiResponse<AccountProfileResponse> {
+        if (mock && mockGuard.isMockAllowed()) return ApiResponse.success(AccountProfileResponse.mock())
+        return ApiResponse.success(AccountProfileResponse.from(accountUseCase.getProfile(userId)))
+    }
 
     /** 내 프로필 수정. 넘어온 필드만 반영한 결과를 내려준다. `PATCH /api/v1/users`. */
     @PatchMapping
@@ -56,19 +72,29 @@ class UserController(
         @Valid @RequestBody request: UpdateProfileRequest,
         @RequestParam(required = false) mock: Boolean = false,
     ): ApiResponse<AccountProfileResponse> {
-        if (mock) {
-            val base = AccountProfileResponse.mock()
+        if (mock && mockGuard.isMockAllowed()) {
             return ApiResponse.success(
-                base.copy(
-                    nickname = request.nickname ?: base.nickname,
-                    handle = request.handle ?: base.handle,
-                    profileImageUrl = request.profileImageUrl ?: base.profileImageUrl,
+                AccountProfileResponse.mock(
+                    nickname = request.nickname,
+                    handle = request.handle,
+                    profileImageUrl = request.profileImageUrl,
+                    bio = request.bio,
                 ),
             )
         }
         return ApiResponse.success(
             AccountProfileResponse.from(
-                accountUseCase.updateProfile(userId, request.nickname, request.handle, request.profileImageUrl),
+                accountUseCase.updateProfile(
+                    userId,
+                    UpdateProfileCommand(
+                        nickname = request.nickname,
+                        handle = request.handle,
+                        profileImageUrl = request.profileImageUrl,
+                        bio = request.bio,
+                        areaCodes = request.areaCodes,
+                        likeThemes = request.likeThemes,
+                    ),
+                ),
             ),
         )
     }

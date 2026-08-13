@@ -18,10 +18,15 @@ import org.jetbrains.exposed.v1.datetime.timestamp
 internal object UserTable : LongIdTable("users") {
     val nickname = varchar("nickname", 20)
     val handle = varchar("handle", 30).nullable()
+    val bio = text("bio").nullable()
     val profileImageUrl = text("profile_image_url").nullable()
     val followersCnt = integer("followers_cnt")
     val followingsCnt = integer("followings_cnt")
-    val coursesCnt = integer("courses_cnt")
+
+    // 공개범위별 발행 코스 개수 캐시(마이페이지가 매 조회 GROUP BY 대신 읽는다). CourseService 가 ±1 로 유지.
+    val publicCoursesCnt = integer("public_courses_cnt")
+    val followerCoursesCnt = integer("follower_courses_cnt")
+    val privateCoursesCnt = integer("private_courses_cnt")
     val status = short("status")
     val socialProvider = varchar("social_provider", 20).nullable()
     val socialId = varchar("social_id", 255).nullable()
@@ -39,10 +44,13 @@ internal class UserEntity(
 
     var nickname by UserTable.nickname
     var handle by UserTable.handle
+    var bio by UserTable.bio
     var profileImageUrl by UserTable.profileImageUrl
     var followersCnt by UserTable.followersCnt
     var followingsCnt by UserTable.followingsCnt
-    var coursesCnt by UserTable.coursesCnt
+    var publicCoursesCnt by UserTable.publicCoursesCnt
+    var followerCoursesCnt by UserTable.followerCoursesCnt
+    var privateCoursesCnt by UserTable.privateCoursesCnt
     var status by UserTable.status
     var socialProvider by UserTable.socialProvider
     var socialId by UserTable.socialId
@@ -54,6 +62,7 @@ internal class UserEntity(
             id = id.value,
             nickname = nickname,
             handle = handle,
+            bio = bio,
             profileImageUrl = profileImageUrl,
             socialProvider = socialProvider?.let(SocialProvider::valueOf),
             socialId = socialId,

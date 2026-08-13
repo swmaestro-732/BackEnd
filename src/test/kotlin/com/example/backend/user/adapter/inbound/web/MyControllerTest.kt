@@ -2,11 +2,13 @@ package com.example.backend.user.adapter.inbound.web
 
 import com.example.backend.bootstrap.security.JwtTokenProvider
 import com.example.backend.support.IntegrationTestBase
+import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Test
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc
 import org.springframework.http.HttpHeaders
 import org.springframework.http.MediaType
+import org.springframework.jdbc.core.JdbcTemplate
 import org.springframework.test.context.jdbc.Sql
 import org.springframework.test.web.servlet.MockMvc
 import org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete
@@ -20,8 +22,8 @@ import org.springframework.test.web.servlet.result.MockMvcResultMatchers.status
 @Sql(
     statements =
         [
-            "TRUNCATE TABLE follows, refresh_tokens, users RESTART IDENTITY CASCADE",
-            "INSERT INTO users (nickname, handle) VALUES ('나테스트', 'me_handle')",
+            "TRUNCATE TABLE follows, refresh_tokens, tags, users RESTART IDENTITY CASCADE",
+            "INSERT INTO users (nickname, handle, bio) VALUES ('나테스트', 'me_handle', '기존 자기소개')",
             "INSERT INTO users (nickname, handle) VALUES ('상대테스트', 'target_handle')",
         ],
     executionPhase = Sql.ExecutionPhase.BEFORE_TEST_METHOD,
@@ -31,6 +33,7 @@ class MyControllerTest
     constructor(
         private val mockMvc: MockMvc,
         private val jwtTokenProvider: JwtTokenProvider,
+        private val jdbcTemplate: JdbcTemplate,
     ) : IntegrationTestBase() {
         // 내 프로필 단독 조회는 마이페이지(GET /service/v1/mypage)로 대체돼 제거됨 — 관련 테스트 삭제.
 
@@ -50,7 +53,7 @@ class MyControllerTest
                         .header(HttpHeaders.AUTHORIZATION, "Bearer ${tokenFor(999)}")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(
-                            """{"nickname":"목닉네임","handle":"mock_handle","profileImageUrl":"https://example.com/mock.jpg"}""",
+                            """{"nickname":"목닉네임","handle":"mock_handle","profileImageUrl":"https://example.com/mock.jpg","bio":"목 자기소개"}""",
                         ),
                 ).andExpect(status().isOk)
                 .andExpect(jsonPath("$.code").value(2000))
@@ -58,6 +61,7 @@ class MyControllerTest
                 .andExpect(jsonPath("$.data.nickname").value("목닉네임"))
                 .andExpect(jsonPath("$.data.handle").value("mock_handle"))
                 .andExpect(jsonPath("$.data.profileImageUrl").value("https://example.com/mock.jpg"))
+                .andExpect(jsonPath("$.data.bio").value("목 자기소개"))
         }
 
         @Test
@@ -84,6 +88,20 @@ class MyControllerTest
                 ).andExpect(status().isOk)
                 .andExpect(jsonPath("$.code").value(2000))
                 .andExpect(jsonPath("$.data.nickname").value("새닉네임"))
+                .andExpect(jsonPath("$.data.bio").value("기존 자기소개"))
+        }
+
+        @Test
+        fun `내 bio를 수정한다`() {
+            mockMvc
+                .perform(
+                    patch("/api/v1/users")
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer ${tokenFor(ME_ID)}")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""{"bio":"새 자기소개"}"""),
+                ).andExpect(status().isOk)
+                .andExpect(jsonPath("$.code").value(2000))
+                .andExpect(jsonPath("$.data.bio").value("새 자기소개"))
         }
 
         @Test
@@ -324,6 +342,63 @@ class MyControllerTest
         }
 
         private fun tokenFor(userId: Long) = jwtTokenProvider.issueAccessToken(userId)
+
+        @Test
+        fun `관심 테마(likeThemes)를 수정하면 user_like_categories 가 전체 치환된다`() {
+            patchLikeThemes(listOf("DATE", "HEALING", "FOOD"))
+            assertEquals(setOf("DATE", "HEALING", "FOOD"), likeThemesOf(ME_ID))
+
+            // 전체 치환 — 기존 제거·새 집합으로 교체.
+            patchLikeThemes(listOf("CAFETOUR"))
+            assertEquals(setOf("CAFETOUR"), likeThemesOf(ME_ID))
+
+            // likeThemes 를 보내지 않으면(null) 관심 테마는 그대로 둔다(빈 배열의 전체 해제와 구분).
+            patchBody("""{"nickname":"테마무관수정"}""")
+            assertEquals(setOf("CAFETOUR"), likeThemesOf(ME_ID))
+
+            // 빈 배열 = 전체 해제.
+            patchLikeThemes(emptyList())
+            assertEquals(emptySet<String>(), likeThemesOf(ME_ID))
+        }
+
+        @Test
+        fun `존재하지 않는 관심 테마로 수정하면 4001을 내려주고 기존 테마를 유지한다`() {
+            // 먼저 유효한 테마를 저장한다 — 실패 시 삭제-후-검증(잘못된 순서)이면 이 값이 지워진다.
+            patchLikeThemes(listOf("DATE", "HEALING", "FOOD"))
+            assertEquals(setOf("DATE", "HEALING", "FOOD"), likeThemesOf(ME_ID))
+
+            // 코스 카테고리가 아닌 값(NOPE)이 섞이면 update·치환 전에 4001 로 거부한다.
+            mockMvc
+                .perform(
+                    patch("/api/v1/users")
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer ${tokenFor(ME_ID)}")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""{"likeThemes":["DATE","NOPE"]}"""),
+                ).andExpect(status().isBadRequest)
+                .andExpect(jsonPath("$.code").value(4001))
+
+            // 검증이 치환보다 먼저라 기존 테마는 그대로 유지된다.
+            assertEquals(setOf("DATE", "HEALING", "FOOD"), likeThemesOf(ME_ID))
+        }
+
+        private fun patchLikeThemes(themes: List<String>) =
+            patchBody(themes.joinToString(prefix = """{"likeThemes":[""", postfix = "]}") { "\"$it\"" })
+
+        private fun patchBody(json: String) {
+            mockMvc
+                .perform(
+                    patch("/api/v1/users")
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer ${tokenFor(ME_ID)}")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(json),
+                ).andExpect(status().isOk)
+        }
+
+        private fun likeThemesOf(userId: Long): Set<String> =
+            jdbcTemplate
+                .queryForList("SELECT category FROM user_like_categories WHERE user_id = ?", String::class.java, userId)
+                .filterNotNull()
+                .toSet()
 
         private companion object {
             const val ME_ID = 1L

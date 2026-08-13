@@ -1,6 +1,7 @@
 package com.example.backend.mobile.user.adapter.outbound
 
 import com.example.backend.mobile.user.application.port.outbound.MyPageProfilePort
+import com.example.backend.mobile.user.application.port.outbound.dto.AreaSnapshot
 import com.example.backend.mobile.user.application.port.outbound.dto.ProfileSnapshot
 import com.example.backend.user.application.port.inbound.AccountUseCase
 import com.example.backend.user.application.port.inbound.UserUseCase
@@ -29,10 +30,14 @@ class MyPageProfileAdapter(
             nickname = nickname,
             handle = handle,
             profileImageUrl = profileImageUrl,
+            bio = bio,
             isFollowing = isFollowing,
             isFollower = isFollower,
             followersCnt = followersCnt,
             followingsCnt = followingsCnt,
-            coursesCnt = coursesCnt,
+            publicCoursesCnt = publicCoursesCnt,
+            followerCoursesCnt = followerCoursesCnt,
+            privateCoursesCnt = privateCoursesCnt,
+            areas = areas.map { AreaSnapshot(code = it.code, name = it.name) },
         )
 }

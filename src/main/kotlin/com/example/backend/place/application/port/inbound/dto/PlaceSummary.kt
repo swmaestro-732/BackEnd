@@ -10,6 +10,7 @@ package com.example.backend.place.application.port.inbound.dto
  * - [imageUrl] 대표 이미지 URL(없을 수 있음). 장소 검색 결과 카드 썸네일에 쓴다.
  * - [latitude]·[longitude] 장소 좌표(지도 핀 표시용). 코스 상세 화면에서 장소별 위치를 찍는 데 쓴다.
  * - [address] 장소 주소.
+ * - [areaCode] 법정동코드 10자리(미확인 시 null). 코스 지역(area_code) 도출 입력으로 쓰인다.
  */
 data class PlaceSummary(
     val id: Long,
@@ -19,4 +20,5 @@ data class PlaceSummary(
     val latitude: Double,
     val longitude: Double,
     val address: String,
+    val areaCode: String?,
 )

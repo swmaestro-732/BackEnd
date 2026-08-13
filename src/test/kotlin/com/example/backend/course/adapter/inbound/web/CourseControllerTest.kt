@@ -2,6 +2,7 @@ package com.example.backend.course.adapter.inbound.web
 
 import com.example.backend.bootstrap.security.JwtTokenProvider
 import com.example.backend.support.IntegrationTestBase
+import org.hamcrest.Matchers.containsInAnyOrder
 import org.junit.jupiter.api.Test
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc
@@ -17,8 +18,8 @@ import org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPat
 import org.springframework.test.web.servlet.result.MockMvcResultMatchers.status
 
 /**
- * 코스 CRUD 컨트롤러(`/api/v1/courses`) 통합 테스트 — 생성·상세·편집·삭제.
- * 픽스처(course-crud-fixture.sql)로 소유자(1)·타인(2)·장소·코스 3건을 심고,
+ * 코스 컨트롤러(`/api/v1/courses`) 통합 테스트 — 생성·상세·임시저장 목록·편집·삭제.
+ * 픽스처(course-crud-fixture.sql)로 소유자(1)·타인(2)·장소·코스 4건을 심고,
  * 작성자 식별은 JWT(subject=userId)로 한다.
  */
 @AutoConfigureMockMvc
@@ -74,7 +75,8 @@ class CourseControllerTest
         }
 
         @Test
-        fun `임시저장 코스는 장소 없이도 생성된다`() {
+        fun `임시저장이어도 장소가 2곳 미만이면 4001을 내려준다`() {
+            // 장소 최소 개수(2곳)는 발행 전용이 아니라 임시저장에도 적용된다.
             val body =
                 """
                 {
@@ -91,9 +93,8 @@ class CourseControllerTest
                         .header(HttpHeaders.AUTHORIZATION, "Bearer ${tokenFor(OWNER_ID)}")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(body),
-                ).andExpect(status().isCreated)
-                .andExpect(jsonPath("$.code").value(2000))
-                .andExpect(jsonPath("$.data.courseId").isNumber)
+                ).andExpect(status().isBadRequest)
+                .andExpect(jsonPath("$.code").value(4001))
         }
 
         @Test
@@ -172,15 +173,17 @@ class CourseControllerTest
         }
 
         @Test
-        fun `임시저장은 제목이 비어 있어도 생성된다`() {
-            // 제목은 발행 코스만 필수 — 임시저장(draft)은 빈 제목을 허용한다.
+        fun `임시저장은 제목 없이도 생성된다`() {
+            // 제목은 발행 코스만 필수 — 임시저장(draft)은 title 키 자체를 생략할 수 있다.
             val body =
                 """
                 {
-                  "title": "",
                   "visibility": "PRIVATE",
                   "isPublished": false,
-                  "places": []
+                  "places": [
+                    {"placeId": 1, "orderNo": 0, "caption": "카페A", "imageUrls": []},
+                    {"placeId": 2, "orderNo": 1, "caption": "카페B", "imageUrls": []}
+                  ]
                 }
                 """.trimIndent()
 
@@ -259,6 +262,38 @@ class CourseControllerTest
                 .andExpect(jsonPath("$.code").value(4041))
         }
 
+        // ─────────────────────────── 임시저장 목록 (GET /api/v1/courses/drafts) ───────────────────────────
+
+        @Test
+        fun `내 임시저장 코스만 최근 수정순으로 조회한다`() {
+            mockMvc
+                .perform(
+                    get("/api/v1/courses/drafts")
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer ${tokenFor(OWNER_ID)}"),
+                ).andExpect(status().isOk)
+                .andExpect(jsonPath("$.code").value(2000))
+                .andExpect(jsonPath("$.data.length()").value(2))
+                .andExpect(jsonPath("$.data[0].id").value(RECENT_DRAFT_ID))
+                .andExpect(jsonPath("$.data[0].authorId").value(OWNER_ID))
+                .andExpect(jsonPath("$.data[0].title").value("최근 수정 초안"))
+                .andExpect(jsonPath("$.data[1].id").value(PRIVATE_COURSE_ID))
+                .andExpect(jsonPath("$.data[1].authorId").value(OWNER_ID))
+                .andExpect(jsonPath("$.data[1].title").value("비공개 초안"))
+        }
+
+        @Test
+        fun `임시저장 목록 mock=true면 DB와 무관하게 목 목록을 내려준다`() {
+            mockMvc
+                .perform(
+                    get("/api/v1/courses/drafts")
+                        .param("mock", "true")
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer ${tokenFor(OWNER_ID)}"),
+                ).andExpect(status().isOk)
+                .andExpect(jsonPath("$.code").value(2000))
+                .andExpect(jsonPath("$.data.length()").value(1))
+                .andExpect(jsonPath("$.data[0].id").value(PRIVATE_COURSE_ID))
+        }
+
         // ─────────────────────────── 상세 (GET /api/v1/courses/{id}) ───────────────────────────
 
         @Test
@@ -274,6 +309,160 @@ class CourseControllerTest
                 .andExpect(jsonPath("$.data.course.places.length()").value(2))
                 .andExpect(jsonPath("$.data.course.stats.walkingMinutes").value(5))
                 .andExpect(jsonPath("$.data.course.stats.tracingCount").value(1200))
+        }
+
+        @Test
+        fun `장소별 도보 시간을 요청대로 저장하고 상세에서 내려준다`() {
+            // 세 값을 한 번에 검증한다: 정상(7분) · 도보 이동 불가(-1) · 마지막 장소(null).
+            // 같은 placeId 를 다시 담아도 되며(orderNo 만 중복 불가) 픽스처 장소 2곳으로 3구간을 만든다.
+            val body =
+                """
+                {
+                  "title": "도보 시간 코스",
+                  "thumbnailUrl": "https://img/cover.jpg",
+                  "visibility": "PUBLIC",
+                  "isPublished": true,
+                  "places": [
+                    {"placeId": 1, "orderNo": 0, "imageUrls": ["https://img/a.jpg"], "walkingMinutes": 7},
+                    {"placeId": 2, "orderNo": 1, "imageUrls": ["https://img/b.jpg"], "walkingMinutes": -1},
+                    {"placeId": 1, "orderNo": 2, "imageUrls": ["https://img/c.jpg"], "walkingMinutes": null}
+                  ]
+                }
+                """.trimIndent()
+
+            val response =
+                mockMvc
+                    .perform(
+                        post("/api/v1/courses")
+                            .header(HttpHeaders.AUTHORIZATION, "Bearer ${tokenFor(OWNER_ID)}")
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(body),
+                    ).andExpect(status().isCreated)
+                    .andReturn()
+
+            mockMvc
+                .perform(get("/api/v1/courses/${extractCourseId(response.response.contentAsString)}"))
+                .andExpect(status().isOk)
+                .andExpect(jsonPath("$.data.course.places[0].walkingMinutesToNext").value(7))
+                // -1(도보 이동 불가)은 눌러 담지 않고 그대로 내려준다 — 프론트가 "도보 이동 불가"로 표시해야 하므로.
+                .andExpect(jsonPath("$.data.course.places[1].walkingMinutesToNext").value(-1))
+                .andExpect(jsonPath("$.data.course.places[2].walkingMinutesToNext").doesNotExist())
+                // 합계는 양수만 — -1 과 null 은 빠져서 7 이다(-1 을 더했다면 6 이 된다).
+                .andExpect(jsonPath("$.data.course.stats.walkingMinutes").value(7))
+        }
+
+        @Test
+        fun `도보 시간이 -2 이하면 4002를 내려준다`() {
+            // -1 은 도보 이동 불가 센티널이라 허용하고, 그보다 작은 값만 하한(@Min)으로 막는다.
+            val body =
+                """
+                {
+                  "title": "도보 시간 코스",
+                  "visibility": "PRIVATE",
+                  "isPublished": false,
+                  "places": [
+                    {"placeId": 1, "orderNo": 0, "imageUrls": [], "walkingMinutes": -2},
+                    {"placeId": 2, "orderNo": 1, "imageUrls": []}
+                  ]
+                }
+                """.trimIndent()
+
+            mockMvc
+                .perform(
+                    post("/api/v1/courses")
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer ${tokenFor(OWNER_ID)}")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(body),
+                ).andExpect(status().isBadRequest)
+                .andExpect(jsonPath("$.code").value(4002))
+        }
+
+        @Test
+        fun `walkingMinutes 를 생략하면 null 로 저장된다`() {
+            // 선택 필드라 기존 클라이언트 요청(도보 시간 미포함)이 그대로 동작해야 한다.
+            val body =
+                """
+                {
+                  "title": "도보 시간 없는 코스",
+                  "visibility": "PRIVATE",
+                  "isPublished": false,
+                  "places": [
+                    {"placeId": 1, "orderNo": 0, "imageUrls": []},
+                    {"placeId": 2, "orderNo": 1, "imageUrls": []}
+                  ]
+                }
+                """.trimIndent()
+
+            val response =
+                mockMvc
+                    .perform(
+                        post("/api/v1/courses")
+                            .header(HttpHeaders.AUTHORIZATION, "Bearer ${tokenFor(OWNER_ID)}")
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(body),
+                    ).andExpect(status().isCreated)
+                    .andReturn()
+
+            mockMvc
+                .perform(
+                    get("/api/v1/courses/${extractCourseId(response.response.contentAsString)}")
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer ${tokenFor(OWNER_ID)}"),
+                ).andExpect(status().isOk)
+                .andExpect(jsonPath("$.data.course.places[0].walkingMinutesToNext").doesNotExist())
+                .andExpect(jsonPath("$.data.course.stats.walkingMinutes").value(0))
+        }
+
+        @Test
+        fun `코스 상세는 해시태그를 함께 내려준다`() {
+            // 순서는 계약이 아니라(course_tags 에 순서 컬럼 없음) 구성만 검증한다.
+            mockMvc
+                .perform(get("/api/v1/courses/$PUBLIC_COURSE_ID"))
+                .andExpect(status().isOk)
+                .andExpect(jsonPath("$.data.course.tags", containsInAnyOrder("감성카페", "데이트")))
+        }
+
+        @Test
+        fun `태그가 없는 코스는 tags 가 빈 배열이다`() {
+            mockMvc
+                .perform(
+                    get("/api/v1/courses/$PRIVATE_COURSE_ID")
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer ${tokenFor(OWNER_ID)}"),
+                ).andExpect(status().isOk)
+                .andExpect(jsonPath("$.data.course.tags").isArray)
+                .andExpect(jsonPath("$.data.course.tags.length()").value(0))
+        }
+
+        @Test
+        fun `생성 요청의 태그가 상세 조회에 그대로 나온다`() {
+            val body =
+                """
+                {
+                  "title": "태그 라운드트립",
+                  "thumbnailUrl": "https://img/cover.jpg",
+                  "tags": ["데이트", "감성카페"],
+                  "visibility": "PUBLIC",
+                  "isPublished": true,
+                  "places": [
+                    {"placeId": 1, "orderNo": 0, "caption": "카페A", "imageUrls": ["https://img/a.jpg"]},
+                    {"placeId": 2, "orderNo": 1, "caption": "카페B", "imageUrls": ["https://img/b.jpg"]}
+                  ]
+                }
+                """.trimIndent()
+
+            val response =
+                mockMvc
+                    .perform(
+                        post("/api/v1/courses")
+                            .header(HttpHeaders.AUTHORIZATION, "Bearer ${tokenFor(OWNER_ID)}")
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(body),
+                    ).andExpect(status().isCreated)
+                    .andReturn()
+
+            mockMvc
+                .perform(get("/api/v1/courses/${extractCourseId(response.response.contentAsString)}"))
+                .andExpect(status().isOk)
+                .andExpect(jsonPath("$.data.course.tags", containsInAnyOrder("감성카페", "데이트")))
         }
 
         @Test
@@ -329,7 +518,10 @@ class CourseControllerTest
                   "description": "수정된 설명",
                   "visibility": "PRIVATE",
                   "isPublished": false,
-                  "places": []
+                  "places": [
+                    {"placeId": 1, "orderNo": 0, "caption": "카페A", "imageUrls": []},
+                    {"placeId": 2, "orderNo": 1, "caption": "카페B", "imageUrls": []}
+                  ]
                 }
                 """.trimIndent()
 
@@ -481,5 +673,6 @@ class CourseControllerTest
             const val PUBLIC_COURSE_ID = 1L
             const val PRIVATE_COURSE_ID = 2L
             const val OTHERS_COURSE_ID = 3L
+            const val RECENT_DRAFT_ID = 4L
         }
     }

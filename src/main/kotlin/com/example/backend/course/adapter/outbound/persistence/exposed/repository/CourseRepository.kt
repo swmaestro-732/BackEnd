@@ -4,23 +4,30 @@ import com.example.backend.common.exception.BusinessException
 import com.example.backend.common.response.ErrorCode
 import com.example.backend.course.adapter.outbound.persistence.CourseEntity
 import com.example.backend.course.adapter.outbound.persistence.CourseTable
+import com.example.backend.course.application.port.inbound.dto.AuthorCourseCursor
+import com.example.backend.course.application.port.inbound.dto.FeedCursor
 import com.example.backend.course.application.port.outbound.CourseDetailRow
 import com.example.backend.course.application.port.outbound.CourseSummaryRow
 import com.example.backend.course.domain.model.Course
 import com.example.backend.course.domain.model.CourseStatus
 import com.example.backend.course.domain.model.CourseVisibility
+import org.jetbrains.exposed.v1.core.ResultRow
 import org.jetbrains.exposed.v1.core.SortOrder
 import org.jetbrains.exposed.v1.core.and
 import org.jetbrains.exposed.v1.core.eq
 import org.jetbrains.exposed.v1.core.inList
 import org.jetbrains.exposed.v1.core.isNull
+import org.jetbrains.exposed.v1.core.less
 import org.jetbrains.exposed.v1.core.minus
+import org.jetbrains.exposed.v1.core.or
 import org.jetbrains.exposed.v1.core.plus
+import org.jetbrains.exposed.v1.jdbc.select
 import org.jetbrains.exposed.v1.jdbc.selectAll
 import org.jetbrains.exposed.v1.jdbc.update
 import org.springframework.stereotype.Repository
 import kotlin.time.Clock
 import kotlin.time.toJavaInstant
+import kotlin.time.toKotlinInstant
 
 /**
  * courses 테이블 접근 리포지토리 — 코스 본문의 조회·삽입만 담당한다.
@@ -39,6 +46,8 @@ class CourseRepository {
                 description = course.description
                 coverImageUrl = course.coverImageUrl
                 category = course.category
+                area = course.area
+                areaCode = course.areaCode
                 isPublished = course.isPublished
                 visibility = course.visibility
                 forkedFromId = course.forkedFromId
@@ -60,6 +69,8 @@ class CourseRepository {
                 it[description] = course.description
                 it[coverImageUrl] = course.coverImageUrl
                 it[category] = course.category
+                it[area] = course.area
+                it[areaCode] = course.areaCode
                 it[isPublished] = course.isPublished
                 it[visibility] = course.visibility
                 it[updatedAt] = now
@@ -80,6 +91,15 @@ class CourseRepository {
     fun softDelete(courseId: Long): Int {
         val now = Clock.System.now()
         return CourseTable.update({ (CourseTable.id eq courseId) and CourseTable.deletedAt.isNull() }) {
+            it[deletedAt] = now
+            it[status] = CourseStatus.DELETED
+            it[updatedAt] = now
+        }
+    }
+
+    fun softDeleteAllByAuthor(authorId: Long): Int {
+        val now = Clock.System.now()
+        return CourseTable.update({ (CourseTable.userId eq authorId) and CourseTable.deletedAt.isNull() }) {
             it[deletedAt] = now
             it[status] = CourseStatus.DELETED
             it[updatedAt] = now
@@ -123,7 +143,7 @@ class CourseRepository {
             .map(::toDetailRow)
     }
 
-    private fun toDetailRow(it: org.jetbrains.exposed.v1.core.ResultRow): CourseDetailRow =
+    private fun toDetailRow(it: ResultRow): CourseDetailRow =
         CourseDetailRow(
             id = it[CourseTable.id].value,
             userId = it[CourseTable.userId],
@@ -132,63 +152,113 @@ class CourseRepository {
             description = it[CourseTable.description],
             category = it[CourseTable.category],
             area = it[CourseTable.area],
+            areaCode = it[CourseTable.areaCode],
             tracingsCnt = it[CourseTable.tracingsCnt],
             status = it[CourseTable.status],
             visibility = it[CourseTable.visibility],
             isPublished = it[CourseTable.isPublished],
         )
 
-    /** 작성자의 발행·활성 코스 요약을 createdAt 내림차순으로 읽는다(공개범위 필터는 서비스). */
-    fun findPublishedByAuthor(authorId: Long): List<CourseSummaryRow> =
+    /**
+     * 작성자의 발행·활성 코스 요약을 createdAt DESC, id DESC로 [size] + 1개까지 읽는다.
+     * [cursor]가 있으면 두 정렬 키가 가리키는 행보다 뒤에 있고 [visibilities]에 포함된 행만 조회한다.
+     */
+    fun findPublishedByAuthor(
+        authorId: Long,
+        visibilities: Set<CourseVisibility>,
+        cursor: AuthorCourseCursor?,
+        size: Int,
+    ): List<CourseSummaryRow> {
+        if (visibilities.isEmpty()) return emptyList()
+
+        var condition =
+            (CourseTable.userId eq authorId) and
+                (CourseTable.isPublished eq true) and
+                (CourseTable.status eq CourseStatus.ACTIVE) and
+                CourseTable.deletedAt.isNull() and
+                (CourseTable.visibility inList visibilities)
+
+        cursor?.let {
+            val cursorCreatedAt = it.createdAt.toKotlinInstant()
+            val afterCursor =
+                (CourseTable.createdAt less cursorCreatedAt) or
+                    ((CourseTable.createdAt eq cursorCreatedAt) and (CourseTable.id less it.id))
+            condition = condition and afterCursor
+        }
+
+        return CourseTable
+            .selectAll()
+            .where(condition)
+            .orderBy(CourseTable.createdAt to SortOrder.DESC, CourseTable.id to SortOrder.DESC)
+            .limit(size + 1)
+            .map(::toSummaryRow)
+    }
+
+    /** 작성자의 임시저장·활성 코스 요약을 updatedAt 내림차순으로 읽는다. */
+    fun findDraftsByAuthor(authorId: Long): List<CourseSummaryRow> =
         CourseTable
             .selectAll()
             .where {
                 (CourseTable.userId eq authorId) and
-                    (CourseTable.isPublished eq true) and
+                    (CourseTable.isPublished eq false) and
                     (CourseTable.status eq CourseStatus.ACTIVE) and
                     CourseTable.deletedAt.isNull()
-            }.orderBy(CourseTable.createdAt to SortOrder.DESC)
-            .map {
-                CourseSummaryRow(
-                    id = it[CourseTable.id].value,
-                    userId = it[CourseTable.userId],
-                    title = it[CourseTable.title],
-                    coverImageUrl = it[CourseTable.coverImageUrl],
-                    category = it[CourseTable.category],
-                    visibility = it[CourseTable.visibility],
-                    isPublished = it[CourseTable.isPublished],
-                    likesCnt = it[CourseTable.likesCnt],
-                    savesCnt = it[CourseTable.savesCnt],
-                    createdAt = it[CourseTable.createdAt].toJavaInstant(),
-                )
-            }
+            }.orderBy(CourseTable.updatedAt to SortOrder.DESC)
+            .map(::toSummaryRow)
 
     /**
-     * 전체 공개(visibility=PUBLIC)·발행·활성 코스 요약을 createdAt 내림차순으로 limit 개까지 읽는다(피드 후보).
+     * 전체 공개(visibility=PUBLIC)·발행·활성 코스 요약을
+     * savesCnt DESC, createdAt DESC, id DESC로 [size] + 1개까지 읽는다(피드 후보).
+     * [cursor]가 있으면 세 정렬 키가 가리키는 행보다 뒤에 있는 행만 keyset 조건으로 조회한다.
      * visibility 는 enumerationByName 컬럼이라 enum 값([CourseVisibility.PUBLIC])으로 비교하면 이름 문자열로 매칭된다.
      */
-    fun findPublishedPublic(limit: Int): List<CourseSummaryRow> =
-        CourseTable
+    fun findPublishedPublic(
+        cursor: FeedCursor?,
+        size: Int,
+    ): List<CourseSummaryRow> {
+        var condition =
+            (CourseTable.isPublished eq true) and
+                (CourseTable.status eq CourseStatus.ACTIVE) and
+                CourseTable.deletedAt.isNull() and
+                (CourseTable.visibility eq CourseVisibility.PUBLIC)
+
+        cursor?.let {
+            val cursorCreatedAt = it.createdAt.toKotlinInstant()
+            val afterCursor =
+                (CourseTable.savesCnt less it.savesCnt) or
+                    (
+                        (CourseTable.savesCnt eq it.savesCnt) and
+                            (
+                                (CourseTable.createdAt less cursorCreatedAt) or
+                                    ((CourseTable.createdAt eq cursorCreatedAt) and (CourseTable.id less it.id))
+                            )
+                    )
+            condition = condition and afterCursor
+        }
+
+        return CourseTable
             .selectAll()
-            .where {
-                (CourseTable.isPublished eq true) and
-                    (CourseTable.status eq CourseStatus.ACTIVE) and
-                    CourseTable.deletedAt.isNull() and
-                    (CourseTable.visibility eq CourseVisibility.PUBLIC)
-            }.orderBy(CourseTable.savesCnt to SortOrder.DESC, CourseTable.createdAt to SortOrder.DESC)
-            .limit(limit)
-            .map {
-                CourseSummaryRow(
-                    id = it[CourseTable.id].value,
-                    userId = it[CourseTable.userId],
-                    title = it[CourseTable.title],
-                    coverImageUrl = it[CourseTable.coverImageUrl],
-                    category = it[CourseTable.category],
-                    visibility = it[CourseTable.visibility],
-                    isPublished = it[CourseTable.isPublished],
-                    likesCnt = it[CourseTable.likesCnt],
-                    savesCnt = it[CourseTable.savesCnt],
-                    createdAt = it[CourseTable.createdAt].toJavaInstant(),
-                )
-            }
+            .where(condition)
+            .orderBy(
+                CourseTable.savesCnt to SortOrder.DESC,
+                CourseTable.createdAt to SortOrder.DESC,
+                CourseTable.id to SortOrder.DESC,
+            ).limit(size + 1)
+            .map(::toSummaryRow)
+    }
+
+    /** 코스 목록 쿼리의 공통 컬럼을 범용 요약 읽기 모델로 변환한다. */
+    private fun toSummaryRow(it: ResultRow): CourseSummaryRow =
+        CourseSummaryRow(
+            id = it[CourseTable.id].value,
+            userId = it[CourseTable.userId],
+            title = it[CourseTable.title],
+            coverImageUrl = it[CourseTable.coverImageUrl],
+            category = it[CourseTable.category],
+            visibility = it[CourseTable.visibility],
+            isPublished = it[CourseTable.isPublished],
+            likesCnt = it[CourseTable.likesCnt],
+            savesCnt = it[CourseTable.savesCnt],
+            createdAt = it[CourseTable.createdAt].toJavaInstant(),
+        )
 }

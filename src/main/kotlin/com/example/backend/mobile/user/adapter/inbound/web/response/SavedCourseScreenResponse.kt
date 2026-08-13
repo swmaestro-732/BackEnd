@@ -363,7 +363,12 @@ data class SavedCourseScreenResponse(
             viewerId: Long,
         ): SavedCourseScreenItemResponse {
             val course = item.course
-            val walkingMinutes = course.places.sumOf { it.walkingMinutesToNext ?: 0 }
+            // 도보 시간 합계는 양수만 더한다 — -1(도보 이동 불가)·null(마지막 장소)은 소요 시간이 아니라 제외.
+            val walkingMinutes =
+                course.places
+                    .mapNotNull { it.walkingMinutesToNext }
+                    .filter { it > 0 }
+                    .sum()
             // 삭제·누락으로 placeById 에서 해석되지 않는 장소는 제외한 목록 — placeCount·places 를 이 하나에서 파생한다.
             val resolvedPlaces =
                 course.places

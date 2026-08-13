@@ -64,6 +64,7 @@ data class CourseDetailScreenResponse(
                         title = "비 오는 날 성수 감성 카페 코스",
                         coverImageUrl = image("HDBpbwjQOwLbBj3pgro4xFRpvBdRRZDTcbVmMkg"),
                         themes = listOf("데이트"),
+                        tags = listOf("감성카페", "비오는날", "성수동"),
                         description =
                             "비가 오면 더 예쁜 성수 카페만 골라 담았어요. 전부 도보로 이어지고, " +
                                 "장소마다 제 팁을 남겨뒀으니 참고하세요 🌧️",
@@ -198,6 +199,8 @@ data class CourseScreenResponse(
     val title: String,
     val coverImageUrl: String,
     val themes: List<String>,
+    /** 작성자가 단 해시태그. [themes](카테고리 단일값)와 별개이며, 순서는 보장하지 않고 없으면 빈 배열. */
+    val tags: List<String>,
     val description: String,
     val stats: CourseStatsResponse,
     val author: AuthorResponse,
@@ -216,6 +219,7 @@ data class CourseScreenResponse(
                 title = course.title,
                 coverImageUrl = course.coverImageUrl,
                 themes = course.theme?.let { listOf(it) } ?: emptyList(),
+                tags = course.tags,
                 description = course.description,
                 stats = CourseStatsResponse.from(course),
                 author = AuthorResponse.from(author),
@@ -258,7 +262,12 @@ data class CourseStatsResponse(
         fun from(course: CourseDetailResult): CourseStatsResponse =
             CourseStatsResponse(
                 placeCount = course.places.size,
-                walkingMinutes = course.places.sumOf { it.walkingMinutesToNext ?: 0 },
+                // 도보 시간 합계는 양수만 더한다 — -1(도보 이동 불가)·null(마지막 장소)은 소요 시간이 아니라 제외.
+                walkingMinutes =
+                    course.places
+                        .mapNotNull { it.walkingMinutesToNext }
+                        .filter { it > 0 }
+                        .sum(),
                 tracingCount = course.tracingsCnt,
             )
     }

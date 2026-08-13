@@ -2,13 +2,16 @@ package com.example.backend.mobile.course.adapter.inbound.web
 
 import com.example.backend.bootstrap.security.JwtTokenProvider
 import com.example.backend.support.IntegrationTestBase
+import org.hamcrest.Matchers.containsInAnyOrder
 import org.junit.jupiter.api.Test
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc
 import org.springframework.http.HttpHeaders
+import org.springframework.http.MediaType
 import org.springframework.test.context.jdbc.Sql
 import org.springframework.test.web.servlet.MockMvc
 import org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get
+import org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post
 import org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath
 import org.springframework.test.web.servlet.result.MockMvcResultMatchers.status
 
@@ -35,6 +38,8 @@ class CourseMobileControllerTest
                 .andExpect(jsonPath("$.data.course.id").value("$PUBLIC_COURSE_ID"))
                 .andExpect(jsonPath("$.data.course.title").value("공개 발행 코스"))
                 .andExpect(jsonPath("$.data.course.themes[0]").value("CAFETOUR"))
+                // 해시태그(course_tags)는 테마(카테고리)와 별개 필드다. 순서는 계약이 아니라 구성만 검증한다.
+                .andExpect(jsonPath("$.data.course.tags", containsInAnyOrder("감성카페", "데이트")))
                 .andExpect(jsonPath("$.data.course.stats.placeCount").value(2))
                 .andExpect(jsonPath("$.data.course.stats.walkingMinutes").value(5))
                 .andExpect(jsonPath("$.data.course.stats.tracingCount").value(1200))
@@ -65,6 +70,50 @@ class CourseMobileControllerTest
         }
 
         @Test
+        fun `도보 이동 불가(-1) 구간은 그대로 내려주되 화면 합계에서는 빠진다`() {
+            // 화면 합계(stats.walkingMinutes)는 도메인 상세와 별도 매퍼라 여기서도 검증한다.
+            // 코스 생성은 도메인 API 로 하고(BFF 에는 생성이 없다) 조합 응답을 읽는다.
+            val body =
+                """
+                {
+                  "title": "도보 시간 코스",
+                  "thumbnailUrl": "https://img/cover.jpg",
+                  "visibility": "PUBLIC",
+                  "isPublished": true,
+                  "places": [
+                    {"placeId": 1, "orderNo": 0, "imageUrls": ["https://img/a.jpg"], "walkingMinutes": 7},
+                    {"placeId": 2, "orderNo": 1, "imageUrls": ["https://img/b.jpg"], "walkingMinutes": -1},
+                    {"placeId": 1, "orderNo": 2, "imageUrls": ["https://img/c.jpg"], "walkingMinutes": null}
+                  ]
+                }
+                """.trimIndent()
+
+            val created =
+                mockMvc
+                    .perform(
+                        post("/api/v1/courses")
+                            .header(HttpHeaders.AUTHORIZATION, "Bearer ${tokenFor(OWNER_ID)}")
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(body),
+                    ).andExpect(status().isCreated)
+                    .andReturn()
+            val courseId =
+                Regex(""""courseId"\s*:\s*(\d+)""")
+                    .find(created.response.contentAsString)
+                    ?.groupValues
+                    ?.get(1)
+                    ?: error("응답에서 courseId 를 찾지 못했습니다")
+
+            mockMvc
+                .perform(get("/service/v1/courses/$courseId"))
+                .andExpect(status().isOk)
+                .andExpect(jsonPath("$.data.course.places[1].walkingMinutesToNext").value(-1))
+                .andExpect(jsonPath("$.data.course.places[2].walkingMinutesToNext").doesNotExist())
+                // -1 을 더했다면 6 이 된다 — 양수만 더해 7.
+                .andExpect(jsonPath("$.data.course.stats.walkingMinutes").value(7))
+        }
+
+        @Test
         fun `없는 코스를 조회하면 4041을 내려준다`() {
             mockMvc
                 .perform(get("/service/v1/courses/99999"))
@@ -82,6 +131,8 @@ class CourseMobileControllerTest
                 ).andExpect(status().isOk)
                 .andExpect(jsonPath("$.data.course.title").value("비공개 초안"))
                 .andExpect(jsonPath("$.data.course.places.length()").value(0))
+                // 태그를 안 단 코스는 빈 배열(키 누락 아님)
+                .andExpect(jsonPath("$.data.course.tags.length()").value(0))
                 .andExpect(jsonPath("$.data.course.author.id").value(OWNER_ID))
 
             // 타인: 존재를 드러내지 않도록 404

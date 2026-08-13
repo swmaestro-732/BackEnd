@@ -25,6 +25,9 @@ internal object PlaceTable : LongIdTable("places") {
     val category = enumerationByName<PlaceCategory>("category", 50)
     val location = geographyPoint("location")
     val address = varchar("address", 255)
+
+    // 법정동코드 10자리(V12). sigungu_code 는 DB 파생 컬럼(앞 5자리 자동 계산)이라 매핑하지 않는다.
+    val areaCode = varchar("area_code", 10).nullable()
     val imageUrl = text("image_url").nullable()
     val businessStatus = enumerationByName<PlaceBusinessStatus>("business_status", 32)
     val kakaoPlaceId = varchar("kakao_place_id", 64).nullable()
@@ -49,6 +52,7 @@ internal class PlaceEntity(
     var category by PlaceTable.category
     var location by PlaceTable.location
     var address by PlaceTable.address
+    var areaCode by PlaceTable.areaCode
     var imageUrl by PlaceTable.imageUrl
     var businessStatus by PlaceTable.businessStatus
     var kakaoPlaceId by PlaceTable.kakaoPlaceId
@@ -63,6 +67,7 @@ internal class PlaceEntity(
             category = category,
             location = location,
             address = address,
+            areaCode = areaCode,
             imageUrl = imageUrl,
             businessStatus = businessStatus,
             kakaoPlaceId = kakaoPlaceId,

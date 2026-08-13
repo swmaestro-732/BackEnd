@@ -19,6 +19,8 @@ class UserPersistenceAdapter(
 
     override fun findById(id: Long): User? = userRepository.findById(id)
 
+    override fun lockActive(userIds: List<Long>): Set<Long> = userRepository.lockActive(userIds)
+
     override fun findByHandle(handle: String): User? = userRepository.findByHandle(handle)
 
     override fun findProfile(userId: Long): UserProfileRow? = userRepository.findProfile(userId)
@@ -28,6 +30,13 @@ class UserPersistenceAdapter(
     override fun save(user: User): User = userRepository.save(user)
 
     override fun update(user: User) = userRepository.update(user)
+
+    override fun applyCourseCountDelta(
+        userId: Long,
+        publicDelta: Int,
+        followerDelta: Int,
+        privateDelta: Int,
+    ) = userRepository.applyCourseCountDelta(userId, publicDelta, followerDelta, privateDelta)
 
     override fun softDelete(user: User) = userRepository.softDelete(user)
 

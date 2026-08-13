@@ -2,19 +2,26 @@ package com.example.backend.direction.adapter.outbound.tmap
 
 import com.example.backend.bootstrap.config.TmapProperties
 import com.example.backend.common.geo.Coordinate
+import com.example.backend.direction.application.port.outbound.PedestrianRoute
 import com.example.backend.direction.application.port.outbound.PedestrianRoutePort
 import org.slf4j.LoggerFactory
 import org.springframework.beans.factory.annotation.Qualifier
 import org.springframework.http.MediaType
 import org.springframework.stereotype.Component
 import org.springframework.web.client.RestClient
+import org.springframework.web.client.RestClientResponseException
 
 /**
  * T map 보행자 경로 API 어댑터.
  *
- * `POST /tmap/routes/pedestrian?version=1`, 헤더 `appKey`, JSON 바디 `{startX, startY, endX, endY, startName, endName}`
- * (X=경도, Y=위도). 응답 `features[0].properties.totalTime`(초)를 반환한다.
- * appKey 가 비었거나 실패/빈 응답이면 null(fail-soft).
+ * `POST /tmap/routes/pedestrian?version=1`, 헤더 `appKey`, JSON 바디 `{startX, startY, endX, endY}` (X=경도, Y=위도).
+ * 응답 `features[0].properties.totalTime`(초) → [PedestrianRoute.Reachable].
+ *
+ * **결과 구분(fail-soft)**:
+ * - **[PedestrianRoute.Unreachable]**: Tmap 이 HTTP 4xx + 에러코드 [NO_SERVICE_AREA_CODE](3102, NoServiceArea)로 응답 →
+ *   도보로 갈 수 없는 구간. (프론트 "걸어갈 수 없는 거리".)
+ * - **[PedestrianRoute.Unknown]**: appKey 미설정 / 그 외 4xx·5xx·네트워크 오류(`retrieve()` 가 예외로 던짐) / 빈 응답 →
+ *   "모름". 일시적 오류(Tmap 다운·타임아웃)를 도보 불가로 오인하지 않도록 [Unreachable] 과 구분한다.
  */
 @Component
 class TmapPedestrianAdapter(
@@ -30,13 +37,13 @@ class TmapPedestrianAdapter(
         }
     }
 
-    override fun walkingSeconds(
+    override fun walkingRoute(
         from: Coordinate,
         to: Coordinate,
-    ): Int? {
-        if (tmapProperties.appKey.isBlank()) return null // 부팅 시 1회 경고 완료 — 요청별 로깅은 생략
+    ): PedestrianRoute {
+        if (tmapProperties.appKey.isBlank()) return PedestrianRoute.Unknown // 부팅 시 1회 경고 완료 — 요청별 로깅 생략
         return try {
-            val response =
+            val seconds =
                 tmapRestClient
                     .post()
                     .uri { builder -> builder.path("/tmap/routes/pedestrian").queryParam("version", 1).build() }
@@ -51,14 +58,37 @@ class TmapPedestrianAdapter(
                         ),
                     ).retrieve()
                     .body(PedestrianResponse::class.java)
-            response
-                ?.features
-                ?.firstOrNull()
-                ?.properties
-                ?.totalTime
+                    ?.features
+                    ?.firstOrNull()
+                    ?.properties
+                    ?.totalTime
+            // 200 이지만 경로/시간이 비면 판단 불가 → Unknown.
+            seconds?.let { PedestrianRoute.Reachable(it) } ?: PedestrianRoute.Unknown
+        } catch (exception: RestClientResponseException) {
+            // 4xx/5xx. NoServiceArea(3102)만 도보 불가로 확정하고, 나머지 오류는 Unknown(일시적 오류 가능).
+            val code =
+                runCatching {
+                    exception
+                        .getResponseBodyAs(
+                            TmapErrorResponse::class.java,
+                        )?.error
+                        ?.code
+                }.getOrNull()
+            if (code == NO_SERVICE_AREA_CODE) {
+                PedestrianRoute.Unreachable
+            } else {
+                log.warn("T map 보행자 경로 조회 실패(status={}, code={})", exception.statusCode, code)
+                PedestrianRoute.Unknown
+            }
         } catch (exception: Exception) {
+            // 네트워크·타임아웃·역직렬화 등 — 일시적 오류일 수 있어 도보 불가와 구분(Unknown).
             log.warn("T map 보행자 경로 조회 실패", exception)
-            null
+            PedestrianRoute.Unknown
         }
+    }
+
+    private companion object {
+        /** Tmap NoServiceArea — 도보 경로를 낼 수 없는 구간(예: 물 위·경로 없음). */
+        const val NO_SERVICE_AREA_CODE = "3102"
     }
 }

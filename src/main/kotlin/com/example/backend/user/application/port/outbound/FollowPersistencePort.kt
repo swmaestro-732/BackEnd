@@ -23,6 +23,9 @@ interface FollowPersistencePort {
         followingId: Long,
     ): Boolean
 
+    /** 사용자의 팔로우 관계를 양방향으로 전부 제거하고 상대방 카운터를 보정한다(회원 탈퇴 정리). */
+    fun purgeFollowsOf(userId: Long)
+
     fun isFollowing(
         followerId: Long,
         followingId: Long,
