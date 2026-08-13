@@ -97,6 +97,15 @@ class CourseRepository {
         }
     }
 
+    fun softDeleteAllByAuthor(authorId: Long): Int {
+        val now = Clock.System.now()
+        return CourseTable.update({ (CourseTable.userId eq authorId) and CourseTable.deletedAt.isNull() }) {
+            it[deletedAt] = now
+            it[status] = CourseStatus.DELETED
+            it[updatedAt] = now
+        }
+    }
+
     /** deleted_at IS NULL 인 행의 saves_cnt 를 1 증가시킨다. 반환은 영향받은 행 수(0 또는 1). */
     fun increaseSavesCount(courseId: Long): Int =
         CourseTable.update({ (CourseTable.id eq courseId) and CourseTable.deletedAt.isNull() }) {

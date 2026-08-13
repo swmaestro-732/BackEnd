@@ -33,6 +33,12 @@ interface SavedCoursePersistencePort {
         courseId: Long,
     ): Boolean
 
+    /** 사용자가 지금 살아있게 저장 중인(deleted_at IS NULL) 코스 id 목록 — 탈퇴 정리 시 원저자 saves_cnt 보정용. */
+    fun findAliveSavedCourseIds(userId: Long): List<Long>
+
+    /** 사용자의 저장 코스·저장 폴더를 전부 하드 삭제한다(회원 탈퇴 정리). saves_cnt 보정은 호출부 책임. */
+    fun deleteAllByUser(userId: Long)
+
     /**
      * 필터에 해당하는 저장 코스 개수.
      * - folderId: null 이면 전체(폴더 미분류 포함).

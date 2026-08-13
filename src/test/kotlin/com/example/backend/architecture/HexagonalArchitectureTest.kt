@@ -160,4 +160,29 @@ class HexagonalArchitectureTest {
             }
         }
     }
+
+    /**
+     * MSA 분리 대비 — 도메인 **코어(domain·application)** 는 다른 도메인을 **일절** 참조하지 않는다
+     * (상대 도메인의 inbound 포트조차 금지). 크로스 도메인 접근은 **어댑터(ACL) 또는 bff** 에서만,
+     * 상대 도메인의 `application.port.inbound` 로 한다(위 크로스 도메인 규칙이 어댑터 경로를 담당).
+     * 즉 코어는 자기 도메인 + common 만 알고, 타 도메인 결합은 어댑터 경계에 격리된다 → 분리 시 어댑터만 교체.
+     */
+    @Test
+    fun `도메인 코어는 다른 도메인을 참조하지 않는다`() {
+        val domains = listOf("user", "place", "course")
+        for (dependent in domains) {
+            for (target in domains) {
+                if (dependent == target) continue
+                noClasses()
+                    .that()
+                    .resideInAnyPackage(
+                        "com.example.backend.$dependent.domain..",
+                        "com.example.backend.$dependent.application..",
+                    ).should()
+                    .dependOnClassesThat()
+                    .resideInAPackage("com.example.backend.$target..")
+                    .check(classes)
+            }
+        }
+    }
 }

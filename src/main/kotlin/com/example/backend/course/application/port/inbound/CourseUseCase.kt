@@ -11,6 +11,7 @@ import com.example.backend.course.domain.model.Course
  * - [edit] 코스 편집(전체 치환) — 소유자만 가능하며, 편집된 코스 애그리거트(DB 생성값 포함)를 반환한다.
  * - [fork] 코스 포크 — 원본을 볼 수 있어야 가능하며, 새로 만들어진 **내** 코스 애그리거트를 반환한다.
  * - [delete] 코스 삭제(소프트 삭제) — 소유자만 가능하다. 성공/실패는 예외로 표현하므로 반환값은 없다.
+ * - [deleteAllByAuthor] 작성자의 코스 전체 소프트 삭제(회원 탈퇴 시 크로스 도메인 호출).
  */
 interface CourseUseCase {
     fun create(command: CreateCourseCommand): Course
@@ -27,4 +28,7 @@ interface CourseUseCase {
         userId: Long,
         courseId: Long,
     )
+
+    /** 작성자의 살아있는 코스를 전부 소프트 삭제한다 — 회원 탈퇴 정리용(user 도메인이 호출). */
+    fun deleteAllByAuthor(authorId: Long)
 }

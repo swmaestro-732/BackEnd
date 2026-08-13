@@ -7,6 +7,7 @@ import com.example.backend.user.application.port.outbound.UserProfileRow
 import com.example.backend.user.domain.model.SocialProvider
 import com.example.backend.user.domain.model.User
 import com.example.backend.user.domain.model.UserStatus
+import org.jetbrains.exposed.v1.core.SortOrder
 import org.jetbrains.exposed.v1.core.and
 import org.jetbrains.exposed.v1.core.eq
 import org.jetbrains.exposed.v1.core.inList
@@ -15,6 +16,7 @@ import org.jetbrains.exposed.v1.core.isNull
 import org.jetbrains.exposed.v1.core.neq
 import org.jetbrains.exposed.v1.core.plus
 import org.jetbrains.exposed.v1.jdbc.insert
+import org.jetbrains.exposed.v1.jdbc.select
 import org.jetbrains.exposed.v1.jdbc.selectAll
 import org.jetbrains.exposed.v1.jdbc.update
 import org.springframework.stereotype.Repository
@@ -148,6 +150,16 @@ class UserRepository(
         check(updated == 1) { "갱신할 활성 사용자를 찾지 못했습니다: id=$id" }
     }
 
+    fun lockActive(userIds: List<Long>): Set<Long> {
+        if (userIds.isEmpty()) return emptySet()
+        return UserTable
+            .select(UserTable.id)
+            .where { (UserTable.id inList userIds) and UserTable.deletedAt.isNull() }
+            .orderBy(UserTable.id to SortOrder.ASC)
+            .forUpdate()
+            .mapTo(mutableSetOf()) { it[UserTable.id].value }
+    }
+
     fun softDelete(user: User) {
         val id = checkNotNull(user.id) { "영속화된 User 는 id 를 가진다." }
         UserTable.update({ (UserTable.id eq id) and UserTable.deletedAt.isNull() }) {
@@ -156,6 +168,15 @@ class UserRepository(
             // handle 은 탈퇴 시 즉시 해제(NULL)해 재사용 가능하게 한다 — 죽은 계정이 핸들을 영구 점유하지 않도록.
             // handle 은 nullable 이고 UNIQUE 는 NULL 다중 허용이라, existsByHandle 은 NULL 아닌 값만 매칭돼 자연히 활성 행만 본다.
             it[handle] = null
+            // 재가입(reactivate)이 "처음 계정처럼" 시작하도록 잔여 프로필·카운터를 함께 비운다.
+            // 관계·코스·저장 등 소유 데이터는 UserService.withdraw 오케스트레이션이 앞서 정리한다.
+            it[profileImageUrl] = null
+            it[bio] = null
+            it[followersCnt] = 0
+            it[followingsCnt] = 0
+            it[publicCoursesCnt] = 0
+            it[followerCoursesCnt] = 0
+            it[privateCoursesCnt] = 0
         }
     }
 

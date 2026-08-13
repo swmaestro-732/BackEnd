@@ -34,6 +34,15 @@ class SavedCoursePersistenceAdapter(
         folderId: Long?,
     ): SavedCourse = savedCourseRepository.insert(userId, courseId, folderId)
 
+    override fun findAliveSavedCourseIds(userId: Long): List<Long> =
+        savedCourseRepository.findAliveSavedCourseIds(userId)
+
+    override fun deleteAllByUser(userId: Long) {
+        // 저장 코스(saved_courses.folder_id → saved_course_folders FK)를 먼저 지운 뒤 폴더를 지운다.
+        savedCourseRepository.deleteAllByUser(userId)
+        savedCourseFolderRepository.deleteAllByUser(userId)
+    }
+
     override fun deleteByUserAndCourse(
         userId: Long,
         courseId: Long,

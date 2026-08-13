@@ -14,12 +14,12 @@ import com.example.backend.course.application.port.outbound.AuthorCourseCountPor
 import com.example.backend.course.application.port.outbound.CoursePersistencePort
 import com.example.backend.course.application.port.outbound.CoursePlaceImageRow
 import com.example.backend.course.application.port.outbound.CoursePlaceRow
+import com.example.backend.course.application.port.outbound.PlaceLookupPort
+import com.example.backend.course.application.port.outbound.PlaceRef
 import com.example.backend.course.domain.model.Course
 import com.example.backend.course.domain.model.CoursePlace
 import com.example.backend.course.domain.model.CourseStatus
 import com.example.backend.course.domain.model.CourseVisibility
-import com.example.backend.place.application.port.inbound.PlaceQueryUseCase
-import com.example.backend.place.application.port.inbound.dto.PlaceSummary
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
 
@@ -27,7 +27,7 @@ import org.springframework.transaction.annotation.Transactional
  * 코스 쓰기(커맨드) 유스케이스 — 생성·편집·삭제. 조회는 [CourseQueryService] 가 담당한다(커맨드/쿼리 분리).
  *
  * 생성/편집: 발행·임시저장 공통. 불변식 검증과 카테고리 도출은 [Course] 애그리거트가 수행하고,
- * 서비스는 카테고리 도출에 필요한 place 카테고리(place 인바운드 포트)만 조회해 넘긴다.
+ * 서비스는 카테고리 도출에 필요한 place 카테고리(아웃바운드 [PlaceLookupPort], ACL)만 조회해 넘긴다.
  * 코스 발행/공개범위변경/삭제로 작성자의 공개범위별 코스 개수가 바뀌면 [AuthorCourseCountPort] 로 반영한다.
  */
 @Service
@@ -36,7 +36,7 @@ class CourseService(
     private val coursePersistencePort: CoursePersistencePort,
     // 포크 원본의 조회 가능 여부 판정을 조회 유스케이스와 공유한다(공개범위·팔로우 규칙 중복 방지).
     private val courseQueryUseCase: CourseQueryUseCase,
-    private val placeQueryUseCase: PlaceQueryUseCase,
+    private val placeLookupPort: PlaceLookupPort,
     private val areaQueryUseCase: AreaQueryUseCase,
     private val authorCourseCountPort: AuthorCourseCountPort,
 ) : CourseUseCase {
@@ -238,6 +238,12 @@ class CourseService(
         )
     }
 
+    override fun deleteAllByAuthor(authorId: Long) {
+        // 회원 탈퇴 정리 — 작성자의 살아있는 코스를 전부 소프트 삭제한다.
+        // 작성자 공개범위별 카운터는 user 도메인이 탈퇴 시 users 행과 함께 0으로 리셋하므로 여기선 코스 행만 정리한다.
+        coursePersistencePort.softDeleteAllByAuthor(authorId)
+    }
+
     /**
      * 편집 코스의 파생 값(카테고리·지역코드)을 해석한다 — 두 값이 같은 유지/재도출 규칙을 공유한다.
      * - 임시저장이면 null(생성과 동일).
@@ -263,9 +269,9 @@ class CourseService(
     /**
      * 발행 코스가 참조하는 place_id 가 모두 실제로 존재하는지 검증하고, 조회한 장소 요약을 돌려준다.
      */
-    private fun requirePlacesExist(placeIds: List<Long>): List<PlaceSummary> {
+    private fun requirePlacesExist(placeIds: List<Long>): List<PlaceRef> {
         val requestedIds = placeIds.distinct()
-        val found = placeQueryUseCase.findPlacesById(requestedIds)
+        val found = placeLookupPort.findPlacesByIds(requestedIds)
         val missing = requestedIds.filterNot { id -> found.any { it.id == id } }
         if (missing.isNotEmpty()) {
             throw BusinessException(ErrorCode.PLACE_NOT_FOUND, "존재하지 않는 장소가 포함되어 있습니다: ids=$missing")

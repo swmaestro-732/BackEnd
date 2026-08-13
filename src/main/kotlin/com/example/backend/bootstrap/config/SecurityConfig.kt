@@ -45,6 +45,8 @@ class SecurityConfig {
                         )
                     }.requestMatchers(
                         "/actuator/health",
+                        // Prometheus 메트릭 — 스크레이프 소스는 SG로 모니터링 호스트만 허용(네트워크 격리).
+                        "/actuator/prometheus",
                         "/api/**",
                         // 화면 조합(BFF) 엔드포인트
                         "/service/**",
