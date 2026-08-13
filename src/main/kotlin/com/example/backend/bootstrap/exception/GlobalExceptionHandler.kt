@@ -3,8 +3,8 @@ package com.example.backend.bootstrap.exception
 import com.example.backend.common.exception.BusinessException
 import com.example.backend.common.response.ApiResponse
 import com.example.backend.common.response.ErrorCode
+import io.github.oshai.kotlinlogging.KotlinLogging
 import org.jetbrains.exposed.v1.exceptions.ExposedSQLException
-import org.slf4j.LoggerFactory
 import org.springframework.http.ResponseEntity
 import org.springframework.http.converter.HttpMessageNotReadableException
 import org.springframework.security.access.AccessDeniedException
@@ -22,7 +22,7 @@ import org.springframework.web.method.annotation.MethodArgumentTypeMismatchExcep
  */
 @RestControllerAdvice
 class GlobalExceptionHandler {
-    private val log = LoggerFactory.getLogger(GlobalExceptionHandler::class.java)
+    private val log = KotlinLogging.logger {}
 
     /** 도메인/애플리케이션이 던진 비즈니스 예외 → ErrorCode 기준 응답. */
     @ExceptionHandler(BusinessException::class)
@@ -110,7 +110,7 @@ class GlobalExceptionHandler {
         // 스프링 시큐리티 인증/인가 예외(@PreAuthorize·@CurrentUserId 등)는 필터의
         // ExceptionTranslationFilter 가 401/403 으로 변환하도록 재던진다(500 로 삼키지 않는다).
         if (e is AuthenticationException || e is AccessDeniedException) throw e
-        log.error("처리되지 않은 예외", e)
+        log.error(e) { "처리되지 않은 예외" }
         return respond(ErrorCode.INTERNAL_ERROR)
     }
 

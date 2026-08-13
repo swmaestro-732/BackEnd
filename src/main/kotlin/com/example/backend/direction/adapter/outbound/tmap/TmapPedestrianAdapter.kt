@@ -4,7 +4,7 @@ import com.example.backend.bootstrap.config.TmapProperties
 import com.example.backend.common.geo.Coordinate
 import com.example.backend.direction.application.port.outbound.PedestrianRoute
 import com.example.backend.direction.application.port.outbound.PedestrianRoutePort
-import org.slf4j.LoggerFactory
+import io.github.oshai.kotlinlogging.KotlinLogging
 import org.springframework.beans.factory.annotation.Qualifier
 import org.springframework.http.MediaType
 import org.springframework.stereotype.Component
@@ -29,11 +29,11 @@ class TmapPedestrianAdapter(
     private val tmapRestClient: RestClient,
     private val tmapProperties: TmapProperties,
 ) : PedestrianRoutePort {
-    private val log = LoggerFactory.getLogger(javaClass)
+    private val log = KotlinLogging.logger {}
 
     init {
         if (tmapProperties.appKey.isBlank()) {
-            log.warn("T map appKey 미설정 — 보행자 경로 조회 비활성(fail-soft). 키 주입 후 재기동 필요.")
+            log.warn { "T map appKey 미설정 — 보행자 경로 조회 비활성(fail-soft). 키 주입 후 재기동 필요." }
         }
     }
 
@@ -77,12 +77,12 @@ class TmapPedestrianAdapter(
             if (code == NO_SERVICE_AREA_CODE) {
                 PedestrianRoute.Unreachable
             } else {
-                log.warn("T map 보행자 경로 조회 실패(status={}, code={})", exception.statusCode, code)
+                log.warn { "T map 보행자 경로 조회 실패(status=${exception.statusCode}, code=$code)" }
                 PedestrianRoute.Unknown
             }
         } catch (exception: Exception) {
             // 네트워크·타임아웃·역직렬화 등 — 일시적 오류일 수 있어 도보 불가와 구분(Unknown).
-            log.warn("T map 보행자 경로 조회 실패", exception)
+            log.warn(exception) { "T map 보행자 경로 조회 실패" }
             PedestrianRoute.Unknown
         }
     }

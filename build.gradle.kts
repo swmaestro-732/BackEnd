@@ -48,6 +48,8 @@ dependencies {
     implementation("org.flywaydb:flyway-database-postgresql")
     implementation("org.jetbrains.kotlin:kotlin-reflect")
     implementation("tools.jackson.module:jackson-module-kotlin")
+    // 로깅 파사드 — SLF4J 위 얇은 래퍼. 코틀린 람다(지연) 로깅 `log.info { "$var" }`. logback/MDC/traceId 그대로.
+    implementation("io.github.oshai:kotlin-logging-jvm:7.0.3")
     developmentOnly("org.springframework.boot:spring-boot-devtools")
     // 로컬 bootRun 시 docker-compose.yml 자동 기동 + DataSource 자동 연결. (운영 빌드엔 미포함)
     developmentOnly("org.springframework.boot:spring-boot-docker-compose")
