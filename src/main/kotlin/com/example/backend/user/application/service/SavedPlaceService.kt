@@ -58,13 +58,14 @@ class SavedPlaceService(
 
     override fun getSavedPlaces(command: SavedPlacesCommand): SavedPlacesResult {
         val cursorId = command.cursor?.let(::decodeCursor)
+        val category = command.category?.let(::decodeCategory)
 
         // hasNext 판정을 위해 한 개 더 조회한 뒤, 페이지 크기만큼 잘라낸다.
         val rows =
             savedPlacePersistencePort.findPage(
                 command.userId,
                 command.visited,
-                command.category,
+                category,
                 cursorId,
                 command.size + 1,
             )
@@ -83,7 +84,7 @@ class SavedPlaceService(
                 savedPlacePersistencePort
                     .countByCategory(command.userId)
                     .sortedByDescending { it.count }
-                    .map { SavedPlacesResult.CategoryCount(category = it.category, count = it.count) },
+                    .map { SavedPlacesResult.CategoryCount(category = it.category.name, count = it.count) },
             nextCursor = if (hasNext) page.lastOrNull()?.id?.toString() else null,
             hasNext = hasNext,
             savedPlaces =
@@ -91,7 +92,7 @@ class SavedPlaceService(
                     SavedPlacesResult.SavedPlaceItem(
                         id = it.id,
                         placeId = it.placeId,
-                        category = it.category,
+                        category = it.category?.name,
                         visited = it.visited,
                         savedAt = it.savedAt,
                     )
@@ -103,4 +104,12 @@ class SavedPlaceService(
     private fun decodeCursor(cursor: String): Long =
         cursor.toLongOrNull()
             ?: throw BusinessException(ErrorCode.INVALID_INPUT, "잘못된 커서입니다: $cursor")
+
+    /**
+     * 카테고리 필터 이름을 도메인 enum 으로 파싱한다. 아는 이름이 아니면 400 —
+     * 포트 계약이 문자열이라(BFF·타 도메인이 enum 을 참조할 수 없다) 검증을 여기서 한다.
+     */
+    private fun decodeCategory(category: String): SavedPlaceCategory =
+        SavedPlaceCategory.entries.find { it.name == category }
+            ?: throw BusinessException(ErrorCode.INVALID_INPUT, "알 수 없는 저장 카테고리입니다: $category")
 }

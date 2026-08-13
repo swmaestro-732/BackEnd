@@ -1,20 +1,21 @@
 package com.example.backend.mobile.user.adapter.inbound.web.response
 
 import com.example.backend.mobile.place.adapter.inbound.web.response.PlaceLocationResponse
+import com.example.backend.mobile.user.application.port.inbound.dto.SavedPlaceScreenResult
 import java.time.Instant
 
 /**
  * 웹 응답 DTO — 저장함 · 장소 탭 화면 조합(BFF). 프론트 화면 계약 형태.
- * 도메인 API(`GET /service/v1/saved-places`)의 저장 레코드·카운트·페이지 메타를 유지하고,
- * 각 저장 항목에 장소 요약(평점·카테고리·영업·거리 — 디자인 J 밴드)을 덧붙여 내려준다.
- * 현재는 컨트롤러에서 목 데이터로 채운다(실제 구현 시 user + place inbound 포트 조합으로 교체).
+ * 도메인 조회(`GET /api/v1/my/saved-places`)의 저장 레코드·카운트·페이지 메타를 유지하고,
+ * 각 저장 항목에 장소 요약(이름·카테고리·지역·이미지·좌표 — 디자인 J 밴드)을 덧붙여 내려준다.
+ * [from] 이 포트 결과([SavedPlaceScreenResult])를 매핑하고, `?mock=true` 는 [mock] 고정 목을 쓴다.
  */
 data class SavedPlaceScreenResponse(
     // 카테고리 전체 합산 저장 개수 — 저장함 "전체 N" 칩
-    val totalCount: Int,
+    val totalCount: Long,
     // 미방문/방문 저장 개수 — 탭 배지
-    val unvisitedCount: Int,
-    val visitedCount: Int,
+    val unvisitedCount: Long,
+    val visitedCount: Long,
     // 카테고리별 저장 개수(0개 카테고리 제외), 개수 내림차순 — 카테고리 칩
     val categoryCounts: List<SavedPlaceCategoryCountResponse>,
     val nextCursor: String?,
@@ -23,6 +24,44 @@ data class SavedPlaceScreenResponse(
 ) {
     companion object {
         private fun image(id: String) = "https://images.unsplash.com/$id?w=600&q=80&auto=format&fit=crop"
+
+        /** 화면 조합 결과를 응답 계약으로 매핑한다. */
+        fun from(result: SavedPlaceScreenResult): SavedPlaceScreenResponse =
+            SavedPlaceScreenResponse(
+                totalCount = result.totalCount,
+                unvisitedCount = result.unvisitedCount,
+                visitedCount = result.visitedCount,
+                categoryCounts =
+                    result.categoryCounts.map {
+                        SavedPlaceCategoryCountResponse(category = it.category, count = it.count)
+                    },
+                nextCursor = result.nextCursor,
+                hasNext = result.hasNext,
+                savedPlaces =
+                    result.items.map { item ->
+                        SavedPlaceScreenItemResponse(
+                            id = item.id,
+                            placeId = item.placeId,
+                            category = item.category,
+                            visited = item.visited,
+                            savedAt = item.savedAt,
+                            place =
+                                SavedPlaceSummaryResponse(
+                                    name = item.place.name,
+                                    category = item.place.category,
+                                    area = item.place.area,
+                                    imageUrl = item.place.imageUrl,
+                                    // 거리는 1차 구현 범위 밖 — 항상 null 이다.
+                                    walkingTime = null,
+                                    location =
+                                        PlaceLocationResponse(
+                                            latitude = item.place.latitude,
+                                            longitude = item.place.longitude,
+                                        ),
+                                ),
+                        )
+                    },
+            )
 
         /**
          * 목 데이터 — 저장 레코드는 도메인 모킹([com.example.backend.user.adapter.inbound.web.SavedPlaceController])과,
@@ -117,15 +156,15 @@ data class SavedPlaceScreenResponse(
         /** 저장함 · 장소 탭 화면 조합 목 — 항상 고정 목 응답(nextCursor=null·hasNext=false). */
         fun mock(): SavedPlaceScreenResponse =
             SavedPlaceScreenResponse(
-                totalCount = MOCK_ITEMS.size,
-                unvisitedCount = MOCK_ITEMS.count { !it.visited },
-                visitedCount = MOCK_ITEMS.count { it.visited },
+                totalCount = MOCK_ITEMS.size.toLong(),
+                unvisitedCount = MOCK_ITEMS.count { !it.visited }.toLong(),
+                visitedCount = MOCK_ITEMS.count { it.visited }.toLong(),
                 categoryCounts =
                     MOCK_ITEMS
                         .mapNotNull { it.category }
                         .groupingBy { it }
                         .eachCount()
-                        .map { (category, count) -> SavedPlaceCategoryCountResponse(category, count) }
+                        .map { (category, count) -> SavedPlaceCategoryCountResponse(category, count.toLong()) }
                         .sortedByDescending { it.count },
                 nextCursor = null,
                 hasNext = false,
@@ -137,7 +176,7 @@ data class SavedPlaceScreenResponse(
 /** 카테고리 칩 배지 — category 는 user 도메인 SavedPlaceCategory 의 이름 문자열(예: CAFE). */
 data class SavedPlaceCategoryCountResponse(
     val category: String,
-    val count: Int,
+    val count: Long,
 )
 
 data class SavedPlaceScreenItemResponse(
@@ -157,10 +196,11 @@ data class SavedPlaceSummaryResponse(
     val name: String,
     // 장소 카테고리 — place 도메인 PlaceCategory 이름 문자열(예: CAFE)
     val category: String,
-    val area: String,
+    // 표시용 지역 이름(읍면동 등). 장소의 area_code 가 없거나 해석되지 않으면 null
+    val area: String?,
     val imageUrl: String?,
-    // 거리 — 표시용 도보 소요 텍스트(예: "도보 11분"). 실구현에서 ST_Distance 미터를 변환해 생성
-    val walkingTime: String,
+    // 거리 — 표시용 도보 소요 텍스트(예: "도보 11분"). 1차 구현 범위 밖이라 실조회 응답은 항상 null(목은 값이 있다).
+    val walkingTime: String?,
     // 좌표 — 지도 핀 표시용(장소 상세 화면 조합과 동일 표현)
     val location: PlaceLocationResponse,
 )

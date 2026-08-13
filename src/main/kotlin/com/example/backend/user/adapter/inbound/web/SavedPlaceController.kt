@@ -107,7 +107,8 @@ class SavedPlaceController(
                     SavedPlacesCommand(
                         userId = userId,
                         visited = visited,
-                        category = category,
+                        // 포트 계약은 카테고리 이름 문자열이다(BFF 도 쓰는 계약) — 바인딩은 enum 으로 받아 잘못된 값을 400 으로 먼저 걸러낸다.
+                        category = category?.name,
                         cursor = cursor,
                         size = size,
                     ),

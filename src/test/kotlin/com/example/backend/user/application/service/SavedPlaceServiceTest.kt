@@ -223,7 +223,7 @@ class SavedPlaceServiceTest {
         fakePort.visitedCount = 4
 
         // visited=true, category 필터가 걸린 조회여도 카운트는 전체 기준이어야 한다.
-        val result = service.getSavedPlaces(command(visited = true, category = SavedPlaceCategory.CAFE))
+        val result = service.getSavedPlaces(command(visited = true, category = SavedPlaceCategory.CAFE.name))
 
         assertEquals(3L, result.unvisitedCount)
         assertEquals(4L, result.visitedCount)
@@ -241,26 +241,40 @@ class SavedPlaceServiceTest {
 
         val result = service.getSavedPlaces(command())
 
-        assertEquals(
-            listOf(SavedPlaceCategory.BAR, SavedPlaceCategory.NATURE, SavedPlaceCategory.CAFE),
-            result.categoryCounts.map { it.category },
-        )
+        // 결과의 category 는 이름 문자열로 나간다.
+        assertEquals(listOf("BAR", "NATURE", "CAFE"), result.categoryCounts.map { it.category })
         assertEquals(listOf(5L, 3L, 2L), result.categoryCounts.map { it.count })
     }
 
     @Test
-    fun `조회 필터(visited, category)를 그대로 포트에 전달한다`() {
-        service.getSavedPlaces(command(visited = true, category = SavedPlaceCategory.WELLNESS, size = 10))
+    fun `카테고리 이름을 enum 으로 파싱해 포트에 전달한다`() {
+        service.getSavedPlaces(command(visited = true, category = "WELLNESS", size = 10))
 
         val args = fakePort.findPageArgs
         assertEquals(1L, args?.userId)
         assertEquals(true, args?.visited)
-        assertEquals(SavedPlaceCategory.WELLNESS, args?.category)
+        assertEquals(SavedPlaceCategory.WELLNESS, args?.category) // 문자열 → enum 파싱
     }
 
+    @Test
+    fun `알 수 없는 카테고리 이름이면 INVALID_INPUT 을 던진다`() {
+        // 포트 계약이 문자열이라(BFF 가 enum 을 못 참조) 값 검증은 서비스가 한다.
+        val ex = assertThrows<BusinessException> { service.getSavedPlaces(command(category = "NOT_A_CATEGORY")) }
+
+        assertEquals(ErrorCode.INVALID_INPUT, ex.errorCode)
+    }
+
+    @Test
+    fun `category 가 null 이면 필터 없이 전체를 조회한다`() {
+        service.getSavedPlaces(command(category = null))
+
+        assertNull(fakePort.findPageArgs?.category)
+    }
+
+    /** 포트 계약상 category 는 enum 이 아니라 이름 문자열이다(BFF 도 쓰는 계약). */
     private fun command(
         visited: Boolean = false,
-        category: SavedPlaceCategory? = null,
+        category: String? = null,
         cursor: String? = null,
         size: Int = 20,
     ) = SavedPlacesCommand(userId = 1L, visited = visited, category = category, cursor = cursor, size = size)

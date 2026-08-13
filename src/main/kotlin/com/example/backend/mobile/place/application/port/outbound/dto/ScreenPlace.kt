@@ -12,4 +12,6 @@ data class ScreenPlace(
     val latitude: Double,
     val longitude: Double,
     val address: String,
+    // 법정동코드 10자리(미확인 시 null) — 화면 표시용 지역 이름 해석 입력(ScreenAreaPort)
+    val areaCode: String?,
 )
