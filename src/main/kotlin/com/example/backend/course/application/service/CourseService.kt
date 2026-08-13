@@ -197,13 +197,6 @@ class CourseService(
         return create(command.toCreateCommand())
     }
 
-    /**
-     * 포크한 코스가 원본 장소를 규칙([Course.requiredKeptPlaceCount])만큼 그대로 담았는지 검증한다.
-     * 장소 **추가**는 제한하지 않는다 — 원본 장소를 빼는 것만 본다.
-     *
-     * 같은 장소를 여러 번 담은 코스가 있을 수 있어 양쪽 모두 placeId 집합으로 비교한다(중복은 한 곳으로 센다).
-     * 순서(orderNo)는 보지 않는다 — 규칙이 "어느 장소를 남겼는가"만 정하기 때문이다.
-     */
     private fun requireOriginPlacesKept(
         originPlaceIds: List<Long>,
         forkedPlaces: List<CreateCoursePlaceCommand>,

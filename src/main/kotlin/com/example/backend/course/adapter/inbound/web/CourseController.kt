@@ -103,7 +103,7 @@ class CourseController(
     ): ApiResponse<CourseIdResponse> {
         if (mock && mockGuard.isMockAllowed()) return ApiResponse.success(CourseIdResponse.MOCK)
         val course = courseUseCase.create(request.toCommand(userId))
-        return ApiResponse.success(CourseIdResponse(courseId = requireNotNull(course.id)))
+        return ApiResponse.success(CourseIdResponse.from(course))
     }
 
     /**
@@ -123,24 +123,13 @@ class CourseController(
     ): ApiResponse<CourseIdResponse> {
         if (mock && mockGuard.isMockAllowed()) return ApiResponse.success(CourseIdResponse.MOCK)
         val course = courseUseCase.edit(request.toCommand(userId, courseId))
-        return ApiResponse.success(CourseIdResponse(courseId = requireNotNull(course.id)))
+        return ApiResponse.success(CourseIdResponse.from(course))
     }
 
     /**
      * 코스 포크(노션 명세 · Course · course-fork). 인바운드 포트([CourseUseCase])로 새 코스를 저장한다.
      *
-     * 노션 "코스 포크" 페이지가 본문 미작성이라 계약을 기능 정의서(7.2 포크하기 → **7.2.1 게시물 만들기**)와
-     * 코스 생성 계약에서 도출했다. 포크는 원본에서 **장소 구성(어디를 어떤 순서로)만** 가져오고,
-     * 장소별 caption·사진을 비롯한 콘텐츠는 포크하는 사람이 코스 만들기와 같은 빌더 화면에서 새로 입력해
-     * 게시한다([ForkCourseRequest]) — 그래서 요청 모양이 코스 생성과 같고, 원본 id 만 바디가 아니라 경로로 받는다.
-     * (디자인 밴드 F 는 포크 버튼 → 완료 화면만 그려 두어 중간 빌더 단계가 생략돼 있다 — 디자인 갱신 필요.)
-     *
-     * 경로 `{courseId}` 는 **원본** 코스 id, 응답 `courseId` 는 새로 만들어진 **내** 코스 id다.
-     * 원본을 볼 수 없으면(없음·삭제·비활성·PRIVATE 타인·FOLLOWER 비팔로워) 코스 상세와 동일하게
-     * 404 COURSE_NOT_FOUND 로 응답한다(존재를 드러내지 않는 은닉 규칙).
-     * 원본 장소를 규칙만큼 담지 않으면 400 FORK_PLACES_NOT_KEPT 다 — 원본이 4곳 이하면 전부,
-     * 5곳 이상이면 절반 이상을 그대로 담아야 하고 장소 추가는 자유롭다. 포크 주체 식별이 필요해
-     * `@CurrentUserId`(JWT subject)로 userId 를 받으므로 유효한 토큰이 필요하다.
+     * 원본 장소 규칙 : 원본이 4곳 이하면 전부, 5곳 이상이면 절반 이상을 그대로 담아야 하고, 두 경우 다 장소 추가는 자유롭다. (최대 10곳)
      * `?mock=true` 이고 [MockGuard] 가 모킹을 허용할 때만 DB 저장 없이 고정 목([CourseIdResponse.MOCK])을
      * 반환하고, 그 외에는 정상 유스케이스 경로를 탄다.
      */
@@ -153,8 +142,9 @@ class CourseController(
         @RequestParam(required = false) mock: Boolean = false,
     ): ApiResponse<CourseIdResponse> {
         if (mock && mockGuard.isMockAllowed()) return ApiResponse.success(CourseIdResponse.MOCK)
+
         val course = courseUseCase.fork(request.toCommand(userId, courseId))
-        return ApiResponse.success(CourseIdResponse(courseId = requireNotNull(course.id)))
+        return ApiResponse.success(CourseIdResponse.from(course))
     }
 
     /**
