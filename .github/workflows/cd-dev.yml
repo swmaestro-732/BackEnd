@@ -18,8 +18,21 @@ jobs:
   build-deploy-dev:
     name: build & deploy (dev)
     runs-on: ubuntu-latest
-    if: vars.AWS_DEPLOY_ROLE_ARN_DEV != '' # dev 배포 변수 등록 시 활성화
     steps:
+      # dev 배포 변수(Infra dev apply 후 등록)가 없으면 스킵이 아니라 명시적 실패로 노출한다.
+      - name: dev 배포 변수 확인
+        env:
+          ROLE: ${{ vars.AWS_DEPLOY_ROLE_ARN_DEV }}
+          ECR: ${{ vars.DEV_ECR_REPOSITORY }}
+        run: |
+          missing=""
+          [ -z "$ROLE" ] && missing="$missing AWS_DEPLOY_ROLE_ARN_DEV"
+          [ -z "$ECR" ] && missing="$missing DEV_ECR_REPOSITORY"
+          if [ -n "$missing" ]; then
+            echo "::error::dev 배포 변수 미설정:$missing — Infra dev apply 후 BackEnd Actions vars 에 등록하세요."
+            exit 1
+          fi
+
       # 공급망 보안: 배포 자격증명을 다루므로 액션을 커밋 SHA로 고정 (주석은 버전)
       - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
         with:
