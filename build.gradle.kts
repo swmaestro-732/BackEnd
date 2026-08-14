@@ -43,6 +43,9 @@ dependencies {
     runtimeOnly("io.micrometer:micrometer-registry-prometheus")
     // Spring Boot 4: OTLP 트레이스 리포팅 공식 스타터(Micrometer Tracing + OTel autoconfig + OTLP exporter 일괄).
     implementation("org.springframework.boot:spring-boot-starter-opentelemetry")
+
+    // Sentry 에러 트래킹. Boot 4 전용 스타터(spring-boot-starter:4.1.0 대상). SENTRY_DSN 비면 no-op.
+    implementation("io.sentry:sentry-spring-boot-4-starter:8.53.0")
     // OpenAPI 명세 + Swagger UI (springdoc 3.x = Spring Boot 4 호환)
     implementation("org.springdoc:springdoc-openapi-starter-webmvc-ui:3.0.3")
     implementation("org.flywaydb:flyway-database-postgresql")
