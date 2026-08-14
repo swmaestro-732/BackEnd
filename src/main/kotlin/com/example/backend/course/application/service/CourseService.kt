@@ -10,6 +10,7 @@ import com.example.backend.course.application.port.outbound.AuthorCourseCountPor
 import com.example.backend.course.application.port.outbound.CoursePersistencePort
 import com.example.backend.course.application.port.outbound.CoursePlaceImageRow
 import com.example.backend.course.application.port.outbound.CoursePlaceRow
+import com.example.backend.course.application.port.outbound.CourseSearchIndexPort
 import com.example.backend.course.application.port.outbound.PlaceLookupPort
 import com.example.backend.course.application.port.outbound.PlaceRef
 import com.example.backend.course.domain.model.Course
@@ -33,6 +34,7 @@ class CourseService(
     private val placeLookupPort: PlaceLookupPort,
     private val areaQueryUseCase: AreaQueryUseCase,
     private val authorCourseCountPort: AuthorCourseCountPort,
+    private val courseSearchIndexPort: CourseSearchIndexPort,
 ) : CourseUseCase {
     override fun create(command: CreateCourseCommand): Course {
         // fork 원본 코스가 실제로 존재하는지 검증(없으면 404).
@@ -84,6 +86,7 @@ class CourseService(
             removed = null,
             added = if (command.isPublished) command.visibility else null,
         )
+        courseSearchIndexPort.index(saved) // fail-soft 색인(검색 부가 기능)
         return saved
     }
 
@@ -161,6 +164,7 @@ class CourseService(
             removed = if (existing.isPublished) existing.visibility else null,
             added = if (command.isPublished) command.visibility else null,
         )
+        courseSearchIndexPort.index(updated) // fail-soft 색인(검색 부가 기능)
         return updated
     }
 
@@ -187,12 +191,14 @@ class CourseService(
             removed = if (existing.isPublished) existing.visibility else null,
             added = null,
         )
+        courseSearchIndexPort.delete(courseId) // fail-soft 색인 제거
     }
 
     override fun deleteAllByAuthor(authorId: Long) {
         // 회원 탈퇴 정리 — 작성자의 살아있는 코스를 전부 소프트 삭제한다.
         // 작성자 공개범위별 카운터는 user 도메인이 탈퇴 시 users 행과 함께 0으로 리셋하므로 여기선 코스 행만 정리한다.
         coursePersistencePort.softDeleteAllByAuthor(authorId)
+        courseSearchIndexPort.deleteByAuthor(authorId) // fail-soft 색인 제거(탈퇴 정리)
     }
 
     /**

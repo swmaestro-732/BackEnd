@@ -7,6 +7,7 @@ import com.example.backend.place.application.port.inbound.dto.PlaceSearchResult
 import com.example.backend.place.application.port.outbound.AreaCodeLookupPort
 import com.example.backend.place.application.port.outbound.ExternalPlaceSearchPort
 import com.example.backend.place.application.port.outbound.PlacePersistencePort
+import com.example.backend.place.application.port.outbound.PlaceSearchIndexPort
 import com.example.backend.place.domain.model.Place
 import org.springframework.stereotype.Service
 import org.springframework.transaction.support.TransactionOperations
@@ -27,6 +28,7 @@ class PlaceSearchService(
     private val placePersistencePort: PlacePersistencePort,
     private val areaCodeLookupPort: AreaCodeLookupPort,
     private val transactionOperations: TransactionOperations,
+    private val placeSearchIndexPort: PlaceSearchIndexPort,
 ) : PlaceSearchExternalUseCase {
     override fun search(
         query: String,
@@ -83,6 +85,9 @@ class PlaceSearchService(
                         .mapNotNull { place -> place.kakaoPlaceId?.let { it to place } }
                         .toMap()
                 }.orEmpty()
+
+        // 확정된 장소(기존 + 방금 삽입분)를 검색 인덱스에 upsert 한다 — 트랜잭션 커밋 후, fail-soft(색인 실패는 검색만 영향).
+        placeSearchIndexPort.index(placeByKakao.values.toList())
 
         return external.mapNotNull { ext ->
             val place = placeByKakao[ext.kakaoPlaceId] ?: return@mapNotNull null

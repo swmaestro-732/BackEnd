@@ -103,7 +103,7 @@ tasks.withType<Test> {
 tasks.test {
     filter {
         excludeTestsMatching("com.example.backend.architecture.*")
-        excludeTestsMatching("com.example.backend.bootstrap.config.OpenSearchIntegrationTest")
+        excludeTestsMatching("*OpenSearch*IntegrationTest")
     }
     finalizedBy(tasks.jacocoTestReport) // 테스트 후 커버리지 리포트 생성
 }
@@ -115,7 +115,7 @@ tasks.register<Test>("opensearchIt") {
     group = "verification"
     testClassesDirs = sourceSets["test"].output.classesDirs
     classpath = sourceSets["test"].runtimeClasspath
-    filter { includeTestsMatching("com.example.backend.bootstrap.config.OpenSearchIntegrationTest") }
+    filter { includeTestsMatching("*OpenSearch*IntegrationTest") }
 }
 
 // ArchUnit 아키텍처 경계 규칙만 실행하는 전용 태스크(DB 불필요). CI 의 architecture 잡이 사용.

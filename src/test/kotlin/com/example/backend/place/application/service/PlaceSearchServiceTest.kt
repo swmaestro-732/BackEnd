@@ -4,6 +4,7 @@ import com.example.backend.common.geo.Coordinate
 import com.example.backend.place.application.port.outbound.AreaCodeLookupPort
 import com.example.backend.place.application.port.outbound.ExternalPlaceSearchPort
 import com.example.backend.place.application.port.outbound.PlacePersistencePort
+import com.example.backend.place.application.port.outbound.PlaceSearchIndexPort
 import com.example.backend.place.domain.model.ExternalPlace
 import com.example.backend.place.domain.model.ExternalPlaceSource
 import com.example.backend.place.domain.model.Place
@@ -41,8 +42,20 @@ class PlaceSearchServiceTest {
         }
 
     // 단위 테스트는 실 DB 트랜잭션이 없으므로 콜백만 실행하는 withoutTransaction 을 쓴다.
+    // 색인은 이 테스트의 관심사가 아니라 no-op 로 둔다(색인 자체 검증은 OpenSearch 통합테스트가 담당).
+    private val indexPort =
+        object : PlaceSearchIndexPort {
+            override fun index(places: List<Place>) = Unit
+        }
+
     private val service =
-        PlaceSearchService(externalPort, persistence, areaCodeLookup, TransactionOperations.withoutTransaction())
+        PlaceSearchService(
+            externalPort,
+            persistence,
+            areaCodeLookup,
+            TransactionOperations.withoutTransaction(),
+            indexPort,
+        )
 
     @Test
     fun `같은 장소를 두 번 검색하면 저장은 한 번, id 는 재사용된다`() {

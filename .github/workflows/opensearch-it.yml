@@ -6,13 +6,17 @@ on:
   push:
     branches: [develop]
     paths:
-      - "**/OpenSearch*.kt" # Config·Properties·HealthIndicator·통합테스트
+      - "**/OpenSearch*.kt" # Config·Properties·HealthIndicator·Initializer·색인 어댑터·통합테스트
+      - "**/opensearch/*.json" # 인덱스 매핑(place.json·course.json)
+      - "**/*SearchIndexPort.kt" # 색인 아웃바운드 포트
       - "build.gradle.kts" # opensearch-java·httpclient5·testcontainers 의존성
       - ".github/workflows/opensearch-it.yml"
   pull_request:
     branches: [main, develop]
     paths:
       - "**/OpenSearch*.kt"
+      - "**/opensearch/*.json"
+      - "**/*SearchIndexPort.kt"
       - "build.gradle.kts"
       - ".github/workflows/opensearch-it.yml"
   workflow_dispatch:
