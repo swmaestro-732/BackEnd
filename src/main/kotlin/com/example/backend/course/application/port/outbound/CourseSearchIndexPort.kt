@@ -10,6 +10,9 @@ interface CourseSearchIndexPort {
     /** 코스를 색인한다(docId=course.id, upsert). */
     fun index(course: Course)
 
+    /** 코스들을 색인한다(docId=course.id, upsert). id 가 없는(미영속) 코스는 건너뛴다 — 재색인용 bulk. */
+    fun index(courses: List<Course>)
+
     /** 코스를 색인에서 제거한다(삭제 시). */
     fun delete(courseId: Long)
 

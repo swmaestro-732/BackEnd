@@ -138,4 +138,10 @@ interface CoursePersistencePort {
      * 저장 취소(다른 도메인)가 실제로 일어났을 때만 호출된다. 정합성은 추후 비동기 집계로 옮긴다.
      */
     fun decreaseSavesCount(courseId: Long): Int
+
+    /** 재색인용 — 활성(deleted_at IS NULL) 코스를 id 오름차순으로 afterId 다음부터 limit개. */
+    fun findForIndex(
+        afterId: Long?,
+        limit: Int,
+    ): List<Course>
 }

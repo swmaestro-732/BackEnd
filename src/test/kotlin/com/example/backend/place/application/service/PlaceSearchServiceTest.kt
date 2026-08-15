@@ -117,5 +117,14 @@ class PlaceSearchServiceTest {
                     )
             }
         }
+
+        override fun findForIndex(
+            afterId: Long?,
+            limit: Int,
+        ): List<Place> =
+            store.values
+                .filter { it.id!! > (afterId ?: 0L) }
+                .sortedBy { it.id }
+                .take(limit)
     }
 }

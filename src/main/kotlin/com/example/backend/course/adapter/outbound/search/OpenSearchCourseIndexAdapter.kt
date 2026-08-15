@@ -29,6 +29,28 @@ class OpenSearchCourseIndexAdapter(
         }
     }
 
+    override fun index(courses: List<Course>) {
+        if (courses.isEmpty()) return
+        val client = clientProvider.ifAvailable ?: return // endpoint 미설정 → no-op
+        try {
+            val documents = courses.filter { it.id != null }
+            if (documents.isEmpty()) return
+            client.bulk { bulk ->
+                bulk.operations(
+                    documents.map { course ->
+                        val document = course.toDocument()
+                        org.opensearch.client.opensearch.core.bulk.BulkOperation
+                            .Builder()
+                            .index { op -> op.index(INDEX_ALIAS).id(course.id.toString()).document(document) }
+                            .build()
+                    },
+                )
+            }
+        } catch (e: Exception) {
+            log.warn("course 색인 실패(무시): {}건 — {}", courses.size, e.message)
+        }
+    }
+
     override fun delete(courseId: Long) {
         val client = clientProvider.ifAvailable ?: return // endpoint 미설정 → no-op
         try {

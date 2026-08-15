@@ -6,6 +6,7 @@ import org.slf4j.LoggerFactory
 import org.springframework.beans.factory.ObjectProvider
 import org.springframework.boot.ApplicationArguments
 import org.springframework.boot.ApplicationRunner
+import org.springframework.core.annotation.Order
 import org.springframework.core.io.ClassPathResource
 import org.springframework.stereotype.Component
 
@@ -19,6 +20,7 @@ import org.springframework.stereotype.Component
  * reindex 후 alias 를 원자적으로 스위칭하기 위함이다(불변 매핑 대응, 런북은 .ai/backend/search.md).
  */
 @Component
+@Order(0)
 class OpenSearchIndexInitializer(
     private val clientProvider: ObjectProvider<OpenSearchClient>,
 ) : ApplicationRunner {
