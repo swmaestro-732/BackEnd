@@ -3,6 +3,9 @@ package com.example.backend.course.application.service
 import com.example.backend.area.application.port.inbound.AreaQueryUseCase
 import com.example.backend.common.exception.BusinessException
 import com.example.backend.common.response.ErrorCode
+import com.example.backend.course.application.event.CourseAuthorWithdrawnEvent
+import com.example.backend.course.application.event.CourseDeletedEvent
+import com.example.backend.course.application.event.CourseSavedEvent
 import com.example.backend.course.application.port.inbound.CourseUseCase
 import com.example.backend.course.application.port.inbound.dto.CreateCourseCommand
 import com.example.backend.course.application.port.inbound.dto.EditCourseCommand
@@ -10,13 +13,13 @@ import com.example.backend.course.application.port.outbound.AuthorCourseCountPor
 import com.example.backend.course.application.port.outbound.CoursePersistencePort
 import com.example.backend.course.application.port.outbound.CoursePlaceImageRow
 import com.example.backend.course.application.port.outbound.CoursePlaceRow
-import com.example.backend.course.application.port.outbound.CourseSearchIndexPort
 import com.example.backend.course.application.port.outbound.PlaceLookupPort
 import com.example.backend.course.application.port.outbound.PlaceRef
 import com.example.backend.course.domain.model.Course
 import com.example.backend.course.domain.model.CoursePlace
 import com.example.backend.course.domain.model.CourseStatus
 import com.example.backend.course.domain.model.CourseVisibility
+import org.springframework.context.ApplicationEventPublisher
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
 
@@ -34,7 +37,7 @@ class CourseService(
     private val placeLookupPort: PlaceLookupPort,
     private val areaQueryUseCase: AreaQueryUseCase,
     private val authorCourseCountPort: AuthorCourseCountPort,
-    private val courseSearchIndexPort: CourseSearchIndexPort,
+    private val eventPublisher: ApplicationEventPublisher,
 ) : CourseUseCase {
     override fun create(command: CreateCourseCommand): Course {
         // fork 원본 코스가 실제로 존재하는지 검증(없으면 404).
@@ -86,7 +89,7 @@ class CourseService(
             removed = null,
             added = if (command.isPublished) command.visibility else null,
         )
-        courseSearchIndexPort.index(saved) // fail-soft 색인(검색 부가 기능)
+        eventPublisher.publishEvent(CourseSavedEvent(saved)) // 커밋 후 검색 색인(이벤트 — AFTER_COMMIT 리스너)
         return saved
     }
 
@@ -164,7 +167,7 @@ class CourseService(
             removed = if (existing.isPublished) existing.visibility else null,
             added = if (command.isPublished) command.visibility else null,
         )
-        courseSearchIndexPort.index(updated) // fail-soft 색인(검색 부가 기능)
+        eventPublisher.publishEvent(CourseSavedEvent(updated)) // 커밋 후 검색 색인(이벤트 — AFTER_COMMIT 리스너)
         return updated
     }
 
@@ -191,14 +194,14 @@ class CourseService(
             removed = if (existing.isPublished) existing.visibility else null,
             added = null,
         )
-        courseSearchIndexPort.delete(courseId) // fail-soft 색인 제거
+        eventPublisher.publishEvent(CourseDeletedEvent(courseId)) // 커밋 후 검색 색인(이벤트 — AFTER_COMMIT 리스너)
     }
 
     override fun deleteAllByAuthor(authorId: Long) {
         // 회원 탈퇴 정리 — 작성자의 살아있는 코스를 전부 소프트 삭제한다.
         // 작성자 공개범위별 카운터는 user 도메인이 탈퇴 시 users 행과 함께 0으로 리셋하므로 여기선 코스 행만 정리한다.
         coursePersistencePort.softDeleteAllByAuthor(authorId)
-        courseSearchIndexPort.deleteByAuthor(authorId) // fail-soft 색인 제거(탈퇴 정리)
+        eventPublisher.publishEvent(CourseAuthorWithdrawnEvent(authorId)) // 커밋 후 검색 색인(이벤트 — AFTER_COMMIT 리스너)
     }
 
     /**

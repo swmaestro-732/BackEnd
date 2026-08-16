@@ -1,10 +1,10 @@
 package com.example.backend.place.application.service
 
 import com.example.backend.common.geo.Coordinate
+import com.example.backend.place.application.event.PlacesSavedEvent
 import com.example.backend.place.application.port.outbound.AreaCodeLookupPort
 import com.example.backend.place.application.port.outbound.ExternalPlaceSearchPort
 import com.example.backend.place.application.port.outbound.PlacePersistencePort
-import com.example.backend.place.application.port.outbound.PlaceSearchIndexPort
 import com.example.backend.place.domain.model.ExternalPlace
 import com.example.backend.place.domain.model.ExternalPlaceSource
 import com.example.backend.place.domain.model.Place
@@ -14,6 +14,7 @@ import com.example.backend.place.domain.model.PlaceStatus
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertNotNull
 import org.junit.jupiter.api.Test
+import org.springframework.context.ApplicationEventPublisher
 import org.springframework.transaction.support.TransactionOperations
 
 /**
@@ -42,11 +43,9 @@ class PlaceSearchServiceTest {
         }
 
     // 단위 테스트는 실 DB 트랜잭션이 없으므로 콜백만 실행하는 withoutTransaction 을 쓴다.
-    // 색인은 이 테스트의 관심사가 아니라 no-op 로 둔다(색인 자체 검증은 OpenSearch 통합테스트가 담당).
-    private val indexPort =
-        object : PlaceSearchIndexPort {
-            override fun index(places: List<Place>) = Unit
-        }
+    // 색인은 이벤트 발행으로 위임됐다 — 발행된 이벤트를 캡처해 검증한다(실제 색인은 OpenSearch 통합테스트가 담당).
+    private val published = mutableListOf<Any>()
+    private val publisher = ApplicationEventPublisher { published += it }
 
     private val service =
         PlaceSearchService(
@@ -54,7 +53,7 @@ class PlaceSearchServiceTest {
             persistence,
             areaCodeLookup,
             TransactionOperations.withoutTransaction(),
-            indexPort,
+            publisher,
         )
 
     @Test
@@ -63,6 +62,10 @@ class PlaceSearchServiceTest {
         assertEquals(2, first.size)
         first.forEach { assertNotNull(it.id) }
         assertEquals(2, persistence.rowCount())
+
+        // 검색이 찾은 장소를 담은 PlacesSavedEvent 가 발행된다(색인은 AFTER_COMMIT 리스너가 처리).
+        val savedEvent = published.filterIsInstance<PlacesSavedEvent>().last()
+        assertEquals(2, savedEvent.places.size)
 
         val second = service.search("성수 카페", null)
         assertEquals(2, second.size)

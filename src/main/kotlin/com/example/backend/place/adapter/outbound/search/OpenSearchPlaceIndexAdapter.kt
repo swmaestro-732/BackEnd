@@ -19,7 +19,7 @@ class OpenSearchPlaceIndexAdapter(
 ) : PlaceSearchIndexPort {
     private val log = KotlinLogging.logger {}
 
-    override fun index(places: List<Place>) {
+    override fun save(places: List<Place>) {
         if (places.isEmpty()) return
         val client = clientProvider.ifAvailable ?: return // endpoint 미설정 → no-op
 

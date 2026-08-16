@@ -40,7 +40,12 @@ class OpenSearchReindexIntegrationTest
                     kakaoPlaceId = "kakao-reindex-1",
                 )
             // 재색인은 자체 트랜잭션(@Transactional)에서 DB 를 읽으므로 삽입을 커밋해 둔다.
-            transaction { placePersistencePort.insertIgnoringConflicts(listOf(place)) }
+            // 삽입된 그 장소가 실제로 재색인됐는지 id 로 특정하려고 영속화된 id 를 같은 트랜잭션에서 집어둔다(기존 문서로 통과 방지).
+            val persisted =
+                transaction {
+                    placePersistencePort.insertIgnoringConflicts(listOf(place))
+                    placePersistencePort.findByKakaoIds(listOf("kakao-reindex-1")).single()
+                }
 
             val indexed = placeReindexUseCase.reindexAll()
             assertTrue(indexed >= 1) { "재색인 문서 수가 0: $indexed" }
@@ -55,7 +60,10 @@ class OpenSearchReindexIntegrationTest
                     },
                     Map::class.java,
                 )
-            assertTrue(result.hits().hits().isNotEmpty()) { "재색인한 place 를 '카페'로 찾지 못함" }
+            val hitIds = result.hits().hits().map { it.id() }
+            assertTrue(persisted.id.toString() in hitIds) {
+                "재색인한 place(id=${persisted.id}) 가 검색 결과에 없음: $hitIds"
+            }
         }
 
         companion object {

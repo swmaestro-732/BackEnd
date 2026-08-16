@@ -19,7 +19,7 @@ class OpenSearchCourseIndexAdapter(
 ) : CourseSearchIndexPort {
     private val log = KotlinLogging.logger {}
 
-    override fun index(course: Course) {
+    override fun save(course: Course) {
         val id = course.id ?: return
         val client = clientProvider.ifAvailable ?: return // endpoint 미설정 → no-op
         try {
@@ -29,7 +29,7 @@ class OpenSearchCourseIndexAdapter(
         }
     }
 
-    override fun index(courses: List<Course>) {
+    override fun save(courses: List<Course>) {
         if (courses.isEmpty()) return
         val client = clientProvider.ifAvailable ?: return // endpoint 미설정 → no-op
         try {

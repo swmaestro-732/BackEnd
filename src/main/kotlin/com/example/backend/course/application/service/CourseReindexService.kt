@@ -19,7 +19,7 @@ class CourseReindexService(
         while (true) {
             val batch = coursePersistencePort.findForIndex(afterId, PAGE)
             if (batch.isEmpty()) break
-            courseSearchIndexPort.index(batch)
+            courseSearchIndexPort.save(batch)
             total += batch.size
             afterId = batch.last().id!!
             if (batch.size < PAGE) break

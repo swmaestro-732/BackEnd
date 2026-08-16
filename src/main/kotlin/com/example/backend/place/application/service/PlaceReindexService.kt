@@ -19,7 +19,7 @@ class PlaceReindexService(
         while (true) {
             val batch = placePersistencePort.findForIndex(afterId, PAGE)
             if (batch.isEmpty()) break
-            placeSearchIndexPort.index(batch)
+            placeSearchIndexPort.save(batch)
             total += batch.size
             afterId = batch.last().id
             if (batch.size < PAGE) break

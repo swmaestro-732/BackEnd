@@ -54,7 +54,7 @@ class PlaceReindexServiceTest {
         val indexedIds = mutableListOf<Long>()
         val fakeSearchIndex =
             object : PlaceSearchIndexPort {
-                override fun index(places: List<Place>) {
+                override fun save(places: List<Place>) {
                     indexedIds += places.map { it.id!! }
                 }
             }
