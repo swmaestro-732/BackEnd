@@ -2,8 +2,8 @@ package com.example.backend.place.adapter.outbound.search
 
 import com.example.backend.place.application.port.outbound.PlaceSearchIndexPort
 import com.example.backend.place.domain.model.Place
+import io.github.oshai.kotlinlogging.KotlinLogging
 import org.opensearch.client.opensearch.OpenSearchClient
-import org.slf4j.LoggerFactory
 import org.springframework.beans.factory.ObjectProvider
 import org.springframework.stereotype.Component
 
@@ -17,7 +17,7 @@ import org.springframework.stereotype.Component
 class OpenSearchPlaceIndexAdapter(
     private val clientProvider: ObjectProvider<OpenSearchClient>,
 ) : PlaceSearchIndexPort {
-    private val log = LoggerFactory.getLogger(javaClass)
+    private val log = KotlinLogging.logger {}
 
     override fun index(places: List<Place>) {
         if (places.isEmpty()) return
@@ -41,10 +41,10 @@ class OpenSearchPlaceIndexAdapter(
             // bulk 는 예외 없이 200 을 주면서 개별 문서만 거부될 수 있다(매핑 충돌 등) → 항목별 실패를 집계해 로그로 드러낸다.
             if (response.errors()) {
                 val failed = response.items().count { it.error() != null }
-                log.warn("place 색인 부분 실패(무시): {}/{}건 실패", failed, documents.size)
+                log.warn { "place 색인 부분 실패(무시): $failed/${documents.size}건 실패" }
             }
         } catch (e: Exception) {
-            log.warn("place 색인 실패(무시): {}건 — {}", places.size, e.message)
+            log.warn { "place 색인 실패(무시): ${places.size}건 — ${e.message}" }
         }
     }
 

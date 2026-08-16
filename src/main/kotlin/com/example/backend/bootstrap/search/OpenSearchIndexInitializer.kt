@@ -1,8 +1,8 @@
 package com.example.backend.bootstrap.search
 
+import io.github.oshai.kotlinlogging.KotlinLogging
 import org.opensearch.client.opensearch.OpenSearchClient
 import org.opensearch.client.opensearch._types.mapping.TypeMapping
-import org.slf4j.LoggerFactory
 import org.springframework.beans.factory.ObjectProvider
 import org.springframework.boot.ApplicationArguments
 import org.springframework.boot.ApplicationRunner
@@ -24,7 +24,7 @@ import org.springframework.stereotype.Component
 class OpenSearchIndexInitializer(
     private val clientProvider: ObjectProvider<OpenSearchClient>,
 ) : ApplicationRunner {
-    private val log = LoggerFactory.getLogger(javaClass)
+    private val log = KotlinLogging.logger {}
 
     private data class IndexDef(
         val alias: String,
@@ -60,9 +60,9 @@ class OpenSearchIndexInitializer(
                     client.indices().create { c -> c.index(def.index).mappings(mapping) }
                 }
                 client.indices().putAlias { p -> p.index(def.index).name(def.alias) }
-                log.info("OpenSearch 인덱스 준비: {} (alias {})", def.index, def.alias)
+                log.info { "OpenSearch 인덱스 준비: ${def.index} (alias ${def.alias})" }
             } catch (e: Exception) {
-                log.warn("OpenSearch 인덱스 초기화 실패(무시): {} — {}", def.index, e.message)
+                log.warn { "OpenSearch 인덱스 초기화 실패(무시): ${def.index} — ${e.message}" }
             }
         }
     }
