@@ -9,6 +9,7 @@ import jakarta.validation.Valid
 import jakarta.validation.constraints.Max
 import jakarta.validation.constraints.Min
 import org.springframework.http.HttpStatus
+import org.springframework.web.bind.annotation.DeleteMapping
 import org.springframework.web.bind.annotation.GetMapping
 import org.springframework.web.bind.annotation.PathVariable
 import org.springframework.web.bind.annotation.PostMapping
@@ -29,6 +30,13 @@ import org.springframework.web.bind.annotation.RestController
  * - [list] 장소 리뷰 목록 조회(`GET /api/v1/places/{placeId}/reviews`): 정렬·커서 파라미터는 계약 확인용으로
  *   받기만 하고, 항상 [PlaceReviewListResponse.mock] 을 **고정 응답**(nextCursor=null·hasNext=false)으로 내려준다.
  *   조회자별 방문 여부(`hasVisitedPlace`)도 고정값이라 `@CurrentUserId` 는 선택(비로그인 조회 허용)이다.
+ * - [delete] 장소 리뷰 삭제(`DELETE /api/v1/places/{placeId}/reviews/{reviewId}`): 삭제 없이 고정 성공 메시지만
+ *   내려준다. **노션 명세서·api-spec 카탈로그에 없고 디자인에도 삭제 UI가 없는 신규 초안**이라 코스 삭제
+ *   ([com.example.backend.course.adapter.inbound.web.CourseController.delete])의 계약을 그대로 따랐다 —
+ *   프론트 확인 후 확정한다. 실구현은 소프트 삭제(place_reviews.deleted_at + status=DELETED)이고,
+ *   **작성자 본인만** 삭제할 수 있으며 없음·타인 리뷰는 존재를 드러내지 않도록 404 로 은닉한다
+ *   (전용 에러 코드 `PLACE_REVIEW_NOT_FOUND` 신규 채번 필요 — 현재는 공통 `NOT_FOUND` 4040 으로 모킹).
+ *   성공 시 data 없이 안내 메시지만 내려준다.
  *
  * 실제 구현 시 인바운드 포트(UseCase) 연동으로 교체한다. 모킹 에러(`?mockError=<code>`)는
  * 전역 아스펙트([com.example.backend.bootstrap.mock.MockErrorAspect])가 주입한다.
@@ -60,6 +68,13 @@ class PlaceReviewController {
         @RequestParam(required = false) cursor: String?,
         @RequestParam(required = false) @Min(1) @Max(50) size: Int = 10,
     ): ApiResponse<PlaceReviewListResponse> = ApiResponse.success(PlaceReviewListResponse.mock())
+
+    @DeleteMapping("/{reviewId}")
+    fun delete(
+        @PathVariable placeId: Long,
+        @PathVariable reviewId: Long,
+        @CurrentUserId userId: Long,
+    ): ApiResponse<Nothing?> = ApiResponse.ok("리뷰가 삭제되었습니다.")
 
     private companion object {
         /** 생성 모킹 고정 id — 목 리뷰(1~6) 다음 번호. */
