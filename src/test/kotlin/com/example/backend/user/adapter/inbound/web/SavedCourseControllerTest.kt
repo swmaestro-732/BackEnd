@@ -2,6 +2,7 @@ package com.example.backend.user.adapter.inbound.web
 
 import com.example.backend.bootstrap.security.JwtTokenProvider
 import com.example.backend.support.IntegrationTestBase
+import org.hamcrest.Matchers.greaterThan
 import org.junit.jupiter.api.Test
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc
@@ -181,6 +182,37 @@ class SavedCourseControllerTest
                 .andExpect(jsonPath("$.code").value(2000))
         }
 
+        @Test
+        fun `취소한 코스를 다시 저장하면 새 레코드로 발행되고 소프트 삭제된 행은 남지 않는다`() {
+            mockMvc
+                .perform(
+                    delete("/api/v1/courses/save/$SAVED_COURSE_ID")
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer ${tokenFor(USER_ID)}"),
+                ).andExpect(status().isOk)
+
+            // 재저장은 다른 폴더로 — 새 레코드가 이번 요청의 folderId 를 갖는지 함께 본다.
+            mockMvc
+                .perform(
+                    post("/api/v1/courses/save")
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer ${tokenFor(USER_ID)}")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""{"courseId": $SAVED_COURSE_ID, "folderId": $MY_OTHER_FOLDER_ID}"""),
+                ).andExpect(status().isCreated)
+
+            // 픽스처 저장 4건 그대로(누적 없음)이고, 방금 재저장한 코스가 새 id 로 최상단에 온다.
+            mockMvc
+                .perform(
+                    get("/api/v1/my/saved-courses")
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer ${tokenFor(USER_ID)}"),
+                ).andExpect(status().isOk)
+                .andExpect(jsonPath("$.data.totalCount").value(4))
+                .andExpect(jsonPath("$.data.savedCourses.length()").value(4))
+                .andExpect(jsonPath("$.data.savedCourses[0].courseId").value(SAVED_COURSE_ID))
+                .andExpect(jsonPath("$.data.savedCourses[0].folderId").value(MY_OTHER_FOLDER_ID))
+                // 되살리기가 아니라 새 발행이라 픽스처 id(1~4)보다 큰 id 를 받는다.
+                .andExpect(jsonPath("$.data.savedCourses[0].id").value(greaterThan(FIXTURE_MAX_SAVED_ID)))
+        }
+
         // ─────────────────────────── 저장 코스 조회 (GET /api/v1/my/saved-courses) ───────────────────────────
 
         @Test
@@ -284,6 +316,10 @@ class SavedCourseControllerTest
 
             // 폴더 1·2 = USER_ID 소유, 폴더 3 = 타인 소유
             const val MY_FOLDER_ID = 1L
+            const val MY_OTHER_FOLDER_ID = 2L
             const val OTHERS_FOLDER_ID = 3L
+
+            // 픽스처가 심는 저장 레코드 id 는 1~4 — 재저장이 새 id 를 받는지 비교하는 기준값
+            const val FIXTURE_MAX_SAVED_ID = 4
         }
     }

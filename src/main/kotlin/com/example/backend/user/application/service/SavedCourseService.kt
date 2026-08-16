@@ -57,6 +57,7 @@ class SavedCourseService(
             throw BusinessException(ErrorCode.COURSE_ALREADY_SAVED, "이미 저장한 코스입니다: courseId=$courseId")
         }
 
+        // 예전에 저장했다 취소한 코스면 그때 소프트 삭제된 행을 지우고 새로 발행한다(행을 쌓지 않는다).
         val saved = savedCoursePersistencePort.insert(userId, courseId, folderId)
         // courses.saves_cnt 낙관적 +1 — 코스 도메인이 자기 카운터를 소유한다(같은 트랜잭션).
         // 0행이면 코스가 그 사이 비활성(작성자 탈퇴 등으로 soft delete)된 것 → 방금 삽입까지 롤백해 저장 행·카운터 불일치를 막는다.

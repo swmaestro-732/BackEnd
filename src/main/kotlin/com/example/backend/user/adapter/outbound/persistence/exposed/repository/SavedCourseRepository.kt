@@ -1,6 +1,5 @@
 package com.example.backend.user.adapter.outbound.persistence.exposed.repository
 
-import com.example.backend.user.adapter.outbound.persistence.exposed.SavedCourseEntity
 import com.example.backend.user.adapter.outbound.persistence.exposed.SavedCourseTable
 import com.example.backend.user.adapter.outbound.persistence.exposed.TracingCourseTable
 import com.example.backend.user.application.port.outbound.SavedCourseRow
@@ -11,10 +10,12 @@ import org.jetbrains.exposed.v1.core.and
 import org.jetbrains.exposed.v1.core.eq
 import org.jetbrains.exposed.v1.core.inList
 import org.jetbrains.exposed.v1.core.inSubQuery
+import org.jetbrains.exposed.v1.core.isNotNull
 import org.jetbrains.exposed.v1.core.isNull
 import org.jetbrains.exposed.v1.core.less
 import org.jetbrains.exposed.v1.core.notInSubQuery
 import org.jetbrains.exposed.v1.jdbc.deleteWhere
+import org.jetbrains.exposed.v1.jdbc.insert
 import org.jetbrains.exposed.v1.jdbc.select
 import org.jetbrains.exposed.v1.jdbc.selectAll
 import org.jetbrains.exposed.v1.jdbc.update
@@ -39,19 +40,41 @@ class SavedCourseRepository {
             .empty()
             .not()
 
+    /**
+     * 저장 레코드를 삽입한다. 같은 (user, course) 의 **소프트 삭제된 행이 남아 있으면 먼저 지우고** 새로 발행해
+     * 코스당 행을 하나로 유지한다 — 되살리기(UPDATE) 대신 새 id 를 받으므로 id 가 저장 시각 순으로 증가하고,
+     * 목록의 최신 저장순 정렬(id DESC)과 커서가 단순한 id 하나로 유지된다.
+     */
     fun insert(
         userId: Long,
         courseId: Long,
         folderId: Long?,
-    ): SavedCourse =
-        SavedCourseEntity
-            .new {
-                this.userId = userId
-                this.courseId = courseId
-                this.folderId = folderId
-                // created_at 은 테이블 clientDefault 가 채운다.
-            }.also { it.refresh(flush = true) }
-            .toDomain()
+    ): SavedCourse {
+        // 소프트 삭제 행은 아무도 읽지 않는다(조회·집계는 전부 deleted_at IS NULL) — 재저장 시 정리하고 새로 발행한다.
+        SavedCourseTable.deleteWhere {
+            (SavedCourseTable.userId eq userId) and
+                (SavedCourseTable.courseId eq courseId) and
+                SavedCourseTable.deletedAt.isNotNull()
+        }
+
+        val now = Clock.System.now()
+        val id =
+            SavedCourseTable
+                .insert {
+                    it[SavedCourseTable.userId] = userId
+                    it[SavedCourseTable.courseId] = courseId
+                    it[SavedCourseTable.folderId] = folderId
+                    it[createdAt] = now
+                }[SavedCourseTable.id]
+                .value
+        return SavedCourse(
+            id = id,
+            userId = userId,
+            courseId = courseId,
+            folderId = folderId,
+            savedAt = now.toJavaInstant(),
+        )
+    }
 
     /**
      * 소프트 삭제 — 살아있는(deleted_at IS NULL) 행에만 삭제 스탬프를 찍는다.
@@ -105,6 +128,7 @@ class SavedCourseRepository {
                     SavedCourseTable.folderId.isNull()
             }.count()
 
+    /** 최신 저장순 = id DESC. 재저장이 새 id 를 발행하므로 id 순서가 곧 저장 시각 순서다([insert]). */
     fun findPage(
         userId: Long,
         folderId: Long?,
