@@ -16,7 +16,11 @@ interface SavedPlacePersistencePort {
         placeId: Long,
     ): Boolean
 
-    /** 저장 레코드를 삽입하고 생성값(id·created_at)까지 적재된 도메인 [SavedPlace] 를 반환한다. category 는 장소 카테고리 스냅샷. */
+    /**
+     * 저장 레코드를 삽입하고 생성값(id·created_at)까지 적재된 도메인 [SavedPlace] 를 반환한다. category 는 장소 카테고리 스냅샷.
+     * 같은 (user, place) 의 소프트 삭제된 레코드가 남아 있으면 지우고 새로 발행한다 —
+     * 저장·취소를 반복해도 장소당 행은 하나이고, id 는 항상 저장 시각 순으로 증가한다.
+     */
     fun insert(
         userId: Long,
         placeId: Long,

@@ -45,6 +45,7 @@ class SavedPlaceService(
 
         // 장소 카테고리 스냅샷 — SavedPlaceCategory 는 PlaceCategory 의 사본 enum 이라 이름으로 매핑한다(모르는 값은 미분류 null).
         val category = SavedPlaceCategory.entries.find { it.name == place.category }
+        // 예전에 저장했다 취소한 장소면 그때 소프트 삭제된 행을 지우고 새로 발행한다(행을 쌓지 않는다).
         return savedPlacePersistencePort.insert(userId, placeId, category)
     }
 

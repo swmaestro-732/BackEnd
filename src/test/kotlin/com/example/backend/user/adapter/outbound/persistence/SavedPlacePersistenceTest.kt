@@ -134,7 +134,7 @@ class SavedPlacePersistenceTest
         }
 
         @Test
-        fun `소프트 삭제 후 같은 장소를 다시 저장할 수 있다 (partial 유니크 인덱스)`() {
+        fun `소프트 삭제 후 같은 장소를 다시 저장하면 새 행이 생기고 이전 행은 남지 않는다`() {
             transaction {
                 val userId = insertUser("저장러6")
                 val first = port.insert(userId, placeId = 783L, category = null)
@@ -142,8 +142,15 @@ class SavedPlacePersistenceTest
 
                 val second = port.insert(userId, placeId = 783L, category = SavedPlaceCategory.BAR)
 
-                assertTrue(second.id != first.id) // 되살리는 게 아니라 새 행
+                assertTrue(second.id > first.id) // 되살리는 게 아니라 새 행 — id 가 저장 시각 순으로 증가한다
                 assertTrue(port.existsSavedPlace(userId, 783L))
+                // 소프트 삭제된 이전 행은 재저장이 정리했다 — (user, place) 행은 방금 발행한 하나뿐이다.
+                val rows =
+                    SavedPlaceTable
+                        .selectAll()
+                        .where { (SavedPlaceTable.userId eq userId) and (SavedPlaceTable.placeId eq 783L) }
+                        .map { it[SavedPlaceTable.id].value to it[SavedPlaceTable.deletedAt] }
+                assertEquals(listOf(second.id to null), rows)
                 rollback()
             }
         }
