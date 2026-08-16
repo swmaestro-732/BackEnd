@@ -43,20 +43,24 @@ class OpenSearchIndexInitializer(
 
         indices.forEach { def ->
             try {
-                // alias 가 이미 있으면(이전 부팅·배포에서 생성) 건너뛴다 — 멱등.
+                // alias 가 이미 있으면(이전 부팅·배포에서 생성) 아무것도 안 한다 — 멱등.
                 if (client.indices().existsAlias { it.name(def.alias) }.value()) return@forEach
 
-                // 매핑 JSON(TypeMapping 본문 {properties:...})을 클라이언트 매퍼로 역직렬화해 인덱스를 만든다.
-                val mapper = client._transport().jsonpMapper()
-                val mapping =
-                    ClassPathResource(def.mappingResource).inputStream.use { input ->
-                        mapper.jsonProvider().createParser(input).use { parser ->
-                            TypeMapping._DESERIALIZER.deserialize(parser, mapper)
+                // 인덱스 존재 여부와 alias 부착을 분리한다 — 이전 부팅이 create 후 putAlias 전에 죽었더라도(인덱스는 있고
+                // alias 만 없는 상태) 다음 부팅에서 alias 를 복구하도록. (인덱스가 있는데 다시 create 하면 예외가 나 alias 가 영구 미생성됨)
+                if (!client.indices().exists { it.index(def.index) }.value()) {
+                    // 매핑 JSON(TypeMapping 본문 {properties:...})을 클라이언트 매퍼로 역직렬화해 인덱스를 만든다.
+                    val mapper = client._transport().jsonpMapper()
+                    val mapping =
+                        ClassPathResource(def.mappingResource).inputStream.use { input ->
+                            mapper.jsonProvider().createParser(input).use { parser ->
+                                TypeMapping._DESERIALIZER.deserialize(parser, mapper)
+                            }
                         }
-                    }
-                client.indices().create { c -> c.index(def.index).mappings(mapping) }
+                    client.indices().create { c -> c.index(def.index).mappings(mapping) }
+                }
                 client.indices().putAlias { p -> p.index(def.index).name(def.alias) }
-                log.info("OpenSearch 인덱스 생성: {} (alias {})", def.index, def.alias)
+                log.info("OpenSearch 인덱스 준비: {} (alias {})", def.index, def.alias)
             } catch (e: Exception) {
                 log.warn("OpenSearch 인덱스 초기화 실패(무시): {} — {}", def.index, e.message)
             }

@@ -12,6 +12,7 @@ import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import org.opensearch.client.opensearch.OpenSearchClient
 import org.springframework.beans.factory.annotation.Autowired
+import org.springframework.boot.DefaultApplicationArguments
 import org.springframework.test.context.DynamicPropertyRegistry
 import org.springframework.test.context.DynamicPropertySource
 
@@ -25,6 +26,7 @@ class OpenSearchIndexIntegrationTest
     constructor(
         private val client: OpenSearchClient,
         private val placeSearchIndexPort: PlaceSearchIndexPort,
+        private val initializer: OpenSearchIndexInitializer,
     ) : IntegrationTestBase() {
         @Test
         fun `initializer 가 place course 인덱스와 alias 를 만든다`() {
@@ -37,6 +39,17 @@ class OpenSearchIndexIntegrationTest
             assertTrue(props.keys.containsAll(listOf("name", "category", "location", "areaCode"))) {
                 "place 매핑 필드 누락: ${props.keys}"
             }
+        }
+
+        @Test
+        fun `인덱스는 있고 alias 만 없으면 initializer 가 alias 를 복구한다`() {
+            // 이전 부팅이 create 후 putAlias 전에 죽은 상태를 재현 — course_v1 은 있고 course alias 만 없앤다.
+            client.indices().deleteAlias { it.index("course_v1").name("course") }
+            assertTrue(!client.indices().existsAlias { it.name("course") }.value()) { "선조건: alias 제거 실패" }
+
+            initializer.run(DefaultApplicationArguments())
+
+            assertTrue(client.indices().existsAlias { it.name("course") }.value()) { "alias 가 복구되지 않음" }
         }
 
         @Test

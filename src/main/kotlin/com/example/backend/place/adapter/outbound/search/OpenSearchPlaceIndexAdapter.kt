@@ -26,16 +26,22 @@ class OpenSearchPlaceIndexAdapter(
         try {
             val documents = places.filter { it.id != null }
             if (documents.isEmpty()) return
-            client.bulk { bulk ->
-                bulk.operations(
-                    documents.map { place ->
-                        val document = place.toDocument()
-                        org.opensearch.client.opensearch.core.bulk.BulkOperation
-                            .Builder()
-                            .index { op -> op.index(INDEX_ALIAS).id(place.id.toString()).document(document) }
-                            .build()
-                    },
-                )
+            val response =
+                client.bulk { bulk ->
+                    bulk.operations(
+                        documents.map { place ->
+                            val document = place.toDocument()
+                            org.opensearch.client.opensearch.core.bulk.BulkOperation
+                                .Builder()
+                                .index { op -> op.index(INDEX_ALIAS).id(place.id.toString()).document(document) }
+                                .build()
+                        },
+                    )
+                }
+            // bulk 는 예외 없이 200 을 주면서 개별 문서만 거부될 수 있다(매핑 충돌 등) → 항목별 실패를 집계해 로그로 드러낸다.
+            if (response.errors()) {
+                val failed = response.items().count { it.error() != null }
+                log.warn("place 색인 부분 실패(무시): {}/{}건 실패", failed, documents.size)
             }
         } catch (e: Exception) {
             log.warn("place 색인 실패(무시): {}건 — {}", places.size, e.message)
