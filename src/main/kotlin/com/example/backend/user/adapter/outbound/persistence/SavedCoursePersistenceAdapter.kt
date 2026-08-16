@@ -3,8 +3,10 @@ package com.example.backend.user.adapter.outbound.persistence
 import com.example.backend.user.adapter.outbound.persistence.exposed.repository.SavedCourseFolderRepository
 import com.example.backend.user.adapter.outbound.persistence.exposed.repository.SavedCourseRepository
 import com.example.backend.user.application.port.outbound.CourseFolderCountRow
+import com.example.backend.user.application.port.outbound.CourseFolderRow
 import com.example.backend.user.application.port.outbound.SavedCoursePersistencePort
 import com.example.backend.user.application.port.outbound.SavedCourseRow
+import com.example.backend.user.domain.model.CourseFolder
 import com.example.backend.user.domain.model.SavedCourse
 import org.springframework.stereotype.Component
 
@@ -62,5 +64,19 @@ class SavedCoursePersistenceAdapter(
         limit: Int,
     ): List<SavedCourseRow> = savedCourseRepository.findPage(userId, folderId, completed, cursorId, limit)
 
+    override fun existsFolderName(
+        userId: Long,
+        name: String,
+    ): Boolean = savedCourseFolderRepository.existsByName(userId, name)
+
+    override fun insertFolder(
+        userId: Long,
+        name: String,
+    ): CourseFolder = savedCourseFolderRepository.insert(userId, name)
+
+    override fun findFolders(userId: Long): List<CourseFolderRow> = savedCourseFolderRepository.findByUser(userId)
+
     override fun listFolders(userId: Long): List<CourseFolderCountRow> = savedCourseFolderRepository.listFolders(userId)
+
+    override fun countWithoutFolder(userId: Long): Long = savedCourseRepository.countWithoutFolder(userId)
 }

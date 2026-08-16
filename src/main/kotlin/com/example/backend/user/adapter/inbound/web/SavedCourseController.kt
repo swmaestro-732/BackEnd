@@ -1,9 +1,13 @@
 package com.example.backend.user.adapter.inbound.web
 
 import com.example.backend.bootstrap.mock.MockGuard
+import com.example.backend.bootstrap.security.AccessTokenRequired
 import com.example.backend.bootstrap.security.CurrentUserId
 import com.example.backend.common.response.ApiResponse
+import com.example.backend.user.adapter.inbound.web.request.CreateCourseFolderRequest
 import com.example.backend.user.adapter.inbound.web.request.SaveCourseRequest
+import com.example.backend.user.adapter.inbound.web.response.CourseFolderListResponse
+import com.example.backend.user.adapter.inbound.web.response.CreateCourseFolderResponse
 import com.example.backend.user.adapter.inbound.web.response.SavedCourseListResponse
 import com.example.backend.user.application.port.inbound.SavedCourseUseCase
 import com.example.backend.user.application.port.inbound.dto.SavedCoursesCommand
@@ -21,22 +25,11 @@ import org.springframework.web.bind.annotation.ResponseStatus
 import org.springframework.web.bind.annotation.RestController
 
 /**
- * 인바운드 어댑터 — 코스 저장(노션 명세 · User · user-course).
+ * 인바운드 어댑터 — 코스 저장·저장 폴더(노션 명세 · User · user-course).
  *
  * 저장(POST)과 조회(GET)의 경로가 다르다(명세 기준) — 저장은 코스 도메인 액션이라 `/api/v1/courses/save`,
  * 조회는 "내" 저장함이라 `/api/v1/my/saved-courses`. 클래스 레벨 매핑 대신 메서드 레벨 전체 경로로 둔다.
  *
- * - [save] 코스 저장(`POST /api/v1/courses/save`): **실구현** — 인바운드 포트([SavedCourseUseCase])로 저장한다.
- *   folderId 를 주면 소유권을 검증하고(그 외 400), 이미 저장한 코스면 중복 저장으로 막는다(409). 코스당 저장 레코드는 1개다.
- *   저장 주체 식별이 필요해 `@CurrentUserId`(JWT subject)로 userId 를 받으므로 유효한 토큰이 필요하다.
- * - [unsave] 코스 저장 취소(`DELETE /api/v1/courses/save/{courseId}`): **실구현** — 저장의 역연산이라 경로를 대칭으로 두고
- *   courseId 로 (user, course) 저장 레코드를 지운다. 저장돼 있지 않아도 오류 없이 성공한다(멱등 — unfollow 선례와 동일).
- * - [list] 저장 코스 조회(`GET /api/v1/my/saved-courses`): **실구현** — 인바운드 포트([SavedCourseUseCase])로 조회한다.
- *   `/api/v1/my` 하위라 SecurityConfig 가 JWT 인증을 강제한다. 저장 레코드(ID 위주)를 최신 저장순으로
- *   커서 페이지네이션해 반환한다 — 코스 요약·완주 여부는 화면 조합 API(`GET /service/v1/my/saved-courses`)가 담당한다.
- *
- * 시드/DB 없이 프론트가 붙어볼 수 있도록 `?mock=true` 면 저장/조회 없이 고정 목([SavedCourseListResponse.mock])을
- * 반환한다(코스 상세 선례와 동일 규칙). 모킹 에러(`?mockError=<code>`)는 전역 아스펙트([com.example.backend.bootstrap.mock.MockErrorAspect])가 주입한다.
  */
 @RestController
 class SavedCourseController(
@@ -85,5 +78,32 @@ class SavedCourseController(
                 ),
             ),
         )
+    }
+
+    @PostMapping("/api/v1/my/folders")
+    @AccessTokenRequired
+    @ResponseStatus(HttpStatus.CREATED)
+    fun createFolder(
+        @CurrentUserId userId: Long,
+        @Valid @RequestBody request: CreateCourseFolderRequest,
+        @RequestParam(required = false) mock: Boolean = false,
+    ): ApiResponse<CreateCourseFolderResponse> {
+        if (mock && mockGuard.isMockAllowed()) {
+            return ApiResponse.success(CreateCourseFolderResponse.mock(), "폴더가 생성되었습니다.")
+        }
+
+        val folder = savedCourseUseCase.createFolder(userId, request.name.trim())
+        return ApiResponse.success(CreateCourseFolderResponse(folderId = folder.id), "폴더가 생성되었습니다.")
+    }
+
+    @GetMapping("/api/v1/my/folders")
+    @AccessTokenRequired
+    fun listFolders(
+        @CurrentUserId userId: Long,
+        @RequestParam(required = false) mock: Boolean = false,
+    ): ApiResponse<CourseFolderListResponse> {
+        if (mock && mockGuard.isMockAllowed()) return ApiResponse.success(CourseFolderListResponse.mock())
+
+        return ApiResponse.success(CourseFolderListResponse.from(savedCourseUseCase.getFolders(userId)))
     }
 }

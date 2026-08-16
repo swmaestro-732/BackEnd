@@ -90,10 +90,12 @@ class GlobalExceptionHandler {
     fun handleSqlException(e: ExposedSQLException): ResponseEntity<ApiResponse<Nothing?>> {
         if (e.sqlState == UNIQUE_VIOLATION_SQL_STATE) {
             val message = e.message?.lowercase().orEmpty()
+            // 폴더(saved_course_folders)를 저장 코스(saved_courses)보다 먼저 본다 — 테이블 이름이 서로 닮아 있다.
             val errorCode =
                 when {
                     "handle" in message -> ErrorCode.HANDLE_ALREADY_TAKEN
                     "nickname" in message -> ErrorCode.NICKNAME_ALREADY_TAKEN
+                    "saved_course_folders" in message -> ErrorCode.FOLDER_NAME_ALREADY_TAKEN
                     "saved_courses" in message -> ErrorCode.COURSE_ALREADY_SAVED
                     else -> null
                 }

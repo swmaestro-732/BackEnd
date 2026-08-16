@@ -5,10 +5,12 @@ import com.example.backend.common.response.ErrorCode
 import com.example.backend.user.application.port.inbound.dto.SavedCoursesCommand
 import com.example.backend.user.application.port.outbound.CourseAccessPort
 import com.example.backend.user.application.port.outbound.CourseFolderCountRow
+import com.example.backend.user.application.port.outbound.CourseFolderRow
 import com.example.backend.user.application.port.outbound.SavedCoursePersistencePort
 import com.example.backend.user.application.port.outbound.SavedCourseRow
 import com.example.backend.user.application.port.outbound.UserPersistencePort
 import com.example.backend.user.application.port.outbound.UserProfileRow
+import com.example.backend.user.domain.model.CourseFolder
 import com.example.backend.user.domain.model.SavedCourse
 import com.example.backend.user.domain.model.SocialProvider
 import com.example.backend.user.domain.model.User
@@ -48,9 +50,11 @@ class SavedCourseServiceTest {
             var savedCourses: Set<Pair<Long, Long>> = emptySet()
             var pageRows: List<SavedCourseRow> = emptyList()
             var countReturn: Long = 0
+            var folderNames: Set<Pair<Long, String>> = emptySet()
 
             // 호출 캡처
             var insertArgs: Triple<Long, Long, Long?>? = null
+            var insertFolderArgs: Pair<Long, String>? = null
             var deleteArgs: Pair<Long, Long>? = null
             var findPageArgs: FindPageArgs? = null
 
@@ -108,7 +112,24 @@ class SavedCourseServiceTest {
                 return pageRows
             }
 
+            override fun existsFolderName(
+                userId: Long,
+                name: String,
+            ): Boolean = (userId to name) in folderNames
+
+            override fun insertFolder(
+                userId: Long,
+                name: String,
+            ): CourseFolder {
+                insertFolderArgs = userId to name
+                return CourseFolder(id = 300L, userId = userId, name = name, orderNo = 0)
+            }
+
+            override fun findFolders(userId: Long): List<CourseFolderRow> = emptyList()
+
             override fun listFolders(userId: Long): List<CourseFolderCountRow> = emptyList()
+
+            override fun countWithoutFolder(userId: Long): Long = 0
         }
 
     private val fakeUserPort =

@@ -92,6 +92,19 @@ class SavedCourseRepository {
             .where(filter(userId, folderId, completed))
             .count()
 
+    /**
+     * 폴더에 넣지 않고 저장한(folder_id IS NULL) 코스 개수.
+     * [count] 의 folderId=null 은 "폴더 무관 전체"라 이 질문에 답할 수 없어 별도 메서드로 둔다.
+     */
+    fun countWithoutFolder(userId: Long): Long =
+        SavedCourseTable
+            .selectAll()
+            .where {
+                (SavedCourseTable.userId eq userId) and
+                    SavedCourseTable.deletedAt.isNull() and
+                    SavedCourseTable.folderId.isNull()
+            }.count()
+
     fun findPage(
         userId: Long,
         folderId: Long?,
