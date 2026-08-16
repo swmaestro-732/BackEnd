@@ -48,12 +48,17 @@ class SavedCourseFolderRepository {
     /**
      * 폴더를 삽입하고 생성 id 까지 적재된 도메인 [CourseFolder] 를 반환한다.
      * 새 폴더는 폴더 칩 맨 뒤에 붙으므로 order_no 는 그 사용자의 현재 최대값 + 1(첫 폴더는 0)로 채운다.
+     *
+     * order_no 는 SMALLINT 라 다음 값이 [Short.MAX_VALUE] 를 넘으면 toShort() 가 음수로 조용히 래핑해
+     * 새 폴더가 맨 앞으로 가버린다 — 넘기 전에 막아 정렬이 깨지는 대신 400 으로 드러낸다.
      */
     fun insert(
         userId: Long,
         name: String,
     ): CourseFolder {
-        val orderNo = ((maxOrderNo(userId)?.toInt() ?: -1) + 1).toShort()
+        val nextOrderNo = (maxOrderNo(userId)?.toInt() ?: -1) + 1
+        require(nextOrderNo <= Short.MAX_VALUE) { "폴더를 더 만들 수 없습니다. 기존 폴더를 정리한 뒤 다시 시도해 주세요." }
+        val orderNo = nextOrderNo.toShort()
         return SavedCourseFolderEntity
             .new {
                 this.userId = userId
