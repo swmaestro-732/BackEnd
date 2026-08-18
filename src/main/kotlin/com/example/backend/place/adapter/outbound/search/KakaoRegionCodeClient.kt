@@ -3,7 +3,7 @@ package com.example.backend.place.adapter.outbound.search
 import com.example.backend.bootstrap.config.KakaoLocalProperties
 import com.example.backend.common.geo.Coordinate
 import com.example.backend.place.application.port.outbound.AreaCodeLookupPort
-import org.slf4j.LoggerFactory
+import io.github.oshai.kotlinlogging.KotlinLogging
 import org.springframework.beans.factory.annotation.Qualifier
 import org.springframework.stereotype.Component
 import org.springframework.web.client.RestClient
@@ -21,7 +21,7 @@ class KakaoRegionCodeClient(
     private val kakaoRestClient: RestClient,
     private val kakaoLocalProperties: KakaoLocalProperties,
 ) : AreaCodeLookupPort {
-    private val log = LoggerFactory.getLogger(javaClass)
+    private val log = KotlinLogging.logger {}
 
     override fun findLegalDongCode(coordinate: Coordinate): String? =
         try {
@@ -44,7 +44,7 @@ class KakaoRegionCodeClient(
                 ?.code
                 ?.takeIf { it.matches(LEGAL_DONG_CODE_PATTERN) }
         } catch (exception: Exception) {
-            log.warn("카카오 좌표→법정동 변환 호출 실패: coordinate={}", coordinate, exception)
+            log.warn(exception) { "카카오 좌표→법정동 변환 호출 실패: coordinate=$coordinate" }
             null
         }
 

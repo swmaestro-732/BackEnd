@@ -42,6 +42,22 @@ data class Course private constructor(
         /** 코스가 담아야 하는 최소 장소 수 — 발행·임시저장 공통. */
         private const val MIN_PLACES = 2
 
+        /** 포크 시 원본 장소를 **전부** 유지해야 하는 원본 크기의 상한 — 이보다 크면 절반 이상만 유지하면 된다. */
+        private const val FORK_FULL_KEEP_LIMIT = 4
+
+        /**
+         * 포크한 코스가 원본에서 **그대로 담아야 하는 최소 장소 수**. 장소 추가는 언제나 자유롭고,
+         * 원본 장소를 빼는 것만 제한한다 — 포크가 원본과 다른 코스가 되어 버리는 것을 막는 규칙이다.
+         * - 원본이 4곳 이하: 전부 유지(한 곳도 뺄 수 없다)
+         * - 원본이 5곳 이상: 절반 이상 유지(올림 — 5곳이면 3곳, 6곳이면 3곳, 7곳이면 4곳)
+         */
+        fun requiredKeptPlaceCount(originPlaceCount: Int): Int =
+            if (originPlaceCount <= FORK_FULL_KEEP_LIMIT) {
+                originPlaceCount
+            } else {
+                (originPlaceCount + 1) / 2
+            }
+
         /**
          * 신규 생성. 파생 값(카테고리·지역코드·지역 이름)은 서비스가 [deriveCategory]·[deriveAreaCode] 로 도출하고
          * 지역 이름을 area 모듈에서 조회해 넘긴다 — 도메인은 조회(포트 호출)를 하지 않으므로 결과만 받는다.

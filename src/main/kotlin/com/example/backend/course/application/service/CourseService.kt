@@ -3,9 +3,13 @@ package com.example.backend.course.application.service
 import com.example.backend.area.application.port.inbound.AreaQueryUseCase
 import com.example.backend.common.exception.BusinessException
 import com.example.backend.common.response.ErrorCode
+import com.example.backend.course.application.port.inbound.CourseQueryUseCase
 import com.example.backend.course.application.port.inbound.CourseUseCase
+import com.example.backend.course.application.port.inbound.dto.CoursePlaceResult
 import com.example.backend.course.application.port.inbound.dto.CreateCourseCommand
+import com.example.backend.course.application.port.inbound.dto.CreateCoursePlaceCommand
 import com.example.backend.course.application.port.inbound.dto.EditCourseCommand
+import com.example.backend.course.application.port.inbound.dto.ForkCourseCommand
 import com.example.backend.course.application.port.outbound.AuthorCourseCountPort
 import com.example.backend.course.application.port.outbound.CoursePersistencePort
 import com.example.backend.course.application.port.outbound.CoursePlaceImageRow
@@ -30,6 +34,8 @@ import org.springframework.transaction.annotation.Transactional
 @Transactional
 class CourseService(
     private val coursePersistencePort: CoursePersistencePort,
+    // 포크 원본의 조회 가능 여부 판정을 조회 유스케이스와 공유한다(공개범위·팔로우 규칙 중복 방지).
+    private val courseQueryUseCase: CourseQueryUseCase,
     private val placeLookupPort: PlaceLookupPort,
     private val areaQueryUseCase: AreaQueryUseCase,
     private val authorCourseCountPort: AuthorCourseCountPort,
@@ -162,6 +168,49 @@ class CourseService(
             added = if (command.isPublished) command.visibility else null,
         )
         return updated
+    }
+
+    /**
+     * 코스 포크. 원본은 **장소 구성(어디를 어떤 순서로)만** 물려주고, 그 위의 콘텐츠(장소별 캡션·사진,
+     * 제목·설명·커버·태그·공개 설정)는 포크하는 사람이 새로 입력한 값이라 저장은 생성 경로를 그대로 탄다 —
+     * 포크라는 사실은 courses.forked_from_id 로만 남는다(출처 표시).
+     *
+     * 포크 전에 두 가지를 추가로 검증한다.
+     * 1. **원본을 볼 수 있는지** — 조회와 같은 규칙([CourseQueryUseCase])이라 볼 수 없는 코스
+     *    (없음·삭제·비활성·PRIVATE 타인·FOLLOWER 비팔로워)는 존재를 드러내지 않도록 404 로 막는다.
+     *    자기 코스 포크는 막지 않는다(볼 수 있으므로 통과) — 같은 코스를 다시 기록하는 것도 유효한 사용이다.
+     * 2. **원본 장소를 충분히 담았는지**([requireOriginPlacesKept]) — 포크가 원본과 다른 코스가 되는 것을 막는다.
+     */
+    override fun fork(command: ForkCourseCommand): Course {
+        // 상세와 같은 배치 조회 경로를 쓴다(해시태그를 읽지 않아 단건 조회보다 쿼리가 하나 적다).
+        // 원본 장소는 이 결과에 함께 실려 오므로 유지 검증을 위해 따로 조회하지 않는다.
+        val origin =
+            courseQueryUseCase
+                .getDetails(listOf(command.forkedFromId), command.userId)
+                .firstOrNull()
+                ?: throw BusinessException(
+                    ErrorCode.COURSE_NOT_FOUND,
+                    "원본 코스를 찾을 수 없습니다: id=${command.forkedFromId}",
+                )
+
+        requireOriginPlacesKept(origin.places.map(CoursePlaceResult::placeId), command.places)
+        return create(command.toCreateCommand())
+    }
+
+    private fun requireOriginPlacesKept(
+        originPlaceIds: List<Long>,
+        forkedPlaces: List<CreateCoursePlaceCommand>,
+    ) {
+        val originIds = originPlaceIds.distinct()
+        val required = Course.requiredKeptPlaceCount(originIds.size)
+        val forkedIds = forkedPlaces.map { it.placeId }.toSet()
+        val kept = originIds.count { it in forkedIds }
+        if (kept < required) {
+            throw BusinessException(
+                ErrorCode.FORK_PLACES_NOT_KEPT,
+                "원본 장소 ${originIds.size}곳 중 ${required}곳 이상을 그대로 담아야 합니다(현재 ${kept}곳).",
+            )
+        }
     }
 
     /**
