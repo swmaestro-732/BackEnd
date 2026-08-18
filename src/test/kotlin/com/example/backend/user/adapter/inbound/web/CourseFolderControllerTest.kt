@@ -68,11 +68,11 @@ class CourseFolderControllerTest
         }
 
         @Test
-        fun `같은 이름의 폴더를 또 만들면 4094를 내려준다`() {
+        fun `같은 이름의 폴더를 또 만들면 4095를 내려준다`() {
             mockMvc
                 .perform(createFolderRequest(MY_FOLDER_NAME))
                 .andExpect(status().isConflict)
-                .andExpect(jsonPath("$.code").value(4094))
+                .andExpect(jsonPath("$.code").value(4095))
 
             // 생성이 막혔으니 폴더 수는 그대로 2다.
             mockMvc
@@ -101,11 +101,47 @@ class CourseFolderControllerTest
         }
 
         @Test
-        fun `20자를 넘는 이름은 검증 실패로 4002를 내려준다`() {
+        fun `10자를 넘는 이름은 검증 실패로 4002를 내려준다`() {
             mockMvc
-                .perform(createFolderRequest("가".repeat(21)))
+                .perform(createFolderRequest("가".repeat(11)))
                 .andExpect(status().isBadRequest)
                 .andExpect(jsonPath("$.code").value(4002))
+                // 실패 필드명은 요청 필드 그대로 name 이다(내부 rawName 이 새어나가지 않는다).
+                .andExpect(jsonPath("$.fieldErrors[0].field").value("name"))
+        }
+
+        @Test
+        fun `가운데 공백도 글자수에 센다 - 공백 포함 11자면 4002`() {
+            // "가"*5 + " " + "가"*5 = 11자. 가운데 공백은 트림 대상이 아니라 길이에 포함된다.
+            mockMvc
+                .perform(createFolderRequest("가".repeat(5) + " " + "가".repeat(5)))
+                .andExpect(status().isBadRequest)
+                .andExpect(jsonPath("$.code").value(4002))
+        }
+
+        @Test
+        fun `길이 제한은 앞뒤 공백을 뺀 값 기준이다 - 공백 포함 12자여도 통과한다`() {
+            // 화면 글자수 카운터가 트림 기준이라, 원본 길이로 재면 경계값에서 서버와 어긋난다.
+            val name = "가".repeat(10)
+
+            mockMvc
+                .perform(createFolderRequest(" $name "))
+                .andExpect(status().isCreated)
+
+            mockMvc
+                .perform(listFoldersRequest(USER_ID))
+                .andExpect(jsonPath("$.data.folders[2].name").value(name))
+        }
+
+        @Test
+        fun `가운데 띄어쓰기는 막지 않는다`() {
+            mockMvc
+                .perform(createFolderRequest("데이트 코스"))
+                .andExpect(status().isCreated)
+
+            mockMvc
+                .perform(listFoldersRequest(USER_ID))
+                .andExpect(jsonPath("$.data.folders[2].name").value("데이트 코스"))
         }
 
         @Test

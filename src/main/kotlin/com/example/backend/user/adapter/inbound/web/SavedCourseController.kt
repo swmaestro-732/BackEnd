@@ -103,7 +103,7 @@ class SavedCourseController(
             return ApiResponse.success(CreateCourseFolderResponse.mock(), "폴더가 생성되었습니다.")
         }
 
-        val folder = savedCourseUseCase.createFolder(userId, request.name.trim())
+        val folder = savedCourseUseCase.createFolder(userId, request.name)
         return ApiResponse.success(CreateCourseFolderResponse(folderId = folder.id), "폴더가 생성되었습니다.")
     }
 
