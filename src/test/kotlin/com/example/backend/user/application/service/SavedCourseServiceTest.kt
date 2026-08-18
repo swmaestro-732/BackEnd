@@ -5,10 +5,12 @@ import com.example.backend.common.response.ErrorCode
 import com.example.backend.user.application.port.inbound.dto.SavedCoursesCommand
 import com.example.backend.user.application.port.outbound.CourseAccessPort
 import com.example.backend.user.application.port.outbound.CourseFolderCountRow
+import com.example.backend.user.application.port.outbound.CourseFolderRow
 import com.example.backend.user.application.port.outbound.SavedCoursePersistencePort
 import com.example.backend.user.application.port.outbound.SavedCourseRow
 import com.example.backend.user.application.port.outbound.UserPersistencePort
 import com.example.backend.user.application.port.outbound.UserProfileRow
+import com.example.backend.user.domain.model.CourseFolder
 import com.example.backend.user.domain.model.SavedCourse
 import com.example.backend.user.domain.model.SocialProvider
 import com.example.backend.user.domain.model.User
@@ -48,11 +50,17 @@ class SavedCourseServiceTest {
             var savedCourses: Set<Pair<Long, Long>> = emptySet()
             var pageRows: List<SavedCourseRow> = emptyList()
             var countReturn: Long = 0
+            var folderNames: Set<Pair<Long, String>> = emptySet()
+            var folderRows: List<CourseFolderRow> = emptyList()
+            var folderCountRows: List<CourseFolderCountRow> = emptyList()
+            var withoutFolderCount: Long = 0
 
             // 호출 캡처
             var insertArgs: Triple<Long, Long, Long?>? = null
+            var insertFolderArgs: Pair<Long, String>? = null
             var deleteArgs: Pair<Long, Long>? = null
             var findPageArgs: FindPageArgs? = null
+            var findFoldersArg: Long? = null
 
             override fun existsFolder(
                 userId: Long,
@@ -108,7 +116,27 @@ class SavedCourseServiceTest {
                 return pageRows
             }
 
-            override fun listFolders(userId: Long): List<CourseFolderCountRow> = emptyList()
+            override fun existsFolderName(
+                userId: Long,
+                name: String,
+            ): Boolean = (userId to name) in folderNames
+
+            override fun insertFolder(
+                userId: Long,
+                name: String,
+            ): CourseFolder {
+                insertFolderArgs = userId to name
+                return CourseFolder(id = 300L, userId = userId, name = name, orderNo = 0)
+            }
+
+            override fun findFolders(userId: Long): List<CourseFolderRow> {
+                findFoldersArg = userId
+                return folderRows
+            }
+
+            override fun listFolders(userId: Long): List<CourseFolderCountRow> = folderCountRows
+
+            override fun countWithoutFolder(userId: Long): Long = withoutFolderCount
         }
 
     private val fakeUserPort =
@@ -311,6 +339,89 @@ class SavedCourseServiceTest {
             }
 
         assertEquals(ErrorCode.INVALID_INPUT, ex.errorCode)
+    }
+
+    // --- createFolder ---
+
+    @Test
+    fun `폴더 생성 시 탈퇴(비활성) 사용자면 USER_NOT_FOUND 를 던지고 만들지 않는다`() {
+        fakeUserPort.activeUserIds = emptySet() // 락 대상이 활성 행 없음 = 탈퇴/부재
+
+        val ex = assertThrows<BusinessException> { service.createFolder(userId = 1L, name = "가고싶다") }
+
+        assertEquals(ErrorCode.USER_NOT_FOUND, ex.errorCode)
+        assertNull(fakePort.insertFolderArgs)
+    }
+
+    @Test
+    fun `같은 이름의 폴더가 이미 있으면 FOLDER_NAME_ALREADY_TAKEN 을 던진다`() {
+        fakePort.folderNames = setOf(1L to "가고싶다")
+
+        val ex = assertThrows<BusinessException> { service.createFolder(userId = 1L, name = "가고싶다") }
+
+        assertEquals(ErrorCode.FOLDER_NAME_ALREADY_TAKEN, ex.errorCode)
+        assertNull(fakePort.insertFolderArgs)
+    }
+
+    @Test
+    fun `이름 중복은 사용자별로 판정한다 - 타인이 쓰는 이름이면 그대로 만든다`() {
+        fakePort.folderNames = setOf(2L to "가고싶다") // 같은 이름이지만 다른 사용자 소유
+
+        val folder = service.createFolder(userId = 1L, name = "가고싶다")
+
+        assertEquals(1L to "가고싶다", fakePort.insertFolderArgs)
+        assertEquals("가고싶다", folder.name)
+    }
+
+    @Test
+    fun `유효하면 폴더를 만들고 생성된 도메인을 반환한다`() {
+        val folder = service.createFolder(userId = 1L, name = "데이트")
+
+        assertEquals(1L to "데이트", fakePort.insertFolderArgs)
+        assertEquals(300L, folder.id)
+        assertEquals(1L, folder.userId)
+        assertEquals("데이트", folder.name)
+    }
+
+    // --- getFolders ---
+
+    @Test
+    fun `폴더 목록은 포트가 준 순서 그대로 id·이름만 매핑한다`() {
+        fakePort.folderRows =
+            listOf(
+                CourseFolderRow(id = 10L, name = "가고싶다"),
+                CourseFolderRow(id = 20L, name = "데이트"),
+            )
+
+        val result = service.getFolders(userId = 1L)
+
+        assertEquals(1L, fakePort.findFoldersArg)
+        assertEquals(listOf(10L to "가고싶다", 20L to "데이트"), result.map { it.id to it.name })
+    }
+
+    @Test
+    fun `폴더가 하나도 없으면 빈 목록을 반환한다`() {
+        fakePort.folderRows = emptyList()
+
+        assertTrue(service.getFolders(userId = 1L).isEmpty())
+    }
+
+    // --- getFolderCounts ---
+
+    @Test
+    fun `폴더별 개수 조회는 미분류 개수를 폴더 합이 아니라 따로 센다`() {
+        fakePort.folderCountRows =
+            listOf(
+                CourseFolderCountRow(id = 10L, name = "가고싶다", count = 2),
+                CourseFolderCountRow(id = 20L, name = "데이트", count = 0),
+            )
+        fakePort.withoutFolderCount = 5 // 폴더 합(2)과 무관한 값이라야 따로 세는 게 드러난다
+
+        val result = service.getFolderCounts(userId = 1L)
+
+        assertEquals(listOf(10L to 2, 20L to 0), result.folders.map { it.id to it.count })
+        assertEquals(listOf("가고싶다", "데이트"), result.folders.map { it.name })
+        assertEquals(5L, result.withoutFolderCount)
     }
 
     private data class FindPageArgs(

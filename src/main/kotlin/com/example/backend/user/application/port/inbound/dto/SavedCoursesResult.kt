@@ -42,9 +42,24 @@ data class SavedCoursesResult(
     )
 }
 
+/** 저장 폴더 — 개수 없이 폴더 자체만(폴더 목록 조회, order_no 순). */
+data class CourseFolderSummary(
+    val id: Long,
+    val name: String,
+)
+
 /** 저장 폴더 + 폴더별 저장 코스 개수 — 저장함 코스 탭 폴더 칩(order_no 순). */
 data class SavedCourseFolderCount(
     val id: Long,
     val name: String,
     val count: Int,
+)
+
+/**
+ * 저장함 폴더 칩 재료 — 폴더별 저장 개수 + 폴더 없이 저장한 개수.
+ * [withoutFolderCount] 는 folder_id 가 없는 저장 레코드 수라 [folders] 개수 합에 포함되지 않는다.
+ */
+data class SavedCourseFolderCounts(
+    val folders: List<SavedCourseFolderCount>,
+    val withoutFolderCount: Long,
 )

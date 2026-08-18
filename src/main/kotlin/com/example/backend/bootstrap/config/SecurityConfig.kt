@@ -30,14 +30,19 @@ class SecurityConfig {
             .oauth2ResourceServer { it.jwt { } }
             .authorizeHttpRequests {
                 it
-                    // 업로드 프리사인·`/api/v1/my/**`(저장함·폴더 등)·`/service/v1/my/**`(개인 화면 조합 BFF)은 경로 기준 JWT 인증 필수.
-                    // `/api/v1/saved-places`(저장 장소)는 `/api/v1/my` 밖에 있는 개인 리소스라 여기에 따로 적는다 —
-                    // 안 적으면 아래 `/api/**` permitAll 에 걸려 조회·방문 처리가 무인증으로 열린다.
+                    // 업로드 프리사인·`/api/v1/my/**`(저장함 등)·`/service/v1/my/**`(개인 화면 조합 BFF)은 경로 기준 JWT 인증 필수.
+                    // 저장 장소(`/api/v1/saved-places`)·코스 저장(`/api/v1/saved-courses`)·저장 폴더(`/api/v1/folders`)는
+                    // `/api/v1/my` 밖으로 옮긴 개인 리소스라 여기에 따로 적는다 —
+                    // 안 적으면 아래 `/api` 하위 permitAll 에 걸려 무인증으로 열린다.
                     // user 도메인 계정 엔드포인트(`/api/v1/users`)는 경로가 아니라 @AccessTokenRequired 메서드 시큐리티로 보호한다.
                     .requestMatchers(
                         "/api/v1/my/**",
                         "/api/v1/saved-places",
                         "/api/v1/saved-places/**",
+                        "/api/v1/saved-courses",
+                        "/api/v1/saved-courses/**",
+                        "/api/v1/folders",
+                        "/api/v1/folders/**",
                         "/api/v1/uploads/**",
                         "/service/v1/my/**",
                     ).access { authentication, _ ->

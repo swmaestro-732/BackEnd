@@ -18,6 +18,8 @@ data class SavedCourseScreenResponse(
     val completedCount: Int,
     // 폴더 칩 — 폴더별 저장 개수(order_no 순)
     val folders: List<CourseFolderCountResponse>,
+    // 폴더 없이 저장한 코스 개수 — "폴더 없음" 칩. folders 의 개수 합에는 포함되지 않는다.
+    val withoutFolderCount: Int,
     val nextCursor: String?,
     val hasNext: Boolean,
     val savedCourses: List<SavedCourseScreenItemResponse>,
@@ -68,7 +70,7 @@ data class SavedCourseScreenResponse(
                 profileImageUrl = image("photo-1544005313-94ddf0286df2"),
             )
 
-        /** 폴더 칩 — 코스 폴더 목록 모킹([com.example.backend.user.adapter.inbound.web.CourseFolderController])과 값을 맞춰 두었다. */
+        /** 폴더 칩 — 코스 폴더 목록 모킹([com.example.backend.user.adapter.inbound.web.response.CourseFolderListResponse.mock])과 값을 맞춰 두었다. */
         private val MOCK_FOLDERS: List<CourseFolderCountResponse> =
             listOf(
                 CourseFolderCountResponse(id = 1, name = "데이트 코스", count = 2),
@@ -331,6 +333,7 @@ data class SavedCourseScreenResponse(
                 uncompletedCount = MOCK_ITEMS.count { !it.completed },
                 completedCount = MOCK_ITEMS.count { it.completed },
                 folders = MOCK_FOLDERS,
+                withoutFolderCount = MOCK_ITEMS.size - MOCK_FOLDERS.sumOf { it.count },
                 nextCursor = null,
                 hasNext = false,
                 savedCourses = MOCK_ITEMS,
@@ -352,6 +355,7 @@ data class SavedCourseScreenResponse(
                             count = it.count,
                         )
                     },
+                withoutFolderCount = result.withoutFolderCount.toInt(),
                 nextCursor = result.nextCursor,
                 hasNext = result.hasNext,
                 savedCourses = result.items.map { toItem(it, result.viewerId) },

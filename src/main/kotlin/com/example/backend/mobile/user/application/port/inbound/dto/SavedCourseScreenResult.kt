@@ -13,6 +13,7 @@ import java.time.Instant
  * - [totalCount] 폴더 필터 안의 전체 저장 코스 개수(완주 필터와 무관, "전체 N" 칩).
  * - [completedCount] 폴더 필터 안의 완주 코스 개수("완주 N" 칩, 안 가봄 개수는 total - completed).
  * - [folders] 폴더 칩(order_no 순, 폴더별 저장 개수).
+ * - [withoutFolderCount] 폴더 없이 저장한 코스 개수("폴더 없음" 칩) — 폴더별 개수의 합에 포함되지 않는다.
  * - [viewerId] 조회 주체 — 각 코스의 작성자와 비교해 "내가 만든 코스"(isMine)를 판정한다.
  * - [items] 페이지의 저장 코스들(완주/폴더 필터·커서 적용). 삭제·비공개로 볼 수 없게 된 코스는 서비스에서 제외한다.
  */
@@ -20,6 +21,7 @@ data class SavedCourseScreenResult(
     val totalCount: Long,
     val completedCount: Long,
     val folders: List<SavedCourseFolderCount>,
+    val withoutFolderCount: Long,
     val nextCursor: String?,
     val hasNext: Boolean,
     val viewerId: Long,

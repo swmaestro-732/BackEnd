@@ -41,7 +41,7 @@ class SavedCourseScreenService(
                     size = command.size,
                 ),
             )
-        val folders = savedCourseUseCase.getFolders(command.userId)
+        val folderCounts = savedCourseUseCase.getFolderCounts(command.userId)
 
         val courseById =
             courseQueryUseCase
@@ -89,7 +89,8 @@ class SavedCourseScreenService(
         return SavedCourseScreenResult(
             totalCount = saved.totalCount,
             completedCount = saved.completedCount,
-            folders = folders,
+            folders = folderCounts.folders,
+            withoutFolderCount = folderCounts.withoutFolderCount,
             nextCursor = saved.nextCursor,
             hasNext = saved.hasNext,
             viewerId = command.userId,
