@@ -17,7 +17,7 @@ import org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPat
 import org.springframework.test.web.servlet.result.MockMvcResultMatchers.status
 
 /**
- * 코스 저장 컨트롤러(`POST /api/v1/courses/save` · `DELETE /api/v1/courses/save/{id}` · `GET /api/v1/my/saved-courses`) 통합 테스트.
+ * 코스 저장 컨트롤러(`POST /api/v1/saved-courses` · `DELETE /api/v1/saved-courses/{id}` · `GET /api/v1/my/saved-courses`) 통합 테스트.
  * 픽스처(saved-course-fixture.sql)로 저장 주체(1)·타인(2)·코스 5건·폴더 3건·기존 저장 4건을 심고,
  * 저장 주체 식별은 JWT(subject=userId)로 한다.
  */
@@ -29,7 +29,7 @@ class SavedCourseControllerTest
         private val mockMvc: MockMvc,
         private val jwtTokenProvider: JwtTokenProvider,
     ) : IntegrationTestBase() {
-        // ─────────────────────────── 저장 (POST /api/v1/courses/save) ───────────────────────────
+        // ─────────────────────────── 저장 (POST /api/v1/saved-courses) ───────────────────────────
 
         @Test
         fun `코스를 저장하면 201과 성공 코드를 내려주고 저장함에 반영된다`() {
@@ -37,7 +37,7 @@ class SavedCourseControllerTest
 
             mockMvc
                 .perform(
-                    post("/api/v1/courses/save")
+                    post("/api/v1/saved-courses")
                         .header(HttpHeaders.AUTHORIZATION, "Bearer ${tokenFor(USER_ID)}")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(body),
@@ -60,7 +60,7 @@ class SavedCourseControllerTest
 
             mockMvc
                 .perform(
-                    post("/api/v1/courses/save")
+                    post("/api/v1/saved-courses")
                         .header(HttpHeaders.AUTHORIZATION, "Bearer ${tokenFor(USER_ID)}")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(body),
@@ -82,7 +82,7 @@ class SavedCourseControllerTest
 
             mockMvc
                 .perform(
-                    post("/api/v1/courses/save")
+                    post("/api/v1/saved-courses")
                         .header(HttpHeaders.AUTHORIZATION, "Bearer ${tokenFor(USER_ID)}")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(body),
@@ -96,7 +96,7 @@ class SavedCourseControllerTest
 
             mockMvc
                 .perform(
-                    post("/api/v1/courses/save")
+                    post("/api/v1/saved-courses")
                         .header(HttpHeaders.AUTHORIZATION, "Bearer ${tokenFor(USER_ID)}")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(body),
@@ -110,7 +110,7 @@ class SavedCourseControllerTest
 
             mockMvc
                 .perform(
-                    post("/api/v1/courses/save")
+                    post("/api/v1/saved-courses")
                         .header(HttpHeaders.AUTHORIZATION, "Bearer ${tokenFor(USER_ID)}")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(body),
@@ -124,7 +124,7 @@ class SavedCourseControllerTest
 
             mockMvc
                 .perform(
-                    post("/api/v1/courses/save")
+                    post("/api/v1/saved-courses")
                         .header(HttpHeaders.AUTHORIZATION, "Bearer ${tokenFor(USER_ID)}")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(body),
@@ -138,7 +138,7 @@ class SavedCourseControllerTest
 
             mockMvc
                 .perform(
-                    post("/api/v1/courses/save")
+                    post("/api/v1/saved-courses")
                         .param("mock", "true")
                         .header(HttpHeaders.AUTHORIZATION, "Bearer ${tokenFor(USER_ID)}")
                         .contentType(MediaType.APPLICATION_JSON)
@@ -154,13 +154,13 @@ class SavedCourseControllerTest
                 ).andExpect(jsonPath("$.data.totalCount").value(4))
         }
 
-        // ─────────────────────────── 저장 취소 (DELETE /api/v1/courses/save/{courseId}) ───────────────────────────
+        // ─────────────────────────── 저장 취소 (DELETE /api/v1/saved-courses/{courseId}) ───────────────────────────
 
         @Test
         fun `저장한 코스를 취소하면 200을 내려주고 저장함에서 빠진다`() {
             mockMvc
                 .perform(
-                    delete("/api/v1/courses/save/$SAVED_COURSE_ID")
+                    delete("/api/v1/saved-courses/$SAVED_COURSE_ID")
                         .header(HttpHeaders.AUTHORIZATION, "Bearer ${tokenFor(USER_ID)}"),
                 ).andExpect(status().isOk)
                 .andExpect(jsonPath("$.code").value(2000))
@@ -176,24 +176,60 @@ class SavedCourseControllerTest
         fun `저장하지 않은 코스를 취소해도 200을 내려준다 (멱등)`() {
             mockMvc
                 .perform(
-                    delete("/api/v1/courses/save/$UNSAVED_COURSE_ID")
+                    delete("/api/v1/saved-courses/$UNSAVED_COURSE_ID")
                         .header(HttpHeaders.AUTHORIZATION, "Bearer ${tokenFor(USER_ID)}"),
                 ).andExpect(status().isOk)
                 .andExpect(jsonPath("$.code").value(2000))
+        }
+
+        // ─────────────────────────── 구 경로 (프론트 이관 전까지 유지, 호출량 0 확인 후 제거) ───────────────────────────
+
+        @Test
+        fun `구 경로 POST courses-save 로도 저장된다`() {
+            mockMvc
+                .perform(
+                    post("/api/v1/courses/save")
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer ${tokenFor(USER_ID)}")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""{"courseId": $UNSAVED_COURSE_ID, "folderId": null}"""),
+                ).andExpect(status().isCreated)
+                .andExpect(jsonPath("$.code").value(2000))
+
+            mockMvc
+                .perform(
+                    get("/api/v1/my/saved-courses")
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer ${tokenFor(USER_ID)}"),
+                ).andExpect(jsonPath("$.data.totalCount").value(5))
+        }
+
+        @Test
+        fun `구 경로 DELETE courses-save 로도 저장이 취소된다`() {
+            mockMvc
+                .perform(
+                    delete("/api/v1/courses/save/$SAVED_COURSE_ID")
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer ${tokenFor(USER_ID)}"),
+                ).andExpect(status().isOk)
+                .andExpect(jsonPath("$.code").value(2000))
+
+            mockMvc
+                .perform(
+                    get("/api/v1/my/saved-courses")
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer ${tokenFor(USER_ID)}"),
+                ).andExpect(jsonPath("$.data.totalCount").value(3))
         }
 
         @Test
         fun `취소한 코스를 다시 저장하면 새 레코드로 발행되고 소프트 삭제된 행은 남지 않는다`() {
             mockMvc
                 .perform(
-                    delete("/api/v1/courses/save/$SAVED_COURSE_ID")
+                    delete("/api/v1/saved-courses/$SAVED_COURSE_ID")
                         .header(HttpHeaders.AUTHORIZATION, "Bearer ${tokenFor(USER_ID)}"),
                 ).andExpect(status().isOk)
 
             // 재저장은 다른 폴더로 — 새 레코드가 이번 요청의 folderId 를 갖는지 함께 본다.
             mockMvc
                 .perform(
-                    post("/api/v1/courses/save")
+                    post("/api/v1/saved-courses")
                         .header(HttpHeaders.AUTHORIZATION, "Bearer ${tokenFor(USER_ID)}")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""{"courseId": $SAVED_COURSE_ID, "folderId": $MY_OTHER_FOLDER_ID}"""),

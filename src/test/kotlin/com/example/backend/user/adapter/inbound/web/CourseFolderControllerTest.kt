@@ -21,7 +21,7 @@ import org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPat
 import org.springframework.test.web.servlet.result.MockMvcResultMatchers.status
 
 /**
- * 코스 저장 폴더 컨트롤러(`POST /api/v1/my/folders` · `GET /api/v1/my/folders`) 통합 테스트.
+ * 코스 저장 폴더 컨트롤러(`POST /api/v1/folders` · `GET /api/v1/folders`) 통합 테스트.
  * 저장 코스와 픽스처(saved-course-fixture.sql)를 공유한다 — 폴더는 1·2 가 나(1) 소유(order_no 0·1), 3 이 타인(2) 소유다.
  *
  * 이름 유일성은 애플리케이션 선검사(409)와 유니크 인덱스(V2 마이그레이션)가 이중으로 막으므로 둘 다 확인하고,
@@ -37,7 +37,7 @@ class CourseFolderControllerTest
         private val jwtTokenProvider: JwtTokenProvider,
         private val jdbcTemplate: JdbcTemplate,
     ) : IntegrationTestBase() {
-        // ─────────────────────────── 폴더 생성 (POST /api/v1/my/folders) ───────────────────────────
+        // ─────────────────────────── 폴더 생성 (POST /api/v1/folders) ───────────────────────────
 
         @Test
         fun `폴더를 만들면 201과 생성된 folderId 를 내려주고 목록 맨 뒤에 붙는다`() {
@@ -112,7 +112,7 @@ class CourseFolderControllerTest
         fun `폴더 생성은 토큰이 없으면 401을 내려준다`() {
             mockMvc
                 .perform(
-                    post("/api/v1/my/folders")
+                    post("/api/v1/folders")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""{"name":"주말나들이"}"""),
                 ).andExpect(status().isUnauthorized)
@@ -124,7 +124,7 @@ class CourseFolderControllerTest
 
             mockMvc
                 .perform(
-                    post("/api/v1/my/folders")
+                    post("/api/v1/folders")
                         .header(HttpHeaders.AUTHORIZATION, "Bearer $registrationToken")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""{"name":"주말나들이"}"""),
@@ -165,7 +165,7 @@ class CourseFolderControllerTest
                 .andExpect(jsonPath("$.data.folderCount").value(2))
         }
 
-        // ─────────────────────────── 폴더 목록 조회 (GET /api/v1/my/folders) ───────────────────────────
+        // ─────────────────────────── 폴더 목록 조회 (GET /api/v1/folders) ───────────────────────────
 
         @Test
         fun `폴더 목록을 order_no 순으로 내려주고 타인 폴더는 빼놓는다`() {
@@ -205,7 +205,7 @@ class CourseFolderControllerTest
         @Test
         fun `폴더 목록은 토큰이 없으면 401을 내려준다`() {
             mockMvc
-                .perform(get("/api/v1/my/folders"))
+                .perform(get("/api/v1/folders"))
                 .andExpect(status().isUnauthorized)
         }
 
@@ -246,13 +246,13 @@ class CourseFolderControllerTest
         )
 
         private fun createFolderRequest(name: String) =
-            post("/api/v1/my/folders")
+            post("/api/v1/folders")
                 .header(HttpHeaders.AUTHORIZATION, "Bearer ${tokenFor(USER_ID)}")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("""{"name":"$name"}""")
 
         private fun listFoldersRequest(userId: Long) =
-            get("/api/v1/my/folders")
+            get("/api/v1/folders")
                 .header(HttpHeaders.AUTHORIZATION, "Bearer ${tokenFor(userId)}")
 
         private fun tokenFor(userId: Long) = jwtTokenProvider.issueAccessToken(userId)

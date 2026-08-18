@@ -27,16 +27,27 @@ import org.springframework.web.bind.annotation.RestController
 /**
  * 인바운드 어댑터 — 코스 저장·저장 폴더(노션 명세 · User · user-course).
  *
- * 저장(POST)과 조회(GET)의 경로가 다르다(명세 기준) — 저장은 코스 도메인 액션이라 `/api/v1/courses/save`,
- * 조회는 "내" 저장함이라 `/api/v1/my/saved-courses`. 클래스 레벨 매핑 대신 메서드 레벨 전체 경로로 둔다.
+ * 노션 명세가 액션 경로(`/api/v1/courses/save`)를 리소스 경로(`/api/v1/saved-courses`)로 바꿨다.
+ * 클래스 레벨 매핑 대신 메서드 레벨 전체 경로로 둔다.
  *
+ * **저장·취소는 경로 두 개를 한 핸들러에 매핑한다** — 프론트가 이미 구 경로로 연동을 마쳤기 때문에(노션
+ * `프론트 구현 여부 = API 연동 완료`) 한 번에 끊을 수 없다. 신 경로를 앞에 두고, 구 경로는 노션 명세의
+ * "(삭제 예정)" 표기대로 나중에 지운다 — 삭제 조건은 "프론트 코드 반영"이 아니라 **구 경로 호출량 0**이다
+ * (`http_server_requests_seconds_count{uri="/api/v1/courses/save"}` 로 확인한다. 한 핸들러에 두 경로를
+ * 매핑해도 메트릭 uri 태그는 매칭된 패턴별로 따로 잡힌다).
+ * 로직이 갈라지지 않도록 핸들러는 하나만 두고 매핑만 둘로 둔다.
+ *
+ * 폴더(`/api/v1/folders`)는 프론트 연동 전이라(노션 `시작 전`) 구 경로(`/api/v1/my/folders`) 없이 바로 옮긴다.
+ *
+ * 신 경로들은 `/api/v1/my` 밖이라 SecurityConfig 에 인증 필수 경로로 따로 등록했다 —
+ * 안 그러면 `/api` 하위 permitAll 에 걸려 폴더 API 가 무인증으로 열린다.
  */
 @RestController
 class SavedCourseController(
     private val savedCourseUseCase: SavedCourseUseCase,
     private val mockGuard: MockGuard,
 ) {
-    @PostMapping("/api/v1/courses/save")
+    @PostMapping("/api/v1/saved-courses", "/api/v1/courses/save") // 구 경로: 호출량 0 확인 후 제거
     @ResponseStatus(HttpStatus.CREATED)
     fun save(
         @CurrentUserId userId: Long,
@@ -49,7 +60,7 @@ class SavedCourseController(
         return ApiResponse.ok("코스가 저장되었습니다.")
     }
 
-    @DeleteMapping("/api/v1/courses/save/{courseId}")
+    @DeleteMapping("/api/v1/saved-courses/{courseId}", "/api/v1/courses/save/{courseId}") // 구 경로: 호출량 0 확인 후 제거
     fun unsave(
         @CurrentUserId userId: Long,
         @PathVariable courseId: Long,
@@ -80,7 +91,7 @@ class SavedCourseController(
         )
     }
 
-    @PostMapping("/api/v1/my/folders")
+    @PostMapping("/api/v1/folders")
     @AccessTokenRequired
     @ResponseStatus(HttpStatus.CREATED)
     fun createFolder(
@@ -96,7 +107,7 @@ class SavedCourseController(
         return ApiResponse.success(CreateCourseFolderResponse(folderId = folder.id), "폴더가 생성되었습니다.")
     }
 
-    @GetMapping("/api/v1/my/folders")
+    @GetMapping("/api/v1/folders")
     @AccessTokenRequired
     fun listFolders(
         @CurrentUserId userId: Long,
