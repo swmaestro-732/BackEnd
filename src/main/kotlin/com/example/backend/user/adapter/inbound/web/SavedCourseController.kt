@@ -1,6 +1,7 @@
 package com.example.backend.user.adapter.inbound.web
 
 import com.example.backend.bootstrap.mock.MockGuard
+import com.example.backend.bootstrap.security.AccessTokenRequired
 import com.example.backend.bootstrap.security.CurrentUserId
 import com.example.backend.common.response.ApiResponse
 import com.example.backend.user.adapter.inbound.web.request.SaveCourseRequest
@@ -28,12 +29,17 @@ import org.springframework.web.bind.annotation.RestController
  *
  * - [save] 코스 저장(`POST /api/v1/courses/save`): **실구현** — 인바운드 포트([SavedCourseUseCase])로 저장한다.
  *   folderId 를 주면 소유권을 검증하고(그 외 400), 이미 저장한 코스면 중복 저장으로 막는다(409). 코스당 저장 레코드는 1개다.
- *   저장 주체 식별이 필요해 `@CurrentUserId`(JWT subject)로 userId 를 받으므로 유효한 토큰이 필요하다.
+ *   저장 주체 식별이 필요해 `@CurrentUserId`(JWT subject)로 userId 를 받는다.
  * - [unsave] 코스 저장 취소(`DELETE /api/v1/courses/save/{courseId}`): **실구현** — 저장의 역연산이라 경로를 대칭으로 두고
  *   courseId 로 (user, course) 저장 레코드를 지운다. 저장돼 있지 않아도 오류 없이 성공한다(멱등 — unfollow 선례와 동일).
  * - [list] 저장 코스 조회(`GET /api/v1/my/saved-courses`): **실구현** — 인바운드 포트([SavedCourseUseCase])로 조회한다.
  *   `/api/v1/my` 하위라 SecurityConfig 가 JWT 인증을 강제한다. 저장 레코드(ID 위주)를 최신 저장순으로
  *   커서 페이지네이션해 반환한다 — 코스 요약·완주 여부는 화면 조합 API(`GET /service/v1/my/saved-courses`)가 담당한다.
+ *
+ * 저장/취소 경로는 `/api/v1/courses/...` 라 SecurityConfig 의 `/api` 하위 permitAll 에 걸려 경로로는 열려 있다.
+ * "나" 기준 쓰기 액션이므로 [AccessTokenRequired] 메서드 시큐리티로 access 토큰을 강제한다 —
+ * 회원가입 목적 토큰(purpose != access)으로는 남의 저장함에 쓸 수 없다(UserController 선례와 동일).
+ * 조회(`/api/v1/my` 하위)는 경로 규칙이 이미 같은 조건(purpose == access)을 건다.
  *
  * 시드/DB 없이 프론트가 붙어볼 수 있도록 `?mock=true` 면 저장/조회 없이 고정 목([SavedCourseListResponse.mock])을
  * 반환한다(코스 상세 선례와 동일 규칙). 모킹 에러(`?mockError=<code>`)는 전역 아스펙트([com.example.backend.bootstrap.mock.MockErrorAspect])가 주입한다.
@@ -45,6 +51,7 @@ class SavedCourseController(
 ) {
     @PostMapping("/api/v1/courses/save")
     @ResponseStatus(HttpStatus.CREATED)
+    @AccessTokenRequired
     fun save(
         @CurrentUserId userId: Long,
         @Valid @RequestBody request: SaveCourseRequest,
@@ -57,6 +64,7 @@ class SavedCourseController(
     }
 
     @DeleteMapping("/api/v1/courses/save/{courseId}")
+    @AccessTokenRequired
     fun unsave(
         @CurrentUserId userId: Long,
         @PathVariable courseId: Long,

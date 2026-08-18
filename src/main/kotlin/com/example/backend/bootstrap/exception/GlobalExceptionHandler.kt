@@ -96,6 +96,7 @@ class GlobalExceptionHandler {
                     "handle" in message -> ErrorCode.HANDLE_ALREADY_TAKEN
                     "nickname" in message -> ErrorCode.NICKNAME_ALREADY_TAKEN
                     "saved_courses" in message -> ErrorCode.COURSE_ALREADY_SAVED
+                    "saved_places" in message -> ErrorCode.PLACE_ALREADY_SAVED
                     else -> null
                 }
             if (errorCode != null) {

@@ -3,6 +3,7 @@ package com.example.backend.mobile.place.adapter.outbound
 import com.example.backend.mobile.place.application.port.outbound.ScreenPlacePort
 import com.example.backend.mobile.place.application.port.outbound.dto.ScreenPlace
 import com.example.backend.place.application.port.inbound.PlaceQueryUseCase
+import com.example.backend.place.application.port.inbound.dto.PlaceSummary
 import org.springframework.stereotype.Component
 
 /**
@@ -13,16 +14,20 @@ import org.springframework.stereotype.Component
 class ScreenPlaceAdapter(
     private val placeQueryUseCase: PlaceQueryUseCase,
 ) : ScreenPlacePort {
-    override fun findById(placeId: Long): ScreenPlace? =
-        placeQueryUseCase.findPlacesById(listOf(placeId)).firstOrNull()?.let {
-            ScreenPlace(
-                id = it.id,
-                name = it.name,
-                category = it.category,
-                imageUrl = it.imageUrl,
-                latitude = it.latitude,
-                longitude = it.longitude,
-                address = it.address,
-            )
-        }
+    override fun findById(placeId: Long): ScreenPlace? = findByIds(listOf(placeId)).firstOrNull()
+
+    override fun findByIds(placeIds: List<Long>): List<ScreenPlace> =
+        placeQueryUseCase.findPlacesById(placeIds).map { it.toScreenPlace() }
+
+    private fun PlaceSummary.toScreenPlace() =
+        ScreenPlace(
+            id = id,
+            name = name,
+            category = category,
+            imageUrl = imageUrl,
+            latitude = latitude,
+            longitude = longitude,
+            address = address,
+            areaCode = areaCode,
+        )
 }
