@@ -27,7 +27,7 @@ import kotlin.time.toJavaInstant
  * saved_places 영속성 통합 테스트(실제 PostgreSQL, [IntegrationTestBase]).
  *
  * DSL insert 가 생성 id·저장 시각을 재조회 없이 돌려주는지, 소프트 삭제와 partial 유니크 인덱스
- * (V16, deleted_at IS NULL 한정)가 맞물려 동작하는지, 커서 페이징·배지 카운트 집계가 맞는지 검증한다.
+ * (V2, deleted_at IS NULL 한정)가 맞물려 동작하는지, 커서 페이징·배지 카운트 집계가 맞는지 검증한다.
  * 각 테스트는 transaction { ... rollback() } 으로 격리한다(픽스처 오염 없음).
  */
 class SavedPlacePersistenceTest
@@ -89,7 +89,7 @@ class SavedPlacePersistenceTest
                 val userId = insertUser("저장러3")
                 port.insert(userId, placeId = 779L, category = null)
 
-                // uq_saved_places_user_place (V16) 위반 → 23505. 서비스의 사전검사와 별개인 최종 방어선.
+                // uq_saved_places_user_place (V2) 위반 → 23505. 서비스의 사전검사와 별개인 최종 방어선.
                 val ex =
                     org.junit.jupiter.api.assertThrows<ExposedSQLException> {
                         port.insert(userId, placeId = 779L, category = null)

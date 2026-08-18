@@ -1,4 +1,4 @@
--- 장소 저장 중복 방지: (user_id, place_id) 유니크 인덱스 — saved_courses(V9)와 같은 방식.
+-- 장소 저장 중복 방지: (user_id, place_id) 유니크 인덱스 — saved_courses(V1 통합분)와 같은 방식.
 -- 서비스의 사전검사(existsSavedPlace)와 별개로, 동시 저장 경합(TOCTOU)에서도
 -- 장소당 저장 레코드가 1개임을 DB 가 보장한다.
 -- 위반(SQLSTATE 23505)은 GlobalExceptionHandler 가 인덱스명(saved_places)으로 식별해
