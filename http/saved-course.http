@@ -18,7 +18,7 @@ Content-Type: application/json
 %}
 
 ### 1) 코스 저장 (정상) — folderId 지정 → 201 CREATED
-POST http://localhost:8080/api/v1/courses/save
+POST http://localhost:8080/api/v1/saved-courses
 Content-Type: application/json
 Authorization: Bearer {{accessToken}}
 
@@ -28,7 +28,7 @@ Authorization: Bearer {{accessToken}}
 }
 
 ### 2) 코스 저장 (정상) — folderId 생략 시 "미분류"로 저장 → 201 CREATED
-POST http://localhost:8080/api/v1/courses/save
+POST http://localhost:8080/api/v1/saved-courses
 Content-Type: application/json
 Authorization: Bearer {{accessToken}}
 
@@ -38,7 +38,7 @@ Authorization: Bearer {{accessToken}}
 
 ### 3) 코스 저장 — 중복 저장(같은 courseId 재요청) → 409 / 4093 COURSE_ALREADY_SAVED
 # 1) 을 먼저 실행한 뒤 다시 호출하면 재현된다.
-POST http://localhost:8080/api/v1/courses/save
+POST http://localhost:8080/api/v1/saved-courses
 Content-Type: application/json
 Authorization: Bearer {{accessToken}}
 
@@ -48,7 +48,7 @@ Authorization: Bearer {{accessToken}}
 }
 
 ### 4) 코스 저장 — 없는 폴더 지정 → 400 / 4001 INVALID_INPUT
-POST http://localhost:8080/api/v1/courses/save
+POST http://localhost:8080/api/v1/saved-courses
 Content-Type: application/json
 Authorization: Bearer {{accessToken}}
 
@@ -58,7 +58,7 @@ Authorization: Bearer {{accessToken}}
 }
 
 ### 5) 코스 저장 — 검증 실패(courseId 는 @Positive) → 400 / 4001
-POST http://localhost:8080/api/v1/courses/save
+POST http://localhost:8080/api/v1/saved-courses
 Content-Type: application/json
 Authorization: Bearer {{accessToken}}
 
@@ -68,7 +68,7 @@ Authorization: Bearer {{accessToken}}
 }
 
 ### 6) 코스 저장 (mock) — 저장 없이 고정 성공 응답
-POST http://localhost:8080/api/v1/courses/save?mock=true
+POST http://localhost:8080/api/v1/saved-courses?mock=true
 Content-Type: application/json
 Authorization: Bearer {{accessToken}}
 
@@ -78,11 +78,28 @@ Authorization: Bearer {{accessToken}}
 }
 
 ### 7) 코스 저장 취소 (정상, 멱등) — courseId 로 저장 레코드 삭제. 저장 안 돼 있어도 성공
-DELETE http://localhost:8080/api/v1/courses/save/2
+DELETE http://localhost:8080/api/v1/saved-courses/2
 Authorization: Bearer {{accessToken}}
 
 ### 8) 코스 저장 취소 (mock) — 삭제 없이 고정 성공 응답
-DELETE http://localhost:8080/api/v1/courses/save/1?mock=true
+DELETE http://localhost:8080/api/v1/saved-courses/1?mock=true
+Authorization: Bearer {{accessToken}}
+
+## 구 경로 (삭제 예정) — 프론트가 이관을 마치고 호출량이 0이 되면 매핑째 제거한다
+## 확인: http_server_requests_seconds_count{uri="/api/v1/courses/save"} 가 0 인지
+
+### 8-1) 구 경로로 저장 — 신 경로와 같은 핸들러라 응답이 동일해야 한다
+POST http://localhost:8080/api/v1/courses/save
+Authorization: Bearer {{accessToken}}
+Content-Type: application/json
+
+{
+  "courseId": 1,
+  "folderId": null
+}
+
+### 8-2) 구 경로로 저장 취소
+DELETE http://localhost:8080/api/v1/courses/save/2
 Authorization: Bearer {{accessToken}}
 
 ### 9) 저장 코스 조회 (정상) — 저장 레코드(ID 위주) 최신순 + 커서 페이지네이션

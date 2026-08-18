@@ -1,5 +1,6 @@
 package com.example.backend.user.adapter.inbound.web.response
 
+import com.example.backend.user.application.port.inbound.dto.SavedPlacesResult
 import com.example.backend.user.domain.model.SavedPlaceCategory
 import java.time.Instant
 
@@ -25,8 +26,9 @@ data class SavedPlaceListResponse(
     val hasNext: Boolean,
     val savedPlaces: List<SavedPlaceItem>,
 ) {
+    /** category 는 [SavedPlaceCategory] 이름 문자열(예: CAFE) — enum 직렬화 결과와 동일한 와이어 포맷이다. */
     data class CategoryCount(
-        val category: SavedPlaceCategory,
+        val category: String,
         val count: Int,
     )
 
@@ -34,14 +36,38 @@ data class SavedPlaceListResponse(
         // 저장 레코드 id (장소 id 아님)
         val id: Long,
         val placeId: Long,
-        // 저장 시 place 도메인에서 복사한 장소 카테고리 스냅샷(저장함 카테고리 칩) — enum 이름 문자열로 직렬화
-        val category: SavedPlaceCategory?,
+        // 저장 시 place 도메인에서 복사한 장소 카테고리 스냅샷(저장함 카테고리 칩) — enum 이름 문자열
+        val category: String?,
         // 방문 여부 — 저장함 미방문/방문 탭 구분. PATCH 방문 처리 API로 전환된다.
         val visited: Boolean,
         val savedAt: Instant,
     )
 
     companion object {
+        /** 인바운드 포트 결과([SavedPlacesResult])를 웹 응답으로 변환한다. */
+        fun from(result: SavedPlacesResult): SavedPlaceListResponse =
+            SavedPlaceListResponse(
+                totalCount = result.totalCount.toInt(),
+                unvisitedCount = result.unvisitedCount.toInt(),
+                visitedCount = result.visitedCount.toInt(),
+                categoryCounts =
+                    result.categoryCounts.map {
+                        CategoryCount(category = it.category, count = it.count.toInt())
+                    },
+                nextCursor = result.nextCursor,
+                hasNext = result.hasNext,
+                savedPlaces =
+                    result.savedPlaces.map {
+                        SavedPlaceItem(
+                            id = it.id,
+                            placeId = it.placeId,
+                            category = it.category,
+                            visited = it.visited,
+                            savedAt = it.savedAt,
+                        )
+                    },
+            )
+
         /**
          * 목 저장 레코드 — 디자인(저장함 · 장소 · 리스트)의 예시 목록 반영. 최신 저장순 고정 응답.
          * placeId 는 장소 검색 모킹([com.example.backend.place.adapter.inbound.web.PlaceController])의
@@ -53,35 +79,35 @@ data class SavedPlaceListResponse(
                     SavedPlaceItem(
                         id = 5,
                         placeId = 108, // 평화양조장
-                        category = SavedPlaceCategory.BAR,
+                        category = SavedPlaceCategory.BAR.name,
                         visited = false,
                         savedAt = Instant.parse("2026-07-17T09:20:00Z"),
                     ),
                     SavedPlaceItem(
                         id = 4,
                         placeId = 107, // 자그마치
-                        category = SavedPlaceCategory.CULTURE,
+                        category = SavedPlaceCategory.CULTURE.name,
                         visited = false,
                         savedAt = Instant.parse("2026-07-15T13:05:00Z"),
                     ),
                     SavedPlaceItem(
                         id = 3,
                         placeId = 105, // 센터커피 성수
-                        category = SavedPlaceCategory.CAFE,
+                        category = SavedPlaceCategory.CAFE.name,
                         visited = false,
                         savedAt = Instant.parse("2026-07-12T05:30:00Z"),
                     ),
                     SavedPlaceItem(
                         id = 2,
                         placeId = 104, // 대림창고 카페
-                        category = SavedPlaceCategory.CAFE,
+                        category = SavedPlaceCategory.CAFE.name,
                         visited = true,
                         savedAt = Instant.parse("2026-07-08T11:00:00Z"),
                     ),
                     SavedPlaceItem(
                         id = 1,
                         placeId = 101, // 어니언 성수
-                        category = SavedPlaceCategory.CAFE,
+                        category = SavedPlaceCategory.CAFE.name,
                         visited = true,
                         savedAt = Instant.parse("2026-07-05T02:15:00Z"),
                     ),

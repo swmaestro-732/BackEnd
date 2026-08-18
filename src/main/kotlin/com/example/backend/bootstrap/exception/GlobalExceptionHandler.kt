@@ -4,6 +4,7 @@ import com.example.backend.common.exception.BusinessException
 import com.example.backend.common.response.ApiResponse
 import com.example.backend.common.response.ErrorCode
 import io.github.oshai.kotlinlogging.KotlinLogging
+import io.sentry.Sentry
 import org.jetbrains.exposed.v1.exceptions.ExposedSQLException
 import org.springframework.http.ResponseEntity
 import org.springframework.http.converter.HttpMessageNotReadableException
@@ -90,11 +91,14 @@ class GlobalExceptionHandler {
     fun handleSqlException(e: ExposedSQLException): ResponseEntity<ApiResponse<Nothing?>> {
         if (e.sqlState == UNIQUE_VIOLATION_SQL_STATE) {
             val message = e.message?.lowercase().orEmpty()
+            // 폴더(saved_course_folders)를 저장 코스(saved_courses)보다 먼저 본다 — 테이블 이름이 서로 닮아 있다.
             val errorCode =
                 when {
                     "handle" in message -> ErrorCode.HANDLE_ALREADY_TAKEN
                     "nickname" in message -> ErrorCode.NICKNAME_ALREADY_TAKEN
+                    "saved_course_folders" in message -> ErrorCode.FOLDER_NAME_ALREADY_TAKEN
                     "saved_courses" in message -> ErrorCode.COURSE_ALREADY_SAVED
+                    "saved_places" in message -> ErrorCode.PLACE_ALREADY_SAVED
                     else -> null
                 }
             if (errorCode != null) {
@@ -111,6 +115,9 @@ class GlobalExceptionHandler {
         // ExceptionTranslationFilter 가 401/403 으로 변환하도록 재던진다(500 로 삼키지 않는다).
         if (e is AuthenticationException || e is AccessDeniedException) throw e
         log.error(e) { "처리되지 않은 예외" }
+        // @RestControllerAdvice 가 예외를 처리해 Spring MVC 엔 "unhandled" 로 안 보이므로,
+        // 이 500 funnel 에서 명시 캡처한다. DSN 미설정이면 no-op(안전). 4xx 는 이 지점을 안 거쳐 미전송.
+        Sentry.captureException(e)
         return respond(ErrorCode.INTERNAL_ERROR)
     }
 
