@@ -17,10 +17,10 @@ Content-Type: application/json
     client.global.set("refreshToken", response.body.data.refreshToken);
 %}
 
-## 장소 저장 (POST /api/v1/places/save) — placeId 는 요청 바디
+## 장소 저장 (POST /api/v1/saved-places) — placeId 는 요청 바디
 
 ### 1) 장소 저장 (정상) → 201 CREATED
-POST http://localhost:8080/api/v1/places/save
+POST http://localhost:8080/api/v1/saved-places
 Content-Type: application/json
 Authorization: Bearer {{accessToken}}
 
@@ -29,7 +29,7 @@ Authorization: Bearer {{accessToken}}
 }
 
 ### 2) 장소 저장 — 없는 장소 → 404 / 4043 PLACE_NOT_FOUND
-POST http://localhost:8080/api/v1/places/save
+POST http://localhost:8080/api/v1/saved-places
 Content-Type: application/json
 Authorization: Bearer {{accessToken}}
 
@@ -38,7 +38,7 @@ Authorization: Bearer {{accessToken}}
 }
 
 ### 3) 장소 저장 — 같은 장소 재저장 → 409 / 4094 PLACE_ALREADY_SAVED
-POST http://localhost:8080/api/v1/places/save
+POST http://localhost:8080/api/v1/saved-places
 Content-Type: application/json
 Authorization: Bearer {{accessToken}}
 
@@ -47,7 +47,7 @@ Authorization: Bearer {{accessToken}}
 }
 
 ### 4) 장소 저장 — 검증 실패(placeId 음수) → 400 / 4002 VALIDATION_FAILED
-POST http://localhost:8080/api/v1/places/save
+POST http://localhost:8080/api/v1/saved-places
 Content-Type: application/json
 Authorization: Bearer {{accessToken}}
 
@@ -56,7 +56,7 @@ Authorization: Bearer {{accessToken}}
 }
 
 ### 5) 장소 저장 — 토큰 없음 → 401
-POST http://localhost:8080/api/v1/places/save
+POST http://localhost:8080/api/v1/saved-places
 Content-Type: application/json
 
 {
@@ -64,7 +64,7 @@ Content-Type: application/json
 }
 
 ### 6) 장소 저장 (mock) — 저장 없이 고정 성공 응답
-POST http://localhost:8080/api/v1/places/save?mock=true
+POST http://localhost:8080/api/v1/saved-places?mock=true
 Content-Type: application/json
 Authorization: Bearer {{accessToken}}
 
@@ -72,58 +72,58 @@ Authorization: Bearer {{accessToken}}
   "placeId": 101
 }
 
-## 장소 저장 취소 (DELETE /api/v1/places/save/{placeId}) — 멱등: 저장돼 있지 않아도 성공
+## 장소 저장 취소 (DELETE /api/v1/saved-places/{placeId}) — 멱등: 저장돼 있지 않아도 성공
 
 ### 7) 장소 저장 취소 (정상)
-DELETE http://localhost:8080/api/v1/places/save/1
+DELETE http://localhost:8080/api/v1/saved-places/1
 Authorization: Bearer {{accessToken}}
 
 ### 8) 장소 저장 취소 (mock) — 삭제 없이 고정 성공 응답
-DELETE http://localhost:8080/api/v1/places/save/101?mock=true
+DELETE http://localhost:8080/api/v1/saved-places/101?mock=true
 Authorization: Bearer {{accessToken}}
 
-## 저장 장소 조회 (GET /api/v1/my/saved-places)
+## 저장 장소 조회 (GET /api/v1/saved-places)
 
 ### 9) 저장 장소 조회 — 기본(미방문 탭, 최신 저장순, size=10)
-GET http://localhost:8080/api/v1/my/saved-places
+GET http://localhost:8080/api/v1/saved-places
 Authorization: Bearer {{accessToken}}
 
 ### 10) 저장 장소 조회 — 방문 탭 + 카테고리 칩 필터
-GET http://localhost:8080/api/v1/my/saved-places?visited=true&category=CAFE
+GET http://localhost:8080/api/v1/saved-places?visited=true&category=CAFE
 Authorization: Bearer {{accessToken}}
 
 ### 11) 저장 장소 조회 — 커서 페이지네이션(직전 응답의 nextCursor)
-GET http://localhost:8080/api/v1/my/saved-places?cursor=3&size=2
+GET http://localhost:8080/api/v1/saved-places?cursor=3&size=2
 Authorization: Bearer {{accessToken}}
 
 ### 12) 검증 실패 — 잘못된 커서 (400 / 4001 INVALID_INPUT)
-GET http://localhost:8080/api/v1/my/saved-places?cursor=abc
+GET http://localhost:8080/api/v1/saved-places?cursor=abc
 Authorization: Bearer {{accessToken}}
 
 ### 13) 검증 실패 — size 범위 초과 (400 / 4002 VALIDATION_FAILED)
-GET http://localhost:8080/api/v1/my/saved-places?size=100
+GET http://localhost:8080/api/v1/saved-places?size=100
 Authorization: Bearer {{accessToken}}
 
 ### 14) 검증 실패 — 없는 카테고리 enum (400 / 4001 INVALID_INPUT)
-GET http://localhost:8080/api/v1/my/saved-places?category=데이트
+GET http://localhost:8080/api/v1/saved-places?category=데이트
 Authorization: Bearer {{accessToken}}
 
 ### 15) 저장 장소 조회 (mock) — 고정 목 응답(최신 저장순 전체)
-GET http://localhost:8080/api/v1/my/saved-places?mock=true
+GET http://localhost:8080/api/v1/saved-places?mock=true
 Authorization: Bearer {{accessToken}}
 
 ### 16) 모킹 에러 주입 — 404 / 4040 NOT_FOUND
-GET http://localhost:8080/api/v1/my/saved-places?mockError=4040
+GET http://localhost:8080/api/v1/saved-places?mockError=4040
 Authorization: Bearer {{accessToken}}
 
-## 저장 장소 방문 처리 (PATCH /api/v1/my/saved-places/{savedPlaceId}) — 모킹 API, 경로 변수는 저장 레코드 id (장소 id 아님)
+## 저장 장소 방문 처리 (PATCH /api/v1/saved-places/{placeId}) — 모킹 API, 경로 변수는 장소 id (저장 취소와 동일)
 
 ### 17) 저장 장소 방문 처리 (모킹) — 요청 바디 없음
-PATCH http://localhost:8080/api/v1/my/saved-places/3
+PATCH http://localhost:8080/api/v1/saved-places/3
 Authorization: Bearer {{accessToken}}
 
-### 18) 모킹 에러 주입 — 404 / 4040 NOT_FOUND (savedPlaceId를 찾을 수 없음)
-PATCH http://localhost:8080/api/v1/my/saved-places/3?mockError=4040
+### 18) 모킹 에러 주입 — 404 / 4040 NOT_FOUND (placeId를 찾을 수 없음)
+PATCH http://localhost:8080/api/v1/saved-places/3?mockError=4040
 Authorization: Bearer {{accessToken}}
 
 ## 저장함 · 장소 탭 화면 조합 BFF (GET /service/v1/my/saved-places) — 모킹 API

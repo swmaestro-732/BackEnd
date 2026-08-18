@@ -6,7 +6,7 @@ import java.time.Instant
 
 /**
  * 웹 응답 DTO — 저장함 · 장소 탭 화면 조합(BFF). 프론트 화면 계약 형태.
- * 도메인 조회(`GET /api/v1/my/saved-places`)의 저장 레코드·카운트·페이지 메타를 유지하고,
+ * 도메인 조회(`GET /api/v1/saved-places`)의 저장 레코드·카운트·페이지 메타를 유지하고,
  * 각 저장 항목에 장소 요약(이름·카테고리·지역·이미지·좌표 — 디자인 J 밴드)을 덧붙여 내려준다.
  * [from] 이 포트 결과([SavedPlaceScreenResult])를 매핑하고, `?mock=true` 는 [mock] 고정 목을 쓴다.
  */
