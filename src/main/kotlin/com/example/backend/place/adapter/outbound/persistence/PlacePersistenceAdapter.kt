@@ -16,4 +16,9 @@ class PlacePersistenceAdapter(
     override fun findByKakaoIds(kakaoIds: List<String>): List<Place> = placeRepository.findByKakaoIds(kakaoIds)
 
     override fun insertIgnoringConflicts(places: List<Place>) = placeRepository.insertIgnoringConflicts(places)
+
+    override fun findForIndex(
+        afterId: Long?,
+        limit: Int,
+    ): List<Place> = placeRepository.findForIndex(afterId, limit)
 }

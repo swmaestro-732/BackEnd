@@ -81,6 +81,11 @@ class CoursePersistenceAdapter(
 
     override fun decreaseSavesCount(courseId: Long): Int = courseRepository.decreaseSavesCount(courseId)
 
+    override fun findForIndex(
+        afterId: Long?,
+        limit: Int,
+    ): List<Course> = courseRepository.findForIndex(afterId, limit)
+
     /** 코스에 담긴 장소·이미지와 태그 연결을 심는다(생성·편집 공용). */
     private fun insertChildren(
         courseId: Long,

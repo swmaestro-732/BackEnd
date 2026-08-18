@@ -13,4 +13,6 @@ data class OpenSearchProperties(
     val endpoint: String = "",
     val username: String = "",
     val password: String = "",
+    /** 부팅 시 강제 재색인(드리프트 복구). 기본 false. */
+    val reindexOnStartup: Boolean = false,
 )

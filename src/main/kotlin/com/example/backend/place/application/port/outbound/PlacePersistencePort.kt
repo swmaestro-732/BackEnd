@@ -11,4 +11,10 @@ interface PlacePersistencePort {
      * 삽입 결과 id 는 반환하지 않는다. 호출부는 [findByKakaoIds] 로 (기존+방금 삽입+동시 삽입) 전부를 재조회해 확정한다.
      */
     fun insertIgnoringConflicts(places: List<Place>)
+
+    /** 재색인용 — 활성(deleted_at IS NULL) 장소를 id 오름차순으로 afterId 다음부터 limit개. */
+    fun findForIndex(
+        afterId: Long?,
+        limit: Int,
+    ): List<Place>
 }
