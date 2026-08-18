@@ -1,4 +1,4 @@
-package com.example.backend.place.adapter.inbound.web
+package com.example.backend.mobile.place.adapter.inbound.web
 
 /**
  * 장소 리뷰 정렬 기준(field). 방향은 [SortDirection] 으로 따로 지정한다.
