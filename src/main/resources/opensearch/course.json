@@ -1,0 +1,17 @@
+{
+  "properties": {
+    "title": {
+      "type": "text",
+      "analyzer": "nori",
+      "fields": { "keyword": { "type": "keyword" } }
+    },
+    "description": { "type": "text", "analyzer": "nori" },
+    "area": { "type": "keyword" },
+    "visibility": { "type": "keyword" },
+    "isPublished": { "type": "boolean" },
+    "userId": { "type": "keyword" },
+    "likesCnt": { "type": "integer" },
+    "savesCnt": { "type": "integer" },
+    "createdAt": { "type": "date" }
+  }
+}

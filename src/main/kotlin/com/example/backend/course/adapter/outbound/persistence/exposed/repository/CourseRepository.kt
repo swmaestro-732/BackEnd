@@ -15,6 +15,7 @@ import org.jetbrains.exposed.v1.core.ResultRow
 import org.jetbrains.exposed.v1.core.SortOrder
 import org.jetbrains.exposed.v1.core.and
 import org.jetbrains.exposed.v1.core.eq
+import org.jetbrains.exposed.v1.core.greater
 import org.jetbrains.exposed.v1.core.inList
 import org.jetbrains.exposed.v1.core.isNull
 import org.jetbrains.exposed.v1.core.less
@@ -91,6 +92,15 @@ class CourseRepository {
     fun softDelete(courseId: Long): Int {
         val now = Clock.System.now()
         return CourseTable.update({ (CourseTable.id eq courseId) and CourseTable.deletedAt.isNull() }) {
+            it[deletedAt] = now
+            it[status] = CourseStatus.DELETED
+            it[updatedAt] = now
+        }
+    }
+
+    fun softDeleteAllByAuthor(authorId: Long): Int {
+        val now = Clock.System.now()
+        return CourseTable.update({ (CourseTable.userId eq authorId) and CourseTable.deletedAt.isNull() }) {
             it[deletedAt] = now
             it[status] = CourseStatus.DELETED
             it[updatedAt] = now
@@ -237,6 +247,20 @@ class CourseRepository {
             ).limit(size + 1)
             .map(::toSummaryRow)
     }
+
+    /**
+     * 재색인용 — 활성(deleted_at IS NULL) 코스를 id 오름차순으로 afterId 다음부터 limit개 읽어 도메인으로 변환한다.
+     * CourseDocument 는 tags·places 를 무시하므로 빈 리스트로 조립한다(N+1 회피).
+     */
+    fun findForIndex(
+        afterId: Long?,
+        limit: Int,
+    ): List<Course> =
+        CourseEntity
+            .find { (CourseTable.id greater (afterId ?: 0L)) and CourseTable.deletedAt.isNull() }
+            .orderBy(CourseTable.id to SortOrder.ASC)
+            .limit(limit)
+            .map { it.toDomain(emptyList(), emptyList()) }
 
     /** 코스 목록 쿼리의 공통 컬럼을 범용 요약 읽기 모델로 변환한다. */
     private fun toSummaryRow(it: ResultRow): CourseSummaryRow =

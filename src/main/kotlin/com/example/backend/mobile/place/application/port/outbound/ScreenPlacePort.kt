@@ -9,4 +9,10 @@ import com.example.backend.mobile.place.application.port.outbound.dto.ScreenPlac
 interface ScreenPlacePort {
     /** [placeId] 장소를 조회한다. 없거나 삭제됐으면 null. */
     fun findById(placeId: Long): ScreenPlace?
+
+    /**
+     * [placeIds] 장소들을 한 번에 조회한다 — 목록 화면이 항목별 조회(N+1)를 피하려고 쓴다.
+     * 없거나 삭제된 장소는 결과에서 빠지므로 요청 수보다 적을 수 있고, 순서도 보장하지 않는다(호출부가 id 로 매핑).
+     */
+    fun findByIds(placeIds: List<Long>): List<ScreenPlace>
 }

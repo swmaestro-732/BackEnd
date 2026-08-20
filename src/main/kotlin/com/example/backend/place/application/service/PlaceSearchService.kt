@@ -2,12 +2,14 @@ package com.example.backend.place.application.service
 
 import com.example.backend.common.geo.Coordinate
 import com.example.backend.common.persistence.postgis.GeoPoint
+import com.example.backend.place.application.event.PlacesSavedEvent
 import com.example.backend.place.application.port.inbound.PlaceSearchExternalUseCase
 import com.example.backend.place.application.port.inbound.dto.PlaceSearchResult
 import com.example.backend.place.application.port.outbound.AreaCodeLookupPort
 import com.example.backend.place.application.port.outbound.ExternalPlaceSearchPort
 import com.example.backend.place.application.port.outbound.PlacePersistencePort
 import com.example.backend.place.domain.model.Place
+import org.springframework.context.ApplicationEventPublisher
 import org.springframework.stereotype.Service
 import org.springframework.transaction.support.TransactionOperations
 
@@ -27,6 +29,7 @@ class PlaceSearchService(
     private val placePersistencePort: PlacePersistencePort,
     private val areaCodeLookupPort: AreaCodeLookupPort,
     private val transactionOperations: TransactionOperations,
+    private val eventPublisher: ApplicationEventPublisher,
 ) : PlaceSearchExternalUseCase {
     override fun search(
         query: String,
@@ -74,14 +77,19 @@ class PlaceSearchService(
 
         // 삽입 후 재조회로 확정한다 — 기존 + 방금 삽입분을 집는다.
         // (kakao_place_id 유니크 인덱스를 걸면, 동시 경합으로 내 insert 가 무시돼도 상대가 넣은 row 를 이 재조회가 집어 요청이 실패하지 않는다.)
+        // 삽입+확정 재조회와 같은 트랜잭션 안에서 이벤트를 발행해 커밋에 바인딩한다 — AFTER_COMMIT 리스너가
+        // 커밋 후 비동기로 색인한다(롤백 시 색인 안 함 → 고스트 문서 방지, fail-soft 는 어댑터가 담당).
         val placeByKakao =
             transactionOperations
                 .execute { _ ->
                     if (toInsert.isNotEmpty()) placePersistencePort.insertIgnoringConflicts(toInsert)
-                    placePersistencePort
-                        .findByKakaoIds(allKakaoIds)
-                        .mapNotNull { place -> place.kakaoPlaceId?.let { it to place } }
-                        .toMap()
+                    val map =
+                        placePersistencePort
+                            .findByKakaoIds(allKakaoIds)
+                            .mapNotNull { place -> place.kakaoPlaceId?.let { it to place } }
+                            .toMap()
+                    eventPublisher.publishEvent(PlacesSavedEvent(map.values.toList())) // 커밋 후 색인(AFTER_COMMIT 리스너)
+                    map
                 }.orEmpty()
 
         return external.mapNotNull { ext ->

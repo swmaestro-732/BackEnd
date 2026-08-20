@@ -3,8 +3,10 @@ package com.example.backend.user.adapter.outbound.persistence
 import com.example.backend.user.adapter.outbound.persistence.exposed.repository.SavedCourseFolderRepository
 import com.example.backend.user.adapter.outbound.persistence.exposed.repository.SavedCourseRepository
 import com.example.backend.user.application.port.outbound.CourseFolderCountRow
+import com.example.backend.user.application.port.outbound.CourseFolderRow
 import com.example.backend.user.application.port.outbound.SavedCoursePersistencePort
 import com.example.backend.user.application.port.outbound.SavedCourseRow
+import com.example.backend.user.domain.model.CourseFolder
 import com.example.backend.user.domain.model.SavedCourse
 import org.springframework.stereotype.Component
 
@@ -34,6 +36,15 @@ class SavedCoursePersistenceAdapter(
         folderId: Long?,
     ): SavedCourse = savedCourseRepository.insert(userId, courseId, folderId)
 
+    override fun findAliveSavedCourseIds(userId: Long): List<Long> =
+        savedCourseRepository.findAliveSavedCourseIds(userId)
+
+    override fun deleteAllByUser(userId: Long) {
+        // 저장 코스(saved_courses.folder_id → saved_course_folders FK)를 먼저 지운 뒤 폴더를 지운다.
+        savedCourseRepository.deleteAllByUser(userId)
+        savedCourseFolderRepository.deleteAllByUser(userId)
+    }
+
     override fun deleteByUserAndCourse(
         userId: Long,
         courseId: Long,
@@ -53,5 +64,19 @@ class SavedCoursePersistenceAdapter(
         limit: Int,
     ): List<SavedCourseRow> = savedCourseRepository.findPage(userId, folderId, completed, cursorId, limit)
 
+    override fun existsFolderName(
+        userId: Long,
+        name: String,
+    ): Boolean = savedCourseFolderRepository.existsByName(userId, name)
+
+    override fun insertFolder(
+        userId: Long,
+        name: String,
+    ): CourseFolder = savedCourseFolderRepository.insert(userId, name)
+
+    override fun findFolders(userId: Long): List<CourseFolderRow> = savedCourseFolderRepository.findByUser(userId)
+
     override fun listFolders(userId: Long): List<CourseFolderCountRow> = savedCourseFolderRepository.listFolders(userId)
+
+    override fun countWithoutFolder(userId: Long): Long = savedCourseRepository.countWithoutFolder(userId)
 }

@@ -19,6 +19,8 @@ class UserPersistenceAdapter(
 
     override fun findById(id: Long): User? = userRepository.findById(id)
 
+    override fun lockActive(userIds: List<Long>): Set<Long> = userRepository.lockActive(userIds)
+
     override fun findByHandle(handle: String): User? = userRepository.findByHandle(handle)
 
     override fun findProfile(userId: Long): UserProfileRow? = userRepository.findProfile(userId)

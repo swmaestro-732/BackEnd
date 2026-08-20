@@ -14,9 +14,7 @@ class CourseCounterService(
     private val coursePersistencePort: CoursePersistencePort,
 ) : CourseCounterUseCase {
     @Transactional
-    override fun increaseSavesCount(courseId: Long) {
-        coursePersistencePort.increaseSavesCount(courseId)
-    }
+    override fun increaseSavesCount(courseId: Long): Int = coursePersistencePort.increaseSavesCount(courseId)
 
     @Transactional
     override fun decreaseSavesCount(courseId: Long) {

@@ -2,7 +2,7 @@ package com.example.backend.media.adapter.outbound.s3
 
 import com.example.backend.bootstrap.config.MediaProperties
 import com.example.backend.media.application.port.outbound.MediaStoragePort
-import org.slf4j.LoggerFactory
+import io.github.oshai.kotlinlogging.KotlinLogging
 import org.springframework.stereotype.Component
 import software.amazon.awssdk.services.s3.S3Client
 import software.amazon.awssdk.services.s3.model.PutObjectRequest
@@ -15,7 +15,7 @@ class S3MediaStorageAdapter(
     private val s3Client: S3Client,
     private val mediaProperties: MediaProperties,
 ) : MediaStoragePort {
-    private val log = LoggerFactory.getLogger(javaClass)
+    private val log = KotlinLogging.logger {}
 
     override fun presignedPutUrl(
         key: String,
@@ -47,7 +47,7 @@ class S3MediaStorageAdapter(
         try {
             s3Client.deleteObject { it.bucket(mediaProperties.bucket).key(key) }
         } catch (exception: Exception) {
-            log.warn("S3 객체 삭제 실패(무시): key={}", key, exception)
+            log.warn(exception) { "S3 객체 삭제 실패(무시): key=$key" }
         }
     }
 }

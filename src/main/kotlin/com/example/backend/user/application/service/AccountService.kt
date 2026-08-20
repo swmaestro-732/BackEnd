@@ -105,8 +105,14 @@ class AccountService(
         targetId: Long,
     ): FollowResult {
         require(followerId != targetId) { "자기 자신은 팔로우할 수 없습니다." }
-        userPersistencePort.findById(targetId)
-            ?: throw BusinessException(ErrorCode.USER_NOT_FOUND, "사용자를 찾을 수 없습니다: id=$targetId")
+        // 두 사용자 행을 FOR UPDATE 로 잠가 동시 탈퇴 정리와 직렬화한다(활성 검사도 잠금 아래에서 수행).
+        val active = userPersistencePort.lockActive(listOf(followerId, targetId))
+        if (targetId !in active) {
+            throw BusinessException(ErrorCode.USER_NOT_FOUND, "사용자를 찾을 수 없습니다: id=$targetId")
+        }
+        if (followerId !in active) {
+            throw BusinessException(ErrorCode.USER_NOT_FOUND, "사용자를 찾을 수 없습니다: id=$followerId")
+        }
         followPersistencePort.follow(followerId, targetId)
         val followersCnt = userPersistencePort.findProfile(targetId)!!.followersCnt
         return FollowResult(isFollowing = true, followersCnt = followersCnt)
@@ -117,8 +123,14 @@ class AccountService(
         followerId: Long,
         targetId: Long,
     ): FollowResult {
-        userPersistencePort.findById(targetId)
-            ?: throw BusinessException(ErrorCode.USER_NOT_FOUND, "사용자를 찾을 수 없습니다: id=$targetId")
+        // follow 와 같은 행 잠금으로 직렬화한다. 삭제는 멱등이지만 두 사용자 모두 활성일 때만 진행한다(follow 와 대칭).
+        val active = userPersistencePort.lockActive(listOf(followerId, targetId))
+        if (targetId !in active) {
+            throw BusinessException(ErrorCode.USER_NOT_FOUND, "사용자를 찾을 수 없습니다: id=$targetId")
+        }
+        if (followerId !in active) {
+            throw BusinessException(ErrorCode.USER_NOT_FOUND, "사용자를 찾을 수 없습니다: id=$followerId")
+        }
         followPersistencePort.unfollow(followerId, targetId)
         val followersCnt = userPersistencePort.findProfile(targetId)!!.followersCnt
         return FollowResult(isFollowing = false, followersCnt = followersCnt)

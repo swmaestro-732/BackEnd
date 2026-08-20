@@ -47,7 +47,7 @@ data class SavedCourseListResponse(
 
         /**
          * 목 저장 레코드 — 디자인(저장함 · 코스 · 리스트)의 예시 목록 반영. 최신 저장순 고정 응답.
-         * folderId 는 코스 폴더 모킹([com.example.backend.user.adapter.inbound.web.CourseFolderController]: 1 데이트 코스, 2 주말 나들이, 3 혼자 걷기)과,
+         * folderId 는 코스 폴더 목록 모킹([CourseFolderListResponse.mock]: 1 데이트 코스, 2 주말 나들이, 3 혼자 걷기)과,
          * courseId=1 은 코스 상세 목(비 오는 날 성수 감성 카페 코스)과 맞춰 두었다.
          */
         fun mock(): SavedCourseListResponse {

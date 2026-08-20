@@ -59,28 +59,29 @@ Authorization: Bearer {{accessToken}}
   ]
 }
 
-### 코스 생성 — 임시저장 (정상) — 장소·커버 없이도 저장, category 는 null(발행 시 도출)
+### 코스 생성 — 임시저장 (정상) — 제목·커버·사진 없이도 저장, category 는 null(발행 시 도출)
+### 장소 2곳은 임시저장에도 필수. imageUrls 는 생략 가능(0장 허용).
 POST http://localhost:8080/api/v1/courses
 Content-Type: application/json
 Authorization: Bearer {{accessToken}}
 
 {
-  "title": "작성 중인 코스",
-  "description": null,
-  "thumbnailUrl": null,
-  "tags": [],
   "visibility": "PRIVATE",
   "isPublished": false,
-  "places": []
+  "places": [
+    {"placeId": 22, "orderNo": 0},
+    {"placeId": 23, "orderNo": 1}
+  ]
 }
 
 ### 400 / 4001 INVALID_INPUT — 비즈니스 규칙 위반·본문 파싱 실패
 # 발생 경우:
-# - 발행(isPublished=true)인데 places 2곳 미만  ← 아래 예시(0곳)
+# - places 2곳 미만 (발행·임시저장 공통)  ← 아래 예시(0곳)
+# - 발행인데 title 없음
 # - 발행인데 thumbnailUrl(커버) 없음
 # - 발행인데 장소 사진(imageUrls) 0장 (임시저장은 0장 허용)
 # - places 의 orderNo 중복
-# - JSON 손상, 필수 필드 누락(title 등), 타입 오류, visibility 오타(EVERYONE 등)
+# - JSON 손상, 필수 필드 누락(visibility·isPublished·placeId·orderNo), 타입 오류, visibility 오타(EVERYONE 등)
 POST http://localhost:8080/api/v1/courses
 Content-Type: application/json
 Authorization: Bearer {{accessToken}}
@@ -116,6 +117,197 @@ Authorization: Bearer {{accessToken}}
   "places": [
     {"placeId": 101, "orderNo": 1, "caption": null, "imageUrls": ["https://cdn.courmy.app/1.jpg"]}
   ]
+}
+
+### 코스 포크 (실구현) — 경로 courseId 는 "원본", 응답 courseId 는 새로 만들어진 "내" 코스.
+# 포크가 원본에서 가져오는 건 장소 구성(placeId·orderNo)뿐이고 caption·imageUrls·제목·커버·태그·공개설정은
+# 포크하는 사람이 빌더 화면에서 새로 입력한다(기능 정의서 7.2.1 게시물 만들기) — 요청 모양은 코스 생성과 같다.
+# 저장되는 건 새 코스이며 포크라는 사실은 courses.forked_from_id 로 남는다. 인증 필수(토큰의 subject 가 작성자).
+#
+# 장소 유지 규칙: places 에 원본 장소를 일정 수 이상 그대로 담아야 한다(빼는 것만 제한 · 추가는 자유).
+# - 원본이 4곳 이하 → 전부 유지 (한 곳도 뺄 수 없음)
+# - 원본이 5곳 이상 → 절반 이상 유지 (5곳이면 3곳, 6곳이면 3곳, 7곳이면 4곳)
+# 아래 placeId 는 원본 코스가 담고 있는 장소여야 한다 — 로컬 시드에 맞춰 바꿔 쓸 것.
+POST http://localhost:8080/api/v1/courses/1/forks
+Content-Type: application/json
+Authorization: Bearer {{accessToken}}
+
+{
+  "title": "내가 다시 걸은 성수 카페 코스",
+  "description": "원본 보고 따라갔다가 제 사진으로 다시 정리했어요.",
+  "thumbnailUrl": "https://cdn.courmy.app/c42/cover.jpg",
+  "tags": ["성수동", "감성카페"],
+  "visibility": "PUBLIC",
+  "isPublished": true,
+  "places": [
+    {
+      "placeId": 1,
+      "orderNo": 0,
+      "caption": "통창 자리에서 찍은 내 사진",
+      "imageUrls": ["https://cdn.courmy.app/fork/p1-1.jpg"],
+      "walkingMinutes": 6
+    },
+    {
+      "placeId": 2,
+      "orderNo": 1,
+      "caption": "2층이 한산해요",
+      "imageUrls": ["https://cdn.courmy.app/fork/p2-1.jpg"],
+      "walkingMinutes": null
+    }
+  ]
+}
+
+### 코스 포크 — 임시저장 (포크만 해두고 나중에 편집) — 사진 0장·제목 생략 허용(장소 2곳 이상은 공통 규칙)
+POST http://localhost:8080/api/v1/courses/1/forks
+Content-Type: application/json
+Authorization: Bearer {{accessToken}}
+
+{
+  "description": null,
+  "thumbnailUrl": null,
+  "tags": [],
+  "visibility": "PRIVATE",
+  "isPublished": false,
+  "places": [
+    {"placeId": 1, "orderNo": 0, "caption": null, "imageUrls": []},
+    {"placeId": 2, "orderNo": 1, "caption": null, "imageUrls": []}
+  ]
+}
+
+### 코스 포크 — ?mock=true 폴백 (DB 저장 없이 고정 courseId=1 반환, 코스 상세 목과 이어짐)
+POST http://localhost:8080/api/v1/courses/1/forks?mock=true
+Content-Type: application/json
+Authorization: Bearer {{accessToken}}
+
+{
+  "description": null,
+  "thumbnailUrl": null,
+  "tags": [],
+  "visibility": "PRIVATE",
+  "isPublished": false,
+  "places": []
+}
+
+### 코스 포크 — 400 / 4002 VALIDATION_FAILED (fieldErrors 포함)
+# 발생 경우: title 200자 초과 · caption 200자 초과 · placeId 0 이하 · orderNo 음수 · places 10개 초과 · 태그 50자 초과
+# 아래 예시는 placeId 가 0 이하 → fieldErrors[0].field = "places[0].placeId"
+POST http://localhost:8080/api/v1/courses/1/forks
+Content-Type: application/json
+Authorization: Bearer {{accessToken}}
+
+{
+  "title": "검증 실패 확인용",
+  "description": null,
+  "thumbnailUrl": null,
+  "tags": [],
+  "visibility": "PUBLIC",
+  "isPublished": true,
+  "places": [
+    {"placeId": -1, "orderNo": 0, "caption": null, "imageUrls": ["https://cdn.courmy.app/1.jpg"]}
+  ]
+}
+
+### 코스 포크 — 400 / 4001 INVALID_INPUT
+# 발생 경우: 본문 누락·JSON 파싱 실패·visibility 오타(아래 예시) · 장소 2곳 미만 · orderNo 중복
+#           · 발행인데 커버 없음·장소 사진 0장
+POST http://localhost:8080/api/v1/courses/1/forks
+Content-Type: application/json
+Authorization: Bearer {{accessToken}}
+
+{
+  "description": null,
+  "thumbnailUrl": null,
+  "tags": [],
+  "visibility": "EVERYONE",
+  "isPublished": false,
+  "places": []
+}
+
+### 코스 포크 — 400 / 4004 FORK_PLACES_NOT_KEPT (원본 장소를 규칙보다 적게 담음)
+# 아래는 장소 3곳(placeId 4·3·2)짜리 코스 9 를 포크하면서 2곳만 담은 예 — 4곳 이하 원본은 전부 담아야 해서 거부된다.
+# 응답 message 가 "원본 장소 3곳 중 3곳 이상을 그대로 담아야 합니다(현재 2곳)." 처럼 필요/현재 개수를 알려준다.
+POST http://localhost:8080/api/v1/courses/9/forks
+Content-Type: application/json
+Authorization: Bearer {{accessToken}}
+
+{
+  "description": null,
+  "thumbnailUrl": null,
+  "tags": [],
+  "visibility": "PRIVATE",
+  "isPublished": false,
+  "places": [
+    {"placeId": 4, "orderNo": 0, "caption": null, "imageUrls": []},
+    {"placeId": 3, "orderNo": 1, "caption": null, "imageUrls": []}
+  ]
+}
+
+### 코스 포크 — 원본 장소 전부 유지 + 내 장소 추가 (허용) — 코스 9(장소 4·3·2)에 1 을 덧붙임
+POST http://localhost:8080/api/v1/courses/9/forks
+Content-Type: application/json
+Authorization: Bearer {{accessToken}}
+
+{
+  "description": null,
+  "thumbnailUrl": null,
+  "tags": [],
+  "visibility": "PRIVATE",
+  "isPublished": false,
+  "places": [
+    {"placeId": 4, "orderNo": 0, "caption": null, "imageUrls": []},
+    {"placeId": 3, "orderNo": 1, "caption": null, "imageUrls": []},
+    {"placeId": 2, "orderNo": 2, "caption": null, "imageUrls": []},
+    {"placeId": 1, "orderNo": 3, "caption": "내가 추가한 스팟", "imageUrls": []}
+  ]
+}
+
+### 코스 포크 — 없는 원본·삭제됨·비활성·볼 수 없는 공개범위(타인 PRIVATE·비팔로워 FOLLOWER) → 404 / 4041
+# 원본을 볼 수 있어야 포크할 수 있다 — 코스 상세와 같은 규칙으로, 존재를 드러내지 않으려 전부 404 로 통일.
+POST http://localhost:8080/api/v1/courses/99999/forks
+Content-Type: application/json
+Authorization: Bearer {{accessToken}}
+
+{
+  "description": null,
+  "thumbnailUrl": null,
+  "tags": [],
+  "visibility": "PRIVATE",
+  "isPublished": false,
+  "places": [
+    {"placeId": 1, "orderNo": 0, "caption": null, "imageUrls": []},
+    {"placeId": 2, "orderNo": 1, "caption": null, "imageUrls": []}
+  ]
+}
+
+### 코스 포크 — 없는 장소 포함 → 404 / 4043 PLACE_NOT_FOUND (발행·임시저장 공통)
+POST http://localhost:8080/api/v1/courses/1/forks
+Content-Type: application/json
+Authorization: Bearer {{accessToken}}
+
+{
+  "description": null,
+  "thumbnailUrl": null,
+  "tags": [],
+  "visibility": "PRIVATE",
+  "isPublished": false,
+  "places": [
+    {"placeId": 9999, "orderNo": 0, "caption": null, "imageUrls": []},
+    {"placeId": 1, "orderNo": 1, "caption": null, "imageUrls": []}
+  ]
+}
+
+### 코스 포크 — mockError 주입 (에러 화면 확인용)
+POST http://localhost:8080/api/v1/courses/1/forks?mockError=4041
+Content-Type: application/json
+Authorization: Bearer {{accessToken}}
+
+{
+  "description": null,
+  "thumbnailUrl": null,
+  "tags": [],
+  "visibility": "PUBLIC",
+  "isPublished": false,
+  "places": []
 }
 
 ### 코스 삭제 (실구현, soft delete) — 소유자만·deleted_at 스탬프. data 없이 message "코스가 삭제되었습니다." 반환.

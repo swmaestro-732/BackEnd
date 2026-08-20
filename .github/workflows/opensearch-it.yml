@@ -1,0 +1,66 @@
+name: OpenSearch IT
+
+# OpenSearch 실연결 통합테스트(Testcontainers). 무거워서(이미지 풀+기동) 매 PR CI 에는 넣지 않고,
+# OpenSearch 관련 코드가 바뀐 PR(main/develop)·develop 푸시에서 돈다. 수동 실행(workflow_dispatch)도 허용.
+on:
+  push:
+    branches: [develop]
+    paths:
+      - "**/OpenSearch*.kt" # Config·Properties·HealthIndicator·Initializer·Runner·색인 어댑터·통합테스트
+      - "**/opensearch/*.json" # 인덱스 매핑(place.json·course.json)
+      - "**/*SearchIndexPort.kt" # 색인 아웃바운드 포트
+      - "**/*Reindex*.kt" # 재색인 유스케이스·서비스
+      - "**/PlaceSearchService.kt" # place 색인 훅
+      - "**/CourseService.kt" # course 색인 훅
+      - "build.gradle.kts" # opensearch-java·httpclient5·testcontainers 의존성
+      - ".github/workflows/opensearch-it.yml"
+  pull_request:
+    branches: [main, develop]
+    paths:
+      - "**/OpenSearch*.kt"
+      - "**/opensearch/*.json"
+      - "**/*SearchIndexPort.kt"
+      - "**/*Reindex*.kt"
+      - "**/PlaceSearchService.kt"
+      - "**/CourseService.kt"
+      - "build.gradle.kts"
+      - ".github/workflows/opensearch-it.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  opensearch-it:
+    name: opensearch integration test
+    runs-on: ubuntu-latest
+    services:
+      postgres: # IntegrationTestBase 가 전체 컨텍스트를 띄우므로 DB 필요(build & test 잡과 동일)
+        image: postgis/postgis:16-3.5
+        env:
+          POSTGRES_DB: backend_test
+          POSTGRES_USER: test
+          POSTGRES_PASSWORD: test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+      - uses: gradle/actions/setup-gradle@v4
+
+      - name: Run OpenSearch integration test
+        run: ./gradlew opensearchIt --no-daemon
+        env:
+          SPRING_DATASOURCE_URL: jdbc:postgresql://localhost:5432/backend_test
+          SPRING_DATASOURCE_USERNAME: test
+          SPRING_DATASOURCE_PASSWORD: test

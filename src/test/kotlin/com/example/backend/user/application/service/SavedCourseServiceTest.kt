@@ -2,18 +2,18 @@ package com.example.backend.user.application.service
 
 import com.example.backend.common.exception.BusinessException
 import com.example.backend.common.response.ErrorCode
-import com.example.backend.course.application.port.inbound.CourseCounterUseCase
-import com.example.backend.course.application.port.inbound.CourseQueryUseCase
-import com.example.backend.course.application.port.inbound.dto.AuthorCourseCursor
-import com.example.backend.course.application.port.inbound.dto.CourseDetailResult
-import com.example.backend.course.application.port.inbound.dto.CourseSummary
-import com.example.backend.course.application.port.inbound.dto.CourseSummaryPage
-import com.example.backend.course.application.port.inbound.dto.FeedCursor
 import com.example.backend.user.application.port.inbound.dto.SavedCoursesCommand
+import com.example.backend.user.application.port.outbound.CourseAccessPort
 import com.example.backend.user.application.port.outbound.CourseFolderCountRow
+import com.example.backend.user.application.port.outbound.CourseFolderRow
 import com.example.backend.user.application.port.outbound.SavedCoursePersistencePort
 import com.example.backend.user.application.port.outbound.SavedCourseRow
+import com.example.backend.user.application.port.outbound.UserPersistencePort
+import com.example.backend.user.application.port.outbound.UserProfileRow
+import com.example.backend.user.domain.model.CourseFolder
 import com.example.backend.user.domain.model.SavedCourse
+import com.example.backend.user.domain.model.SocialProvider
+import com.example.backend.user.domain.model.User
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertNull
@@ -23,35 +23,25 @@ import org.junit.jupiter.api.assertThrows
 import java.time.Instant
 
 class SavedCourseServiceTest {
-    private val fakeCourseQuery =
-        object : CourseQueryUseCase {
+    private val fakeCourseAccess =
+        object : CourseAccessPort {
             var existing: Set<Long> = emptySet()
 
-            override fun existsById(courseId: Long): Boolean = courseId in existing
+            // 실제 갱신 행 수를 반환한다. 0 = 코스가 (동시 삭제 등으로) 비활성 → save 가 롤백해야 한다.
+            var increaseReturn = 1
+            val increasedCourseIds = mutableListOf<Long>()
+            val decreasedCourseIds = mutableListOf<Long>()
 
-            override fun getDetail(
-                courseId: Long,
-                viewerId: Long?,
-            ): CourseDetailResult = error("이 테스트에서 사용하지 않는다")
+            override fun existsCourse(courseId: Long): Boolean = courseId in existing
 
-            override fun getDetails(
-                courseIds: List<Long>,
-                viewerId: Long?,
-            ): List<CourseDetailResult> = emptyList()
+            override fun increaseSavesCount(courseId: Long): Int {
+                increasedCourseIds += courseId
+                return increaseReturn
+            }
 
-            override fun listByAuthor(
-                authorId: Long,
-                viewerId: Long?,
-                cursor: AuthorCourseCursor?,
-                size: Int,
-            ): CourseSummaryPage = CourseSummaryPage(emptyList(), hasNext = false)
-
-            override fun listDraftsByAuthor(authorId: Long): List<CourseSummary> = emptyList()
-
-            override fun listPublic(
-                cursor: FeedCursor?,
-                size: Int,
-            ): CourseSummaryPage = CourseSummaryPage(items = emptyList(), hasNext = false)
+            override fun decreaseSavesCount(courseId: Long) {
+                decreasedCourseIds += courseId
+            }
         }
 
     private val fakePort =
@@ -60,11 +50,17 @@ class SavedCourseServiceTest {
             var savedCourses: Set<Pair<Long, Long>> = emptySet()
             var pageRows: List<SavedCourseRow> = emptyList()
             var countReturn: Long = 0
+            var folderNames: Set<Pair<Long, String>> = emptySet()
+            var folderRows: List<CourseFolderRow> = emptyList()
+            var folderCountRows: List<CourseFolderCountRow> = emptyList()
+            var withoutFolderCount: Long = 0
 
             // 호출 캡처
             var insertArgs: Triple<Long, Long, Long?>? = null
+            var insertFolderArgs: Pair<Long, String>? = null
             var deleteArgs: Pair<Long, Long>? = null
             var findPageArgs: FindPageArgs? = null
+            var findFoldersArg: Long? = null
 
             override fun existsFolder(
                 userId: Long,
@@ -99,6 +95,10 @@ class SavedCourseServiceTest {
                 return true
             }
 
+            override fun findAliveSavedCourseIds(userId: Long): List<Long> = emptyList()
+
+            override fun deleteAllByUser(userId: Long) {}
+
             override fun count(
                 userId: Long,
                 folderId: Long?,
@@ -116,32 +116,120 @@ class SavedCourseServiceTest {
                 return pageRows
             }
 
-            override fun listFolders(userId: Long): List<CourseFolderCountRow> = emptyList()
-        }
+            override fun existsFolderName(
+                userId: Long,
+                name: String,
+            ): Boolean = (userId to name) in folderNames
 
-    private val fakeCourseCounter =
-        object : CourseCounterUseCase {
-            var increasedCourseIds: MutableList<Long> = mutableListOf()
-            var decreasedCourseIds: MutableList<Long> = mutableListOf()
-
-            override fun increaseSavesCount(courseId: Long) {
-                increasedCourseIds += courseId
+            override fun insertFolder(
+                userId: Long,
+                name: String,
+            ): CourseFolder {
+                insertFolderArgs = userId to name
+                return CourseFolder(id = 300L, userId = userId, name = name, orderNo = 0)
             }
 
-            override fun decreaseSavesCount(courseId: Long) {
-                decreasedCourseIds += courseId
+            override fun findFolders(userId: Long): List<CourseFolderRow> {
+                findFoldersArg = userId
+                return folderRows
             }
+
+            override fun listFolders(userId: Long): List<CourseFolderCountRow> = folderCountRows
+
+            override fun countWithoutFolder(userId: Long): Long = withoutFolderCount
         }
 
-    private val service = SavedCourseService(fakePort, fakeCourseQuery, fakeCourseCounter)
+    private val fakeUserPort =
+        object : UserPersistencePort {
+            // 기본은 전부 활성으로 취급(락 통과). 특정 테스트에서 탈퇴 유저를 흉내내려면 이 집합을 좁힌다.
+            var activeUserIds: Set<Long>? = null
+
+            override fun lockActive(userIds: List<Long>): Set<Long> =
+                activeUserIds?.let { active -> userIds.filterTo(mutableSetOf()) { it in active } }
+                    ?: userIds.toSet()
+
+            override fun findAll(): List<User> = TODO()
+
+            override fun findById(id: Long): User? = TODO()
+
+            override fun findByHandle(handle: String): User? = TODO()
+
+            override fun findProfile(userId: Long): UserProfileRow? = TODO()
+
+            override fun findProfiles(userIds: List<Long>): List<UserProfileRow> = TODO()
+
+            override fun save(user: User): User = TODO()
+
+            override fun update(user: User) = TODO()
+
+            override fun applyCourseCountDelta(
+                userId: Long,
+                publicDelta: Int,
+                followerDelta: Int,
+                privateDelta: Int,
+            ) = TODO()
+
+            override fun softDelete(user: User) = TODO()
+
+            override fun existsByNickname(nickname: String): Boolean = TODO()
+
+            override fun existsByHandle(handle: String): Boolean = TODO()
+
+            override fun findBySocial(
+                provider: SocialProvider,
+                socialId: String,
+            ): User? = TODO()
+
+            override fun findWithdrawnBySocial(
+                provider: SocialProvider,
+                socialId: String,
+            ): User? = TODO()
+
+            override fun existsByNicknameExcludingUser(
+                nickname: String,
+                excludeUserId: Long,
+            ): Boolean = TODO()
+
+            override fun existsByHandleExcludingUser(
+                handle: String,
+                excludeUserId: Long,
+            ): Boolean = TODO()
+
+            override fun saveWithSocial(user: User): User = TODO()
+
+            override fun reactivate(user: User): User = TODO()
+        }
+
+    private val service = SavedCourseService(fakePort, fakeCourseAccess, fakeUserPort)
 
     private fun row(id: Long) = SavedCourseRow(id = id, folderId = null, courseId = id * 10, savedAt = Instant.EPOCH)
 
     // --- save ---
 
     @Test
+    fun `탈퇴(비활성) 사용자면 USER_NOT_FOUND 를 던지고 저장하지 않는다`() {
+        fakeUserPort.activeUserIds = emptySet() // 락 대상이 활성 행 없음 = 탈퇴/부재
+        fakeCourseAccess.existing = setOf(42L)
+
+        val ex = assertThrows<BusinessException> { service.save(userId = 1L, courseId = 42L, folderId = null) }
+
+        assertEquals(ErrorCode.USER_NOT_FOUND, ex.errorCode)
+        assertNull(fakePort.insertArgs)
+    }
+
+    @Test
+    fun `저장 중 코스가 비활성화되면(saves_cnt 0행) COURSE_NOT_FOUND 로 롤백한다`() {
+        fakeCourseAccess.existing = setOf(42L) // 존재 검증 시점엔 활성
+        fakeCourseAccess.increaseReturn = 0 // 삽입 후 증가 시점엔 삭제됨(0행)
+
+        val ex = assertThrows<BusinessException> { service.save(userId = 1L, courseId = 42L, folderId = null) }
+
+        assertEquals(ErrorCode.COURSE_NOT_FOUND, ex.errorCode)
+    }
+
+    @Test
     fun `저장할 코스가 없으면 COURSE_NOT_FOUND 를 던진다`() {
-        fakeCourseQuery.existing = emptySet()
+        fakeCourseAccess.existing = emptySet()
 
         val ex = assertThrows<BusinessException> { service.save(userId = 1L, courseId = 42L, folderId = null) }
 
@@ -151,7 +239,7 @@ class SavedCourseServiceTest {
 
     @Test
     fun `folderId 가 소유 폴더가 아니면 INVALID_INPUT 을 던진다`() {
-        fakeCourseQuery.existing = setOf(42L)
+        fakeCourseAccess.existing = setOf(42L)
         fakePort.ownedFolders = emptySet()
 
         val ex = assertThrows<BusinessException> { service.save(userId = 1L, courseId = 42L, folderId = 7L) }
@@ -162,7 +250,7 @@ class SavedCourseServiceTest {
 
     @Test
     fun `이미 저장한 코스면 COURSE_ALREADY_SAVED 를 던진다`() {
-        fakeCourseQuery.existing = setOf(42L)
+        fakeCourseAccess.existing = setOf(42L)
         fakePort.savedCourses = setOf(1L to 42L)
 
         val ex = assertThrows<BusinessException> { service.save(userId = 1L, courseId = 42L, folderId = null) }
@@ -173,7 +261,7 @@ class SavedCourseServiceTest {
 
     @Test
     fun `유효하면 폴더와 함께 저장하고 생성된 도메인을 반환한다`() {
-        fakeCourseQuery.existing = setOf(42L)
+        fakeCourseAccess.existing = setOf(42L)
         fakePort.ownedFolders = setOf(1L to 7L)
 
         val result = service.save(userId = 1L, courseId = 42L, folderId = 7L)
@@ -185,7 +273,7 @@ class SavedCourseServiceTest {
 
     @Test
     fun `folderId 가 null 이면 폴더 검증 없이 미분류로 저장한다`() {
-        fakeCourseQuery.existing = setOf(42L)
+        fakeCourseAccess.existing = setOf(42L)
         // ownedFolders 비어 있어도 folderId=null 이면 existsFolder 를 타지 않아 통과해야 한다
 
         val result = service.save(userId = 1L, courseId = 42L, folderId = null)
@@ -251,6 +339,89 @@ class SavedCourseServiceTest {
             }
 
         assertEquals(ErrorCode.INVALID_INPUT, ex.errorCode)
+    }
+
+    // --- createFolder ---
+
+    @Test
+    fun `폴더 생성 시 탈퇴(비활성) 사용자면 USER_NOT_FOUND 를 던지고 만들지 않는다`() {
+        fakeUserPort.activeUserIds = emptySet() // 락 대상이 활성 행 없음 = 탈퇴/부재
+
+        val ex = assertThrows<BusinessException> { service.createFolder(userId = 1L, name = "가고싶다") }
+
+        assertEquals(ErrorCode.USER_NOT_FOUND, ex.errorCode)
+        assertNull(fakePort.insertFolderArgs)
+    }
+
+    @Test
+    fun `같은 이름의 폴더가 이미 있으면 FOLDER_NAME_ALREADY_TAKEN 을 던진다`() {
+        fakePort.folderNames = setOf(1L to "가고싶다")
+
+        val ex = assertThrows<BusinessException> { service.createFolder(userId = 1L, name = "가고싶다") }
+
+        assertEquals(ErrorCode.FOLDER_NAME_ALREADY_TAKEN, ex.errorCode)
+        assertNull(fakePort.insertFolderArgs)
+    }
+
+    @Test
+    fun `이름 중복은 사용자별로 판정한다 - 타인이 쓰는 이름이면 그대로 만든다`() {
+        fakePort.folderNames = setOf(2L to "가고싶다") // 같은 이름이지만 다른 사용자 소유
+
+        val folder = service.createFolder(userId = 1L, name = "가고싶다")
+
+        assertEquals(1L to "가고싶다", fakePort.insertFolderArgs)
+        assertEquals("가고싶다", folder.name)
+    }
+
+    @Test
+    fun `유효하면 폴더를 만들고 생성된 도메인을 반환한다`() {
+        val folder = service.createFolder(userId = 1L, name = "데이트")
+
+        assertEquals(1L to "데이트", fakePort.insertFolderArgs)
+        assertEquals(300L, folder.id)
+        assertEquals(1L, folder.userId)
+        assertEquals("데이트", folder.name)
+    }
+
+    // --- getFolders ---
+
+    @Test
+    fun `폴더 목록은 포트가 준 순서 그대로 id·이름만 매핑한다`() {
+        fakePort.folderRows =
+            listOf(
+                CourseFolderRow(id = 10L, name = "가고싶다"),
+                CourseFolderRow(id = 20L, name = "데이트"),
+            )
+
+        val result = service.getFolders(userId = 1L)
+
+        assertEquals(1L, fakePort.findFoldersArg)
+        assertEquals(listOf(10L to "가고싶다", 20L to "데이트"), result.map { it.id to it.name })
+    }
+
+    @Test
+    fun `폴더가 하나도 없으면 빈 목록을 반환한다`() {
+        fakePort.folderRows = emptyList()
+
+        assertTrue(service.getFolders(userId = 1L).isEmpty())
+    }
+
+    // --- getFolderCounts ---
+
+    @Test
+    fun `폴더별 개수 조회는 미분류 개수를 폴더 합이 아니라 따로 센다`() {
+        fakePort.folderCountRows =
+            listOf(
+                CourseFolderCountRow(id = 10L, name = "가고싶다", count = 2),
+                CourseFolderCountRow(id = 20L, name = "데이트", count = 0),
+            )
+        fakePort.withoutFolderCount = 5 // 폴더 합(2)과 무관한 값이라야 따로 세는 게 드러난다
+
+        val result = service.getFolderCounts(userId = 1L)
+
+        assertEquals(listOf(10L to 2, 20L to 0), result.folders.map { it.id to it.count })
+        assertEquals(listOf("가고싶다", "데이트"), result.folders.map { it.name })
+        assertEquals(5L, result.withoutFolderCount)
     }
 
     private data class FindPageArgs(

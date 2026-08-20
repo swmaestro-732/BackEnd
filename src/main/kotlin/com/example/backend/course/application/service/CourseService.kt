@@ -3,19 +3,27 @@ package com.example.backend.course.application.service
 import com.example.backend.area.application.port.inbound.AreaQueryUseCase
 import com.example.backend.common.exception.BusinessException
 import com.example.backend.common.response.ErrorCode
+import com.example.backend.course.application.event.CourseAuthorWithdrawnEvent
+import com.example.backend.course.application.event.CourseDeletedEvent
+import com.example.backend.course.application.event.CourseSavedEvent
+import com.example.backend.course.application.port.inbound.CourseQueryUseCase
 import com.example.backend.course.application.port.inbound.CourseUseCase
+import com.example.backend.course.application.port.inbound.dto.CoursePlaceResult
 import com.example.backend.course.application.port.inbound.dto.CreateCourseCommand
+import com.example.backend.course.application.port.inbound.dto.CreateCoursePlaceCommand
 import com.example.backend.course.application.port.inbound.dto.EditCourseCommand
+import com.example.backend.course.application.port.inbound.dto.ForkCourseCommand
 import com.example.backend.course.application.port.outbound.AuthorCourseCountPort
 import com.example.backend.course.application.port.outbound.CoursePersistencePort
 import com.example.backend.course.application.port.outbound.CoursePlaceImageRow
 import com.example.backend.course.application.port.outbound.CoursePlaceRow
+import com.example.backend.course.application.port.outbound.PlaceLookupPort
+import com.example.backend.course.application.port.outbound.PlaceRef
 import com.example.backend.course.domain.model.Course
 import com.example.backend.course.domain.model.CoursePlace
 import com.example.backend.course.domain.model.CourseStatus
 import com.example.backend.course.domain.model.CourseVisibility
-import com.example.backend.place.application.port.inbound.PlaceQueryUseCase
-import com.example.backend.place.application.port.inbound.dto.PlaceSummary
+import org.springframework.context.ApplicationEventPublisher
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
 
@@ -23,16 +31,19 @@ import org.springframework.transaction.annotation.Transactional
  * 코스 쓰기(커맨드) 유스케이스 — 생성·편집·삭제. 조회는 [CourseQueryService] 가 담당한다(커맨드/쿼리 분리).
  *
  * 생성/편집: 발행·임시저장 공통. 불변식 검증과 카테고리 도출은 [Course] 애그리거트가 수행하고,
- * 서비스는 카테고리 도출에 필요한 place 카테고리(place 인바운드 포트)만 조회해 넘긴다.
+ * 서비스는 카테고리 도출에 필요한 place 카테고리(아웃바운드 [PlaceLookupPort], ACL)만 조회해 넘긴다.
  * 코스 발행/공개범위변경/삭제로 작성자의 공개범위별 코스 개수가 바뀌면 [AuthorCourseCountPort] 로 반영한다.
  */
 @Service
 @Transactional
 class CourseService(
     private val coursePersistencePort: CoursePersistencePort,
-    private val placeQueryUseCase: PlaceQueryUseCase,
+    // 포크 원본의 조회 가능 여부 판정을 조회 유스케이스와 공유한다(공개범위·팔로우 규칙 중복 방지).
+    private val courseQueryUseCase: CourseQueryUseCase,
+    private val placeLookupPort: PlaceLookupPort,
     private val areaQueryUseCase: AreaQueryUseCase,
     private val authorCourseCountPort: AuthorCourseCountPort,
+    private val eventPublisher: ApplicationEventPublisher,
 ) : CourseUseCase {
     override fun create(command: CreateCourseCommand): Course {
         // fork 원본 코스가 실제로 존재하는지 검증(없으면 404).
@@ -84,6 +95,7 @@ class CourseService(
             removed = null,
             added = if (command.isPublished) command.visibility else null,
         )
+        eventPublisher.publishEvent(CourseSavedEvent(saved)) // 커밋 후 검색 색인(이벤트 — AFTER_COMMIT 리스너)
         return saved
     }
 
@@ -161,7 +173,51 @@ class CourseService(
             removed = if (existing.isPublished) existing.visibility else null,
             added = if (command.isPublished) command.visibility else null,
         )
+        eventPublisher.publishEvent(CourseSavedEvent(updated)) // 커밋 후 검색 색인(이벤트 — AFTER_COMMIT 리스너)
         return updated
+    }
+
+    /**
+     * 코스 포크. 원본은 **장소 구성(어디를 어떤 순서로)만** 물려주고, 그 위의 콘텐츠(장소별 캡션·사진,
+     * 제목·설명·커버·태그·공개 설정)는 포크하는 사람이 새로 입력한 값이라 저장은 생성 경로를 그대로 탄다 —
+     * 포크라는 사실은 courses.forked_from_id 로만 남는다(출처 표시).
+     *
+     * 포크 전에 두 가지를 추가로 검증한다.
+     * 1. **원본을 볼 수 있는지** — 조회와 같은 규칙([CourseQueryUseCase])이라 볼 수 없는 코스
+     *    (없음·삭제·비활성·PRIVATE 타인·FOLLOWER 비팔로워)는 존재를 드러내지 않도록 404 로 막는다.
+     *    자기 코스 포크는 막지 않는다(볼 수 있으므로 통과) — 같은 코스를 다시 기록하는 것도 유효한 사용이다.
+     * 2. **원본 장소를 충분히 담았는지**([requireOriginPlacesKept]) — 포크가 원본과 다른 코스가 되는 것을 막는다.
+     */
+    override fun fork(command: ForkCourseCommand): Course {
+        // 상세와 같은 배치 조회 경로를 쓴다(해시태그를 읽지 않아 단건 조회보다 쿼리가 하나 적다).
+        // 원본 장소는 이 결과에 함께 실려 오므로 유지 검증을 위해 따로 조회하지 않는다.
+        val origin =
+            courseQueryUseCase
+                .getDetails(listOf(command.forkedFromId), command.userId)
+                .firstOrNull()
+                ?: throw BusinessException(
+                    ErrorCode.COURSE_NOT_FOUND,
+                    "원본 코스를 찾을 수 없습니다: id=${command.forkedFromId}",
+                )
+
+        requireOriginPlacesKept(origin.places.map(CoursePlaceResult::placeId), command.places)
+        return create(command.toCreateCommand())
+    }
+
+    private fun requireOriginPlacesKept(
+        originPlaceIds: List<Long>,
+        forkedPlaces: List<CreateCoursePlaceCommand>,
+    ) {
+        val originIds = originPlaceIds.distinct()
+        val required = Course.requiredKeptPlaceCount(originIds.size)
+        val forkedIds = forkedPlaces.map { it.placeId }.toSet()
+        val kept = originIds.count { it in forkedIds }
+        if (kept < required) {
+            throw BusinessException(
+                ErrorCode.FORK_PLACES_NOT_KEPT,
+                "원본 장소 ${originIds.size}곳 중 ${required}곳 이상을 그대로 담아야 합니다(현재 ${kept}곳).",
+            )
+        }
     }
 
     /**
@@ -187,6 +243,14 @@ class CourseService(
             removed = if (existing.isPublished) existing.visibility else null,
             added = null,
         )
+        eventPublisher.publishEvent(CourseDeletedEvent(courseId)) // 커밋 후 검색 색인(이벤트 — AFTER_COMMIT 리스너)
+    }
+
+    override fun deleteAllByAuthor(authorId: Long) {
+        // 회원 탈퇴 정리 — 작성자의 살아있는 코스를 전부 소프트 삭제한다.
+        // 작성자 공개범위별 카운터는 user 도메인이 탈퇴 시 users 행과 함께 0으로 리셋하므로 여기선 코스 행만 정리한다.
+        coursePersistencePort.softDeleteAllByAuthor(authorId)
+        eventPublisher.publishEvent(CourseAuthorWithdrawnEvent(authorId)) // 커밋 후 검색 색인(이벤트 — AFTER_COMMIT 리스너)
     }
 
     /**
@@ -214,9 +278,9 @@ class CourseService(
     /**
      * 발행 코스가 참조하는 place_id 가 모두 실제로 존재하는지 검증하고, 조회한 장소 요약을 돌려준다.
      */
-    private fun requirePlacesExist(placeIds: List<Long>): List<PlaceSummary> {
+    private fun requirePlacesExist(placeIds: List<Long>): List<PlaceRef> {
         val requestedIds = placeIds.distinct()
-        val found = placeQueryUseCase.findPlacesById(requestedIds)
+        val found = placeLookupPort.findPlacesByIds(requestedIds)
         val missing = requestedIds.filterNot { id -> found.any { it.id == id } }
         if (missing.isNotEmpty()) {
             throw BusinessException(ErrorCode.PLACE_NOT_FOUND, "존재하지 않는 장소가 포함되어 있습니다: ids=$missing")
