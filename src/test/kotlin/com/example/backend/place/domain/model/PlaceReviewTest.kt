@@ -83,19 +83,20 @@ class PlaceReviewTest {
     }
 
     @Test
-    fun `태그는 10개까지 고를 수 있다`() {
-        val tags = PlaceReviewTag.entries.take(10)
+    fun `태그는 5개까지 고를 수 있다`() {
+        val tags = PlaceReviewTag.entries.take(5)
 
-        assertEquals(10, review(tags = tags).tags.size)
+        assertEquals(5, review(tags = tags).tags.size)
 
-        assertThrows<IllegalArgumentException> { review(tags = PlaceReviewTag.entries.take(11)) }
+        assertThrows<IllegalArgumentException> { review(tags = PlaceReviewTag.entries.take(6)) }
     }
 
     @Test
     fun `태그 상한은 중복을 접은 뒤 개수로 센다`() {
-        val tags = PlaceReviewTag.entries.take(10) + PlaceReviewTag.entries.take(5)
+        // 중복까지 세면 8개라 상한을 넘지만, 접으면 5개라 통과해야 한다.
+        val tags = PlaceReviewTag.entries.take(5) + PlaceReviewTag.entries.take(3)
 
-        assertEquals(10, review(tags = tags).tags.size)
+        assertEquals(5, review(tags = tags).tags.size)
     }
 
     private fun review(

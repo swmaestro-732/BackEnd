@@ -5,8 +5,8 @@ import kotlin.time.Instant
 /** 리뷰 사진 최대 개수 — 디자인(장소 리뷰 작성 "사진 추가 1/6"). 웹 요청 DTO 의 검증 상한과 같은 값이다. */
 private const val MAX_PHOTOS = 6
 
-/** 한 리뷰에 담을 수 있는 태그 최대 개수 — 디자인 태그 칩 그룹(업종별 6 + 공통) 기준 상한. */
-private const val MAX_TAGS = 10
+/** 한 리뷰에 담을 수 있는 태그 최대 개수 — 웹 요청 DTO 의 검증 상한과 같은 값이다. */
+private const val MAX_TAGS = 5
 
 /** 한마디 남기기 최대 길이 — place_reviews.content(TEXT)에 여유를 둔 입력 상한. */
 private const val MAX_CONTENT_LENGTH = 1000
