@@ -1,0 +1,125 @@
+## 장소 리뷰 작성 (실구현) — Place · place-review
+# 작성은 @CurrentUserId(JWT subject)로 userId 를 뽑고 @AccessTokenRequired 로 access 토큰을 강제한다.
+# 아래 첫 요청(mock 로그인)이 accessToken 을 전역 저장 → 이후 요청은 Authorization 헤더로 재사용한다.
+# (auth.http 를 먼저 실행해 두었다면 이 요청은 건너뛰어도 된다.)
+# 태그 코드 정본은 .ai/taxonomy.md "장소 리뷰 태그" — 코드는 PlaceReviewTag enum 이름의 소문자다.
+
+### 0) 사전: mock 소셜 로그인 — dev accessToken(user id=1) 발급 + 전역 저장
+POST http://localhost:8080/api/v1/auth/social-login?mock=true
+Content-Type: application/json
+
+{
+  "provider": "KAKAO",
+  "idToken": "dev"
+}
+
+> {%
+    client.global.set("accessToken", response.body.data.accessToken);
+    client.global.set("refreshToken", response.body.data.refreshToken);
+%}
+
+## 장소 리뷰 작성 (POST /api/v1/places/{placeId}/reviews)
+
+### 1) 리뷰 작성 (별점 + 한마디 + 사진 + 태그) → 201 CREATED
+POST http://localhost:8080/api/v1/places/1/reviews
+Content-Type: application/json
+Authorization: Bearer {{accessToken}}
+
+{
+  "rating": 5,
+  "content": "통창 자리 뷰가 좋아요. 커피도 진하고 맛있었어요.",
+  "photoUrls": [
+    "https://cdn.example.com/places/1/reviews/1-1.jpg",
+    "https://cdn.example.com/places/1/reviews/1-2.jpg"
+  ],
+  "tagCodes": ["coffee", "view"]
+}
+
+### 2) 리뷰 작성 — 별점만(한마디·사진·태그 생략) → 201 CREATED
+POST http://localhost:8080/api/v1/places/1/reviews
+Content-Type: application/json
+Authorization: Bearer {{accessToken}}
+
+{
+  "rating": 4
+}
+
+### 3) 리뷰 작성 — 같은 장소에 또 작성 → 201 CREATED (재방문마다 남길 수 있어 막지 않는다)
+POST http://localhost:8080/api/v1/places/1/reviews
+Content-Type: application/json
+Authorization: Bearer {{accessToken}}
+
+{
+  "rating": 3,
+  "content": "주말 오후엔 자리가 거의 없어요."
+}
+
+### 4) 리뷰 작성 — 없는 장소 → 404 / 4043 PLACE_NOT_FOUND
+POST http://localhost:8080/api/v1/places/999999/reviews
+Content-Type: application/json
+Authorization: Bearer {{accessToken}}
+
+{
+  "rating": 4
+}
+
+### 5) 리뷰 작성 — 모르는 태그 코드 → 400 / 4001 INVALID_INPUT
+POST http://localhost:8080/api/v1/places/1/reviews
+Content-Type: application/json
+Authorization: Bearer {{accessToken}}
+
+{
+  "rating": 4,
+  "tagCodes": ["nosuchtag"]
+}
+
+### 6) 리뷰 작성 — 별점 범위 밖 → 400 / 4002 VALIDATION_FAILED (fieldErrors: rating)
+POST http://localhost:8080/api/v1/places/1/reviews
+Content-Type: application/json
+Authorization: Bearer {{accessToken}}
+
+{
+  "rating": 6
+}
+
+### 7) 리뷰 작성 — 사진 7장(상한 6) → 400 / 4002 VALIDATION_FAILED (fieldErrors: photoUrls)
+POST http://localhost:8080/api/v1/places/1/reviews
+Content-Type: application/json
+Authorization: Bearer {{accessToken}}
+
+{
+  "rating": 4,
+  "photoUrls": ["1.jpg", "2.jpg", "3.jpg", "4.jpg", "5.jpg", "6.jpg", "7.jpg"]
+}
+
+### 8) 리뷰 작성 — 토큰 없음 → 401
+POST http://localhost:8080/api/v1/places/1/reviews
+Content-Type: application/json
+
+{
+  "rating": 4
+}
+
+### 9) 리뷰 작성 — mock 폴백(저장 없이 고정 reviewId=7) → 201 CREATED
+POST http://localhost:8080/api/v1/places/1/reviews?mock=true
+Content-Type: application/json
+Authorization: Bearer {{accessToken}}
+
+{
+  "rating": 4
+}
+
+### 10) 리뷰 작성 — 모킹 에러 주입(?mockError=4040) → 404
+POST http://localhost:8080/api/v1/places/1/reviews?mockError=4040
+Content-Type: application/json
+Authorization: Bearer {{accessToken}}
+
+{
+  "rating": 4
+}
+
+## 장소 리뷰 삭제 (DELETE /api/v1/places/{placeId}/reviews/{reviewId}) — **모킹**(실구현 별도 티켓)
+
+### 11) 리뷰 삭제 → 200 (삭제하지 않고 고정 성공 메시지)
+DELETE http://localhost:8080/api/v1/places/1/reviews/1
+Authorization: Bearer {{accessToken}}
