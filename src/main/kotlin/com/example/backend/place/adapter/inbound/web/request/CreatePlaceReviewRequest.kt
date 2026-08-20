@@ -9,7 +9,7 @@ import jakarta.validation.constraints.Size
 /** 리뷰 사진 최대 개수 — 디자인(장소 리뷰 작성 "사진 추가 1/6"). */
 private const val MAX_PHOTOS = 6
 
-/** 한 리뷰에 선택할 수 있는 태그 최대 개수 — 디자인 태그 칩 그룹(업종별 6 + 공통) 기준 상한. */
+/** 한 리뷰에 선택할 수 있는 태그 최대 개수 — 도메인 불변식([com.example.backend.place.domain.model.PlaceReview])과 같은 값이다. */
 private const val MAX_TAGS = 5
 
 /** 장소 리뷰 생성 요청 — 웹 어댑터 DTO. */
