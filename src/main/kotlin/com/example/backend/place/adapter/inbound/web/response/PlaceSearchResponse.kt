@@ -40,23 +40,15 @@ data class PlaceSearchResponse(
 
         /**
          * 실구현 검색 결과([PlaceSummaryPage]) → 응답 매핑. 커서 페이지네이션을 반영한다 —
-         * [nextCursor] 는 다음 페이지가 있을 때만 이 페이지 **마지막 장소의 id**(id 오름차순 seek 전제),
-         * [totalCount] 는 검색어에 매칭되는 전체 개수다. 정렬·뷰포트 필터는 후속 과제.
+         * [nextCursor] 는 서비스가 발급한 불투명 커서를 그대로 내려준다(경로별 형식은 웹 계층이 모른다),
+         * [totalCount] 는 검색어에 매칭되는 전체 개수다. 뷰포트 필터·거리 정렬은 후속 과제.
          *
          * 리뷰/저장 필드(averageRating·reviewCount·hasSaved)와 walkingMinutes 는 아직 소스가 없어 기본값으로 둔다(후속).
          */
         fun from(page: PlaceSummaryPage): PlaceSearchResponse =
             PlaceSearchResponse(
                 totalCount = page.totalCount,
-                nextCursor =
-                    if (page.hasNext) {
-                        page.items
-                            .last()
-                            .id
-                            .toString()
-                    } else {
-                        null
-                    },
+                nextCursor = page.nextCursor,
                 hasNext = page.hasNext,
                 places = page.items.map { it.toItem() },
             )

@@ -17,8 +17,9 @@ import org.springframework.web.bind.annotation.RestController
 /**
  * 인바운드 어댑터 — 장소(노션 명세 · Place).
  *
- * - [search] 장소 검색(`GET /api/v1/places`): **실구현** — 인바운드 포트([PlaceQueryUseCase])로 이름 부분 일치
- *   (`name LIKE '%q%'`) DB 검색 + id 커서 페이지네이션(`cursor`/`size` ↔ `nextCursor`/`hasNext`)을 한다.
+ * - [search] 장소 검색(`GET /api/v1/places`): **실구현** — 인바운드 포트([PlaceQueryUseCase])로 검색한다.
+ *   OpenSearch 우선(지역·카테고리 토큰 해석 + 텍스트 검색), 미가용·실패 시 DB LIKE 폴백. 커서는 불투명
+ *   토큰이다(`cursor`/`size` ↔ `nextCursor`/`hasNext` — 형식은 서비스 내부, 클라이언트는 해석하지 않는다).
  *   시드 데이터가 없는 개발 환경을 위해 `?mock=true` 고정 응답([PlaceSearchResponse.mock]) 폴백을 유지한다.
  *   모킹 에러(`?mockError=<code>`)는 전역 아스펙트([com.example.backend.bootstrap.mock.MockErrorAspect])가 주입한다.
  *
