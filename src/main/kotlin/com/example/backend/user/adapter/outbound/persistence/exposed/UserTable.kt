@@ -27,7 +27,7 @@ internal object UserTable : LongIdTable("users") {
     val publicCoursesCnt = integer("public_courses_cnt")
     val followerCoursesCnt = integer("follower_courses_cnt")
     val privateCoursesCnt = integer("private_courses_cnt")
-    val status = short("status")
+    val status = enumerationByName<UserStatus>("status", 32)
     val socialProvider = varchar("social_provider", 20).nullable()
     val socialId = varchar("social_id", 255).nullable()
     val deletedAt = timestamp("deleted_at").nullable()
@@ -66,6 +66,6 @@ internal class UserEntity(
             profileImageUrl = profileImageUrl,
             socialProvider = socialProvider?.let(SocialProvider::valueOf),
             socialId = socialId,
-            status = UserStatus.fromCode(status),
+            status = status,
         )
 }

@@ -164,7 +164,7 @@ class UserRepository(
         val id = checkNotNull(user.id) { "영속화된 User 는 id 를 가진다." }
         UserTable.update({ (UserTable.id eq id) and UserTable.deletedAt.isNull() }) {
             it[deletedAt] = clock.instant().toKotlinInstant()
-            it[status] = user.status.code
+            it[status] = user.status
             // handle 은 탈퇴 시 즉시 해제(NULL)해 재사용 가능하게 한다 — 죽은 계정이 핸들을 영구 점유하지 않도록.
             // handle 은 nullable 이고 UNIQUE 는 NULL 다중 허용이라, existsByHandle 은 NULL 아닌 값만 매칭돼 자연히 활성 행만 본다.
             it[handle] = null
@@ -273,7 +273,7 @@ class UserRepository(
         val updated =
             UserTable.update({ (UserTable.id eq id) and UserTable.deletedAt.isNotNull() }) {
                 // 재활성화는 항상 ACTIVE 로 되살린다(반환 도메인 객체의 고정 status 와 일치).
-                it[status] = UserStatus.ACTIVE.code
+                it[status] = UserStatus.ACTIVE
                 it[deletedAt] = null
                 it[nickname] = user.nickname
                 it[handle] = user.handle
