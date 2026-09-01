@@ -29,75 +29,62 @@ import org.springframework.transaction.annotation.Transactional
 
 /**
  * 코스 쓰기(커맨드) 유스케이스 — 생성·편집·삭제. 조회는 [CourseQueryService] 가 담당한다(커맨드/쿼리 분리).
- *
- * 생성/편집: 발행·임시저장 공통. 불변식 검증과 카테고리 도출은 [Course] 애그리거트가 수행하고,
- * 서비스는 카테고리 도출에 필요한 place 카테고리(아웃바운드 [PlaceLookupPort], ACL)만 조회해 넘긴다.
- * 코스 발행/공개범위변경/삭제로 작성자의 공개범위별 코스 개수가 바뀌면 [AuthorCourseCountPort] 로 반영한다.
  */
 @Service
 @Transactional
 class CourseService(
     private val coursePersistencePort: CoursePersistencePort,
-    // 포크 원본의 조회 가능 여부 판정을 조회 유스케이스와 공유한다(공개범위·팔로우 규칙 중복 방지).
     private val courseQueryUseCase: CourseQueryUseCase,
     private val placeLookupPort: PlaceLookupPort,
     private val areaQueryUseCase: AreaQueryUseCase,
     private val authorCourseCountPort: AuthorCourseCountPort,
     private val eventPublisher: ApplicationEventPublisher,
 ) : CourseUseCase {
-    override fun create(command: CreateCourseCommand): Course {
-        // fork 원본 코스가 실제로 존재하는지 검증(없으면 404).
-        command.forkedFromId?.let { forkedFromId ->
-            if (!coursePersistencePort.existsById(forkedFromId)) {
-                throw BusinessException(ErrorCode.COURSE_NOT_FOUND, "원본 코스를 찾을 수 없습니다: id=$forkedFromId")
-            }
-        }
-
-        // 참조 place 존재 검증(발행·임시저장 공통 — place_id 는 FK 가 없어 여기서만 걸러진다).
+    override fun 코스생성(command: CreateCourseCommand): Course {
+        command.포크원본검증()
         val foundPlaces = requirePlacesExist(command.places.map { it.placeId })
-        val places =
-            command.places.map {
-                CoursePlace(
-                    placeId = it.placeId,
-                    orderNo = it.orderNo,
-                    caption = it.caption,
-                    imageUrls = it.imageUrls,
-                    walkingMinutes = it.walkingMinutes,
-                )
-            }
+        val saved = coursePersistencePort.save(command.toCourse(foundPlaces))
 
-        // 파생 값(카테고리·지역코드·지역 이름) 도출 — 규칙은 도메인 순수 함수가, 조회(place 요약·지역 이름)는 서비스가 담당한다.
-        // 발행 코스만 도출하며(deriveXxx 가 임시저장이면 null), 검증차 조회한 place 요약을 그대로 재사용한다.
-        val category =
-            Course.deriveCategory(command.isPublished, places, foundPlaces.associate { it.id to it.category })
-        val areaCode =
-            Course.deriveAreaCode(command.isPublished, places, foundPlaces.associate { it.id to it.areaCode })
-
-        val course =
-            Course.create(
-                userId = command.userId,
-                title = command.title,
-                description = command.description,
-                coverImageUrl = command.coverImageUrl,
-                visibility = command.visibility,
-                isPublished = command.isPublished,
-                forkedFromId = command.forkedFromId,
-                tags = command.tags,
-                places = places,
-                category = category,
-                areaCode = areaCode,
-                area = resolveAreaName(areaCode),
-            )
-        val saved = coursePersistencePort.save(course)
-        // 발행 코스만 개수에 잡힌다(임시저장은 제외). 발행이면 해당 공개범위 버킷 +1.
-        adjustAuthorCourseCount(
-            userId = command.userId,
-            removed = null,
-            added = if (command.isPublished) command.visibility else null,
-        )
-        eventPublisher.publishEvent(CourseSavedEvent(saved)) // 커밋 후 검색 색인(이벤트 — AFTER_COMMIT 리스너)
+        if (command.isPublished) {
+            adjustAuthorCourseCount(command.userId, removed = null, added = command.visibility)
+        }
+        eventPublisher.publishEvent(CourseSavedEvent(saved))
         return saved
     }
+
+    private fun CreateCourseCommand.포크원본검증() {
+        val originId = forkedFromId ?: return
+        if (!coursePersistencePort.existsById(originId)) {
+            throw BusinessException(ErrorCode.COURSE_NOT_FOUND)
+        }
+    }
+
+    private fun CreateCourseCommand.toCourse(foundPlaces: List<PlaceRef>): Course =
+        Course.create(
+            userId = userId,
+            title = title,
+            description = description,
+            coverImageUrl = coverImageUrl,
+            visibility = visibility,
+            isPublished = isPublished,
+            forkedFromId = forkedFromId,
+            tags = tags,
+            places = places.toCoursePlaces(),
+            placeCategoryByPlaceId = foundPlaces.associate { it.id to it.category },
+            placeAreaByPlaceId = foundPlaces.associate { it.id to it.areaCode },
+            resolveAreaName = ::resolveAreaName,
+        )
+
+    private fun List<CreateCoursePlaceCommand>.toCoursePlaces(): List<CoursePlace> =
+        map {
+            CoursePlace(
+                placeId = it.placeId,
+                orderNo = it.orderNo,
+                caption = it.caption,
+                imageUrls = it.imageUrls,
+                walkingMinutes = it.walkingMinutes,
+            )
+        }
 
     override fun edit(command: EditCourseCommand): Course {
         // 존재·소유권 검증 — 없거나(삭제 포함)·비활성·타인 소유면 존재를 드러내지 않도록 404(COURSE_NOT_FOUND).
@@ -201,7 +188,7 @@ class CourseService(
                 )
 
         requireOriginPlacesKept(origin.places.map(CoursePlaceResult::placeId), command.places)
-        return create(command.toCreateCommand())
+        return 코스생성(command.toCreateCommand())
     }
 
     private fun requireOriginPlacesKept(

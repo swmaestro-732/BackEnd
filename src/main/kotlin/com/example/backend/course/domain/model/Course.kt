@@ -58,10 +58,6 @@ data class Course private constructor(
                 (originPlaceCount + 1) / 2
             }
 
-        /**
-         * 신규 생성. 파생 값(카테고리·지역코드·지역 이름)은 서비스가 [deriveCategory]·[deriveAreaCode] 로 도출하고
-         * 지역 이름을 area 모듈에서 조회해 넘긴다 — 도메인은 조회(포트 호출)를 하지 않으므로 결과만 받는다.
-         */
         fun create(
             userId: Long,
             title: String,
@@ -72,11 +68,13 @@ data class Course private constructor(
             forkedFromId: Long?,
             tags: List<String>,
             places: List<CoursePlace>,
-            category: CourseCategory?,
-            areaCode: String?,
-            area: String?,
-        ): Course =
-            build(
+            placeCategoryByPlaceId: Map<Long, String>,
+            placeAreaByPlaceId: Map<Long, String?>,
+            resolveAreaName: (String) -> String?,
+        ): Course {
+            val category = deriveCategory(isPublished, places, placeCategoryByPlaceId)
+            val areaCode = deriveAreaCode(isPublished, places, placeAreaByPlaceId)
+            return build(
                 id = null,
                 userId = userId,
                 title = title,
@@ -89,8 +87,9 @@ data class Course private constructor(
                 places = places,
                 category = category,
                 areaCode = areaCode,
-                area = area,
+                area = areaCode?.let(resolveAreaName),
             )
+        }
 
         /**
          * 코스 편집(전체 치환). 이미 영속화된 코스([id])의 전체 상태를 요청 값으로 덮어쓴다.

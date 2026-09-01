@@ -86,11 +86,6 @@ class CourseController(
 
     /**
      * 코스 생성. 발행(isPublished=true)과 임시저장(false)을 함께 처리한다.
-     *
-     * 검증
-     * - 필드 형식·범위(title·tags·places 등)는 Bean Validation([CreateCourseRequest]) → 400 VALIDATION_FAILED + fieldErrors.
-     * - 교차 필드·비즈니스 규칙(장소 2곳 이상, orderNo 중복 금지)은 [CourseUseCase] 가 검증한다 → 400 INVALID_INPUT.
-     *
      * `?mock=true` 이고 [MockGuard] 가 모킹을 허용할 때만 DB 저장 없이 고정 목([CourseIdResponse.MOCK])을
      * 반환하고, 그 외에는 정상 유스케이스 경로를 탄다.
      */
@@ -102,7 +97,7 @@ class CourseController(
         @RequestParam(required = false) mock: Boolean = false,
     ): ApiResponse<CourseIdResponse> {
         if (mock && mockGuard.isMockAllowed()) return ApiResponse.success(CourseIdResponse.MOCK)
-        val course = courseUseCase.create(request.toCommand(userId))
+        val course = courseUseCase.코스생성(request.toCommand(userId))
         return ApiResponse.success(CourseIdResponse.from(course))
     }
 
