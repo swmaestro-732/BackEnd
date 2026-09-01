@@ -1,7 +1,7 @@
 package com.example.backend.mobile.place.application.service
 
 import com.example.backend.common.exception.BusinessException
-import com.example.backend.common.response.ErrorCode
+import com.example.backend.common.response.PlaceErrorCode
 import com.example.backend.mobile.place.application.port.inbound.PlaceDetailScreenUseCase
 import com.example.backend.mobile.place.application.port.inbound.dto.PlaceDetailScreenResult
 import com.example.backend.mobile.place.application.port.outbound.ScreenPlacePort
@@ -22,7 +22,7 @@ class PlaceDetailScreenService(
     override fun getScreen(placeId: Long): PlaceDetailScreenResult {
         val place =
             screenPlacePort.findById(placeId)
-                ?: throw BusinessException(ErrorCode.PLACE_NOT_FOUND, "장소를 찾을 수 없습니다: id=$placeId")
+                ?: throw BusinessException(PlaceErrorCode.PLACE_NOT_FOUND, "장소를 찾을 수 없습니다: id=$placeId")
         return PlaceDetailScreenResult(
             id = place.id,
             name = place.name,

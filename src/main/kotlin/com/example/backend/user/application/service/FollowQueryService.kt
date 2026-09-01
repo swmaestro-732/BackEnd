@@ -1,7 +1,8 @@
 package com.example.backend.user.application.service
 
 import com.example.backend.common.exception.BusinessException
-import com.example.backend.common.response.ErrorCode
+import com.example.backend.common.response.CommonErrorCode
+import com.example.backend.common.response.UserErrorCode
 import com.example.backend.user.application.port.inbound.FollowQueryUseCase
 import com.example.backend.user.application.port.inbound.dto.FollowListCommand
 import com.example.backend.user.application.port.inbound.dto.FollowListResult
@@ -41,7 +42,7 @@ class FollowQueryService(
 
     private fun findProfileOrThrow(targetUserId: Long) =
         userPersistencePort.findProfile(targetUserId)
-            ?: throw BusinessException(ErrorCode.USER_NOT_FOUND, "사용자를 찾을 수 없습니다: id=$targetUserId")
+            ?: throw BusinessException(UserErrorCode.USER_NOT_FOUND, "사용자를 찾을 수 없습니다: id=$targetUserId")
 
     /** 커서 디코드 → +1 조회로 hasNext 판정 → 조회자 기준 관계 배선 → 결과 조립. 팔로워/팔로잉 공통 로직. */
     private fun buildResult(
@@ -79,5 +80,5 @@ class FollowQueryService(
     /** 커서(=follows 레코드 id)를 파싱한다. 형식이 잘못되면 400. */
     private fun decodeCursor(cursor: String): Long =
         cursor.toLongOrNull()
-            ?: throw BusinessException(ErrorCode.INVALID_INPUT, "잘못된 커서입니다: $cursor")
+            ?: throw BusinessException(CommonErrorCode.INVALID_INPUT, "잘못된 커서입니다: $cursor")
 }

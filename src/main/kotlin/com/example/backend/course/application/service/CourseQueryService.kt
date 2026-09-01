@@ -1,7 +1,7 @@
 package com.example.backend.course.application.service
 
 import com.example.backend.common.exception.BusinessException
-import com.example.backend.common.response.ErrorCode
+import com.example.backend.common.response.CourseErrorCode
 import com.example.backend.course.application.port.inbound.CourseQueryUseCase
 import com.example.backend.course.application.port.inbound.dto.AuthorCourseCursor
 import com.example.backend.course.application.port.inbound.dto.CourseDetailResult
@@ -41,7 +41,7 @@ class CourseQueryService(
             .firstOrNull()
             // 해시태그는 코스 상세 화면에서만 쓰므로 단건 조회에서만 읽는다 — 배치([getDetails])는 쿼리를 늘리지 않는다.
             ?.copy(tags = courseTagQueryPort.findTagNamesByCourseId(courseId))
-            ?: throw BusinessException(ErrorCode.COURSE_NOT_FOUND, "코스를 찾을 수 없습니다: id=$courseId")
+            ?: throw BusinessException(CourseErrorCode.COURSE_NOT_FOUND, "코스를 찾을 수 없습니다: id=$courseId")
 
     override fun getDetails(
         courseIds: List<Long>,

@@ -2,7 +2,10 @@ package com.example.backend.bootstrap.exception
 
 import com.example.backend.common.exception.BusinessException
 import com.example.backend.common.response.ApiResponse
+import com.example.backend.common.response.CommonErrorCode
 import com.example.backend.common.response.ErrorCode
+import com.example.backend.common.response.PlaceErrorCode
+import com.example.backend.common.response.UserErrorCode
 import io.github.oshai.kotlinlogging.KotlinLogging
 import io.sentry.Sentry
 import org.jetbrains.exposed.v1.exceptions.ExposedSQLException
@@ -36,7 +39,7 @@ class GlobalExceptionHandler {
             e.bindingResult.fieldErrors.map {
                 ApiResponse.FieldError(it.field, it.defaultMessage ?: "invalid")
             }
-        return respond(ErrorCode.VALIDATION_FAILED, fieldErrors = fieldErrors)
+        return respond(CommonErrorCode.VALIDATION_FAILED, fieldErrors = fieldErrors)
     }
 
     /** Bean Validation 실패(@RequestParam/@PathVariable 등 핸들러 파라미터) → 400 + 필드별 사유. */
@@ -51,13 +54,13 @@ class GlobalExceptionHandler {
                     )
                 }
             }
-        return respond(ErrorCode.VALIDATION_FAILED, fieldErrors = fieldErrors)
+        return respond(CommonErrorCode.VALIDATION_FAILED, fieldErrors = fieldErrors)
     }
 
     /** 요청 본문 파싱 실패(JSON 손상, 필수 필드 누락, enum 값 오류 등) → 400. */
     @ExceptionHandler(HttpMessageNotReadableException::class)
     fun handleUnreadableBody(e: HttpMessageNotReadableException): ResponseEntity<ApiResponse<Nothing?>> =
-        respond(ErrorCode.INVALID_INPUT, "요청 본문 형식이 올바르지 않습니다.")
+        respond(CommonErrorCode.INVALID_INPUT, "요청 본문 형식이 올바르지 않습니다.")
 
     /**
      * 잘못된 요청 인자 → 400.
@@ -66,25 +69,26 @@ class GlobalExceptionHandler {
      */
     @ExceptionHandler(IllegalArgumentException::class)
     fun handleBadRequest(e: IllegalArgumentException): ResponseEntity<ApiResponse<Nothing?>> =
-        respond(ErrorCode.INVALID_INPUT, e.message)
+        respond(CommonErrorCode.INVALID_INPUT, e.message)
 
     /** 경로/쿼리 파라미터 타입 불일치(예: 숫자 자리에 문자) → 400. */
     @ExceptionHandler(MethodArgumentTypeMismatchException::class)
     fun handleTypeMismatch(e: MethodArgumentTypeMismatchException): ResponseEntity<ApiResponse<Nothing?>> =
-        respond(ErrorCode.INVALID_INPUT, "요청 파라미터 형식이 올바르지 않습니다: ${e.name}")
+        respond(CommonErrorCode.INVALID_INPUT, "요청 파라미터 형식이 올바르지 않습니다: ${e.name}")
 
     /** 필수 요청 파라미터 누락(required = true) → 400. */
     @ExceptionHandler(MissingServletRequestParameterException::class)
     fun handleMissingParam(e: MissingServletRequestParameterException): ResponseEntity<ApiResponse<Nothing?>> =
-        respond(ErrorCode.INVALID_INPUT, "필수 요청 파라미터가 누락되었습니다: ${e.parameterName}")
+        respond(CommonErrorCode.INVALID_INPUT, "필수 요청 파라미터가 누락되었습니다: ${e.parameterName}")
 
     /**
      * 조회 실패 등 → 404.
      * `first()`/`single()` 등 표준 라이브러리가 던지는 영어 메시지가 노출되지 않도록
-     * [ErrorCode.NOT_FOUND]의 고정 메시지를 사용한다(리소스별 문구가 필요하면 [BusinessException]으로).
+     * [CommonErrorCode.NOT_FOUND]의 고정 메시지를 사용한다(리소스별 문구가 필요하면 [BusinessException]으로).
      */
     @ExceptionHandler(NoSuchElementException::class)
-    fun handleNotFound(e: NoSuchElementException): ResponseEntity<ApiResponse<Nothing?>> = respond(ErrorCode.NOT_FOUND)
+    fun handleNotFound(e: NoSuchElementException): ResponseEntity<ApiResponse<Nothing?>> =
+        respond(CommonErrorCode.NOT_FOUND)
 
     /** DB UNIQUE 위반 중 제약 대상을 식별할 수 있는 사용자 중복만 409로 변환한다. */
     @ExceptionHandler(ExposedSQLException::class)
@@ -94,11 +98,11 @@ class GlobalExceptionHandler {
             // 폴더(saved_course_folders)를 저장 코스(saved_courses)보다 먼저 본다 — 테이블 이름이 서로 닮아 있다.
             val errorCode =
                 when {
-                    "handle" in message -> ErrorCode.HANDLE_ALREADY_TAKEN
-                    "nickname" in message -> ErrorCode.NICKNAME_ALREADY_TAKEN
-                    "saved_course_folders" in message -> ErrorCode.FOLDER_NAME_ALREADY_TAKEN
-                    "saved_courses" in message -> ErrorCode.COURSE_ALREADY_SAVED
-                    "saved_places" in message -> ErrorCode.PLACE_ALREADY_SAVED
+                    "handle" in message -> UserErrorCode.HANDLE_ALREADY_TAKEN
+                    "nickname" in message -> UserErrorCode.NICKNAME_ALREADY_TAKEN
+                    "saved_course_folders" in message -> UserErrorCode.FOLDER_NAME_ALREADY_TAKEN
+                    "saved_courses" in message -> UserErrorCode.COURSE_ALREADY_SAVED
+                    "saved_places" in message -> PlaceErrorCode.PLACE_ALREADY_SAVED
                     else -> null
                 }
             if (errorCode != null) {
@@ -118,7 +122,7 @@ class GlobalExceptionHandler {
         // @RestControllerAdvice 가 예외를 처리해 Spring MVC 엔 "unhandled" 로 안 보이므로,
         // 이 500 funnel 에서 명시 캡처한다. DSN 미설정이면 no-op(안전). 4xx 는 이 지점을 안 거쳐 미전송.
         Sentry.captureException(e)
-        return respond(ErrorCode.INTERNAL_ERROR)
+        return respond(CommonErrorCode.INTERNAL_ERROR)
     }
 
     private fun respond(
