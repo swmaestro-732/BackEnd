@@ -5,6 +5,7 @@ import com.example.backend.area.application.port.inbound.dto.AreaDescriptor
 import com.example.backend.common.exception.BusinessException
 import com.example.backend.common.response.CommonErrorCode
 import com.example.backend.user.application.port.outbound.AuthTokenPort
+import com.example.backend.user.application.port.outbound.IdentityPersistencePort
 import com.example.backend.user.application.port.outbound.LikeThemePort
 import com.example.backend.user.application.port.outbound.RefreshTokenPort
 import com.example.backend.user.application.port.outbound.RefreshTokenRecord
@@ -14,6 +15,7 @@ import com.example.backend.user.application.port.outbound.UserAreaPersistencePor
 import com.example.backend.user.application.port.outbound.UserLikeThemePort
 import com.example.backend.user.application.port.outbound.UserPersistencePort
 import com.example.backend.user.application.port.outbound.UserProfileRow
+import com.example.backend.user.domain.model.Identity
 import com.example.backend.user.domain.model.SocialProvider
 import com.example.backend.user.domain.model.User
 import com.example.backend.user.domain.model.UserStatus
@@ -40,7 +42,6 @@ class AuthServiceTest {
 
     private val userPersistencePort =
         object : UserPersistencePort {
-            var bySocial: User? = null
             var byId: User? = null
 
             override fun findAll(): List<User> = emptyList()
@@ -72,16 +73,6 @@ class AuthServiceTest {
 
             override fun existsByHandle(handle: String): Boolean = false
 
-            override fun findBySocial(
-                provider: SocialProvider,
-                socialId: String,
-            ): User? = bySocial
-
-            override fun findWithdrawnBySocial(
-                provider: SocialProvider,
-                socialId: String,
-            ): User? = null
-
             override fun existsByNicknameExcludingUser(
                 nickname: String,
                 excludeUserId: Long,
@@ -92,9 +83,27 @@ class AuthServiceTest {
                 excludeUserId: Long,
             ): Boolean = false
 
-            override fun saveWithSocial(user: User): User = user
-
             override fun reactivate(user: User): User = user
+        }
+
+    private val identityPersistencePort =
+        object : IdentityPersistencePort {
+            var activeUser: User? = null
+
+            override fun findActiveUserByCredential(
+                provider: SocialProvider,
+                socialId: String,
+            ): User? = activeUser
+
+            override fun findWithdrawnUserByCredential(
+                provider: SocialProvider,
+                socialId: String,
+            ): User? = null
+
+            override fun register(
+                identity: Identity,
+                primaryUser: User,
+            ): User = primaryUser
         }
 
     private val authTokenPort =
@@ -174,17 +183,16 @@ class AuthServiceTest {
             refreshTokenPort = refreshTokenPort,
             userAreaResolver = UserAreaResolver(areaQueryUseCase),
             userLikeThemeResolver = UserLikeThemeResolver(likeThemePort),
+            identityPersistencePort = identityPersistencePort,
         )
 
     @Test
     fun `정지된 계정은 소셜 로그인 시 ACCOUNT_SUSPENDED 로 거부하고 토큰을 발급하지 않는다`() {
-        userPersistencePort.bySocial =
+        identityPersistencePort.activeUser =
             User.reconstitute(
                 id = 42L,
                 nickname = "정지유저",
                 handle = "suspended_handle",
-                socialProvider = identity.provider,
-                socialId = identity.socialId,
                 status = UserStatus.SUSPENDED,
             )
 
@@ -200,13 +208,11 @@ class AuthServiceTest {
 
     @Test
     fun `정지가 아닌 비활성(PENDING) 계정은 소셜 로그인 시 ACCOUNT_INACTIVE 로 거부한다`() {
-        userPersistencePort.bySocial =
+        identityPersistencePort.activeUser =
             User.reconstitute(
                 id = 43L,
                 nickname = "대기유저",
                 handle = "pending_handle",
-                socialProvider = identity.provider,
-                socialId = identity.socialId,
                 status = UserStatus.PENDING,
             )
 
@@ -236,8 +242,6 @@ class AuthServiceTest {
                 id = 42L,
                 nickname = "정지유저",
                 handle = "suspended_handle",
-                socialProvider = identity.provider,
-                socialId = identity.socialId,
                 status = UserStatus.SUSPENDED,
             )
 

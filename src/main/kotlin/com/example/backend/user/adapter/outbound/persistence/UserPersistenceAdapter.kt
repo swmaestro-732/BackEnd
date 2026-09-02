@@ -3,7 +3,6 @@ package com.example.backend.user.adapter.outbound.persistence
 import com.example.backend.user.adapter.outbound.persistence.exposed.repository.UserRepository
 import com.example.backend.user.application.port.outbound.UserPersistencePort
 import com.example.backend.user.application.port.outbound.UserProfileRow
-import com.example.backend.user.domain.model.SocialProvider
 import com.example.backend.user.domain.model.User
 import org.springframework.stereotype.Component
 
@@ -44,16 +43,6 @@ class UserPersistenceAdapter(
 
     override fun existsByHandle(handle: String): Boolean = userRepository.existsByHandle(handle)
 
-    override fun findBySocial(
-        provider: SocialProvider,
-        socialId: String,
-    ): User? = userRepository.findBySocial(provider, socialId)?.toDomain()
-
-    override fun findWithdrawnBySocial(
-        provider: SocialProvider,
-        socialId: String,
-    ): User? = userRepository.findWithdrawnBySocial(provider, socialId)?.toDomain()
-
     override fun existsByNicknameExcludingUser(
         nickname: String,
         excludeUserId: Long,
@@ -63,8 +52,6 @@ class UserPersistenceAdapter(
         handle: String,
         excludeUserId: Long,
     ): Boolean = userRepository.existsByHandleExcludingUser(handle, excludeUserId)
-
-    override fun saveWithSocial(user: User): User = userRepository.saveWithSocial(user).toDomain()
 
     override fun reactivate(user: User): User = userRepository.reactivate(user).toDomain()
 }
