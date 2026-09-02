@@ -11,7 +11,7 @@ import com.example.backend.course.domain.model.Course
 interface CourseUseCase {
     fun 코스생성(command: CreateCourseCommand): Course
 
-    fun edit(command: EditCourseCommand): Course
+    fun 코스수정(command: EditCourseCommand): Course
 
     fun fork(command: ForkCourseCommand): Course
 

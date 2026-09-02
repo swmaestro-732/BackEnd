@@ -14,6 +14,7 @@ import com.example.backend.course.application.port.inbound.dto.CreateCoursePlace
 import com.example.backend.course.application.port.inbound.dto.EditCourseCommand
 import com.example.backend.course.application.port.inbound.dto.ForkCourseCommand
 import com.example.backend.course.application.port.outbound.AuthorCourseCountPort
+import com.example.backend.course.application.port.outbound.CourseDetailRow
 import com.example.backend.course.application.port.outbound.CoursePersistencePort
 import com.example.backend.course.application.port.outbound.CoursePlaceImageRow
 import com.example.backend.course.application.port.outbound.CoursePlaceRow
@@ -86,83 +87,63 @@ class CourseService(
             )
         }
 
-    override fun edit(command: EditCourseCommand): Course {
-        // 존재·소유권 검증 — 없거나(삭제 포함)·비활성·타인 소유면 존재를 드러내지 않도록 404(COURSE_NOT_FOUND).
+    override fun 코스수정(command: EditCourseCommand): Course {
         val existing =
             coursePersistencePort.findCourseDetail(command.courseId)
-                ?: throw BusinessException(ErrorCode.COURSE_NOT_FOUND, "코스를 찾을 수 없습니다: id=${command.courseId}")
+                ?: throw BusinessException(ErrorCode.COURSE_NOT_FOUND)
         if (existing.status != CourseStatus.ACTIVE || existing.userId != command.userId) {
-            throw BusinessException(ErrorCode.COURSE_NOT_FOUND, "코스를 찾을 수 없습니다: id=${command.courseId}")
+            throw BusinessException(ErrorCode.COURSE_NOT_FOUND)
         }
 
-        val places =
-            command.places.map {
-                CoursePlace(
-                    placeId = it.placeId,
-                    orderNo = it.orderNo,
-                    caption = it.caption,
-                    imageUrls = it.imageUrls,
-                    walkingMinutes = it.walkingMinutes,
-                )
-            }
-
-        // 이미 게시된 코스는 장소 구성(place_id·순서·사진)을 바꿀 수 없고 캡션만 수정할 수 있다.
-        // (임시저장→발행 전환은 existing.isPublished 가 false 라 이 제약에서 자유롭다.)
-        if (existing.isPublished) {
-            val storedPlaces = coursePersistencePort.findPlaces(command.courseId)
-            if (placesStructureChanged(storedPlaces, places)) {
-                throw BusinessException(
-                    ErrorCode.PUBLISHED_COURSE_PLACES_IMMUTABLE,
-                    "게시된 코스는 장소를 추가·삭제·교체하거나 순서·사진을 바꿀 수 없습니다: id=${command.courseId}",
-                )
-            }
-        }
-
-        // 참조 place 존재 검증(발행·임시저장 공통 — place_id 는 FK 가 없어 여기서만 걸러진다).
-        // 발행 코스의 장소 구성 불변(4003) 검증 뒤에 둬 기존 오류 우선순위를 유지한다.
-        val foundPlaces = requirePlacesExist(places.map { it.placeId })
-
-        // 카테고리·지역코드 유지/재도출 판정이 공유한다 — placesChanged 는 DB 조회라 발행 편집에서 한 번만 계산한다.
-        val placesUnchanged = command.isPublished && !placesChanged(command.courseId, places)
-        val areaCode =
-            resolveEditedDerivedValue(command.isPublished, existing.areaCode, placesUnchanged) {
-                Course.deriveAreaCode(command.isPublished, places, foundPlaces.associate { it.id to it.areaCode })
-            }
-
-        val course =
-            Course.edit(
-                id = command.courseId,
-                userId = command.userId,
-                title = command.title,
-                description = command.description,
-                coverImageUrl = command.coverImageUrl,
-                visibility = command.visibility,
-                isPublished = command.isPublished,
-                tags = command.tags,
-                places = places,
-                category =
-                    resolveEditedDerivedValue(command.isPublished, existing.category, placesUnchanged) {
-                        Course.deriveCategory(
-                            command.isPublished,
-                            places,
-                            foundPlaces.associate { it.id to it.category },
-                        )
-                    },
-                areaCode = areaCode,
-                // 지역 이름은 코드에서 결정적으로 풀리므로 유지/재도출 판정 없이 항상 코드로 재해석한다.
-                area = resolveAreaName(areaCode),
+        val newPlaces = command.places.toCoursePlaces()
+        if (existing.isPublished && 장소구성변경여부확인(coursePersistencePort.findPlaces(command.courseId), newPlaces)) {
+            throw BusinessException(
+                ErrorCode.PUBLISHED_COURSE_PLACES_IMMUTABLE,
             )
-        val updated = coursePersistencePort.update(course)
-        // 편집은 ACTIVE 코스만 통과한다(위 가드). 발행 상태·공개범위 전이만큼 작성자 카운터를 조정한다
-        // (초안→발행 +1, 발행→초안 −1, 공개범위 변경 시 old −1·new +1, 변화 없으면 0).
-        adjustAuthorCourseCount(
-            userId = command.userId,
-            removed = if (existing.isPublished) existing.visibility else null,
-            added = if (command.isPublished) command.visibility else null,
+        }
+        val foundPlaces = requirePlacesExist(newPlaces.map { it.placeId })
+
+        return 코스갱신(
+            command.toCourse(existing, newPlaces, foundPlaces),
+            removed = existing.visibility.takeIf { existing.isPublished },
+            added = command.visibility.takeIf { command.isPublished },
         )
-        eventPublisher.publishEvent(CourseSavedEvent(updated)) // 커밋 후 검색 색인(이벤트 — AFTER_COMMIT 리스너)
+    }
+
+    private fun 코스갱신(
+        course: Course,
+        removed: CourseVisibility?,
+        added: CourseVisibility?,
+    ): Course {
+        val updated = coursePersistencePort.update(course)
+        adjustAuthorCourseCount(course.userId, removed, added)
+        eventPublisher.publishEvent(CourseSavedEvent(updated)) // 커밋 후 검색 색인(AFTER_COMMIT 리스너)
         return updated
     }
+
+    private fun EditCourseCommand.toCourse(
+        existing: CourseDetailRow,
+        places: List<CoursePlace>,
+        foundPlaces: List<PlaceRef>,
+    ): Course =
+        Course.edit(
+            id = courseId,
+            userId = userId,
+            title = title,
+            description = description,
+            coverImageUrl = coverImageUrl,
+            visibility = visibility,
+            isPublished = isPublished,
+            tags = tags,
+            places = places,
+            wasPublished = existing.isPublished,
+            existingCategory = existing.category,
+            existingAreaCode = existing.areaCode,
+            existingArea = existing.area,
+            placeCategoryByPlaceId = foundPlaces.associate { it.id to it.category },
+            placeAreaByPlaceId = foundPlaces.associate { it.id to it.areaCode },
+            resolveAreaName = ::resolveAreaName,
+        )
 
     /**
      * 코스 포크. 원본은 **장소 구성(어디를 어떤 순서로)만** 물려주고, 그 위의 콘텐츠(장소별 캡션·사진,
@@ -240,24 +221,6 @@ class CourseService(
         eventPublisher.publishEvent(CourseAuthorWithdrawnEvent(authorId)) // 커밋 후 검색 색인(이벤트 — AFTER_COMMIT 리스너)
     }
 
-    /**
-     * 편집 코스의 파생 값(카테고리·지역코드)을 해석한다 — 두 값이 같은 유지/재도출 규칙을 공유한다.
-     * - 임시저장이면 null(생성과 동일).
-     * - 발행이면서 **기존 값이 있고 장소 구성이 그대로면**([placesUnchanged]) 재도출 없이 기존 값을 유지한다 —
-     *   장소를 바꾸지 않은 편집(제목·설명 등)에서 외부 place 데이터 드리프트로 값이 바뀌는 것을 막는다.
-     * - 그 외(초안→발행, 장소 변경, 값 미지정 코스)에만 [derive] 로 place 데이터에서 도출한다(생성과 동일 규칙).
-     */
-    private fun <T : Any> resolveEditedDerivedValue(
-        isPublished: Boolean,
-        existingValue: T?,
-        placesUnchanged: Boolean,
-        derive: () -> T?,
-    ): T? {
-        if (!isPublished) return null
-        if (existingValue != null && placesUnchanged) return existingValue
-        return derive()
-    }
-
     /** 지역코드(법정동코드)를 표시 이름으로 푼다 — 동 레벨은 동 이름("성수동1가"), 시군구 레벨은 시군구 이름("강남구"). */
     private fun resolveAreaName(areaCode: String?): String? =
         areaCode?.let { areaQueryUseCase.findAreaByCode(it)?.shortName }
@@ -275,12 +238,7 @@ class CourseService(
         return found
     }
 
-    /**
-     * 게시된 코스 편집에서 **캡션을 제외한** 장소 구성이 바뀌었는지 판정한다.
-     * place_id·순서(orderNo)·사진(imageUrls)이 저장본과 완전히 같아야 false(변경 없음)다.
-     * 저장본 이미지는 orderNo 오름차순으로 조회되므로 imageUrl 나열이 요청 imageUrls 순서와 그대로 대응한다.
-     */
-    private fun placesStructureChanged(
+    private fun 장소구성변경여부확인(
         stored: List<CoursePlaceRow>,
         newPlaces: List<CoursePlace>,
     ): Boolean {
@@ -294,17 +252,6 @@ class CourseService(
                 .sortedBy { it.orderNo }
                 .map { Triple(it.placeId, it.orderNo, it.imageUrls) }
         return storedSignature != newSignature
-    }
-
-    /** 저장된 코스의 장소 구성이 요청과 다른지 판정한다 — 카테고리는 orderNo 순 placeId 나열에만 의존한다. */
-    private fun placesChanged(
-        courseId: Long,
-        newPlaces: List<CoursePlace>,
-    ): Boolean {
-        val existingPlaceIds =
-            coursePersistencePort.findPlaces(courseId).sortedBy { it.orderNo }.map { it.placeId }
-        val newPlaceIds = newPlaces.sortedBy { it.orderNo }.map { it.placeId }
-        return existingPlaceIds != newPlaceIds
     }
 
     /**

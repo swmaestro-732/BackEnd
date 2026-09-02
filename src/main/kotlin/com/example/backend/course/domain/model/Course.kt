@@ -107,11 +107,31 @@ data class Course private constructor(
             isPublished: Boolean,
             tags: List<String>,
             places: List<CoursePlace>,
-            category: CourseCategory?,
-            areaCode: String?,
-            area: String?,
-        ): Course =
-            build(
+            wasPublished: Boolean,
+            existingCategory: CourseCategory?,
+            existingAreaCode: String?,
+            existingArea: String?,
+            placeCategoryByPlaceId: Map<Long, String>,
+            placeAreaByPlaceId: Map<Long, String?>,
+            resolveAreaName: (String) -> String?,
+        ): Course {
+            val (category, areaCode, area) =
+                when {
+                    !isPublished -> {
+                        Triple(null, null, null)
+                    }
+
+                    wasPublished -> {
+                        Triple(existingCategory, existingAreaCode, existingArea)
+                    }
+
+                    else -> {
+                        val code = deriveAreaCode(true, places, placeAreaByPlaceId)
+                        Triple(deriveCategory(true, places, placeCategoryByPlaceId), code, code?.let(resolveAreaName))
+                    }
+                }
+
+            return build(
                 id = id,
                 userId = userId,
                 title = title,
@@ -127,6 +147,7 @@ data class Course private constructor(
                 areaCode = areaCode,
                 area = area,
             )
+        }
 
         /** 생성·편집 공통 — 도메인 불변식을 강제해 애그리거트를 만든다(카테고리·지역코드는 호출부가 도출·결정). */
         @Suppress("LongParameterList")
@@ -251,7 +272,7 @@ data class Course private constructor(
          *
          * 생성-시-발행과 draft→발행 전이가 동일 규칙을 쓰도록 도메인에 둔다(placeCategoryByPlaceId 는 place 도메인에서 조회해 주입).
          */
-        fun deriveCategory(
+        private fun deriveCategory(
             isPublished: Boolean,
             places: List<CoursePlace>,
             placeCategoryByPlaceId: Map<Long, String>,
@@ -271,7 +292,7 @@ data class Course private constructor(
          * 최하위 공통 지역(LCA) 대신 최빈값을 쓰는 이유: 아웃라이어 장소 하나가 지역을 시도 레벨로
          * 뭉개는 것을 막고, 시군구 필터(sigungu_code prefix)에 코스가 대표 지역으로 잡히게 하기 위함.
          */
-        fun deriveAreaCode(
+        private fun deriveAreaCode(
             isPublished: Boolean,
             places: List<CoursePlace>,
             placeAreaCodeByPlaceId: Map<Long, String?>,
