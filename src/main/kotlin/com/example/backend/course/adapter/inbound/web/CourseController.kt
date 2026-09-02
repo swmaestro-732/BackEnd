@@ -125,7 +125,7 @@ class CourseController(
         @RequestParam(required = false) mock: Boolean = false,
     ): ApiResponse<Nothing?> {
         if (mock && mockGuard.isMockAllowed()) return ApiResponse.ok("코스가 삭제되었습니다.")
-        courseUseCase.delete(userId, courseId)
+        courseUseCase.코스삭제(userId, courseId)
         return ApiResponse.ok("코스가 삭제되었습니다.")
     }
 

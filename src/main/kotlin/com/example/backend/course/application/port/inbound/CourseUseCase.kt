@@ -15,7 +15,7 @@ interface CourseUseCase {
 
     fun fork(command: ForkCourseCommand): Course
 
-    fun delete(
+    fun 코스삭제(
         userId: Long,
         courseId: Long,
     )
