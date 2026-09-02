@@ -15,7 +15,6 @@ import org.jetbrains.exposed.v1.core.isNotNull
 import org.jetbrains.exposed.v1.core.isNull
 import org.jetbrains.exposed.v1.core.neq
 import org.jetbrains.exposed.v1.core.plus
-import org.jetbrains.exposed.v1.jdbc.insert
 import org.jetbrains.exposed.v1.jdbc.select
 import org.jetbrains.exposed.v1.jdbc.selectAll
 import org.jetbrains.exposed.v1.jdbc.update
@@ -117,17 +116,13 @@ class UserRepository(
                 )
             }
 
-    internal fun save(user: User): UserEntity {
-        val id =
-            UserTable
-                .insert {
-                    it[nickname] = user.nickname
-                    it[profileImageUrl] = user.profileImageUrl
-                    it[bio] = user.bio
-                }[UserTable.id]
-                .value
-        return UserEntity.findById(id) ?: error("삽입 직후 사용자를 되읽지 못했습니다: id=$id")
-    }
+    internal fun save(user: User): UserEntity =
+        UserEntity
+            .new {
+                nickname = user.nickname
+                profileImageUrl = user.profileImageUrl
+                bio = user.bio
+            }.also { it.refresh(flush = true) }
 
     fun update(user: User) {
         val id = checkNotNull(user.id) { "영속화된 User 는 id 를 가진다." }
@@ -234,18 +229,15 @@ class UserRepository(
     internal fun saveWithSocial(user: User): UserEntity {
         val provider = checkNotNull(user.socialProvider) { "소셜 제공자가 필요합니다." }
         val socialId = checkNotNull(user.socialId) { "소셜 식별자가 필요합니다." }
-        val id =
-            UserTable
-                .insert {
-                    it[nickname] = user.nickname
-                    it[handle] = user.handle
-                    it[profileImageUrl] = user.profileImageUrl
-                    it[bio] = user.bio
-                    it[socialProvider] = provider.name
-                    it[UserTable.socialId] = socialId
-                }[UserTable.id]
-                .value
-        return UserEntity.findById(id) ?: error("삽입 직후 사용자를 되읽지 못했습니다: id=$id")
+        return UserEntity
+            .new {
+                nickname = user.nickname
+                handle = user.handle
+                profileImageUrl = user.profileImageUrl
+                bio = user.bio
+                socialProvider = provider.name
+                this.socialId = socialId
+            }.also { it.refresh(flush = true) }
     }
 
     internal fun reactivate(user: User): UserEntity {
