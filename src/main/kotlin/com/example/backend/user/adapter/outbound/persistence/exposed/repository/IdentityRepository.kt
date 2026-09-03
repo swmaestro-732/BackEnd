@@ -40,14 +40,14 @@ class IdentityRepository {
         socialId: String,
         withdrawn: Boolean,
     ): User? {
-        val userId =
+        val joined =
             OAuthCredentialTable
                 .join(
                     UserTable,
                     JoinType.INNER,
                     onColumn = OAuthCredentialTable.identityId,
                     otherColumn = UserTable.identityId,
-                ).select(UserTable.id)
+                ).select(UserTable.columns)
                 .where {
                     (OAuthCredentialTable.provider eq provider.name) and
                         (OAuthCredentialTable.socialId eq socialId) and
@@ -55,11 +55,25 @@ class IdentityRepository {
                         (if (withdrawn) UserTable.deletedAt.isNotNull() else UserTable.deletedAt.isNull())
                 }.limit(1)
                 .firstOrNull()
-                ?.get(UserTable.id)
-                ?.value
-                ?: return null
-        return UserEntity.findById(userId)?.toDomain()
+        if (joined != null) return UserEntity.wrapRow(joined).toDomain()
+
+        // 롤링 배포 호환 폴백(V5에서 제거): 구버전 인스턴스가 users.social_* 로만 만들어
+        // identity_id·credential 이 없는 계정은 credential 조인으로 못 찾으므로 레거시 컬럼으로 조회한다.
+        return findByLegacySocial(provider, socialId, withdrawn)
     }
+
+    private fun findByLegacySocial(
+        provider: SocialProvider,
+        socialId: String,
+        withdrawn: Boolean,
+    ): User? =
+        UserEntity
+            .find {
+                (UserTable.socialProvider eq provider.name) and
+                    (UserTable.socialId eq socialId) and
+                    (if (withdrawn) UserTable.deletedAt.isNotNull() else UserTable.deletedAt.isNull())
+            }.firstOrNull()
+            ?.toDomain()
 
     /** identity → 자격증명들 → 기본 User 를 순서대로 INSERT 하고 식별자가 부여된 User 를 반환한다. */
     fun register(
@@ -74,6 +88,8 @@ class IdentityRepository {
                 it[socialId] = credential.socialId
             }
         }
+        // 로그인 대상이 되는 기본 프로필의 자격증명(멀티프로필 전이라 1개). 레거시 dual-write 에 쓴다.
+        val primaryCredential = identity.credentials.firstOrNull()
         val userId =
             UserTable
                 .insert {
@@ -83,6 +99,11 @@ class IdentityRepository {
                     it[bio] = primaryUser.bio
                     it[UserTable.identityId] = identityId
                     it[isPrimary] = true
+                    // 롤링 배포 호환 dual-write(V5에서 제거): 구버전 findBySocial(users.social_*)이 이 계정을 찾도록.
+                    if (primaryCredential != null) {
+                        it[socialProvider] = primaryCredential.provider.name
+                        it[socialId] = primaryCredential.socialId
+                    }
                 }[UserTable.id]
                 .value
         return User.reconstitute(

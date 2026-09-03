@@ -36,7 +36,9 @@ internal object UserTable : LongIdTable("users") {
     val identityId = long("identity_id").nullable()
     val isPrimary = bool("is_primary").default(true)
 
-    // 롤링 배포 호환용 레거시 컬럼(V5에서 드롭). 신규 경로는 credential 에 쓰되, 구버전과 서로 계정을 찾도록 dual-write/폴백에 쓴다.
+    // 롤링 배포 호환용 레거시 컬럼(V5에서 드롭). 신규 경로는 자격증명을 oauth_credentials 에 쓰되,
+    // 구버전 인스턴스의 findBySocial(users.social_*)이 새 계정을 찾도록 여기에도 dual-write 하고,
+    // 구버전이 users.social_* 로만 만든 계정은 credential 조회 실패 시 이 컬럼으로 폴백해 읽는다.
     val socialProvider = varchar("social_provider", 20).nullable()
     val socialId = varchar("social_id", 255).nullable()
     val deletedAt = timestamp("deleted_at").nullable()
