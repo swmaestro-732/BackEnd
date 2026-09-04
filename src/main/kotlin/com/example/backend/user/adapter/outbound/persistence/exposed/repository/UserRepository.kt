@@ -4,7 +4,6 @@ import com.example.backend.user.adapter.outbound.persistence.exposed.UserEntity
 import com.example.backend.user.adapter.outbound.persistence.exposed.UserTable
 import com.example.backend.user.application.port.inbound.UserSummaryUseCase
 import com.example.backend.user.application.port.outbound.UserProfileRow
-import com.example.backend.user.domain.model.SocialProvider
 import com.example.backend.user.domain.model.User
 import com.example.backend.user.domain.model.UserStatus
 import org.jetbrains.exposed.v1.core.SortOrder
@@ -183,27 +182,7 @@ class UserRepository(
             .empty()
             .not()
 
-    internal fun findBySocial(
-        provider: SocialProvider,
-        socialId: String,
-    ): UserEntity? =
-        UserEntity
-            .find {
-                (UserTable.socialProvider eq provider.name) and
-                    (UserTable.socialId eq socialId) and
-                    UserTable.deletedAt.isNull()
-            }.singleOrNull()
-
-    internal fun findWithdrawnBySocial(
-        provider: SocialProvider,
-        socialId: String,
-    ): UserEntity? =
-        UserEntity
-            .find {
-                (UserTable.socialProvider eq provider.name) and
-                    (UserTable.socialId eq socialId) and
-                    UserTable.deletedAt.isNotNull()
-            }.singleOrNull()
+    // 소셜 자격증명 조회(findBySocial/findWithdrawnBySocial)와 소셜 저장(saveWithSocial)은 IdentityRepository 로 이관했다(SCRUM-466).
 
     // 재활성화 대상(자기 자신)은 제외하고 검사한다 — 탈퇴 행이 예약한 값을 그대로 재사용하도록 허용.
     fun existsByNicknameExcludingUser(
@@ -226,24 +205,9 @@ class UserRepository(
             .empty()
             .not()
 
-    internal fun saveWithSocial(user: User): UserEntity {
-        val provider = checkNotNull(user.socialProvider) { "소셜 제공자가 필요합니다." }
-        val socialId = checkNotNull(user.socialId) { "소셜 식별자가 필요합니다." }
-        return UserEntity
-            .new {
-                nickname = user.nickname
-                handle = user.handle
-                profileImageUrl = user.profileImageUrl
-                bio = user.bio
-                socialProvider = provider.name
-                this.socialId = socialId
-            }.also { it.refresh(flush = true) }
-    }
-
     internal fun reactivate(user: User): UserEntity {
         val id = checkNotNull(user.id) { "영속화된 User 는 id 를 가진다." }
-        checkNotNull(user.socialProvider) { "소셜 제공자가 필요합니다." }
-        checkNotNull(user.socialId) { "소셜 식별자가 필요합니다." }
+        // 소셜 자격증명은 identity/oauth_credentials 가 그대로 들고 있으므로(SCRUM-466), 여기선 프로필·상태만 되살린다.
         val updated =
             UserTable.update({ (UserTable.id eq id) and UserTable.deletedAt.isNotNull() }) {
                 // 재활성화는 항상 ACTIVE 로 되살린다(반환 도메인 객체의 고정 status 와 일치).
