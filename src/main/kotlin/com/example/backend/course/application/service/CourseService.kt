@@ -5,6 +5,7 @@ import com.example.backend.common.exception.BusinessException
 import com.example.backend.common.response.CourseErrorCode
 import com.example.backend.common.response.PlaceErrorCode
 import com.example.backend.course.application.event.CourseAuthorWithdrawnEvent
+import com.example.backend.course.application.event.CourseCountDeltaEvent
 import com.example.backend.course.application.event.CourseDeletedEvent
 import com.example.backend.course.application.event.CourseSavedEvent
 import com.example.backend.course.application.port.inbound.CourseQueryUseCase
@@ -14,7 +15,6 @@ import com.example.backend.course.application.port.inbound.dto.CreateCourseComma
 import com.example.backend.course.application.port.inbound.dto.CreateCoursePlaceCommand
 import com.example.backend.course.application.port.inbound.dto.EditCourseCommand
 import com.example.backend.course.application.port.inbound.dto.ForkCourseCommand
-import com.example.backend.course.application.port.outbound.AuthorCourseCountPort
 import com.example.backend.course.application.port.outbound.CoursePersistencePort
 import com.example.backend.course.application.port.outbound.CoursePlaceImageRow
 import com.example.backend.course.application.port.outbound.CoursePlaceRow
@@ -27,13 +27,15 @@ import com.example.backend.course.domain.model.CourseVisibility
 import org.springframework.context.ApplicationEventPublisher
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
+import java.util.UUID
 
 /**
  * 코스 쓰기(커맨드) 유스케이스 — 생성·편집·삭제. 조회는 [CourseQueryService] 가 담당한다(커맨드/쿼리 분리).
  *
  * 생성/편집: 발행·임시저장 공통. 불변식 검증과 카테고리 도출은 [Course] 애그리거트가 수행하고,
  * 서비스는 카테고리 도출에 필요한 place 카테고리(아웃바운드 [PlaceLookupPort], ACL)만 조회해 넘긴다.
- * 코스 발행/공개범위변경/삭제로 작성자의 공개범위별 코스 개수가 바뀌면 [AuthorCourseCountPort] 로 반영한다.
+ * 코스 발행/공개범위변경/삭제로 작성자의 공개범위별 코스 개수가 바뀌면 [CourseCountDeltaEvent] 를 발행한다
+ * (커밋 후 SQS → user 도메인 컨슈머로 결과적 일관성 반영 — 동기 크로스 도메인 호출 대신).
  */
 @Service
 @Transactional
@@ -43,7 +45,6 @@ class CourseService(
     private val courseQueryUseCase: CourseQueryUseCase,
     private val placeLookupPort: PlaceLookupPort,
     private val areaQueryUseCase: AreaQueryUseCase,
-    private val authorCourseCountPort: AuthorCourseCountPort,
     private val eventPublisher: ApplicationEventPublisher,
 ) : CourseUseCase {
     override fun create(command: CreateCourseCommand): Course {
@@ -322,9 +323,12 @@ class CourseService(
     }
 
     /**
-     * 코스 상태 변화에 따른 작성자의 공개범위별 코스 개수 델타를 반영한다.
+     * 코스 상태 변화에 따른 작성자의 공개범위별 코스 개수 델타를 이벤트로 발행한다.
      * [removed]/[added] 는 "카운트되는 상태(발행·활성·미삭제)"의 공개범위이고, 그 상태가 아니면 null.
-     * 크로스 도메인 경계라 공개범위 enum 대신 버킷별 원시 int 델타로 넘긴다([AuthorCourseCountPort]).
+     * 크로스 도메인 경계라 공개범위 enum 대신 버킷별 원시 int 델타로 넘긴다([CourseCountDeltaEvent]).
+     *
+     * 세 델타가 모두 0(변화 없음)이면 발행하지 않는다. 발행은 커밋 후 리스너가 SQS 로 흘려보내고,
+     * user 도메인 컨슈머가 결과적 일관성으로 반영한다(동기 호출 제거). eventId 로 컨슈머가 중복을 거른다.
      */
     private fun adjustAuthorCourseCount(
         userId: Long,
@@ -332,11 +336,18 @@ class CourseService(
         added: CourseVisibility?,
     ) {
         fun delta(v: CourseVisibility) = (if (added == v) 1 else 0) - (if (removed == v) 1 else 0)
-        authorCourseCountPort.applyDelta(
-            authorId = userId,
-            publicDelta = delta(CourseVisibility.PUBLIC),
-            followerDelta = delta(CourseVisibility.FOLLOWER),
-            privateDelta = delta(CourseVisibility.PRIVATE),
+        val publicDelta = delta(CourseVisibility.PUBLIC)
+        val followerDelta = delta(CourseVisibility.FOLLOWER)
+        val privateDelta = delta(CourseVisibility.PRIVATE)
+        if (publicDelta == 0 && followerDelta == 0 && privateDelta == 0) return
+        eventPublisher.publishEvent(
+            CourseCountDeltaEvent(
+                userId = userId,
+                publicDelta = publicDelta,
+                followerDelta = followerDelta,
+                privateDelta = privateDelta,
+                eventId = UUID.randomUUID().toString(),
+            ),
         )
     }
 }

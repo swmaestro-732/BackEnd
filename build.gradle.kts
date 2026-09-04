@@ -67,6 +67,8 @@ dependencies {
     // AWS SDK v2 (raw — spring-cloud-aws 는 아직 Boot 4.x 지원이 뒤처져 있음). S3Presigner 는 s3 모듈 소속.
     implementation(platform("software.amazon.awssdk:bom:2.49.0"))
     implementation("software.amazon.awssdk:s3")
+    // SQS — 코스 개수 델타 이벤트를 결과적 일관성으로 전달(course → user). 큐 미설정 시 클라이언트·폴러 비활성(fail-soft).
+    implementation("software.amazon.awssdk:sqs")
     // OpenSearch(AWS) 연결 — VPC 도메인에 HTTPS + FGAC basic auth. ApacheHttpClient5 전송.
     // httpclient5 기반 ApacheHttpClient5 전송만 쓰므로, 구형 RestClient 전송(opensearch-rest-client)이
     // 끌고 오는 httpclient 4.x 스택(httpclient/httpcore/httpasyncclient)은 제외한다 — 안 쓰는 중복 무게 제거.
