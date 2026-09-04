@@ -2,8 +2,8 @@ package com.example.backend.course.adapter.outbound.persistence.exposed.reposito
 
 import com.example.backend.course.adapter.outbound.persistence.exposed.CourseTagTable
 import org.jetbrains.exposed.v1.core.eq
+import org.jetbrains.exposed.v1.jdbc.batchInsert
 import org.jetbrains.exposed.v1.jdbc.deleteWhere
-import org.jetbrains.exposed.v1.jdbc.insert
 import org.springframework.stereotype.Repository
 
 /**
@@ -11,13 +11,14 @@ import org.springframework.stereotype.Repository
  */
 @Repository
 class CourseTagRepository {
-    fun link(
+    /** 코스와 태그들의 연결을 배치 1문으로 삽입한다 — 생성 값이 없는 조인 테이블이라 RETURNING 을 끈다. */
+    fun linkAll(
         courseId: Long,
-        tagId: Long,
+        tagIds: List<Long>,
     ) {
-        CourseTagTable.insert {
-            it[CourseTagTable.courseId] = courseId
-            it[CourseTagTable.tagId] = tagId
+        CourseTagTable.batchInsert(tagIds, shouldReturnGeneratedValues = false) { tagId ->
+            this[CourseTagTable.courseId] = courseId
+            this[CourseTagTable.tagId] = tagId
         }
     }
 
