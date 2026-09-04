@@ -1,4 +1,4 @@
-package com.example.backend.place.adapter.outbound.persistence
+package com.example.backend.place.adapter.outbound.persistence.exposed
 
 import com.example.backend.place.domain.model.PlaceReviewStatus
 import org.jetbrains.exposed.v1.core.dao.id.EntityID

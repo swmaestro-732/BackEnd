@@ -1,4 +1,4 @@
-package com.example.backend.place.adapter.outbound.persistence
+package com.example.backend.place.adapter.outbound.persistence.exposed
 
 import com.example.backend.common.persistence.postgis.geographyPoint
 import com.example.backend.place.domain.model.Place

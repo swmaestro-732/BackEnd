@@ -1,7 +1,7 @@
 package com.example.backend.course.adapter.outbound.persistence.exposed.repository
 
-import com.example.backend.course.adapter.outbound.persistence.CoursePlaceImageEntity
-import com.example.backend.course.adapter.outbound.persistence.CoursePlaceImageTable
+import com.example.backend.course.adapter.outbound.persistence.exposed.CoursePlaceImageEntity
+import com.example.backend.course.adapter.outbound.persistence.exposed.CoursePlaceImageTable
 import com.example.backend.course.application.port.outbound.CoursePlaceImageRow
 import org.jetbrains.exposed.v1.core.ResultRow
 import org.jetbrains.exposed.v1.core.SortOrder

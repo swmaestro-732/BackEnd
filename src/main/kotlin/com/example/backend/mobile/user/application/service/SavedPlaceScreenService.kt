@@ -2,14 +2,12 @@ package com.example.backend.mobile.user.application.service
 
 import com.example.backend.mobile.place.application.port.outbound.ScreenPlacePort
 import com.example.backend.mobile.place.application.port.outbound.dto.ScreenPlace
-import com.example.backend.mobile.user.application.port.inbound.SavedCourseScreenCommand
 import com.example.backend.mobile.user.application.port.inbound.SavedPlaceScreenCommand
 import com.example.backend.mobile.user.application.port.inbound.SavedPlaceScreenUseCase
 import com.example.backend.mobile.user.application.port.inbound.dto.SavedPlaceScreenResult
 import com.example.backend.mobile.user.application.port.outbound.SavedPlaceRecordPort
 import com.example.backend.mobile.user.application.port.outbound.ScreenAreaPort
 import com.example.backend.mobile.user.application.port.outbound.dto.SavedPlaceRecord
-import com.example.backend.user.application.port.inbound.dto.SavedCoursesCommand
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
 

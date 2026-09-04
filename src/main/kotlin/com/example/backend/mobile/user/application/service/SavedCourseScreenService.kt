@@ -13,8 +13,6 @@ import com.example.backend.user.application.port.inbound.dto.SavedCoursesCommand
 import com.example.backend.user.application.port.inbound.dto.SavedCoursesResult
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
-import kotlin.collections.map
-import kotlin.collections.mapNotNull
 
 /**
  * 저장함 코스 탭 화면 조합 서비스 (BFF).
@@ -27,7 +25,6 @@ class SavedCourseScreenService(
     private val userUseCase: UserUseCase,
     private val placeQueryUseCase: PlaceQueryUseCase,
     private val courseInteractionUseCase: CourseInteractionUseCase,
-    queryUseCase: CourseQueryUseCase,
 ) : SavedCourseScreenUseCase {
     override fun 저장함코스화면조회(command: SavedCourseScreenCommand): SavedCourseScreenResult {
         val saved = savedCourseUseCase.getSavedCourses(command.저장코스조회조건())
