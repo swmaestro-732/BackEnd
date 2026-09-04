@@ -1,6 +1,7 @@
 package com.example.backend.course.adapter.inbound.web
 
 import com.example.backend.bootstrap.security.JwtTokenProvider
+import com.example.backend.course.application.event.CourseCountDeltaEvent
 import com.example.backend.support.IntegrationTestBase
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Test
@@ -8,7 +9,8 @@ import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc
 import org.springframework.http.HttpHeaders
 import org.springframework.http.MediaType
-import org.springframework.jdbc.core.JdbcTemplate
+import org.springframework.test.context.event.ApplicationEvents
+import org.springframework.test.context.event.RecordApplicationEvents
 import org.springframework.test.context.jdbc.Sql
 import org.springframework.test.web.servlet.MockMvc
 import org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete
@@ -17,35 +19,41 @@ import org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post
 import org.springframework.test.web.servlet.result.MockMvcResultMatchers.status
 
 /**
- * 작성자의 공개범위별 코스 개수 캐시(users.public/follower/private_courses_cnt) 유지 검증.
- * 코스 발행 생성/편집(공개범위·발행 전이)/삭제가 매 조회 GROUP BY 대신 이 저장 카운터를 ±1 로 정확히 움직이는지 확인한다.
+ * 작성자의 공개범위별 코스 개수 캐시 유지 검증.
+ *
+ * 카운트 반영은 이제 동기 호출이 아니라 [CourseCountDeltaEvent] 발행 → SQS 컨슈머(멱등)가 처리하는
+ * 결과적 일관성 구조다(SCRUM-523). 실제 카운터 반영·멱등은 CourseCountMessageHandlerTest 가 단위로 검증하고,
+ * 여기서는 웹 → 서비스 경로에서 공개범위·발행 전이가 **올바른 델타 이벤트**로 나오는지(±1 산출 로직)를 확인한다.
  * 픽스처(course-crud-fixture)는 소유자(1)를 public=1(course 1 PUBLIC·발행 반영)로 심는다.
  */
 @AutoConfigureMockMvc
+@RecordApplicationEvents
 @Sql(scripts = ["/sql/course-crud-fixture.sql"], executionPhase = Sql.ExecutionPhase.BEFORE_TEST_METHOD)
 class CourseCountMaintenanceTest
     @Autowired
     constructor(
         private val mockMvc: MockMvc,
         private val jwtTokenProvider: JwtTokenProvider,
-        private val jdbcTemplate: JdbcTemplate,
     ) : IntegrationTestBase() {
+        @Autowired
+        private lateinit var events: ApplicationEvents
+
         @Test
-        fun `발행 PUBLIC 코스를 생성하면 작성자 public 카운트가 +1 된다`() {
+        fun `발행 PUBLIC 코스를 생성하면 public 델타 +1 이벤트가 발행된다`() {
             createCourse(visibility = "PUBLIC", published = true)
 
-            assertCounts(public = 2, follower = 0, private = 0)
+            assertSingleDelta(public = 1, follower = 0, private = 0)
         }
 
         @Test
-        fun `임시저장 코스를 생성하면 카운트는 그대로다`() {
+        fun `임시저장 코스를 생성하면 카운트 델타 이벤트가 없다`() {
             createCourse(visibility = "PRIVATE", published = false)
 
-            assertCounts(public = 1, follower = 0, private = 0)
+            assertEquals(0, events.stream(CourseCountDeltaEvent::class.java).count(), "델타 이벤트 없음")
         }
 
         @Test
-        fun `임시저장 초안을 FOLLOWER 로 발행 편집하면 follower 카운트가 +1 된다`() {
+        fun `임시저장 초안을 FOLLOWER 로 발행 편집하면 follower 델타 +1 이벤트가 발행된다`() {
             // course 2 = PRIVATE 임시저장(카운트 미포함) → 발행하면 발행 상태로 들어와 follower +1(초안이라 removed 없음).
             val body =
                 """
@@ -68,18 +76,18 @@ class CourseCountMaintenanceTest
                         .content(body),
                 ).andExpect(status().isOk)
 
-            assertCounts(public = 1, follower = 1, private = 0)
+            assertSingleDelta(public = 0, follower = 1, private = 0)
         }
 
         @Test
-        fun `발행 PUBLIC 코스를 삭제하면 작성자 public 카운트가 -1 된다`() {
+        fun `발행 PUBLIC 코스를 삭제하면 public 델타 -1 이벤트가 발행된다`() {
             mockMvc
                 .perform(
                     delete("/api/v1/courses/$PUBLIC_COURSE_ID")
                         .header(HttpHeaders.AUTHORIZATION, "Bearer ${tokenFor(OWNER_ID)}"),
                 ).andExpect(status().isOk)
 
-            assertCounts(public = 0, follower = 0, private = 0)
+            assertSingleDelta(public = -1, follower = 0, private = 0)
         }
 
         private fun createCourse(
@@ -108,19 +116,16 @@ class CourseCountMaintenanceTest
                 ).andExpect(status().isCreated)
         }
 
-        private fun assertCounts(
+        /** 카운트 델타 이벤트가 정확히 하나 발행됐고 버킷별 델타가 기대와 같은지 검증한다. */
+        private fun assertSingleDelta(
             public: Int,
             follower: Int,
             private: Int,
         ) {
-            val row =
-                jdbcTemplate.queryForMap(
-                    "SELECT public_courses_cnt, follower_courses_cnt, private_courses_cnt FROM users WHERE id = ?",
-                    OWNER_ID,
-                )
-            assertEquals(public, (row["public_courses_cnt"] as Number).toInt(), "public_courses_cnt")
-            assertEquals(follower, (row["follower_courses_cnt"] as Number).toInt(), "follower_courses_cnt")
-            assertEquals(private, (row["private_courses_cnt"] as Number).toInt(), "private_courses_cnt")
+            val event = events.stream(CourseCountDeltaEvent::class.java).toList().single()
+            assertEquals(public, event.publicDelta, "publicDelta")
+            assertEquals(follower, event.followerDelta, "followerDelta")
+            assertEquals(private, event.privateDelta, "privateDelta")
         }
 
         private fun tokenFor(userId: Long) = jwtTokenProvider.issueAccessToken(userId)
