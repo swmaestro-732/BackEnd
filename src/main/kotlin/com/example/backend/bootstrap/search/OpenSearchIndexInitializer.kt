@@ -35,7 +35,8 @@ class OpenSearchIndexInitializer(
     private val indices =
         listOf(
             IndexDef(alias = "place", index = "place_v1", mappingResource = "opensearch/place.json"),
-            IndexDef(alias = "course", index = "course_v1", mappingResource = "opensearch/course.json"),
+            // course_v2 — 검색 필터/정렬용 필드(id·category·tags·coverImageUrl)를 추가한 매핑. alias `course` 는 유지.
+            IndexDef(alias = "course", index = "course_v2", mappingResource = "opensearch/course.json"),
         )
 
     override fun run(args: ApplicationArguments) {

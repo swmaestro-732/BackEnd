@@ -44,27 +44,27 @@ class OpenSearchIndexIntegrationTest
 
         @Test
         fun `인덱스는 있고 alias 만 없으면 initializer 가 alias 를 복구한다`() {
-            // 인덱스 재생성 여부를 판별하려고 course_v1 에 마커 문서를 넣어둔다(재생성되면 사라진다).
+            // 인덱스 재생성 여부를 판별하려고 course_v2 에 마커 문서를 넣어둔다(재생성되면 사라진다).
             client.index {
                 it
                     .index(
-                        "course_v1",
+                        "course_v2",
                     ).id("__marker__")
                     .document(mapOf("title" to "marker"))
                     .refresh(Refresh.True)
             }
-            // 이전 부팅이 create 후 putAlias 전에 죽은 상태를 재현 — course_v1 은 두고 course alias 만 없앤다.
-            client.indices().deleteAlias { it.index("course_v1").name("course") }
+            // 이전 부팅이 create 후 putAlias 전에 죽은 상태를 재현 — course_v2 은 두고 course alias 만 없앤다.
+            client.indices().deleteAlias { it.index("course_v2").name("course") }
             assertTrue(!client.indices().existsAlias { it.name("course") }.value()) { "선조건: alias 제거 실패" }
 
             initializer.run(DefaultApplicationArguments())
 
-            // alias 가 복구되고, 정확히 course_v1 을 가리키며(다른 인덱스가 아니라), 인덱스가 재생성되지 않았다(마커 생존).
-            assertTrue(client.indices().existsAlias { it.index("course_v1").name("course") }.value()) {
-                "course alias 가 course_v1 을 가리키지 않음"
+            // alias 가 복구되고, 정확히 course_v2 을 가리키며(다른 인덱스가 아니라), 인덱스가 재생성되지 않았다(마커 생존).
+            assertTrue(client.indices().existsAlias { it.index("course_v2").name("course") }.value()) {
+                "course alias 가 course_v2 을 가리키지 않음"
             }
-            assertTrue(client.exists { it.index("course_v1").id("__marker__") }.value()) {
-                "course_v1 이 재생성됨(마커 문서 소실)"
+            assertTrue(client.exists { it.index("course_v2").id("__marker__") }.value()) {
+                "course_v2 이 재생성됨(마커 문서 소실)"
             }
         }
 
