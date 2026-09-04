@@ -249,18 +249,17 @@ class CourseRepository {
     }
 
     /**
-     * 재색인용 — 활성(deleted_at IS NULL) 코스를 id 오름차순으로 afterId 다음부터 limit개 읽어 도메인으로 변환한다.
-     * CourseDocument 는 tags·places 를 무시하므로 빈 리스트로 조립한다(N+1 회피).
+     * 재색인용 — 활성(deleted_at IS NULL) 코스를 id 오름차순으로 afterId 다음부터 limit개 읽어 엔티티로 반환한다.
      */
-    fun findForIndex(
+    internal fun findForIndex(
         afterId: Long?,
         limit: Int,
-    ): List<Course> =
+    ): List<CourseEntity> =
         CourseEntity
             .find { (CourseTable.id greater (afterId ?: 0L)) and CourseTable.deletedAt.isNull() }
             .orderBy(CourseTable.id to SortOrder.ASC)
             .limit(limit)
-            .map { it.toDomain(emptyList(), emptyList()) }
+            .toList()
 
     /** 코스 목록 쿼리의 공통 컬럼을 범용 요약 읽기 모델로 변환한다. */
     private fun toSummaryRow(it: ResultRow): CourseSummaryRow =
