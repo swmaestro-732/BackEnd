@@ -60,8 +60,16 @@ class CourseService(
         }
     }
 
-    private fun CreateCourseCommand.toCourse(foundPlaces: List<PlaceRef>): Course =
-        Course.create(
+    private fun CreateCourseCommand.toCourse(foundPlaces: List<PlaceRef>): Course {
+        val coursePlaces = places.toCoursePlaces()
+        val areaCode =
+            Course.deriveAreaCode(
+                isPublished = isPublished,
+                places = coursePlaces,
+                placeAreaCodeByPlaceId = foundPlaces.associate { it.id to it.areaCode },
+            )
+
+        return Course.create(
             userId = userId,
             title = title,
             description = description,
@@ -70,11 +78,12 @@ class CourseService(
             isPublished = isPublished,
             forkedFromId = forkedFromId,
             tags = tags,
-            places = places.toCoursePlaces(),
+            places = coursePlaces,
             placeCategoryByPlaceId = foundPlaces.associate { it.id to it.category },
-            placeAreaByPlaceId = foundPlaces.associate { it.id to it.areaCode },
-            resolveAreaName = ::지역이름조회,
+            areaCode = areaCode,
+            area = 지역이름조회(areaCode),
         )
+    }
 
     private fun List<CreateCoursePlaceCommand>.toCoursePlaces(): List<CoursePlace> =
         map {
@@ -120,8 +129,27 @@ class CourseService(
         existing: CourseDetailRow,
         places: List<CoursePlace>,
         foundPlaces: List<PlaceRef>,
-    ): Course =
-        Course.edit(
+    ): Course {
+        val areaCode =
+            when {
+                !isPublished -> {
+                    null
+                }
+
+                existing.isPublished && existing.areaCode != null -> {
+                    existing.areaCode
+                }
+
+                else -> {
+                    Course.deriveAreaCode(
+                        isPublished = true,
+                        places = places,
+                        placeAreaCodeByPlaceId = foundPlaces.associate { it.id to it.areaCode },
+                    )
+                }
+            }
+
+        return Course.edit(
             id = courseId,
             userId = userId,
             title = title,
@@ -133,24 +161,12 @@ class CourseService(
             places = places,
             wasPublished = existing.isPublished,
             existingCategory = existing.category,
-            existingAreaCode = existing.areaCode,
-            existingArea = existing.area,
             placeCategoryByPlaceId = foundPlaces.associate { it.id to it.category },
-            placeAreaByPlaceId = foundPlaces.associate { it.id to it.areaCode },
-            resolveAreaName = ::지역이름조회,
+            areaCode = areaCode,
+            area = 지역이름조회(areaCode),
         )
+    }
 
-    /**
-     * 코스 포크. 원본은 **장소 구성(어디를 어떤 순서로)만** 물려주고, 그 위의 콘텐츠(장소별 캡션·사진,
-     * 제목·설명·커버·태그·공개 설정)는 포크하는 사람이 새로 입력한 값이라 저장은 생성 경로를 그대로 탄다 —
-     * 포크라는 사실은 courses.forked_from_id 로만 남는다(출처 표시).
-     *
-     * 포크 전에 두 가지를 추가로 검증한다.
-     * 1. **원본을 볼 수 있는지** — 조회와 같은 규칙([CourseQueryUseCase])이라 볼 수 없는 코스
-     *    (없음·삭제·비활성·PRIVATE 타인·FOLLOWER 비팔로워)는 존재를 드러내지 않도록 404 로 막는다.
-     *    자기 코스 포크는 막지 않는다(볼 수 있으므로 통과) — 같은 코스를 다시 기록하는 것도 유효한 사용이다.
-     * 2. **원본 장소를 충분히 담았는지**([requireOriginPlacesKept]) — 포크가 원본과 다른 코스가 되는 것을 막는다.
-     */
     override fun fork(command: ForkCourseCommand): Course {
         // 상세와 같은 배치 조회 경로를 쓴다(해시태그를 읽지 않아 단건 조회보다 쿼리가 하나 적다).
         // 원본 장소는 이 결과에 함께 실려 오므로 유지 검증을 위해 따로 조회하지 않는다.
