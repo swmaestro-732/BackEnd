@@ -80,7 +80,7 @@ class SavedPlaceScreenServiceTest {
         fakePlacePort.places = listOf(place(30, "리움미술관", "CULTURE", areaCode = "1117013100"), place(20, "센터커피"))
         fakeAreaPort.namesByCode = mapOf("1117013100" to "한남동", AREA_CODE to "성수동1가")
 
-        val result = service.getScreen(command())
+        val result = service.저장함장소화면조회(command())
 
         assertEquals(listOf(3L, 2L), result.items.map { it.id }) // 포트가 준 순서 그대로
         assertEquals("리움미술관", result.items[0].place.name)
@@ -96,7 +96,7 @@ class SavedPlaceScreenServiceTest {
         fakeRecordPort.page = pageOf(record(3, placeId = 30), record(2, placeId = 20), record(1, placeId = 10))
         fakePlacePort.places = listOf(place(30), place(20), place(10))
 
-        service.getScreen(command())
+        service.저장함장소화면조회(command())
 
         assertEquals(1, fakePlacePort.findByIdsCalls.size)
         assertEquals(listOf(30L, 20L, 10L), fakePlacePort.findByIdsCalls.single())
@@ -107,7 +107,7 @@ class SavedPlaceScreenServiceTest {
         fakeRecordPort.page = pageOf(record(3, placeId = 30), record(2, placeId = 20))
         fakePlacePort.places = listOf(place(20)) // 30 은 삭제돼 결과에 없음
 
-        val result = service.getScreen(command())
+        val result = service.저장함장소화면조회(command())
 
         assertEquals(listOf(2L), result.items.map { it.id })
     }
@@ -128,7 +128,7 @@ class SavedPlaceScreenServiceTest {
             )
         fakePlacePort.places = listOf(place(30)) // 20 해석 실패 → 항목 1건(3)
 
-        val result = service.getScreen(command())
+        val result = service.저장함장소화면조회(command())
 
         assertEquals(listOf(3L), result.items.map { it.id })
         // 커서·hasNext 가 항목이 아니라 레코드 기준이어야 다음 페이지가 어긋나지 않는다.
@@ -147,7 +147,7 @@ class SavedPlaceScreenServiceTest {
             listOf(place(30, areaCode = AREA_CODE), place(20, areaCode = AREA_CODE), place(10, areaCode = "1117013100"))
         fakeAreaPort.namesByCode = mapOf(AREA_CODE to "성수동1가", "1117013100" to "한남동")
 
-        val result = service.getScreen(command())
+        val result = service.저장함장소화면조회(command())
 
         assertEquals(listOf(AREA_CODE, "1117013100"), fakeAreaPort.requestedCodes) // 코드 종류만큼만
         assertEquals("성수동1가", result.items[0].place.area)
@@ -160,7 +160,7 @@ class SavedPlaceScreenServiceTest {
         fakeRecordPort.page = pageOf(record(2, placeId = 20))
         fakePlacePort.places = listOf(place(20, areaCode = null))
 
-        val result = service.getScreen(command())
+        val result = service.저장함장소화면조회(command())
 
         assertNull(
             result.items
@@ -176,7 +176,7 @@ class SavedPlaceScreenServiceTest {
         fakePlacePort.places = listOf(place(20, areaCode = "9999999999"))
         fakeAreaPort.namesByCode = emptyMap() // 미존재·비활성 코드
 
-        val result = service.getScreen(command())
+        val result = service.저장함장소화면조회(command())
 
         assertEquals(1, result.items.size)
         assertNull(
@@ -191,14 +191,14 @@ class SavedPlaceScreenServiceTest {
         fakeRecordPort.page = pageOf(record(2, placeId = 20, category = null))
         fakePlacePort.places = listOf(place(20))
 
-        val result = service.getScreen(command())
+        val result = service.저장함장소화면조회(command())
 
         assertNull(result.items.single().category)
     }
 
     @Test
     fun `조회 조건을 그대로 저장 레코드 포트에 전달한다`() {
-        service.getScreen(command(visited = true, category = "CAFE", cursor = "7", size = 30))
+        service.저장함장소화면조회(command(visited = true, category = "CAFE", cursor = "7", size = 30))
 
         val args = fakeRecordPort.findPageArgs
         assertEquals(1L, args?.userId)
@@ -216,7 +216,7 @@ class SavedPlaceScreenServiceTest {
                     listOf(SavedPlaceCategoryCount("CAFE", 3), SavedPlaceCategoryCount("CULTURE", 1)),
             )
 
-        val result = service.getScreen(command())
+        val result = service.저장함장소화면조회(command())
 
         assertEquals(listOf("CAFE", "CULTURE"), result.categoryCounts.map { it.category })
         assertEquals(listOf(3L, 1L), result.categoryCounts.map { it.count })
@@ -226,7 +226,7 @@ class SavedPlaceScreenServiceTest {
     fun `저장이 없으면 빈 목록을 내려주고 장소 조회는 빈 배치로만 호출한다`() {
         fakeRecordPort.page = emptyPage()
 
-        val result = service.getScreen(command())
+        val result = service.저장함장소화면조회(command())
 
         assertTrue(result.items.isEmpty())
         assertFalse(result.hasNext)
