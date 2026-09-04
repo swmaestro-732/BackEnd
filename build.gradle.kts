@@ -58,6 +58,10 @@ dependencies {
     implementation("org.flywaydb:flyway-database-postgresql")
     implementation("org.jetbrains.kotlin:kotlin-reflect")
     implementation("tools.jackson.module:jackson-module-kotlin")
+    // opensearch-java 의 JacksonJsonpMapper 는 Jackson 2(com.fasterxml)를 쓴다 — 검색 응답을 Kotlin data class
+    // (CourseDocument)로 역직렬화하려면 Jackson 2 용 kotlin 모듈이 필요하다(색인=직렬화는 없이도 되지만 읽기는 불가).
+    // 버전은 opensearch-java 2.25.0 이 끌어오는 jackson-databind 2.21.4 에 맞춘다.
+    implementation("com.fasterxml.jackson.module:jackson-module-kotlin:2.21.4")
     // 로깅 파사드 — SLF4J 위 얇은 래퍼. 코틀린 람다(지연) 로깅 `log.info { "$var" }`. logback/MDC/traceId 그대로.
     implementation("io.github.oshai:kotlin-logging-jvm:7.0.3")
     developmentOnly("org.springframework.boot:spring-boot-devtools")
