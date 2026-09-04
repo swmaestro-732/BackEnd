@@ -1,7 +1,7 @@
 package com.example.backend.course.adapter.outbound.persistence.exposed.repository
 
 import com.example.backend.common.exception.BusinessException
-import com.example.backend.common.response.ErrorCode
+import com.example.backend.common.response.CourseErrorCode
 import com.example.backend.course.adapter.outbound.persistence.CourseEntity
 import com.example.backend.course.adapter.outbound.persistence.CourseTable
 import com.example.backend.course.application.port.inbound.dto.AuthorCourseCursor
@@ -78,7 +78,7 @@ class CourseRepository {
             }
         // 서비스가 존재·소유권을 사전 검증하므로 0행은 동시 소프트 삭제가 이긴 경우 — 500 대신 404 로 드러낸다.
         if (affected == 0) {
-            throw BusinessException(ErrorCode.COURSE_NOT_FOUND, "갱신할 코스를 찾을 수 없습니다: id=$courseId")
+            throw BusinessException(CourseErrorCode.COURSE_NOT_FOUND, "갱신할 코스를 찾을 수 없습니다: id=$courseId")
         }
         // 갱신하지 않은 컬럼(created_at·카운터·area 등)까지 담아 도메인을 재구성하도록 확정 상태를 되읽는다.
         return CourseEntity.findById(courseId) ?: error("갱신 직후 코스를 되읽지 못했습니다: id=$courseId")
@@ -249,18 +249,17 @@ class CourseRepository {
     }
 
     /**
-     * 재색인용 — 활성(deleted_at IS NULL) 코스를 id 오름차순으로 afterId 다음부터 limit개 읽어 도메인으로 변환한다.
-     * CourseDocument 는 tags·places 를 무시하므로 빈 리스트로 조립한다(N+1 회피).
+     * 재색인용 — 활성(deleted_at IS NULL) 코스를 id 오름차순으로 afterId 다음부터 limit개 읽어 엔티티로 반환한다.
      */
-    fun findForIndex(
+    internal fun findForIndex(
         afterId: Long?,
         limit: Int,
-    ): List<Course> =
+    ): List<CourseEntity> =
         CourseEntity
             .find { (CourseTable.id greater (afterId ?: 0L)) and CourseTable.deletedAt.isNull() }
             .orderBy(CourseTable.id to SortOrder.ASC)
             .limit(limit)
-            .map { it.toDomain(emptyList(), emptyList()) }
+            .toList()
 
     /** 코스 목록 쿼리의 공통 컬럼을 범용 요약 읽기 모델로 변환한다. */
     private fun toSummaryRow(it: ResultRow): CourseSummaryRow =

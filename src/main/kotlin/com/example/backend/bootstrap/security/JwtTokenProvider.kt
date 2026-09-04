@@ -1,7 +1,7 @@
 package com.example.backend.bootstrap.security
 
 import com.example.backend.common.exception.BusinessException
-import com.example.backend.common.response.ErrorCode
+import com.example.backend.common.response.CommonErrorCode
 import com.example.backend.user.application.port.outbound.AuthTokenPort
 import com.example.backend.user.application.port.outbound.SocialIdentity
 import com.example.backend.user.domain.model.SocialProvider
@@ -59,21 +59,21 @@ class JwtTokenProvider(
             try {
                 jwtDecoder.decode(token)
             } catch (exception: JwtException) {
-                throw BusinessException(ErrorCode.INVALID_REGISTRATION_TOKEN)
+                throw BusinessException(CommonErrorCode.INVALID_REGISTRATION_TOKEN)
             }
 
         if (jwt.getClaimAsString(PURPOSE_CLAIM) != REGISTRATION_PURPOSE) {
-            throw BusinessException(ErrorCode.INVALID_REGISTRATION_TOKEN)
+            throw BusinessException(CommonErrorCode.INVALID_REGISTRATION_TOKEN)
         }
         val providerClaim =
             jwt.getClaimAsString(PROVIDER_CLAIM)?.takeIf(String::isNotBlank)
-                ?: throw BusinessException(ErrorCode.INVALID_REGISTRATION_TOKEN)
+                ?: throw BusinessException(CommonErrorCode.INVALID_REGISTRATION_TOKEN)
         val provider =
             runCatching { SocialProvider.valueOf(providerClaim) }
-                .getOrElse { throw BusinessException(ErrorCode.INVALID_REGISTRATION_TOKEN) }
+                .getOrElse { throw BusinessException(CommonErrorCode.INVALID_REGISTRATION_TOKEN) }
         val socialId =
             jwt.getClaimAsString(SOCIAL_ID_CLAIM)?.takeIf(String::isNotBlank)
-                ?: throw BusinessException(ErrorCode.INVALID_REGISTRATION_TOKEN)
+                ?: throw BusinessException(CommonErrorCode.INVALID_REGISTRATION_TOKEN)
 
         return SocialIdentity(provider = provider, socialId = socialId)
     }

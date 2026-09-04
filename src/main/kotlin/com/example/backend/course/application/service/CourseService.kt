@@ -2,7 +2,8 @@ package com.example.backend.course.application.service
 
 import com.example.backend.area.application.port.inbound.AreaQueryUseCase
 import com.example.backend.common.exception.BusinessException
-import com.example.backend.common.response.ErrorCode
+import com.example.backend.common.response.CourseErrorCode
+import com.example.backend.common.response.PlaceErrorCode
 import com.example.backend.course.application.event.CourseAuthorWithdrawnEvent
 import com.example.backend.course.application.event.CourseDeletedEvent
 import com.example.backend.course.application.event.CourseSavedEvent
@@ -49,7 +50,7 @@ class CourseService(
         // fork 원본 코스가 실제로 존재하는지 검증(없으면 404).
         command.forkedFromId?.let { forkedFromId ->
             if (!coursePersistencePort.existsById(forkedFromId)) {
-                throw BusinessException(ErrorCode.COURSE_NOT_FOUND, "원본 코스를 찾을 수 없습니다: id=$forkedFromId")
+                throw BusinessException(CourseErrorCode.COURSE_NOT_FOUND, "원본 코스를 찾을 수 없습니다: id=$forkedFromId")
             }
         }
 
@@ -103,9 +104,9 @@ class CourseService(
         // 존재·소유권 검증 — 없거나(삭제 포함)·비활성·타인 소유면 존재를 드러내지 않도록 404(COURSE_NOT_FOUND).
         val existing =
             coursePersistencePort.findCourseDetail(command.courseId)
-                ?: throw BusinessException(ErrorCode.COURSE_NOT_FOUND, "코스를 찾을 수 없습니다: id=${command.courseId}")
+                ?: throw BusinessException(CourseErrorCode.COURSE_NOT_FOUND, "코스를 찾을 수 없습니다: id=${command.courseId}")
         if (existing.status != CourseStatus.ACTIVE || existing.userId != command.userId) {
-            throw BusinessException(ErrorCode.COURSE_NOT_FOUND, "코스를 찾을 수 없습니다: id=${command.courseId}")
+            throw BusinessException(CourseErrorCode.COURSE_NOT_FOUND, "코스를 찾을 수 없습니다: id=${command.courseId}")
         }
 
         val places =
@@ -125,7 +126,7 @@ class CourseService(
             val storedPlaces = coursePersistencePort.findPlaces(command.courseId)
             if (placesStructureChanged(storedPlaces, places)) {
                 throw BusinessException(
-                    ErrorCode.PUBLISHED_COURSE_PLACES_IMMUTABLE,
+                    CourseErrorCode.PUBLISHED_COURSE_PLACES_IMMUTABLE,
                     "게시된 코스는 장소를 추가·삭제·교체하거나 순서·사진을 바꿀 수 없습니다: id=${command.courseId}",
                 )
             }
@@ -196,7 +197,7 @@ class CourseService(
                 .getDetails(listOf(command.forkedFromId), command.userId)
                 .firstOrNull()
                 ?: throw BusinessException(
-                    ErrorCode.COURSE_NOT_FOUND,
+                    CourseErrorCode.COURSE_NOT_FOUND,
                     "원본 코스를 찾을 수 없습니다: id=${command.forkedFromId}",
                 )
 
@@ -214,7 +215,7 @@ class CourseService(
         val kept = originIds.count { it in forkedIds }
         if (kept < required) {
             throw BusinessException(
-                ErrorCode.FORK_PLACES_NOT_KEPT,
+                CourseErrorCode.FORK_PLACES_NOT_KEPT,
                 "원본 장소 ${originIds.size}곳 중 ${required}곳 이상을 그대로 담아야 합니다(현재 ${kept}곳).",
             )
         }
@@ -231,9 +232,9 @@ class CourseService(
         // 존재·소유권 검증 — 없거나(삭제 포함)·비활성·타인 소유면 존재를 드러내지 않도록 404(COURSE_NOT_FOUND).
         val existing =
             coursePersistencePort.findCourseDetail(courseId)
-                ?: throw BusinessException(ErrorCode.COURSE_NOT_FOUND, "코스를 찾을 수 없습니다: id=$courseId")
+                ?: throw BusinessException(CourseErrorCode.COURSE_NOT_FOUND, "코스를 찾을 수 없습니다: id=$courseId")
         if (existing.status != CourseStatus.ACTIVE || existing.userId != userId) {
-            throw BusinessException(ErrorCode.COURSE_NOT_FOUND, "코스를 찾을 수 없습니다: id=$courseId")
+            throw BusinessException(CourseErrorCode.COURSE_NOT_FOUND, "코스를 찾을 수 없습니다: id=$courseId")
         }
 
         coursePersistencePort.softDelete(courseId)
@@ -283,7 +284,7 @@ class CourseService(
         val found = placeLookupPort.findPlacesByIds(requestedIds)
         val missing = requestedIds.filterNot { id -> found.any { it.id == id } }
         if (missing.isNotEmpty()) {
-            throw BusinessException(ErrorCode.PLACE_NOT_FOUND, "존재하지 않는 장소가 포함되어 있습니다: ids=$missing")
+            throw BusinessException(PlaceErrorCode.PLACE_NOT_FOUND, "존재하지 않는 장소가 포함되어 있습니다: ids=$missing")
         }
         return found
     }

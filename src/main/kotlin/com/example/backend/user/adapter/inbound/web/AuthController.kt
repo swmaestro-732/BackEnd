@@ -2,7 +2,7 @@ package com.example.backend.user.adapter.inbound.web
 
 import com.example.backend.common.exception.BusinessException
 import com.example.backend.common.response.ApiResponse
-import com.example.backend.common.response.ErrorCode
+import com.example.backend.common.response.CommonErrorCode
 import com.example.backend.user.adapter.inbound.web.request.LogoutRequest
 import com.example.backend.user.adapter.inbound.web.request.SignupRequest
 import com.example.backend.user.adapter.inbound.web.request.SocialLoginRequest
@@ -95,7 +95,7 @@ class AuthController(
         @RequestParam(required = false) mock: Boolean = false,
     ): ApiResponse<Nothing?> {
         if (mock) return ApiResponse.ok()
-        val refreshToken = request?.refreshToken ?: throw BusinessException(ErrorCode.INVALID_INPUT)
+        val refreshToken = request?.refreshToken ?: throw BusinessException(CommonErrorCode.INVALID_INPUT)
         authUseCase.logout(refreshToken)
         return ApiResponse.ok()
     }
