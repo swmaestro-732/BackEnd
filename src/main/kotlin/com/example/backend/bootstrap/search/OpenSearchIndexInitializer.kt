@@ -35,8 +35,9 @@ class OpenSearchIndexInitializer(
     private val indices =
         listOf(
             IndexDef(alias = "place", index = "place_v1", mappingResource = "opensearch/place.json"),
-            // course_v2 — 검색 필터/정렬용 필드(id·category·tags·coverImageUrl)를 추가한 매핑. alias `course` 는 유지.
-            IndexDef(alias = "course", index = "course_v2", mappingResource = "opensearch/course.json"),
+            // course 검색 필터/정렬용 필드(id·category·tags·coverImageUrl)는 기존 매핑에 필드를 '추가'만 하므로
+            // 새 인덱스(_v2)+alias 스위치 없이 같은 인덱스에 가산적 putMapping 으로 반영한다(재색인·alias 전환 불필요).
+            IndexDef(alias = "course", index = "course_v1", mappingResource = "opensearch/course.json"),
         )
 
     override fun run(args: ApplicationArguments) {
@@ -44,26 +45,36 @@ class OpenSearchIndexInitializer(
 
         indices.forEach { def ->
             try {
-                // alias 가 이미 있으면(이전 부팅·배포에서 생성) 아무것도 안 한다 — 멱등.
-                if (client.indices().existsAlias { it.name(def.alias) }.value()) return@forEach
+                val mapping = loadMapping(client, def.mappingResource)
 
-                // 인덱스 존재 여부와 alias 부착을 분리한다 — 이전 부팅이 create 후 putAlias 전에 죽었더라도(인덱스는 있고
-                // alias 만 없는 상태) 다음 부팅에서 alias 를 복구하도록. (인덱스가 있는데 다시 create 하면 예외가 나 alias 가 영구 미생성됨)
+                // 인덱스가 없으면 전체 매핑으로 생성한다. 이전 부팅이 create 후 putAlias 전에 죽어 인덱스만 있고
+                // alias 가 없는 경우도 아래 putAlias 로 복구된다(인덱스가 있는데 다시 create 하면 예외가 나 alias 가 영구 미생성됨).
                 if (!client.indices().exists { it.index(def.index) }.value()) {
-                    // 매핑 JSON(TypeMapping 본문 {properties:...})을 클라이언트 매퍼로 역직렬화해 인덱스를 만든다.
-                    val mapper = client._transport().jsonpMapper()
-                    val mapping =
-                        ClassPathResource(def.mappingResource).inputStream.use { input ->
-                            mapper.jsonProvider().createParser(input).use { parser ->
-                                TypeMapping._DESERIALIZER.deserialize(parser, mapper)
-                            }
-                        }
                     client.indices().create { c -> c.index(def.index).mappings(mapping) }
                 }
-                client.indices().putAlias { p -> p.index(def.index).name(def.alias) }
+                // 이미 있는 인덱스에도 매핑을 동기화한다 — 새로 추가된 검색 필드를 반영(가산적 putMapping, 기존 필드 동일 정의는 no-op).
+                // 이 덕분에 이전 배포로 alias 가 이미 존재하는 환경에서도 새 필드가 인덱스에 반영돼 검색이 동작한다.
+                // (기존 문서는 새 필드가 비어 있으니 CourseReindexService 재색인으로 backfill — 런북 .ai/backend/search.md.)
+                client.indices().putMapping { p -> p.index(def.index).properties(mapping.properties()) }
+                if (!client.indices().existsAlias { it.name(def.alias) }.value()) {
+                    client.indices().putAlias { p -> p.index(def.index).name(def.alias) }
+                }
                 log.info { "OpenSearch 인덱스 준비: ${def.index} (alias ${def.alias})" }
             } catch (e: Exception) {
                 log.warn { "OpenSearch 인덱스 초기화 실패(무시): ${def.index} — ${e.message}" }
+            }
+        }
+    }
+
+    /** 매핑 JSON(TypeMapping 본문 {properties:...})을 클라이언트 매퍼로 역직렬화한다. */
+    private fun loadMapping(
+        client: OpenSearchClient,
+        resource: String,
+    ): TypeMapping {
+        val mapper = client._transport().jsonpMapper()
+        return ClassPathResource(resource).inputStream.use { input ->
+            mapper.jsonProvider().createParser(input).use { parser ->
+                TypeMapping._DESERIALIZER.deserialize(parser, mapper)
             }
         }
     }
