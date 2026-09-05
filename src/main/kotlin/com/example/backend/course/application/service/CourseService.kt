@@ -42,9 +42,9 @@ class CourseService(
     private val authorCourseCountPort: AuthorCourseCountPort,
     private val eventPublisher: ApplicationEventPublisher,
 ) : CourseUseCase {
-    override fun 코스생성(command: CreateCourseCommand): Course {
-        command.포크원본검증()
-        val foundPlaces = 장소존재검증(command.places.map { it.placeId })
+    override fun create(command: CreateCourseCommand): Course {
+        command.requireForkOriginExists()
+        val foundPlaces = requirePlacesExist(command.places.map { it.placeId })
         val saved = coursePersistencePort.save(command.toCourse(foundPlaces))
 
         if (command.isPublished) {
@@ -54,7 +54,7 @@ class CourseService(
         return saved
     }
 
-    private fun CreateCourseCommand.포크원본검증() {
+    private fun CreateCourseCommand.requireForkOriginExists() {
         val originId = forkedFromId ?: return
         if (!coursePersistencePort.existsById(originId)) {
             throw BusinessException(CourseErrorCode.COURSE_NOT_FOUND)
@@ -82,7 +82,7 @@ class CourseService(
             places = coursePlaces,
             placeCategoryByPlaceId = foundPlaces.associate { it.id to it.category },
             areaCode = areaCode,
-            area = 지역이름조회(areaCode),
+            area = resolveAreaName(areaCode),
         )
     }
 
@@ -97,25 +97,27 @@ class CourseService(
             )
         }
 
-    override fun 코스수정(command: EditCourseCommand): Course {
-        val existing = 코스존재검증(command.courseId, command.userId)
+    override fun edit(command: EditCourseCommand): Course {
+        val existing = requireOwnedCourse(command.courseId, command.userId)
 
         val newPlaces = command.places.toCoursePlaces()
-        if (existing.isPublished && 장소구성변경여부확인(coursePersistencePort.findPlaces(command.courseId), newPlaces)) {
+        if (existing.isPublished &&
+            placesStructureChanged(coursePersistencePort.findPlaces(command.courseId), newPlaces)
+        ) {
             throw BusinessException(
                 CourseErrorCode.PUBLISHED_COURSE_PLACES_IMMUTABLE,
             )
         }
-        val foundPlaces = 장소존재검증(newPlaces.map { it.placeId })
+        val foundPlaces = requirePlacesExist(newPlaces.map { it.placeId })
 
-        return 코스갱신(
+        return updateCourse(
             command.toCourse(existing, newPlaces, foundPlaces),
             removed = existing.visibility.takeIf { existing.isPublished },
             added = command.visibility.takeIf { command.isPublished },
         )
     }
 
-    private fun 코스갱신(
+    private fun updateCourse(
         course: Course,
         removed: CourseVisibility?,
         added: CourseVisibility?,
@@ -164,7 +166,7 @@ class CourseService(
             existingCategory = existing.category,
             placeCategoryByPlaceId = foundPlaces.associate { it.id to it.category },
             areaCode = areaCode,
-            area = 지역이름조회(areaCode),
+            area = resolveAreaName(areaCode),
         )
     }
 
@@ -181,7 +183,7 @@ class CourseService(
                 )
 
         requireOriginPlacesKept(origin.places.map(CoursePlaceResult::placeId), command.places)
-        return 코스생성(command.toCreateCommand())
+        return create(command.toCreateCommand())
     }
 
     private fun requireOriginPlacesKept(
@@ -201,11 +203,11 @@ class CourseService(
     }
 
     /** 코스 소프트 삭제. */
-    override fun 코스삭제(
+    override fun delete(
         userId: Long,
         courseId: Long,
     ) {
-        val existing = 코스존재검증(courseId, userId)
+        val existing = requireOwnedCourse(courseId, userId)
 
         coursePersistencePort.softDelete(courseId)
         // 발행 코스였다면 삭제로 해당 공개범위 버킷 −1(임시저장은 애초에 안 잡혀 있었다).
@@ -224,9 +226,12 @@ class CourseService(
         eventPublisher.publishEvent(CourseAuthorWithdrawnEvent(authorId)) // 커밋 후 검색 색인(이벤트 — AFTER_COMMIT 리스너)
     }
 
-    private fun 지역이름조회(areaCode: String?): String? = areaCode?.let { areaQueryUseCase.findAreaByCode(it)?.shortName }
+    private fun resolveAreaName(areaCode: String?): String? =
+        areaCode?.let {
+            areaQueryUseCase.findAreaByCode(it)?.shortName
+        }
 
-    private fun 장소존재검증(placeIds: List<Long>): List<PlaceRef> {
+    private fun requirePlacesExist(placeIds: List<Long>): List<PlaceRef> {
         val requestedIds = placeIds.distinct()
         val found = placeLookupPort.findPlacesByIds(requestedIds)
         if (found.size != requestedIds.size) {
@@ -235,7 +240,7 @@ class CourseService(
         return found
     }
 
-    private fun 코스존재검증(
+    private fun requireOwnedCourse(
         courseId: Long,
         userId: Long,
     ): CourseDetailRow {
@@ -248,7 +253,7 @@ class CourseService(
         return existing
     }
 
-    private fun 장소구성변경여부확인(
+    private fun placesStructureChanged(
         stored: List<CoursePlaceRow>,
         newPlaces: List<CoursePlace>,
     ): Boolean {

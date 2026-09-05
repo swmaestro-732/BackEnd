@@ -59,7 +59,7 @@ class SavedCourseScreenServiceTest {
         `when`(userUseCase.getProfiles(listOf(3L), 7L)).thenReturn(listOf(author))
         `when`(placeQueryUseCase.findPlacesById(listOf(30L))).thenReturn(listOf(place))
 
-        val result = service.저장함코스화면조회(command)
+        val result = service.getScreen(command)
 
         assertEquals(3, result.totalCount)
         assertEquals(1, result.completedCount)
@@ -93,7 +93,7 @@ class SavedCourseScreenServiceTest {
         `when`(userUseCase.getProfiles(listOf(3L), 7L)).thenReturn(emptyList())
         `when`(placeQueryUseCase.findPlacesById(emptyList())).thenReturn(emptyList())
 
-        val result = service.저장함코스화면조회(command(folderId = null, completed = null, cursor = null, size = 10))
+        val result = service.getScreen(command(folderId = null, completed = null, cursor = null, size = 10))
 
         assertEquals(2, result.totalCount)
         assertEquals(0, result.items.size)

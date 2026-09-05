@@ -9,13 +9,13 @@ import com.example.backend.course.domain.model.Course
  * 인바운드 포트 — 코스 쓰기(커맨드) 유스케이스. 조회는 [CourseQueryUseCase] 가 담당한다.
  */
 interface CourseUseCase {
-    fun 코스생성(command: CreateCourseCommand): Course
+    fun create(command: CreateCourseCommand): Course
 
-    fun 코스수정(command: EditCourseCommand): Course
+    fun edit(command: EditCourseCommand): Course
 
     fun fork(command: ForkCourseCommand): Course
 
-    fun 코스삭제(
+    fun delete(
         userId: Long,
         courseId: Long,
     )

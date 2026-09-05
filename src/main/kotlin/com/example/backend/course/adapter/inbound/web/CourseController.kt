@@ -73,7 +73,7 @@ class CourseController(
         @RequestParam(required = false) mock: Boolean = false,
     ): ApiResponse<CourseIdResponse> {
         if (mock && mockGuard.isMockAllowed()) return ApiResponse.success(CourseIdResponse.MOCK)
-        val course = courseUseCase.코스생성(request.toCommand(userId))
+        val course = courseUseCase.create(request.toCommand(userId))
         return ApiResponse.success(CourseIdResponse.from(course))
     }
 
@@ -86,7 +86,7 @@ class CourseController(
         @RequestParam(required = false) mock: Boolean = false,
     ): ApiResponse<CourseIdResponse> {
         if (mock && mockGuard.isMockAllowed()) return ApiResponse.success(CourseIdResponse.MOCK)
-        val course = courseUseCase.코스수정(request.toCommand(userId, courseId))
+        val course = courseUseCase.edit(request.toCommand(userId, courseId))
         return ApiResponse.success(CourseIdResponse.from(course))
     }
 
@@ -125,7 +125,7 @@ class CourseController(
         @RequestParam(required = false) mock: Boolean = false,
     ): ApiResponse<Nothing?> {
         if (mock && mockGuard.isMockAllowed()) return ApiResponse.ok("코스가 삭제되었습니다.")
-        courseUseCase.코스삭제(userId, courseId)
+        courseUseCase.delete(userId, courseId)
         return ApiResponse.ok("코스가 삭제되었습니다.")
     }
 

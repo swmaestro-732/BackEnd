@@ -26,10 +26,10 @@ class SavedCourseScreenService(
     private val placeQueryUseCase: PlaceQueryUseCase,
     private val courseInteractionUseCase: CourseInteractionUseCase,
 ) : SavedCourseScreenUseCase {
-    override fun 저장함코스화면조회(command: SavedCourseScreenCommand): SavedCourseScreenResult {
-        val saved = savedCourseUseCase.getSavedCourses(command.저장코스조회조건())
+    override fun getScreen(command: SavedCourseScreenCommand): SavedCourseScreenResult {
+        val saved = savedCourseUseCase.getSavedCourses(command.toSavedCoursesCommand())
         val folderCounts = savedCourseUseCase.getFolderCounts(command.userId)
-        val items = 화면항목조립(saved.savedCourses, command.userId)
+        val items = assembleItems(saved.savedCourses, command.userId)
 
         return SavedCourseScreenResult(
             totalCount = saved.totalCount,
@@ -43,7 +43,7 @@ class SavedCourseScreenService(
         )
     }
 
-    private fun 코스상세연결(
+    private fun attachCourseDetails(
         records: List<SavedCoursesResult.SavedCourseItem>,
         viewerId: Long,
     ): List<Pair<SavedCoursesResult.SavedCourseItem, CourseDetailResult>> {
@@ -54,11 +54,11 @@ class SavedCourseScreenService(
         return records.mapNotNull { record -> courseById[record.courseId]?.let { record to it } }
     }
 
-    private fun 화면항목조립(
+    private fun assembleItems(
         records: List<SavedCoursesResult.SavedCourseItem>,
         viewerId: Long,
     ): List<SavedCourseScreenResult.Item> {
-        val recordsWithCourse = 코스상세연결(records, viewerId)
+        val recordsWithCourse = attachCourseDetails(records, viewerId)
         val courses = recordsWithCourse.map { it.second }
 
         val completedAtByCourse =
@@ -87,7 +87,7 @@ class SavedCourseScreenService(
         }
     }
 
-    private fun SavedCourseScreenCommand.저장코스조회조건() =
+    private fun SavedCourseScreenCommand.toSavedCoursesCommand() =
         SavedCoursesCommand(
             userId = userId,
             folderId = folderId,

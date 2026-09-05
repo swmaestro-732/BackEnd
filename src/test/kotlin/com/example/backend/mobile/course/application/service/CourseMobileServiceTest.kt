@@ -29,7 +29,7 @@ class CourseMobileServiceTest {
         `when`(userUseCase.getProfile(3L, 7L)).thenReturn(author)
         `when`(placeQueryUseCase.findPlacesById(listOf(30L, 20L))).thenReturn(places)
 
-        val result = service.코스상세화면조회(10L, 7L)
+        val result = service.getScreen(10L, 7L)
 
         assertSame(course, result.course)
         assertSame(author, result.author)
