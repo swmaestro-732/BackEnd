@@ -1,6 +1,6 @@
 package com.example.backend.course.adapter.outbound.persistence.exposed.repository
 
-import com.example.backend.course.adapter.outbound.persistence.TagTable
+import com.example.backend.course.adapter.outbound.persistence.exposed.TagTable
 import org.jetbrains.exposed.v1.jdbc.upsertReturning
 import org.springframework.stereotype.Repository
 

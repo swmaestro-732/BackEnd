@@ -1,7 +1,7 @@
 package com.example.backend.common.persistence.postgis
 
 import com.example.backend.common.geo.Coordinate
-import com.example.backend.place.adapter.outbound.persistence.PlaceTable
+import com.example.backend.place.adapter.outbound.persistence.exposed.PlaceTable
 import com.example.backend.place.domain.model.PlaceBusinessStatus
 import com.example.backend.place.domain.model.PlaceCategory
 import com.example.backend.place.domain.model.PlaceStatus
