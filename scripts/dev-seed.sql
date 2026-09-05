@@ -14,9 +14,9 @@ BEGIN;
 
 -- ── 1) 사용자: dev(1) + 작성자 2,3 ──────────────────────────────────────────
 INSERT INTO users (id, status, handle, nickname, profile_image_url) VALUES
-    (1, 0, 'hyunwoo',     '현우',       'https://images.unsplash.com/photo-1547425260-76bcadfb4f2c?w=200&q=80'),
-    (2, 0, 'jiho_routes', '지호',       'https://images.unsplash.com/photo-1502685104226-ee32379fefbe?w=200&q=80'),
-    (3, 0, 'slow_seoul',  '슬로우서울', 'https://images.unsplash.com/photo-1544005313-94ddf0286df2?w=200&q=80')
+    (1, 'ACTIVE', 'hyunwoo',     '현우',       'https://images.unsplash.com/photo-1547425260-76bcadfb4f2c?w=200&q=80'),
+    (2, 'ACTIVE', 'jiho_routes', '지호',       'https://images.unsplash.com/photo-1502685104226-ee32379fefbe?w=200&q=80'),
+    (3, 'ACTIVE', 'slow_seoul',  '슬로우서울', 'https://images.unsplash.com/photo-1544005313-94ddf0286df2?w=200&q=80')
 ON CONFLICT (id) DO UPDATE
     SET handle = EXCLUDED.handle, nickname = EXCLUDED.nickname,
         profile_image_url = EXCLUDED.profile_image_url, deleted_at = NULL;

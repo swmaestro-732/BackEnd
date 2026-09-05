@@ -2,7 +2,7 @@ package com.example.backend.media.application.service
 
 import com.example.backend.bootstrap.config.MediaProperties
 import com.example.backend.common.exception.BusinessException
-import com.example.backend.common.response.ErrorCode
+import com.example.backend.common.response.CommonErrorCode
 import com.example.backend.common.support.runAfterCommit
 import com.example.backend.media.application.port.inbound.MediaCleanupUseCase
 import com.example.backend.media.application.port.inbound.PresignUploadUseCase
@@ -37,10 +37,10 @@ class MediaService(
     ): PresignResult {
         val ext =
             CONTENT_TYPE_EXTENSIONS[contentType]
-                ?: throw BusinessException(ErrorCode.UNSUPPORTED_MEDIA_TYPE)
+                ?: throw BusinessException(CommonErrorCode.UNSUPPORTED_MEDIA_TYPE)
 
         if (contentLength !in 1..mediaProperties.maxUploadBytes) {
-            throw BusinessException(ErrorCode.PAYLOAD_TOO_LARGE)
+            throw BusinessException(CommonErrorCode.PAYLOAD_TOO_LARGE)
         }
 
         val key = "${purpose.keyPrefix}/$userId/${UUID.randomUUID()}.$ext"

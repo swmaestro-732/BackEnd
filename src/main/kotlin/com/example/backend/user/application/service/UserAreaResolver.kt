@@ -2,7 +2,7 @@ package com.example.backend.user.application.service
 
 import com.example.backend.area.application.port.inbound.AreaQueryUseCase
 import com.example.backend.common.exception.BusinessException
-import com.example.backend.common.response.ErrorCode
+import com.example.backend.common.response.AreaErrorCode
 import com.example.backend.user.application.port.inbound.dto.UserAreaResult
 import org.springframework.stereotype.Component
 
@@ -21,7 +21,7 @@ class UserAreaResolver(
         val normalized = areaCodes.map(::normalize).distinct()
         val missing = normalized.filter { areaQueryUseCase.findAreaByCode(it) == null }
         if (missing.isNotEmpty()) {
-            throw BusinessException(ErrorCode.AREA_NOT_FOUND, "존재하지 않는 지역 코드가 포함되어 있습니다: codes=$missing")
+            throw BusinessException(AreaErrorCode.AREA_NOT_FOUND, "존재하지 않는 지역 코드가 포함되어 있습니다: codes=$missing")
         }
         return normalized
     }

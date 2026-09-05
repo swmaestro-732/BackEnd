@@ -1,7 +1,8 @@
 package com.example.backend.user.application.service
 
 import com.example.backend.common.exception.BusinessException
-import com.example.backend.common.response.ErrorCode
+import com.example.backend.common.response.CommonErrorCode
+import com.example.backend.common.response.PlaceErrorCode
 import com.example.backend.user.application.port.inbound.SavedPlaceUseCase
 import com.example.backend.user.application.port.inbound.dto.SavedPlacesCommand
 import com.example.backend.user.application.port.inbound.dto.SavedPlacesResult
@@ -37,10 +38,10 @@ class SavedPlaceService(
     ): SavedPlace {
         val place =
             placeAccessPort.findPlace(placeId)
-                ?: throw BusinessException(ErrorCode.PLACE_NOT_FOUND, "저장할 장소를 찾을 수 없습니다: placeId=$placeId")
+                ?: throw BusinessException(PlaceErrorCode.PLACE_NOT_FOUND, "저장할 장소를 찾을 수 없습니다: placeId=$placeId")
 
         if (savedPlacePersistencePort.existsSavedPlace(userId, placeId)) {
-            throw BusinessException(ErrorCode.PLACE_ALREADY_SAVED, "이미 저장한 장소입니다: placeId=$placeId")
+            throw BusinessException(PlaceErrorCode.PLACE_ALREADY_SAVED, "이미 저장한 장소입니다: placeId=$placeId")
         }
 
         // 장소 카테고리 스냅샷 — SavedPlaceCategory 는 PlaceCategory 의 사본 enum 이라 이름으로 매핑한다(모르는 값은 미분류 null).
@@ -104,7 +105,7 @@ class SavedPlaceService(
     /** 커서(=저장 레코드 id)를 파싱한다. 형식이 잘못되면 400. */
     private fun decodeCursor(cursor: String): Long =
         cursor.toLongOrNull()
-            ?: throw BusinessException(ErrorCode.INVALID_INPUT, "잘못된 커서입니다: $cursor")
+            ?: throw BusinessException(CommonErrorCode.INVALID_INPUT, "잘못된 커서입니다: $cursor")
 
     /**
      * 카테고리 필터 이름을 도메인 enum 으로 파싱한다. 아는 이름이 아니면 400 —
@@ -112,5 +113,5 @@ class SavedPlaceService(
      */
     private fun decodeCategory(category: String): SavedPlaceCategory =
         SavedPlaceCategory.entries.find { it.name == category }
-            ?: throw BusinessException(ErrorCode.INVALID_INPUT, "알 수 없는 저장 카테고리입니다: $category")
+            ?: throw BusinessException(CommonErrorCode.INVALID_INPUT, "알 수 없는 저장 카테고리입니다: $category")
 }

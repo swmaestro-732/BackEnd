@@ -4,7 +4,8 @@ import com.example.backend.area.application.port.inbound.AreaQueryUseCase
 import com.example.backend.area.application.port.inbound.dto.AreaDescriptor
 import com.example.backend.area.domain.model.AreaLevel
 import com.example.backend.common.exception.BusinessException
-import com.example.backend.common.response.ErrorCode
+import com.example.backend.common.response.CourseErrorCode
+import com.example.backend.common.response.PlaceErrorCode
 import com.example.backend.course.application.port.inbound.CourseQueryUseCase
 import com.example.backend.course.application.port.inbound.dto.CreateCourseCommand
 import com.example.backend.course.application.port.inbound.dto.CreateCoursePlaceCommand
@@ -75,7 +76,7 @@ class CourseServiceTest {
 
         val exception = assertThrows(BusinessException::class.java) { service.코스생성(createCommand(true)) }
 
-        assertEquals(ErrorCode.PLACE_NOT_FOUND, exception.errorCode)
+        assertEquals(PlaceErrorCode.PLACE_NOT_FOUND, exception.errorCode)
         verify(persistence, never()).save(anyValue())
     }
 
@@ -116,7 +117,7 @@ class CourseServiceTest {
 
         val exception = assertThrows(BusinessException::class.java) { service.코스수정(editCommand(true)) }
 
-        assertEquals(ErrorCode.PUBLISHED_COURSE_PLACES_IMMUTABLE, exception.errorCode)
+        assertEquals(CourseErrorCode.PUBLISHED_COURSE_PLACES_IMMUTABLE, exception.errorCode)
         verify(persistence, never()).update(anyValue())
     }
 

@@ -1,6 +1,6 @@
 package com.example.backend.place.domain.model
 
-import com.example.backend.common.persistence.postgis.GeoPoint
+import com.example.backend.common.geo.Coordinate
 import kotlin.time.Instant
 
 /**
@@ -17,7 +17,7 @@ data class Place private constructor(
     val name: String,
     val description: String?,
     val category: PlaceCategory,
-    val location: GeoPoint,
+    val location: Coordinate,
     val address: String,
     val areaCode: String?,
     val imageUrl: String?,
@@ -33,7 +33,7 @@ data class Place private constructor(
             name: String,
             description: String?,
             category: PlaceCategory,
-            location: GeoPoint,
+            location: Coordinate,
             address: String,
             areaCode: String? = null,
             imageUrl: String?,
@@ -71,7 +71,7 @@ data class Place private constructor(
             name: String,
             description: String?,
             category: PlaceCategory,
-            location: GeoPoint,
+            location: Coordinate,
             address: String,
             areaCode: String? = null,
             imageUrl: String?,

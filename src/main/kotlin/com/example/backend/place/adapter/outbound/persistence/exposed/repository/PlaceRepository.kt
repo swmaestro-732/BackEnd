@@ -10,36 +10,36 @@ import org.jetbrains.exposed.v1.core.greater
 import org.jetbrains.exposed.v1.core.inList
 import org.jetbrains.exposed.v1.core.isNull
 import org.jetbrains.exposed.v1.core.like
-import org.jetbrains.exposed.v1.jdbc.insertIgnore
+import org.jetbrains.exposed.v1.jdbc.batchInsert
 import org.springframework.stereotype.Repository
 
 /**
  * places 테이블 접근 리포지토리 — 삭제되지 않은 장소의 조회를 담당한다.
- * 조회는 DAO([PlaceEntity])로 하고, 읽기 모델은 순수 도메인 [Place] 로 변환해 반환한다.
+ * 조회는 DAO([PlaceEntity])로 하고, 엔티티의 도메인 변환은 어댑터가 담당한다.
  */
 @Repository
 class PlaceRepository {
-    /** deleted_at IS NULL 인 장소들을 id 목록으로 읽어 도메인으로 변환한다. */
-    fun findByIds(placeIds: List<Long>): List<Place> =
+    /** deleted_at IS NULL 인 장소들을 id 목록으로 읽어 엔티티로 반환한다. */
+    internal fun findByIds(placeIds: List<Long>): List<PlaceEntity> =
         PlaceEntity
             .find { (PlaceTable.id inList placeIds) and PlaceTable.deletedAt.isNull() }
-            .map { it.toDomain() }
+            .toList()
 
     /**
      * 이름 부분 일치(`name LIKE '%query%'`) + deleted_at IS NULL 로 장소를 id 오름차순 [limit] 개 조회한다.
      * [afterId] 가 주어지면 그보다 id 가 큰 장소부터(커서 seek). 삭제된 장소는 제외.
      * 사용자 입력의 LIKE 와일드카드(`%`·`_`·`\`)는 이스케이프해 리터럴로 취급한다(의도치 않은 전체 매칭 방지).
      */
-    fun searchByName(
+    internal fun searchByName(
         query: String,
         cursor: Long?,
         limit: Int,
-    ): List<Place> =
+    ): List<PlaceEntity> =
         PlaceEntity
             .find { nameMatches(query) and (cursor?.let { PlaceTable.id greater it } ?: Op.TRUE) }
             .orderBy(PlaceTable.id to SortOrder.ASC)
             .limit(limit)
-            .map { it.toDomain() }
+            .toList()
 
     /** 이름 부분 일치 + deleted_at IS NULL 인 장소의 전체 개수. */
     fun countByName(query: String): Long = PlaceEntity.count(nameMatches(query))
@@ -50,24 +50,24 @@ class PlaceRepository {
     // Postgres LIKE 의 기본 이스케이프 문자(백슬래시)를 이용해 와일드카드를 리터럴화한다. 백슬래시를 먼저 치환해야 한다.
     private fun String.escapeLikeWildcards(): String = replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
 
-    /** 재색인용 — 활성(deleted_at IS NULL) 장소를 id 오름차순으로 afterId 다음부터 limit개 읽어 도메인으로 변환한다. */
-    fun findForIndex(
+    /** 재색인용 — 활성(deleted_at IS NULL) 장소를 id 오름차순으로 afterId 다음부터 limit개 읽어 엔티티로 반환한다. */
+    internal fun findForIndex(
         afterId: Long?,
         limit: Int,
-    ): List<Place> =
+    ): List<PlaceEntity> =
         PlaceEntity
             .find { (PlaceTable.id greater (afterId ?: 0L)) and PlaceTable.deletedAt.isNull() }
             .orderBy(PlaceTable.id to SortOrder.ASC)
             .limit(limit)
-            .map { it.toDomain() }
+            .toList()
 
-    /** deleted_at IS NULL 인 장소들을 카카오 place id 목록으로 읽어 도메인으로 변환한다(검색 결과 dedup 조회용). */
-    fun findByKakaoIds(kakaoIds: List<String>): List<Place> {
+    /** deleted_at IS NULL 인 장소들을 카카오 place id 목록으로 읽어 엔티티로 반환한다(검색 결과 dedup 조회용). */
+    internal fun findByKakaoIds(kakaoIds: List<String>): List<PlaceEntity> {
         val ids = kakaoIds.filter { it.isNotBlank() }
         if (ids.isEmpty()) return emptyList()
         return PlaceEntity
             .find { (PlaceTable.kakaoPlaceId inList ids) and PlaceTable.deletedAt.isNull() }
-            .map { it.toDomain() }
+            .toList()
     }
 
     /**
@@ -78,19 +78,17 @@ class PlaceRepository {
      */
     fun insertIgnoringConflicts(places: List<Place>) {
         // kakao id 가 비어 있으면 dedup 키로 쓸 수 없어 삽입하지 않는다(방어 — 어댑터에서 이미 걸러지지만 이중 안전).
-        places.filterNot { it.kakaoPlaceId.isNullOrBlank() }.forEach { place ->
-            PlaceTable.insertIgnore {
-                it[PlaceTable.status] = place.status
-                it[PlaceTable.name] = place.name
-                it[PlaceTable.description] = place.description
-                it[PlaceTable.category] = place.category
-                it[PlaceTable.location] = place.location
-                it[PlaceTable.address] = place.address
-                it[PlaceTable.areaCode] = place.areaCode
-                it[PlaceTable.imageUrl] = place.imageUrl
-                it[PlaceTable.businessStatus] = place.businessStatus
-                it[PlaceTable.kakaoPlaceId] = place.kakaoPlaceId
-            }
+        PlaceTable.batchInsert(places.filterNot { it.kakaoPlaceId.isNullOrBlank() }, ignore = true) { place ->
+            this[PlaceTable.status] = place.status
+            this[PlaceTable.name] = place.name
+            this[PlaceTable.description] = place.description
+            this[PlaceTable.category] = place.category
+            this[PlaceTable.location] = place.location
+            this[PlaceTable.address] = place.address
+            this[PlaceTable.areaCode] = place.areaCode
+            this[PlaceTable.imageUrl] = place.imageUrl
+            this[PlaceTable.businessStatus] = place.businessStatus
+            this[PlaceTable.kakaoPlaceId] = place.kakaoPlaceId
         }
     }
 }

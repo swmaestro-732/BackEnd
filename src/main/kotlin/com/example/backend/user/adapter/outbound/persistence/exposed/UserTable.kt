@@ -20,14 +20,17 @@ internal object UserTable : LongIdTable("users") {
     val handle = varchar("handle", 30).nullable()
     val bio = text("bio").nullable()
     val profileImageUrl = text("profile_image_url").nullable()
-    val followersCnt = integer("followers_cnt")
-    val followingsCnt = integer("followings_cnt")
+
+    // NOT NULL 이고 신규 유저는 0/ACTIVE 로 시작한다 — DB DEFAULT(V1) 와 같은 값을 Exposed 기본값으로도 둬서
+    // DAO(.new{}) 삽입이 이 컬럼들을 생략해도 채워지게 한다(쓰기=DAO 컨벤션, CourseTable 선례).
+    val followersCnt = integer("followers_cnt").default(0)
+    val followingsCnt = integer("followings_cnt").default(0)
 
     // 공개범위별 발행 코스 개수 캐시(마이페이지가 매 조회 GROUP BY 대신 읽는다). CourseService 가 ±1 로 유지.
-    val publicCoursesCnt = integer("public_courses_cnt")
-    val followerCoursesCnt = integer("follower_courses_cnt")
-    val privateCoursesCnt = integer("private_courses_cnt")
-    val status = short("status")
+    val publicCoursesCnt = integer("public_courses_cnt").default(0)
+    val followerCoursesCnt = integer("follower_courses_cnt").default(0)
+    val privateCoursesCnt = integer("private_courses_cnt").default(0)
+    val status = enumerationByName<UserStatus>("status", 32).default(UserStatus.ACTIVE)
     val socialProvider = varchar("social_provider", 20).nullable()
     val socialId = varchar("social_id", 255).nullable()
     val deletedAt = timestamp("deleted_at").nullable()
@@ -66,6 +69,6 @@ internal class UserEntity(
             profileImageUrl = profileImageUrl,
             socialProvider = socialProvider?.let(SocialProvider::valueOf),
             socialId = socialId,
-            status = UserStatus.fromCode(status),
+            status = status,
         )
 }

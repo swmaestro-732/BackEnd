@@ -1,7 +1,8 @@
 package com.example.backend.user.application.service
 
 import com.example.backend.common.exception.BusinessException
-import com.example.backend.common.response.ErrorCode
+import com.example.backend.common.response.CommonErrorCode
+import com.example.backend.common.response.PlaceErrorCode
 import com.example.backend.user.application.port.inbound.dto.SavedPlacesCommand
 import com.example.backend.user.application.port.outbound.PlaceAccessPort
 import com.example.backend.user.application.port.outbound.PlaceRef
@@ -122,7 +123,7 @@ class SavedPlaceServiceTest {
 
         val ex = assertThrows<BusinessException> { service.save(userId = 1L, placeId = 42L) }
 
-        assertEquals(ErrorCode.PLACE_NOT_FOUND, ex.errorCode)
+        assertEquals(PlaceErrorCode.PLACE_NOT_FOUND, ex.errorCode)
         assertNull(fakePort.insertArgs)
     }
 
@@ -133,7 +134,7 @@ class SavedPlaceServiceTest {
 
         val ex = assertThrows<BusinessException> { service.save(userId = 1L, placeId = 42L) }
 
-        assertEquals(ErrorCode.PLACE_ALREADY_SAVED, ex.errorCode)
+        assertEquals(PlaceErrorCode.PLACE_ALREADY_SAVED, ex.errorCode)
         assertNull(fakePort.insertArgs)
     }
 
@@ -214,7 +215,7 @@ class SavedPlaceServiceTest {
     fun `커서가 숫자가 아니면 INVALID_INPUT 을 던진다`() {
         val ex = assertThrows<BusinessException> { service.getSavedPlaces(command(cursor = "not-a-number")) }
 
-        assertEquals(ErrorCode.INVALID_INPUT, ex.errorCode)
+        assertEquals(CommonErrorCode.INVALID_INPUT, ex.errorCode)
     }
 
     @Test
@@ -261,7 +262,7 @@ class SavedPlaceServiceTest {
         // 포트 계약이 문자열이라(BFF 가 enum 을 못 참조) 값 검증은 서비스가 한다.
         val ex = assertThrows<BusinessException> { service.getSavedPlaces(command(category = "NOT_A_CATEGORY")) }
 
-        assertEquals(ErrorCode.INVALID_INPUT, ex.errorCode)
+        assertEquals(CommonErrorCode.INVALID_INPUT, ex.errorCode)
     }
 
     @Test

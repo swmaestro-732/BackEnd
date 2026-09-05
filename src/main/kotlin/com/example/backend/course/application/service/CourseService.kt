@@ -2,7 +2,8 @@ package com.example.backend.course.application.service
 
 import com.example.backend.area.application.port.inbound.AreaQueryUseCase
 import com.example.backend.common.exception.BusinessException
-import com.example.backend.common.response.ErrorCode
+import com.example.backend.common.response.CourseErrorCode
+import com.example.backend.common.response.PlaceErrorCode
 import com.example.backend.course.application.event.CourseAuthorWithdrawnEvent
 import com.example.backend.course.application.event.CourseDeletedEvent
 import com.example.backend.course.application.event.CourseSavedEvent
@@ -56,7 +57,7 @@ class CourseService(
     private fun CreateCourseCommand.포크원본검증() {
         val originId = forkedFromId ?: return
         if (!coursePersistencePort.existsById(originId)) {
-            throw BusinessException(ErrorCode.COURSE_NOT_FOUND)
+            throw BusinessException(CourseErrorCode.COURSE_NOT_FOUND)
         }
     }
 
@@ -102,7 +103,7 @@ class CourseService(
         val newPlaces = command.places.toCoursePlaces()
         if (existing.isPublished && 장소구성변경여부확인(coursePersistencePort.findPlaces(command.courseId), newPlaces)) {
             throw BusinessException(
-                ErrorCode.PUBLISHED_COURSE_PLACES_IMMUTABLE,
+                CourseErrorCode.PUBLISHED_COURSE_PLACES_IMMUTABLE,
             )
         }
         val foundPlaces = 장소존재검증(newPlaces.map { it.placeId })
@@ -175,7 +176,7 @@ class CourseService(
                 .getDetails(listOf(command.forkedFromId), command.userId)
                 .firstOrNull()
                 ?: throw BusinessException(
-                    ErrorCode.COURSE_NOT_FOUND,
+                    CourseErrorCode.COURSE_NOT_FOUND,
                     "원본 코스를 찾을 수 없습니다: id=${command.forkedFromId}",
                 )
 
@@ -193,7 +194,7 @@ class CourseService(
         val kept = originIds.count { it in forkedIds }
         if (kept < required) {
             throw BusinessException(
-                ErrorCode.FORK_PLACES_NOT_KEPT,
+                CourseErrorCode.FORK_PLACES_NOT_KEPT,
                 "원본 장소 ${originIds.size}곳 중 ${required}곳 이상을 그대로 담아야 합니다(현재 ${kept}곳).",
             )
         }
@@ -229,7 +230,7 @@ class CourseService(
         val requestedIds = placeIds.distinct()
         val found = placeLookupPort.findPlacesByIds(requestedIds)
         if (found.size != requestedIds.size) {
-            throw BusinessException(ErrorCode.PLACE_NOT_FOUND)
+            throw BusinessException(PlaceErrorCode.PLACE_NOT_FOUND)
         }
         return found
     }
@@ -240,9 +241,9 @@ class CourseService(
     ): CourseDetailRow {
         val existing =
             coursePersistencePort.findCourseDetail(courseId)
-                ?: throw BusinessException(ErrorCode.COURSE_NOT_FOUND)
+                ?: throw BusinessException(CourseErrorCode.COURSE_NOT_FOUND)
         if (existing.status != CourseStatus.ACTIVE || existing.userId != userId) {
-            throw BusinessException(ErrorCode.COURSE_NOT_FOUND)
+            throw BusinessException(CourseErrorCode.COURSE_NOT_FOUND)
         }
         return existing
     }
