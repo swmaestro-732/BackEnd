@@ -86,14 +86,12 @@ class CoursePersistenceAdapter(
         limit: Int,
     ): List<Course> = courseRepository.findForIndex(afterId, limit).map { it.toDomain(emptyList(), emptyList()) }
 
-    /** 코스에 담긴 장소·이미지와 태그 연결을 심는다(생성·편집 공용). */
+    /** 코스에 담긴 장소·이미지와 태그 연결을 심는다(생성·편집 공용) — 테이블별 배치 insert 로 왕복을 줄인다. */
     private fun insertChildren(
         courseId: Long,
         course: Course,
     ) {
-        course.places.forEach { place -> coursePlaceRepository.insert(courseId, place) }
-        course.tags.forEach { tagName ->
-            courseTagRepository.link(courseId, tagRepository.findOrCreate(tagName))
-        }
+        coursePlaceRepository.insertAll(courseId, course.places)
+        courseTagRepository.linkAll(courseId, tagRepository.findOrCreateAll(course.tags))
     }
 }

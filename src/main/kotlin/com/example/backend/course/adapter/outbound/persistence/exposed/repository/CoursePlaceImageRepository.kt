@@ -1,29 +1,33 @@
 package com.example.backend.course.adapter.outbound.persistence.exposed.repository
 
-import com.example.backend.course.adapter.outbound.persistence.exposed.CoursePlaceImageEntity
 import com.example.backend.course.adapter.outbound.persistence.exposed.CoursePlaceImageTable
 import com.example.backend.course.application.port.outbound.CoursePlaceImageRow
 import org.jetbrains.exposed.v1.core.ResultRow
 import org.jetbrains.exposed.v1.core.SortOrder
 import org.jetbrains.exposed.v1.core.inList
+import org.jetbrains.exposed.v1.jdbc.batchInsert
 import org.jetbrains.exposed.v1.jdbc.deleteWhere
 import org.jetbrains.exposed.v1.jdbc.selectAll
 import org.springframework.stereotype.Repository
+
+/** 새로 심을 장소 이미지 한 장(생성 id 불필요) — [CoursePlaceImageRepository.insertAll] 입력. */
+data class NewCoursePlaceImage(
+    val coursePlaceId: Long,
+    val imageUrl: String,
+    val orderNo: Int,
+)
 
 /**
  * course_place_images 테이블 접근 리포지토리 — 장소별 이미지의 조회·삽입.
  */
 @Repository
 class CoursePlaceImageRepository {
-    fun insert(
-        coursePlaceId: Long,
-        imageUrl: String,
-        orderNo: Int,
-    ) {
-        CoursePlaceImageEntity.new {
-            this.coursePlaceId = coursePlaceId
-            this.imageUrl = imageUrl
-            this.orderNo = orderNo.toShort()
+    /** 여러 장소의 이미지를 배치 1문으로 삽입한다 — 생성 id 를 쓰지 않아 RETURNING 을 끈다. */
+    fun insertAll(images: List<NewCoursePlaceImage>) {
+        CoursePlaceImageTable.batchInsert(images, shouldReturnGeneratedValues = false) { image ->
+            this[CoursePlaceImageTable.coursePlaceId] = image.coursePlaceId
+            this[CoursePlaceImageTable.imageUrl] = image.imageUrl
+            this[CoursePlaceImageTable.orderNo] = image.orderNo.toShort()
         }
     }
 
