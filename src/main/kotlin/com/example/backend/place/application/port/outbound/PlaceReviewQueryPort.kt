@@ -25,7 +25,7 @@ interface PlaceReviewQueryPort {
     /** 리뷰 id 별 사진 URL — 노출 순서(order_no) 오름차순. */
     fun findPhotoUrls(reviewIds: List<Long>): Map<Long, List<String>>
 
-    /** 리뷰 id 별 태그. 저장된 값이 곧 enum 이름이라 마스터 조회가 없다(V4). */
+    /** 리뷰 id 별 태그. 저장된 값이 곧 enum 이름이라 마스터 조회가 없다(V5). */
     fun findTags(reviewIds: List<Long>): Map<Long, List<PlaceReviewTag>>
 
     /** 장소 전체의 별점별 리뷰 수. 실제 존재하는 별점만 반환하며 페이지와 무관하다. */

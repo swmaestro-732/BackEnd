@@ -108,7 +108,7 @@ class CourseReviewQueryRepository {
             .where(alive(courseId))
             .count()
 
-    /** courses 별점 카운터(V8) 단건 조회 — 삭제된 코스는 제외한다. */
+    /** courses 별점 카운터(V5) 단건 조회 — 삭제된 코스는 제외한다. */
     fun findRatingCounters(courseId: Long): CourseRatingCounters? =
         CourseTable
             .select(CourseTable.ratingSum, CourseTable.ratingCnt)

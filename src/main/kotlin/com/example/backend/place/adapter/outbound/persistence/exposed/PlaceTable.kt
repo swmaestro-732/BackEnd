@@ -32,7 +32,7 @@ internal object PlaceTable : LongIdTable("places") {
     val businessStatus = enumerationByName<PlaceBusinessStatus>("business_status", 32)
     val kakaoPlaceId = varchar("kakao_place_id", 64).nullable()
 
-    // 별점 비정규화 카운터(V6) — 리뷰 작성 +rating/+1, 소프트 삭제 -rating/-1. 평균 = rating_sum / rating_cnt.
+    // 별점 비정규화 카운터(V5) — 리뷰 작성 +rating/+1, 소프트 삭제 -rating/-1. 평균 = rating_sum / rating_cnt.
     val ratingSum = long("rating_sum").default(0)
     val ratingCnt = integer("rating_cnt").default(0)
 }

@@ -38,7 +38,7 @@ internal object CourseTable : LongIdTable("courses") {
     val savesCnt = integer("saves_cnt").default(0)
     val tracingsCnt = integer("tracings_cnt").default(0)
 
-    // 별점 비정규화 카운터(V8) — 리뷰 작성 +rating/+1, 소프트 삭제 -rating/-1 상대 갱신. 평균 = rating_sum / rating_cnt.
+    // 별점 비정규화 카운터(V5) — 리뷰 작성 +rating/+1, 소프트 삭제 -rating/-1 상대 갱신. 평균 = rating_sum / rating_cnt.
     val ratingSum = long("rating_sum").default(0)
     val ratingCnt = integer("rating_cnt").default(0)
     val forkedFromId = long("forked_from_id").nullable() // 포크 원본 course (같은 도메인)

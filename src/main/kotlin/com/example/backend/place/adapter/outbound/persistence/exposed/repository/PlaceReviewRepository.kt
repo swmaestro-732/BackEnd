@@ -112,7 +112,7 @@ class PlaceReviewRepository {
         }
     }
 
-    /** 태그 연결은 마스터 조회 없이 enum 이름을 그대로 심는다(태그 코드가 정본 — V4). */
+    /** 태그 연결은 마스터 조회 없이 enum 이름을 그대로 심는다(태그 코드가 정본 — V5). */
     private fun insertTagLinks(
         reviewId: Long,
         tags: List<PlaceReviewTag>,

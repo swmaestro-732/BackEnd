@@ -26,7 +26,7 @@ interface CourseReviewQueryPort {
     /** 리뷰 id 별 사진 URL — 노출 순서(order_no) 오름차순. */
     fun findPhotoUrls(reviewIds: List<Long>): Map<Long, List<String>>
 
-    /** 리뷰 id 별 태그. 저장된 값이 곧 enum 이름이라 마스터 조회가 없다(V7). */
+    /** 리뷰 id 별 태그. 저장된 값이 곧 enum 이름이라 마스터 조회가 없다(V5). */
     fun findTags(reviewIds: List<Long>): Map<Long, List<CourseReviewTag>>
 
     /** 코스 전체의 별점별 리뷰 수. 실제 존재하는 별점만 반환하며 페이지와 무관하다. */
@@ -36,7 +36,7 @@ interface CourseReviewQueryPort {
     fun countPhotosByCourse(courseId: Long): Long
 
     /**
-     * 코스의 별점 비정규화 카운터(courses.rating_sum·rating_cnt — V8). 없는(삭제된) 코스면 null.
+     * 코스의 별점 비정규화 카운터(courses.rating_sum·rating_cnt — V5). 없는(삭제된) 코스면 null.
      * 장소는 Place 애그리거트가 카운터를 들지만, 코스는 Course reconstitute 전 경로 파급을 피해 읽기 포트로 따로 조회한다.
      */
     fun findRatingCounters(courseId: Long): CourseRatingCounters?
