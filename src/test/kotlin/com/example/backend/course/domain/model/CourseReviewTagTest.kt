@@ -1,0 +1,63 @@
+package com.example.backend.course.domain.model
+
+import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertNull
+import org.junit.jupiter.api.Assertions.assertSame
+import org.junit.jupiter.api.Test
+
+/**
+ * [CourseReviewTag] 단위 테스트 — 태그 마스터 테이블이 없어진 뒤 이 enum 이 코드 정본이다(V5).
+ * 저장 값(enum 이름)과 API 코드(소문자)의 대응, 코드 → enum 변환 규칙을 고정한다.
+ */
+class CourseReviewTagTest {
+    @Test
+    fun `코드는 enum 이름의 소문자다`() {
+        assertEquals("packed", CourseReviewTag.PACKED.code)
+        assertEquals("quickcourse", CourseReviewTag.QUICKCOURSE.code)
+        assertEquals("bycar", CourseReviewTag.BYCAR.code)
+    }
+
+    @Test
+    fun `taxonomy 코스 리뷰 태그 24종을 모두 들고 있고 코드가 유일하다`() {
+        // `.ai/taxonomy.md` "코스 리뷰 태그"(5그룹 24종)가 정본 — 값이 늘면 이 테스트도 함께 고친다.
+        assertEquals(24, CourseReviewTag.entries.size)
+        assertEquals(
+            CourseReviewTag.entries.size,
+            CourseReviewTag.entries
+                .map { it.code }
+                .distinct()
+                .size,
+        )
+    }
+
+    @Test
+    fun `모든 태그가 문구와 아이콘을 갖는다`() {
+        // 태그를 그리는 쪽이 마스터 조회 없이 code → 문구·이모지를 채울 수 있어야 한다.
+        assertEquals(
+            emptyList<CourseReviewTag>(),
+            CourseReviewTag.entries.filter {
+                it.label.isBlank() ||
+                    it.icon.isBlank()
+            },
+        )
+    }
+
+    @Test
+    fun `코드로 태그를 찾는다`() {
+        assertSame(CourseReviewTag.PACKED, CourseReviewTag.fromCodeOrNull("packed"))
+    }
+
+    @Test
+    fun `코드는 소문자 표기만 받는다`() {
+        // API 계약이 소문자 코드라 대문자·공백 섞인 입력은 정규화 없이 거른다.
+        assertNull(CourseReviewTag.fromCodeOrNull(" PACKED "))
+        assertNull(CourseReviewTag.fromCodeOrNull("Packed"))
+    }
+
+    @Test
+    fun `모르는 코드는 null 이다`() {
+        // 호출부(CreateCourseReviewRequest.toCommand)가 이 null 을 400 으로 바꾼다.
+        assertNull(CourseReviewTag.fromCodeOrNull("nosuchtag"))
+        assertNull(CourseReviewTag.fromCodeOrNull(""))
+    }
+}
