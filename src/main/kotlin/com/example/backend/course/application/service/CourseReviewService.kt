@@ -10,14 +10,7 @@ import com.example.backend.course.domain.model.CourseReview
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
 
-/**
- * 코스 리뷰 작성 유스케이스.
- *
- * 리뷰 대상 코스가 살아 있는지 [CoursePersistencePort.existsById] 로 확인한다(없거나 삭제됐으면 404).
- * 태그 코드 → 도메인 enum 변환(모르는 코드는 400)은 웹 어댑터(toCommand)가 맡는다.
- * 별점·사진 개수·한마디 길이 같은 불변식은 [CourseReview.create] 가 검증한다.
- * 리뷰 본문과 사진·태그 연결은 [CourseReviewPersistencePort.save] 가 한 트랜잭션에 함께 심는다.
- */
+/** 코스 리뷰 작성·삭제 유스케이스. */
 @Service
 @Transactional
 class CourseReviewService(
@@ -37,6 +30,17 @@ class CourseReviewService(
                 tags = command.tags,
             ),
         )
+    }
+
+    override fun delete(
+        userId: Long,
+        courseId: Long,
+        reviewId: Long,
+    ) {
+        val deleted = courseReviewPersistencePort.softDelete(reviewId = reviewId, courseId = courseId, userId = userId)
+        if (deleted == 0) {
+            throw BusinessException(CourseErrorCode.COURSE_REVIEW_NOT_FOUND)
+        }
     }
 
     private fun requireCourseExist(courseId: Long) {

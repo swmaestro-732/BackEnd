@@ -13,4 +13,10 @@ class CourseReviewPersistenceAdapter(
     private val courseReviewRepository: CourseReviewRepository,
 ) : CourseReviewPersistencePort {
     override fun save(review: CourseReview): CourseReview = courseReviewRepository.insert(review)
+
+    override fun softDelete(
+        reviewId: Long,
+        courseId: Long,
+        userId: Long,
+    ): Int = courseReviewRepository.softDelete(reviewId = reviewId, courseId = courseId, userId = userId)
 }

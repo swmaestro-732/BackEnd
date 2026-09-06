@@ -5,12 +5,16 @@ import com.example.backend.course.adapter.outbound.persistence.exposed.CourseRev
 import com.example.backend.course.adapter.outbound.persistence.exposed.CourseReviewTagLinkTable
 import com.example.backend.course.adapter.outbound.persistence.exposed.CourseTable
 import com.example.backend.course.domain.model.CourseReview
+import com.example.backend.course.domain.model.CourseReviewStatus
 import com.example.backend.course.domain.model.CourseReviewTag
+import org.jetbrains.exposed.v1.core.and
 import org.jetbrains.exposed.v1.core.eq
+import org.jetbrains.exposed.v1.core.isNull
 import org.jetbrains.exposed.v1.core.plus
 import org.jetbrains.exposed.v1.jdbc.batchInsert
 import org.jetbrains.exposed.v1.jdbc.insertAndGetId
 import org.jetbrains.exposed.v1.jdbc.update
+import org.jetbrains.exposed.v1.jdbc.updateReturning
 import org.springframework.stereotype.Repository
 import kotlin.time.Clock
 
@@ -53,6 +57,33 @@ class CourseReviewRepository {
             tags = review.tags,
             createdAt = now,
         )
+    }
+
+    fun softDelete(
+        reviewId: Long,
+        courseId: Long,
+        userId: Long,
+    ): Int {
+        val now = Clock.System.now()
+        val deletedRating =
+            CourseReviewTable
+                .updateReturning(
+                    returning = listOf(CourseReviewTable.rating),
+                    where = {
+                        (CourseReviewTable.id eq reviewId) and
+                            (CourseReviewTable.courseId eq courseId) and
+                            (CourseReviewTable.userId eq userId) and
+                            CourseReviewTable.deletedAt.isNull()
+                    },
+                ) {
+                    it[deletedAt] = now
+                    it[status] = CourseReviewStatus.DELETED
+                    it[updatedAt] = now
+                }.singleOrNull()
+                ?.get(CourseReviewTable.rating)
+                ?: return 0
+        applyRatingDelta(courseId, sumDelta = -deletedRating.toLong(), cntDelta = -1)
+        return 1
     }
 
     /** courses 별점 카운터(rating_sum·rating_cnt) 상대 갱신 — 리뷰 쓰기와 같은 트랜잭션에서만 부른다. */

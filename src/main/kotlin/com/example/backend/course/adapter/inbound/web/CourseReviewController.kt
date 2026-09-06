@@ -18,17 +18,7 @@ import org.springframework.web.bind.annotation.RequestParam
 import org.springframework.web.bind.annotation.ResponseStatus
 import org.springframework.web.bind.annotation.RestController
 
-/**
- * 인바운드 어댑터 — 코스 리뷰 작성·삭제(노션 명세 · Course · course-review).
- *
- * 시드/DB 없이 프론트가 붙어볼 수 있도록 생성은 `?mock=true` 면 저장 없이 고정 id([CreateCourseReviewResponse.MOCK])를
- * 반환한다(장소 리뷰 선례와 동일 규칙 — 운영 프로파일에서는 [MockGuard] 가 무시한다).
- * 모킹 에러(`?mockError=<code>`)는 전역 아스펙트([com.example.backend.bootstrap.mock.MockErrorAspect])가 주입한다.
- *
- * **목록 조회는 이 컨트롤러에 없다** — 후기 목록 화면이 작성자 프로필(user)까지 함께 그리는 화면 조합이라
- * BFF([com.example.backend.mobile.course.adapter.inbound.web.CourseReviewScreenController],
- * `GET /service/v1/courses/{courseId}/reviews`)가 담당한다.
- */
+/** 인바운드 어댑터 — 코스 리뷰 작성·삭제 */
 @RestController
 @RequestMapping("/api/v1/courses/{courseId}/reviews")
 class CourseReviewController(
@@ -52,15 +42,17 @@ class CourseReviewController(
         return ApiResponse.success(CreateCourseReviewResponse.from(review), "리뷰가 등록되었습니다.")
     }
 
-    /**
-     * 코스 리뷰 삭제 — **아직 모킹**. 삭제 없이 고정 성공 메시지만 내려준다.
-     * 실구현은 소프트 삭제(deleted_at + status=DELETED)·작성자 본인만·없음/타인 404 은닉(`COURSE_REVIEW_NOT_FOUND`)이다.
-     */
     @DeleteMapping("/{reviewId}")
     @AccessTokenRequired
     fun delete(
         @PathVariable courseId: Long,
         @PathVariable reviewId: Long,
         @CurrentUserId userId: Long,
-    ): ApiResponse<Nothing?> = ApiResponse.ok("리뷰가 삭제되었습니다.")
+        @RequestParam(required = false) mock: Boolean = false,
+    ): ApiResponse<Nothing?> {
+        if (mock && mockGuard.isMockAllowed()) return ApiResponse.ok("리뷰가 삭제되었습니다.")
+
+        courseReviewUseCase.delete(userId = userId, courseId = courseId, reviewId = reviewId)
+        return ApiResponse.ok("리뷰가 삭제되었습니다.")
+    }
 }
