@@ -42,7 +42,7 @@ class SavedPlaceScreenController(
 
         return ApiResponse.success(
             SavedPlaceScreenResponse.from(
-                savedPlaceScreenUseCase.저장함장소화면조회(
+                savedPlaceScreenUseCase.getScreen(
                     SavedPlaceScreenCommand(
                         userId = userId,
                         visited = visited,

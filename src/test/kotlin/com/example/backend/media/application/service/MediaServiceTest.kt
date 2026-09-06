@@ -2,7 +2,7 @@ package com.example.backend.media.application.service
 
 import com.example.backend.bootstrap.config.MediaProperties
 import com.example.backend.common.exception.BusinessException
-import com.example.backend.common.response.ErrorCode
+import com.example.backend.common.response.CommonErrorCode
 import com.example.backend.media.application.port.inbound.dto.PresignCommand
 import com.example.backend.media.application.port.inbound.dto.PresignItem
 import com.example.backend.media.application.port.inbound.dto.UploadPurpose
@@ -96,7 +96,7 @@ class MediaServiceTest {
                 )
             }
 
-        assertEquals(ErrorCode.UNSUPPORTED_MEDIA_TYPE, exception.errorCode)
+        assertEquals(CommonErrorCode.UNSUPPORTED_MEDIA_TYPE, exception.errorCode)
     }
 
     @Test
@@ -118,7 +118,7 @@ class MediaServiceTest {
                 )
             }
 
-        assertEquals(ErrorCode.PAYLOAD_TOO_LARGE, exception.errorCode)
+        assertEquals(CommonErrorCode.PAYLOAD_TOO_LARGE, exception.errorCode)
     }
 
     @Test
@@ -134,7 +134,7 @@ class MediaServiceTest {
                 )
             }
 
-        assertEquals(ErrorCode.PAYLOAD_TOO_LARGE, exception.errorCode)
+        assertEquals(CommonErrorCode.PAYLOAD_TOO_LARGE, exception.errorCode)
     }
 
     @Test

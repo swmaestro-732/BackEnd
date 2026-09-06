@@ -4,7 +4,8 @@ import com.example.backend.area.application.port.inbound.AreaQueryUseCase
 import com.example.backend.area.application.port.inbound.dto.AreaDescriptor
 import com.example.backend.area.domain.model.AreaLevel
 import com.example.backend.common.exception.BusinessException
-import com.example.backend.common.response.ErrorCode
+import com.example.backend.common.response.CourseErrorCode
+import com.example.backend.common.response.PlaceErrorCode
 import com.example.backend.course.application.port.inbound.CourseQueryUseCase
 import com.example.backend.course.application.port.inbound.dto.CreateCourseCommand
 import com.example.backend.course.application.port.inbound.dto.CreateCoursePlaceCommand
@@ -48,7 +49,7 @@ class CourseServiceTest {
         `when`(areas.findAreaByCode(AREA_CODE)).thenReturn(area("성수동1가"))
         `when`(persistence.save(anyValue())).thenAnswer { it.arguments[0] as Course }
 
-        val result = service.코스생성(createCommand(isPublished = true))
+        val result = service.create(createCommand(isPublished = true))
 
         assertEquals(CourseCategory.CAFETOUR, result.category)
         assertEquals(AREA_CODE, result.areaCode)
@@ -61,7 +62,7 @@ class CourseServiceTest {
         stubPlaces()
         `when`(persistence.save(anyValue())).thenAnswer { it.arguments[0] as Course }
 
-        val result = service.코스생성(createCommand(isPublished = false))
+        val result = service.create(createCommand(isPublished = false))
 
         assertNull(result.category)
         assertNull(result.areaCode)
@@ -73,9 +74,9 @@ class CourseServiceTest {
     fun `존재하지 않는 장소가 포함되면 저장하지 않는다`() {
         `when`(places.findPlacesByIds(listOf(1L, 2L))).thenReturn(listOf(placeRef(1L)))
 
-        val exception = assertThrows(BusinessException::class.java) { service.코스생성(createCommand(true)) }
+        val exception = assertThrows(BusinessException::class.java) { service.create(createCommand(true)) }
 
-        assertEquals(ErrorCode.PLACE_NOT_FOUND, exception.errorCode)
+        assertEquals(PlaceErrorCode.PLACE_NOT_FOUND, exception.errorCode)
         verify(persistence, never()).save(anyValue())
     }
 
@@ -87,7 +88,7 @@ class CourseServiceTest {
         `when`(areas.findAreaByCode(AREA_CODE)).thenReturn(area("성수동1가"))
         `when`(persistence.update(anyValue())).thenAnswer { it.arguments[0] as Course }
 
-        val result = service.코스수정(editCommand(isPublished = true))
+        val result = service.edit(editCommand(isPublished = true))
 
         assertEquals(AREA_CODE, result.areaCode)
         assertEquals("성수동1가", result.area)
@@ -102,7 +103,7 @@ class CourseServiceTest {
         `when`(areas.findAreaByCode(AREA_CODE)).thenReturn(area("성수동1가"))
         `when`(persistence.update(anyValue())).thenAnswer { it.arguments[0] as Course }
 
-        val result = service.코스수정(editCommand(isPublished = true))
+        val result = service.edit(editCommand(isPublished = true))
 
         assertEquals(CourseCategory.CAFETOUR, result.category)
         assertEquals(AREA_CODE, result.areaCode)
@@ -114,9 +115,9 @@ class CourseServiceTest {
         `when`(persistence.findCourseDetail(10L)).thenReturn(detail(isPublished = true))
         `when`(persistence.findPlaces(10L)).thenReturn(storedPlaces().dropLast(1))
 
-        val exception = assertThrows(BusinessException::class.java) { service.코스수정(editCommand(true)) }
+        val exception = assertThrows(BusinessException::class.java) { service.edit(editCommand(true)) }
 
-        assertEquals(ErrorCode.PUBLISHED_COURSE_PLACES_IMMUTABLE, exception.errorCode)
+        assertEquals(CourseErrorCode.PUBLISHED_COURSE_PLACES_IMMUTABLE, exception.errorCode)
         verify(persistence, never()).update(anyValue())
     }
 
@@ -124,7 +125,7 @@ class CourseServiceTest {
     fun `발행 코스를 삭제하면 공개 카운터를 감소시킨다`() {
         `when`(persistence.findCourseDetail(10L)).thenReturn(detail(isPublished = true))
 
-        service.코스삭제(1L, 10L)
+        service.delete(1L, 10L)
 
         verify(persistence).softDelete(10L)
         verify(counts).applyDelta(1L, -1, 0, 0)

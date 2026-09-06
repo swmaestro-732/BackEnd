@@ -6,7 +6,7 @@ import com.example.backend.mobile.user.application.port.inbound.dto.SavedPlaceSc
  * 인바운드 포트 — 저장함 장소 탭 화면 조합 (BFF).
  */
 interface SavedPlaceScreenUseCase {
-    fun 저장함장소화면조회(command: SavedPlaceScreenCommand): SavedPlaceScreenResult
+    fun getScreen(command: SavedPlaceScreenCommand): SavedPlaceScreenResult
 }
 
 data class SavedPlaceScreenCommand(

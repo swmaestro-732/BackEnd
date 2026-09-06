@@ -3,7 +3,7 @@ package com.example.backend.user.application.service
 import com.example.backend.area.application.port.inbound.AreaQueryUseCase
 import com.example.backend.area.application.port.inbound.dto.AreaDescriptor
 import com.example.backend.common.exception.BusinessException
-import com.example.backend.common.response.ErrorCode
+import com.example.backend.common.response.CommonErrorCode
 import com.example.backend.user.application.port.outbound.AuthTokenPort
 import com.example.backend.user.application.port.outbound.LikeThemePort
 import com.example.backend.user.application.port.outbound.RefreshTokenPort
@@ -193,7 +193,7 @@ class AuthServiceTest {
                 service.socialLogin(SocialProvider.KAKAO, "kakao-token")
             }
 
-        assertEquals(ErrorCode.ACCOUNT_SUSPENDED, ex.errorCode)
+        assertEquals(CommonErrorCode.ACCOUNT_SUSPENDED, ex.errorCode)
         assertFalse(authTokenPort.accessTokenIssued)
         assertFalse(refreshTokenPort.refreshTokenIssued)
     }
@@ -215,7 +215,7 @@ class AuthServiceTest {
                 service.socialLogin(SocialProvider.KAKAO, "kakao-token")
             }
 
-        assertEquals(ErrorCode.ACCOUNT_INACTIVE, ex.errorCode)
+        assertEquals(CommonErrorCode.ACCOUNT_INACTIVE, ex.errorCode)
         assertFalse(authTokenPort.accessTokenIssued)
         assertFalse(refreshTokenPort.refreshTokenIssued)
     }
@@ -243,7 +243,7 @@ class AuthServiceTest {
 
         val ex = assertThrows<BusinessException> { service.reissue("refresh-token") }
 
-        assertEquals(ErrorCode.ACCOUNT_SUSPENDED, ex.errorCode)
+        assertEquals(CommonErrorCode.ACCOUNT_SUSPENDED, ex.errorCode)
         assertFalse(authTokenPort.accessTokenIssued)
         assertFalse(refreshTokenPort.refreshTokenIssued)
     }

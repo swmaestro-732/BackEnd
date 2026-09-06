@@ -21,7 +21,7 @@ class SavedPlaceScreenService(
     private val screenPlacePort: ScreenPlacePort,
     private val screenAreaPort: ScreenAreaPort,
 ) : SavedPlaceScreenUseCase {
-    override fun 저장함장소화면조회(command: SavedPlaceScreenCommand): SavedPlaceScreenResult {
+    override fun getScreen(command: SavedPlaceScreenCommand): SavedPlaceScreenResult {
         val page =
             savedPlaceRecordPort.findPage(
                 userId = command.userId,
@@ -41,13 +41,13 @@ class SavedPlaceScreenService(
                 },
             nextCursor = page.nextCursor,
             hasNext = page.hasNext,
-            items = 화면항목조립(page.records),
+            items = assembleItems(page.records),
         )
     }
 
-    private fun 화면항목조립(records: List<SavedPlaceRecord>): List<SavedPlaceScreenResult.Item> {
+    private fun assembleItems(records: List<SavedPlaceRecord>): List<SavedPlaceScreenResult.Item> {
         val placeById = screenPlacePort.findByIds(records.map { it.placeId }).associateBy { it.id }
-        val areaNameByCode = 지역이름조회(placeById.values)
+        val areaNameByCode = resolveAreaNames(placeById.values)
 
         return records.mapNotNull { record ->
             val place = placeById[record.placeId] ?: return@mapNotNull null
@@ -57,19 +57,19 @@ class SavedPlaceScreenService(
                 category = record.category,
                 visited = record.visited,
                 savedAt = record.savedAt,
-                place = place.화면장소(areaNameByCode),
+                place = place.toResultPlace(areaNameByCode),
             )
         }
     }
 
-    private fun 지역이름조회(places: Collection<ScreenPlace>): Map<String, String> =
+    private fun resolveAreaNames(places: Collection<ScreenPlace>): Map<String, String> =
         places
             .mapNotNull { it.areaCode }
             .distinct()
             .mapNotNull { code -> screenAreaPort.findAreaName(code)?.let { code to it } }
             .toMap()
 
-    private fun ScreenPlace.화면장소(areaNameByCode: Map<String, String>) =
+    private fun ScreenPlace.toResultPlace(areaNameByCode: Map<String, String>) =
         SavedPlaceScreenResult.Place(
             name = name,
             category = category,

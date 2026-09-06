@@ -1,5 +1,6 @@
 package com.example.backend.common.persistence.postgis
 
+import com.example.backend.common.geo.Coordinate
 import com.example.backend.place.adapter.outbound.persistence.exposed.PlaceTable
 import com.example.backend.place.domain.model.PlaceBusinessStatus
 import com.example.backend.place.domain.model.PlaceCategory
@@ -18,7 +19,7 @@ class PostGisFunctionsTest : IntegrationTestBase() {
     @Test
     fun `ST_Y와 ST_X로 위도와 경도를 조회한다`() {
         transaction {
-            val point = GeoPoint(latitude = 37.544575, longitude = 127.055969)
+            val point = Coordinate(latitude = 37.544575, longitude = 127.055969)
             val placeId = insertPlace("좌표 함수 테스트 장소", point)
             val latitude = PlaceTable.location.stY()
             val longitude = PlaceTable.location.stX()
@@ -36,9 +37,9 @@ class PostGisFunctionsTest : IntegrationTestBase() {
     }
 
     @Test
-    fun `geography Point를 GeoPoint로 왕복한다`() {
+    fun `geography Point를 Coordinate로 왕복한다`() {
         transaction {
-            val point = GeoPoint(latitude = 37.546061, longitude = 127.049256)
+            val point = Coordinate(latitude = 37.546061, longitude = 127.049256)
             val placeId = insertPlace("좌표 왕복 테스트 장소", point)
 
             val actual =
@@ -59,12 +60,12 @@ class PostGisFunctionsTest : IntegrationTestBase() {
             val nearPlaceId =
                 insertPlace(
                     name = "반경 내 테스트 장소",
-                    point = GeoPoint(latitude = 37.544612, longitude = 127.056065),
+                    point = Coordinate(latitude = 37.544612, longitude = 127.056065),
                 )
             val farPlaceId =
                 insertPlace(
                     name = "반경 밖 테스트 장소",
-                    point = GeoPoint(latitude = 37.566535, longitude = 126.977969),
+                    point = Coordinate(latitude = 37.566535, longitude = 126.977969),
                 )
 
             val matchedPlaceIds =
@@ -81,7 +82,7 @@ class PostGisFunctionsTest : IntegrationTestBase() {
 
     private fun insertPlace(
         name: String,
-        point: GeoPoint,
+        point: Coordinate,
     ): Long =
         PlaceTable
             .insert {

@@ -13,12 +13,13 @@ import org.springframework.stereotype.Component
 class PlacePersistenceAdapter(
     private val placeRepository: PlaceRepository,
 ) : PlacePersistencePort {
-    override fun findByKakaoIds(kakaoIds: List<String>): List<Place> = placeRepository.findByKakaoIds(kakaoIds)
+    override fun findByKakaoIds(kakaoIds: List<String>): List<Place> =
+        placeRepository.findByKakaoIds(kakaoIds).map { it.toDomain() }
 
     override fun insertIgnoringConflicts(places: List<Place>) = placeRepository.insertIgnoringConflicts(places)
 
     override fun findForIndex(
         afterId: Long?,
         limit: Int,
-    ): List<Place> = placeRepository.findForIndex(afterId, limit)
+    ): List<Place> = placeRepository.findForIndex(afterId, limit).map { it.toDomain() }
 }

@@ -6,7 +6,7 @@ import com.example.backend.mobile.user.application.port.inbound.dto.SavedCourseS
  * 인바운드 포트 — 저장함 코스 탭 화면 조합 (BFF).
  */
 interface SavedCourseScreenUseCase {
-    fun 저장함코스화면조회(command: SavedCourseScreenCommand): SavedCourseScreenResult
+    fun getScreen(command: SavedCourseScreenCommand): SavedCourseScreenResult
 }
 
 data class SavedCourseScreenCommand(

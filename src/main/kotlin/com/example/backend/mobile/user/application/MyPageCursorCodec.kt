@@ -1,7 +1,7 @@
 package com.example.backend.mobile.user.application
 
 import com.example.backend.common.exception.BusinessException
-import com.example.backend.common.response.ErrorCode
+import com.example.backend.common.response.CommonErrorCode
 import com.example.backend.mobile.user.application.port.outbound.dto.AuthoredCourseCursor
 import java.nio.charset.StandardCharsets
 import java.time.DateTimeException
@@ -51,7 +51,7 @@ internal object MyPageCursorCodec {
         )
     }
 
-    private fun invalidCursor() = BusinessException(ErrorCode.INVALID_INPUT, "유효하지 않은 마이페이지 코스 커서입니다.")
+    private fun invalidCursor() = BusinessException(CommonErrorCode.INVALID_INPUT, "유효하지 않은 마이페이지 코스 커서입니다.")
 
     private const val CURSOR_FIELD_COUNT = 3
 

@@ -16,6 +16,8 @@ WORKDIR /app
 
 # healthcheck용 curl + non-root 사용자
 RUN apt-get update && apt-get install -y --no-install-recommends curl && rm -rf /var/lib/apt/lists/* && \
+    # 베이스 이미지에 딸려오는 미사용 Go 바이너리(Canonical pebble) 제거 — trivy HIGH 8건(Go stdlib CVE)의 출처. 우리는 java -jar 로 직접 기동한다(SCRUM-520).
+    rm -f /usr/bin/pebble && \
     useradd -r -u 1001 appuser
 # bootJar 산출물(단일). 버전 문자열에 결합하지 않도록 *.jar 사용.
 COPY --from=build /workspace/build/libs/*.jar app.jar

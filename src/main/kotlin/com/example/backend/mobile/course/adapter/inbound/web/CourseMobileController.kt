@@ -31,7 +31,7 @@ class CourseMobileController(
 
         return ApiResponse.success(
             CourseDetailScreenResponse.from(
-                courseMobileUseCase.코스상세화면조회(courseId, viewerId),
+                courseMobileUseCase.getScreen(courseId, viewerId),
             ),
         )
     }

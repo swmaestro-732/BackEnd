@@ -3,7 +3,6 @@ package com.example.backend.place.adapter.inbound.web
 import com.example.backend.bootstrap.mock.MockGuard
 import com.example.backend.common.exception.BusinessException
 import com.example.backend.common.response.ApiResponse
-import com.example.backend.common.response.ErrorCode
 import com.example.backend.place.adapter.inbound.web.response.PlaceSearchResponse
 import com.example.backend.place.application.port.inbound.PlaceQueryUseCase
 import io.swagger.v3.oas.annotations.tags.Tag

@@ -20,7 +20,7 @@ class CourseMobileService(
     private val userUseCase: UserUseCase,
     private val placeQueryUseCase: PlaceQueryUseCase,
 ) : CourseMobileUseCase {
-    override fun 코스상세화면조회(
+    override fun getScreen(
         courseId: Long,
         viewerId: Long?,
     ): CourseDetailScreenResult {

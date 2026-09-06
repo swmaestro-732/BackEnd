@@ -1,6 +1,6 @@
 package com.example.backend.bootstrap.search
 
-import com.example.backend.common.persistence.postgis.GeoPoint
+import com.example.backend.common.geo.Coordinate
 import com.example.backend.place.application.port.inbound.PlaceReindexUseCase
 import com.example.backend.place.application.port.outbound.PlacePersistencePort
 import com.example.backend.place.domain.model.Place
@@ -34,7 +34,7 @@ class OpenSearchReindexIntegrationTest
                     name = "성수동 감성 카페",
                     description = null,
                     category = PlaceCategory.CAFE,
-                    location = GeoPoint(latitude = 37.544, longitude = 127.055),
+                    location = Coordinate(latitude = 37.544, longitude = 127.055),
                     address = "서울 성동구 성수동",
                     imageUrl = null,
                     kakaoPlaceId = "kakao-reindex-1",

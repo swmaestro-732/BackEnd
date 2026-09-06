@@ -2,7 +2,7 @@ package com.example.backend.direction.application.service
 
 import com.example.backend.common.exception.BusinessException
 import com.example.backend.common.geo.Coordinate
-import com.example.backend.common.response.ErrorCode
+import com.example.backend.common.response.DirectionErrorCode
 import com.example.backend.direction.application.port.outbound.PedestrianRoute
 import com.example.backend.direction.application.port.outbound.PedestrianRoutePort
 import org.junit.jupiter.api.Assertions.assertEquals
@@ -84,6 +84,6 @@ class DirectionServiceTest {
 
         // Unknown = 산출 불가 → -1(불가)로 속이지 않고 에러(503)로 실패한다.
         val exception = assertThrows<BusinessException> { service.walkingSegments(listOf(a, b, c)) }
-        assertEquals(ErrorCode.DIRECTION_UNAVAILABLE, exception.errorCode)
+        assertEquals(DirectionErrorCode.DIRECTION_UNAVAILABLE, exception.errorCode)
     }
 }

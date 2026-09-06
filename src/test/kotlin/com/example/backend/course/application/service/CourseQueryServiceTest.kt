@@ -1,7 +1,7 @@
 package com.example.backend.course.application.service
 
 import com.example.backend.common.exception.BusinessException
-import com.example.backend.common.response.ErrorCode
+import com.example.backend.common.response.CourseErrorCode
 import com.example.backend.course.application.port.outbound.CoursePersistencePort
 import com.example.backend.course.application.port.outbound.CoursePlaceImageRow
 import com.example.backend.course.application.port.outbound.CoursePlaceRow
@@ -78,7 +78,7 @@ class CourseQueryServiceTest {
 
         val exception = assertThrows(BusinessException::class.java) { service.getDetail(10L, 7L) }
 
-        assertEquals(ErrorCode.COURSE_NOT_FOUND, exception.errorCode)
+        assertEquals(CourseErrorCode.COURSE_NOT_FOUND, exception.errorCode)
         verifyNoInteractions(tags)
     }
 

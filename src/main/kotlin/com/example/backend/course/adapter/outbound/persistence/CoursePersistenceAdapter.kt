@@ -84,7 +84,7 @@ class CoursePersistenceAdapter(
     override fun findForIndex(
         afterId: Long?,
         limit: Int,
-    ): List<Course> = courseRepository.findForIndex(afterId, limit)
+    ): List<Course> = courseRepository.findForIndex(afterId, limit).map { it.toDomain(emptyList(), emptyList()) }
 
     /** 코스에 담긴 장소·이미지와 태그 연결을 심는다(생성·편집 공용) — 테이블별 배치 insert 로 왕복을 줄인다. */
     private fun insertChildren(

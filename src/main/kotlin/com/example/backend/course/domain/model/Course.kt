@@ -1,7 +1,7 @@
 package com.example.backend.course.domain.model
 
 import com.example.backend.common.exception.BusinessException
-import com.example.backend.common.response.ErrorCode
+import com.example.backend.common.response.CommonErrorCode
 import kotlinx.datetime.LocalDate
 import kotlin.time.Instant
 
@@ -145,20 +145,20 @@ data class Course private constructor(
         ): Course {
             // 제목은 발행 코스만 필수다 — 임시저장(draft)은 제목 없이 저장할 수 있다(빌더 상단 "임시저장").
             if (isPublished && title.isBlank()) {
-                throw BusinessException(ErrorCode.INVALID_INPUT, "코스를 발행하려면 제목이 필요합니다.")
+                throw BusinessException(CommonErrorCode.INVALID_INPUT, "코스를 발행하려면 제목이 필요합니다.")
             }
             // 장소 최소 개수는 임시저장에도 적용된다 — 빌더에서 장소를 2곳 담아야 저장(임시저장 포함)할 수 있다.
             if (places.size < MIN_PLACES) {
-                throw BusinessException(ErrorCode.INVALID_INPUT, "코스에는 장소를 2곳 이상 담아야 합니다.")
+                throw BusinessException(CommonErrorCode.INVALID_INPUT, "코스에는 장소를 2곳 이상 담아야 합니다.")
             }
             if (isPublished && coverImageUrl.isNullOrBlank()) {
-                throw BusinessException(ErrorCode.INVALID_INPUT, "코스를 발행하려면 커버 이미지가 필요합니다.")
+                throw BusinessException(CommonErrorCode.INVALID_INPUT, "코스를 발행하려면 커버 이미지가 필요합니다.")
             }
             if (isPublished && places.any { it.imageUrls.isEmpty() }) {
-                throw BusinessException(ErrorCode.INVALID_INPUT, "발행 코스의 장소는 사진이 1장 이상이어야 합니다.")
+                throw BusinessException(CommonErrorCode.INVALID_INPUT, "발행 코스의 장소는 사진이 1장 이상이어야 합니다.")
             }
             if (places.map { it.orderNo }.toSet().size != places.size) {
-                throw BusinessException(ErrorCode.INVALID_INPUT, "장소 순서(orderNo)가 중복되었습니다.")
+                throw BusinessException(CommonErrorCode.INVALID_INPUT, "장소 순서(orderNo)가 중복되었습니다.")
             }
             // 생성 시점에 미정인 값은 pre-persist 기본값으로 둔다(id·타임스탬프는 DB 가, 카운터는 DB DEFAULT 가 채움).
             return Course(

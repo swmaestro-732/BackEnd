@@ -38,7 +38,7 @@ class SavedCourseScreenController(
 
         return ApiResponse.success(
             SavedCourseScreenResponse.from(
-                savedCourseScreenUseCase.저장함코스화면조회(
+                savedCourseScreenUseCase.getScreen(
                     SavedCourseScreenCommand(
                         userId = userId,
                         folderId = folderId,

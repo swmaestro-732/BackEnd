@@ -11,7 +11,6 @@ indent_style = space
 indent_size = 4
 max_line_length = 120
 ktlint_standard_no-wildcard-imports = enabled
-ktlint_standard_function-naming = disabled
 
 [*.{yml,yaml,json}]
 indent_size = 2
