@@ -1,9 +1,10 @@
 package com.example.backend.mobile.place.adapter.inbound.web.response
 
+import com.example.backend.mobile.place.application.port.inbound.dto.PlaceReviewScreenResult
 import java.time.Instant
 
 /**
- * 웹 응답 DTO — 장소 후기 전체보기 **화면 조합**(BFF) 한 페이지(**모킹 API**).
+ * 웹 응답 DTO — 장소 후기 전체보기 **화면 조합**(BFF) 한 페이지.
  * averageRating/totalCount/ratingDistribution/photoCount 는 장소 전체 집계,
  * nextCursor/hasNext 는 커서 페이지 메타다.
  *
@@ -29,6 +30,35 @@ data class PlaceReviewListResponse(
     val reviews: List<PlaceReviewItemResponse>,
 ) {
     companion object {
+        /** 화면 조합 결과([PlaceReviewScreenResult])를 응답으로 옮긴다. */
+        fun from(result: PlaceReviewScreenResult) =
+            PlaceReviewListResponse(
+                averageRating = result.averageRating,
+                totalCount = result.totalCount,
+                ratingDistribution = result.ratingDistribution.map { PlaceRatingCountResponse(it.rating, it.count) },
+                photoCount = result.photoCount,
+                hasVisitedPlace = result.hasVisitedPlace,
+                nextCursor = result.nextCursor,
+                hasNext = result.hasNext,
+                reviews =
+                    result.reviews.map { item ->
+                        PlaceReviewItemResponse(
+                            id = item.id,
+                            author =
+                                PlaceReviewAuthorResponse(
+                                    id = item.author.id,
+                                    nickname = item.author.nickname,
+                                    profileImageUrl = item.author.profileImageUrl,
+                                ),
+                            rating = item.rating,
+                            content = item.content,
+                            createdAt = item.createdAt,
+                            photoUrls = item.photoUrls,
+                            tags = item.tags.map { PlaceReviewTagResponse(it.code, it.label, it.icon) },
+                        )
+                    },
+            )
+
         /** MOCK: 조회자별 방문 이력 조회 전 고정값. 실제 구현 시 saved_places.visited_at·따라가기 체크인으로 판정한다. */
         private const val MOCK_HAS_VISITED_PLACE = true
 
@@ -148,12 +178,15 @@ data class PlaceRatingCountResponse(
     val count: Int,
 )
 
-/** 상대 시간("2일 전")은 내려주지 않는다 — [createdAt](UTC)으로 클라이언트가 표기한다. */
+/**
+ * 상대 시간("2일 전")은 내려주지 않는다 — [createdAt](UTC)으로 클라이언트가 표기한다.
+ * [content]("한마디")는 별점만 남긴 리뷰라면 없다 — 작성 API 가 선택 값으로 받으므로 null 로 내려간다.
+ */
 data class PlaceReviewItemResponse(
     val id: Long,
     val author: PlaceReviewAuthorResponse,
     val rating: Int,
-    val content: String,
+    val content: String?,
     val createdAt: Instant,
     val photoUrls: List<String>,
     val tags: List<PlaceReviewTagResponse>,
