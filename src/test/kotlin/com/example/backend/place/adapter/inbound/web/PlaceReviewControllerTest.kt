@@ -12,16 +12,18 @@ import org.springframework.http.MediaType
 import org.springframework.jdbc.core.JdbcTemplate
 import org.springframework.test.context.jdbc.Sql
 import org.springframework.test.web.servlet.MockMvc
+import org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete
 import org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post
 import org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath
 import org.springframework.test.web.servlet.result.MockMvcResultMatchers.status
 
 /**
- * 장소 리뷰 작성(`POST /api/v1/places/{placeId}/reviews`) 통합 테스트.
+ * 장소 리뷰 작성·삭제(`/api/v1/places/{placeId}/reviews`) 통합 테스트.
  * 픽스처(place-review-fixture.sql)는 장소 601 하나만 두고 리뷰 테이블을 비운다.
  *
- * 저장 결과(리뷰 본문·사진 순서·태그 코드)는 DB 를 직접 읽어 확인하고,
+ * 저장 결과(리뷰 본문·사진 순서·태그 코드)와 별점 카운터(places.rating_sum/rating_cnt) 증감은 DB 를 직접 읽어 확인하고,
  * 입력 검증은 웹 DTO(4002 fieldErrors)와 도메인 불변식(4001)이 각각 어디서 걸리는지까지 본다.
+ * 삭제는 소프트 삭제와 404 은닉(없음·타인·이미 삭제 동일 4045)을 본다.
  */
 @AutoConfigureMockMvc
 @Sql(scripts = ["/sql/place-review-fixture.sql"], executionPhase = Sql.ExecutionPhase.BEFORE_TEST_METHOD)
@@ -218,20 +220,110 @@ class PlaceReviewControllerTest
             assertEquals(0, countRows("place_reviews"))
         }
 
+        @Test
+        fun `내 리뷰를 지우면 소프트 삭제되고 카운터가 줄어든다`() {
+            mockMvc.perform(createReviewRequest(PLACE_ID, """{"rating":5}""")).andExpect(status().isCreated)
+            assertEquals(5L to 1, ratingCounters())
+
+            mockMvc
+                .perform(deleteReviewRequest(reviewId = 1, token = accessToken(USER_ID)))
+                .andExpect(status().isOk)
+                .andExpect(jsonPath("$.code").value(2000))
+
+            val review = jdbcTemplate.queryForMap("SELECT status, deleted_at FROM place_reviews WHERE id = 1")
+            assertEquals("DELETED", review["status"])
+            assertEquals(true, review["deleted_at"] != null)
+            assertEquals(0L to 0, ratingCounters()) // 작성 +5/+1 이 삭제로 되돌아간다
+        }
+
+        @Test
+        fun `없는 리뷰를 지우면 4045를 내려준다`() {
+            mockMvc
+                .perform(deleteReviewRequest(reviewId = 999999, token = accessToken(USER_ID)))
+                .andExpect(status().isNotFound)
+                .andExpect(jsonPath("$.code").value(4045))
+        }
+
+        @Test
+        fun `타인 리뷰는 존재를 드러내지 않고 같은 4045 로 은닉한다`() {
+            mockMvc.perform(createReviewRequest(PLACE_ID, """{"rating":5}""")).andExpect(status().isCreated)
+
+            mockMvc
+                .perform(deleteReviewRequest(reviewId = 1, token = accessToken(OTHER_USER_ID)))
+                .andExpect(status().isNotFound)
+                .andExpect(jsonPath("$.code").value(4045))
+
+            // 리뷰는 살아 있고 카운터도 그대로다.
+            assertEquals(
+                "PUBLISHED",
+                jdbcTemplate.queryForObject("SELECT status FROM place_reviews WHERE id = 1", String::class.java),
+            )
+            assertEquals(5L to 1, ratingCounters())
+        }
+
+        @Test
+        fun `이미 지운 리뷰를 또 지우면 4045 이고 카운터가 두 번 줄지 않는다`() {
+            mockMvc.perform(createReviewRequest(PLACE_ID, """{"rating":5}""")).andExpect(status().isCreated)
+            mockMvc.perform(deleteReviewRequest(reviewId = 1, token = accessToken(USER_ID))).andExpect(status().isOk)
+
+            mockMvc
+                .perform(deleteReviewRequest(reviewId = 1, token = accessToken(USER_ID)))
+                .andExpect(status().isNotFound)
+                .andExpect(jsonPath("$.code").value(4045))
+
+            assertEquals(0L to 0, ratingCounters())
+        }
+
+        @Test
+        fun `토큰 없이 지우면 401을 내려준다`() {
+            mockMvc
+                .perform(delete("/api/v1/places/$PLACE_ID/reviews/1"))
+                .andExpect(status().isUnauthorized)
+        }
+
+        @Test
+        fun `mock=true 삭제는 DB 를 건드리지 않는다`() {
+            mockMvc.perform(createReviewRequest(PLACE_ID, """{"rating":5}""")).andExpect(status().isCreated)
+
+            mockMvc
+                .perform(deleteReviewRequest(reviewId = 1, token = accessToken(USER_ID)).param("mock", "true"))
+                .andExpect(status().isOk)
+
+            assertEquals(
+                "PUBLISHED",
+                jdbcTemplate.queryForObject("SELECT status FROM place_reviews WHERE id = 1", String::class.java),
+            )
+        }
+
         private fun createReviewRequest(
             placeId: Long,
             body: String,
         ) = post("/api/v1/places/$placeId/reviews")
-            .header(HttpHeaders.AUTHORIZATION, "Bearer ${jwtTokenProvider.issueAccessToken(USER_ID)}")
+            .header(HttpHeaders.AUTHORIZATION, "Bearer ${accessToken(USER_ID)}")
             .contentType(MediaType.APPLICATION_JSON)
             .content(body)
+
+        private fun deleteReviewRequest(
+            reviewId: Long,
+            token: String,
+        ) = delete("/api/v1/places/$PLACE_ID/reviews/$reviewId")
+            .header(HttpHeaders.AUTHORIZATION, "Bearer $token")
+
+        private fun accessToken(userId: Long) = jwtTokenProvider.issueAccessToken(userId)
 
         private fun countRows(table: String): Int =
             jdbcTemplate.queryForObject("SELECT count(*) FROM $table", Int::class.java) ?: 0
 
+        /** 장소 601 의 별점 카운터(rating_sum, rating_cnt). */
+        private fun ratingCounters(): Pair<Long, Int> {
+            val row = jdbcTemplate.queryForMap("SELECT rating_sum, rating_cnt FROM places WHERE id = $PLACE_ID")
+            return (row["rating_sum"] as Number).toLong() to (row["rating_cnt"] as Number).toInt()
+        }
+
         private companion object {
             const val PLACE_ID = 601L
             const val USER_ID = 1L
+            const val OTHER_USER_ID = 2L
 
             /** 요청 DTO 의 태그 개수 상한을 넘기려고 쓰는 유효한 코드들(`.ai/taxonomy.md` 공통 태그). */
             val PlaceReviewTagCodes = listOf("friendly", "browsing", "helpful", "quick", "clean", "interior")

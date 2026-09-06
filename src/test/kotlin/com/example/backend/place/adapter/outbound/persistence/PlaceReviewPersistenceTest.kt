@@ -18,6 +18,7 @@ import org.jetbrains.exposed.v1.jdbc.selectAll
 import org.jetbrains.exposed.v1.jdbc.transactions.transaction
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertNotEquals
+import org.junit.jupiter.api.Assertions.assertNotNull
 import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
@@ -29,7 +30,8 @@ import kotlin.time.toJavaInstant
  * place_reviews 영속성 통합 테스트(실제 PostgreSQL, [IntegrationTestBase]).
  *
  * DSL insert 가 생성 id·작성 시각을 재조회 없이 돌려주는지, 자식(사진 순서·태그 코드)이 함께 심기는지,
- * 태그가 마스터 테이블 없이 enum 이름으로 저장되는지(V4) 검증한다.
+ * 태그가 마스터 테이블 없이 enum 이름으로 저장되는지(V5), 별점 카운터(places.rating_sum/rating_cnt)가
+ * 작성·소프트 삭제와 같은 트랜잭션에서 상대 갱신되는지 검증한다.
  * 각 테스트는 transaction { ... rollback() } 으로 격리한다(픽스처 오염 없음).
  */
 class PlaceReviewPersistenceTest
@@ -133,7 +135,7 @@ class PlaceReviewPersistenceTest
         }
 
         @Test
-        fun `같은 사용자가 같은 장소에 여러 번 남길 수 있다`() {
+        fun `같은 사용자가 같은 장소에 여러 번 남길 수 있고 별점 카운터가 누적된다`() {
             transaction {
                 val placeId = insertPlace("재방문 장소")
 
@@ -149,6 +151,44 @@ class PlaceReviewPersistenceTest
                         .count()
                         .toInt(),
                 )
+                assertEquals(8L to 2, ratingCounters(placeId)) // +5/+1, +3/+1
+                rollback()
+            }
+        }
+
+        @Test
+        fun `소프트 삭제는 상태·deleted_at 을 스탬프하고 카운터를 되돌린다`() {
+            transaction {
+                val placeId = insertPlace("삭제 장소")
+                val saved = port.save(review(placeId, rating = 4))
+
+                val deleted = port.softDelete(reviewId = saved.id!!, placeId = placeId, userId = USER_ID)
+
+                assertEquals(1, deleted)
+                val row = PlaceReviewTable.selectAll().where { PlaceReviewTable.id eq saved.id!! }.single()
+                assertEquals(PlaceReviewStatus.DELETED, row[PlaceReviewTable.status])
+                assertNotNull(row[PlaceReviewTable.deletedAt])
+                assertEquals(0L to 0, ratingCounters(placeId))
+                rollback()
+            }
+        }
+
+        @Test
+        fun `타인 리뷰·다른 장소·이미 삭제된 리뷰는 0을 돌려주고 카운터를 건드리지 않는다`() {
+            transaction {
+                val placeId = insertPlace("은닉 장소")
+                val saved = port.save(review(placeId, rating = 4))
+
+                // 타인 리뷰 — WHERE 절의 소유권 조건에 걸린다.
+                assertEquals(0, port.softDelete(reviewId = saved.id!!, placeId = placeId, userId = USER_ID + 1))
+                // 다른 장소 경로로 지우려는 시도 — 소속 조건에 걸린다.
+                assertEquals(0, port.softDelete(reviewId = saved.id!!, placeId = placeId + 1, userId = USER_ID))
+                assertEquals(4L to 1, ratingCounters(placeId))
+
+                // 정상 삭제 후 재삭제 — deleted_at IS NULL 조건에 걸려 카운터가 두 번 줄지 않는다.
+                assertEquals(1, port.softDelete(reviewId = saved.id!!, placeId = placeId, userId = USER_ID))
+                assertEquals(0, port.softDelete(reviewId = saved.id!!, placeId = placeId, userId = USER_ID))
+                assertEquals(0L to 0, ratingCounters(placeId))
                 rollback()
             }
         }
@@ -167,6 +207,12 @@ class PlaceReviewPersistenceTest
             photoUrls = photoUrls,
             tags = tags,
         )
+
+        /** 장소의 별점 카운터(rating_sum, rating_cnt). */
+        private fun ratingCounters(placeId: Long): Pair<Long, Int> {
+            val row = PlaceTable.selectAll().where { PlaceTable.id eq placeId }.single()
+            return row[PlaceTable.ratingSum] to row[PlaceTable.ratingCnt]
+        }
 
         /** place_reviews.place_id 에는 FK 가 있어 리뷰마다 실제 장소 행이 필요하다. */
         private fun insertPlace(name: String): Long =

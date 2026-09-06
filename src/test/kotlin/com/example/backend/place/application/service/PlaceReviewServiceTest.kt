@@ -20,7 +20,7 @@ import kotlin.time.Clock
 /**
  * [PlaceReviewService] 단위 테스트 — 포트를 페이크로 대체해 서비스 규칙만 검증한다
  * ([com.example.backend.user.application.service.SavedPlaceServiceTest] 와 같은 형식).
- * 검증 대상: 장소 존재 검증(없으면 404), 도메인 조립 후 영속 포트 위임.
+ * 검증 대상: 장소 존재 검증(없으면 404), 도메인 조립 후 영속 포트 위임, 삭제 0건의 404 은닉.
  * (태그 코드 → enum 변환은 웹 어댑터 toCommand 책임 — 컨트롤러 테스트가 커버한다.)
  */
 class PlaceReviewServiceTest {
@@ -47,11 +47,18 @@ class PlaceReviewServiceTest {
         object : PlaceReviewPersistencePort {
             var saved: PlaceReview? = null
 
+            /** softDelete 가 지운 행 수 — 0 이면 없는·타인·이미 삭제된 리뷰 상황을 흉내 낸다. */
+            var softDeleteResult: Int = 0
+            var softDeletedArgs: Triple<Long, Long, Long>? = null
+
             override fun softDelete(
                 reviewId: Long,
                 placeId: Long,
                 userId: Long,
-            ): Int = 0
+            ): Int {
+                softDeletedArgs = Triple(reviewId, placeId, userId)
+                return softDeleteResult
+            }
 
             override fun save(review: PlaceReview): PlaceReview {
                 saved = review
@@ -125,6 +132,27 @@ class PlaceReviewServiceTest {
         assertEquals(2, requireNotNull(fakePersistencePort.saved).rating)
     }
 
+    @Test
+    fun `삭제는 소프트 삭제 결과가 1건이면 조용히 끝난다`() {
+        fakePersistencePort.softDeleteResult = 1
+
+        service.delete(userId = USER_ID, placeId = PLACE_ID, reviewId = REVIEW_ID)
+
+        assertEquals(Triple(REVIEW_ID, PLACE_ID, USER_ID), fakePersistencePort.softDeletedArgs)
+    }
+
+    @Test
+    fun `없는·타인·이미 삭제된 리뷰는 사유 구분 없이 4045 로 은닉한다`() {
+        fakePersistencePort.softDeleteResult = 0
+
+        val exception =
+            assertThrows<BusinessException> {
+                service.delete(userId = USER_ID, placeId = PLACE_ID, reviewId = REVIEW_ID)
+            }
+
+        assertEquals(PlaceErrorCode.PLACE_REVIEW_NOT_FOUND, exception.errorCode)
+    }
+
     private fun command(
         placeId: Long = PLACE_ID,
         rating: Int = 4,
@@ -153,6 +181,7 @@ class PlaceReviewServiceTest {
     private companion object {
         const val PLACE_ID = 601L
         const val USER_ID = 1L
+        const val REVIEW_ID = 11L
         const val SAVED_REVIEW_ID = 100L
     }
 }
