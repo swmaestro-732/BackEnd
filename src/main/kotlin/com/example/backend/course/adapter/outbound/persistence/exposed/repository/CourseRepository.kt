@@ -2,8 +2,8 @@ package com.example.backend.course.adapter.outbound.persistence.exposed.reposito
 
 import com.example.backend.common.exception.BusinessException
 import com.example.backend.common.response.CourseErrorCode
-import com.example.backend.course.adapter.outbound.persistence.CourseEntity
-import com.example.backend.course.adapter.outbound.persistence.CourseTable
+import com.example.backend.course.adapter.outbound.persistence.exposed.CourseEntity
+import com.example.backend.course.adapter.outbound.persistence.exposed.CourseTable
 import com.example.backend.course.application.port.inbound.dto.AuthorCourseCursor
 import com.example.backend.course.application.port.inbound.dto.FeedCursor
 import com.example.backend.course.application.port.outbound.CourseDetailRow

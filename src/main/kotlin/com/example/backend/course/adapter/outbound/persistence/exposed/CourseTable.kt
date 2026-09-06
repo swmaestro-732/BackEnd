@@ -1,4 +1,4 @@
-package com.example.backend.course.adapter.outbound.persistence
+package com.example.backend.course.adapter.outbound.persistence.exposed
 
 import com.example.backend.course.domain.model.Course
 import com.example.backend.course.domain.model.CourseCategory

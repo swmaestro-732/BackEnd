@@ -1,7 +1,7 @@
 package com.example.backend.place.adapter.outbound.persistence.exposed.repository
 
-import com.example.backend.place.adapter.outbound.persistence.PlaceEntity
-import com.example.backend.place.adapter.outbound.persistence.PlaceTable
+import com.example.backend.place.adapter.outbound.persistence.exposed.PlaceEntity
+import com.example.backend.place.adapter.outbound.persistence.exposed.PlaceTable
 import com.example.backend.place.domain.model.Place
 import org.jetbrains.exposed.v1.core.Op
 import org.jetbrains.exposed.v1.core.SortOrder

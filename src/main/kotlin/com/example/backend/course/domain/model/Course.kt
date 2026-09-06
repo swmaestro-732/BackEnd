@@ -6,12 +6,7 @@ import kotlinx.datetime.LocalDate
 import kotlin.time.Instant
 
 /**
- * 코스 애그리거트 루트. 코스와 그에 담긴 장소([CoursePlace])·태그를 한 일관성 경계로 묶는다.
- * 신규 생성은 [create] 팩토리로, 저장된 상태 복원(영속 계층 → 도메인)은 [reconstitute] 팩토리로만 한다.
- * 팩토리 우회는 [ConsistentCopyVisibility] 로 차단한다(copy() 도 private).
- *
- * courses 테이블의 모든 컬럼을 필드로 보유한다. 생성 시점(insert 전)에 미정인 값은 nullable·기본값으로 두고,
- * DB 가 채우는 값(id·created_at·updated_at·카운터 등)은 [reconstitute] 로 되돌려 받아 채운다.
+ * 코스 애그리거트 루트.
  */
 @ConsistentCopyVisibility // copy() 도 private 으로 — 팩토리 우회 차단
 data class Course private constructor(
@@ -58,10 +53,6 @@ data class Course private constructor(
                 (originPlaceCount + 1) / 2
             }
 
-        /**
-         * 신규 생성. 파생 값(카테고리·지역코드·지역 이름)은 서비스가 [deriveCategory]·[deriveAreaCode] 로 도출하고
-         * 지역 이름을 area 모듈에서 조회해 넘긴다 — 도메인은 조회(포트 호출)를 하지 않으므로 결과만 받는다.
-         */
         fun create(
             userId: Long,
             title: String,
@@ -72,11 +63,12 @@ data class Course private constructor(
             forkedFromId: Long?,
             tags: List<String>,
             places: List<CoursePlace>,
-            category: CourseCategory?,
+            placeCategoryByPlaceId: Map<Long, String>,
             areaCode: String?,
             area: String?,
-        ): Course =
-            build(
+        ): Course {
+            val category = deriveCategory(isPublished, places, placeCategoryByPlaceId)
+            return build(
                 id = null,
                 userId = userId,
                 title = title,
@@ -91,13 +83,8 @@ data class Course private constructor(
                 areaCode = areaCode,
                 area = area,
             )
+        }
 
-        /**
-         * 코스 편집(전체 치환). 이미 영속화된 코스([id])의 전체 상태를 요청 값으로 덮어쓴다.
-         * 불변식은 [create] 와 동일하다. 카테고리·지역코드는 생성과 달리 **서비스가 이미 해석해** 넘긴다([category]·[areaCode]) —
-         * 기존 값이 있고 장소 구성이 그대로면 재도출 없이 유지하고, 그 외에만 [deriveCategory]·[deriveAreaCode] 결과를 넘긴다.
-         * 소유권·존재 여부는 서비스가 사전 검증한다.
-         */
         fun edit(
             id: Long,
             userId: Long,
@@ -108,11 +95,20 @@ data class Course private constructor(
             isPublished: Boolean,
             tags: List<String>,
             places: List<CoursePlace>,
-            category: CourseCategory?,
+            wasPublished: Boolean,
+            existingCategory: CourseCategory?,
+            placeCategoryByPlaceId: Map<Long, String>,
             areaCode: String?,
             area: String?,
-        ): Course =
-            build(
+        ): Course {
+            val category =
+                when {
+                    !isPublished -> null
+                    wasPublished && existingCategory != null -> existingCategory
+                    else -> deriveCategory(true, places, placeCategoryByPlaceId)
+                }
+
+            return build(
                 id = id,
                 userId = userId,
                 title = title,
@@ -128,6 +124,7 @@ data class Course private constructor(
                 areaCode = areaCode,
                 area = area,
             )
+        }
 
         /** 생성·편집 공통 — 도메인 불변식을 강제해 애그리거트를 만든다(카테고리·지역코드는 호출부가 도출·결정). */
         @Suppress("LongParameterList")
@@ -249,10 +246,8 @@ data class Course private constructor(
          * 코스 카테고리 도출 규칙 — 발행 코스만 담은 장소들의 카테고리로 정한다(임시저장은 null).
          * 장소를 orderNo 순으로 정렬해 각 장소의 카테고리(placeId→PlaceCategory 이름)를 모으고,
          * [CourseCategory.fromPlaceCategoryNames] 로 최빈값을 고른다.
-         *
-         * 생성-시-발행과 draft→발행 전이가 동일 규칙을 쓰도록 도메인에 둔다(placeCategoryByPlaceId 는 place 도메인에서 조회해 주입).
          */
-        fun deriveCategory(
+        private fun deriveCategory(
             isPublished: Boolean,
             places: List<CoursePlace>,
             placeCategoryByPlaceId: Map<Long, String>,
@@ -267,10 +262,6 @@ data class Course private constructor(
          * [deriveCategory] 와 같은 최빈값 규칙을 시군구(코드 앞 5자리) 레벨에 적용한다:
          * orderNo 순으로 장소의 법정동코드를 모아 최다 빈도 시군구를 고르고(동률은 앞선 장소 우선),
          * 그 시군구 안 장소들이 모두 같은 읍면동이면 동 코드(10자리)로 세분화, 아니면 시군구 코드 + "00000" 패딩.
-         * 코드가 없는 장소(area_code 미확인)는 표본에서 빠지며, 전부 없으면 null.
-         *
-         * 최하위 공통 지역(LCA) 대신 최빈값을 쓰는 이유: 아웃라이어 장소 하나가 지역을 시도 레벨로
-         * 뭉개는 것을 막고, 시군구 필터(sigungu_code prefix)에 코스가 대표 지역으로 잡히게 하기 위함.
          */
         fun deriveAreaCode(
             isPublished: Boolean,

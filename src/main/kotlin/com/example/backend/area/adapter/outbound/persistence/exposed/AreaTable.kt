@@ -1,4 +1,4 @@
-package com.example.backend.area.adapter.outbound.persistence
+package com.example.backend.area.adapter.outbound.persistence.exposed
 
 import org.jetbrains.exposed.v1.core.Table
 

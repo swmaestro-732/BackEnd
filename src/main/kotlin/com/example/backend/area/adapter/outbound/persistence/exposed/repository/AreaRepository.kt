@@ -1,6 +1,6 @@
 package com.example.backend.area.adapter.outbound.persistence.exposed.repository
 
-import com.example.backend.area.adapter.outbound.persistence.AreaTable
+import com.example.backend.area.adapter.outbound.persistence.exposed.AreaTable
 import com.example.backend.area.domain.model.Area
 import com.example.backend.area.domain.model.AreaCode
 import org.jetbrains.exposed.v1.core.ResultRow
