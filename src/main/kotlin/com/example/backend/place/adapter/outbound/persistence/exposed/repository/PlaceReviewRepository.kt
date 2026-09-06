@@ -4,9 +4,14 @@ import com.example.backend.place.adapter.outbound.persistence.exposed.PlaceRevie
 import com.example.backend.place.adapter.outbound.persistence.exposed.PlaceReviewTable
 import com.example.backend.place.adapter.outbound.persistence.exposed.PlaceReviewTagLinkTable
 import com.example.backend.place.domain.model.PlaceReview
+import com.example.backend.place.domain.model.PlaceReviewStatus
 import com.example.backend.place.domain.model.PlaceReviewTag
+import org.jetbrains.exposed.v1.core.and
+import org.jetbrains.exposed.v1.core.eq
+import org.jetbrains.exposed.v1.core.isNull
 import org.jetbrains.exposed.v1.jdbc.batchInsert
 import org.jetbrains.exposed.v1.jdbc.insertAndGetId
+import org.jetbrains.exposed.v1.jdbc.update
 import org.springframework.stereotype.Repository
 import kotlin.time.Clock
 
@@ -48,6 +53,24 @@ class PlaceReviewRepository {
             tags = review.tags,
             createdAt = now,
         )
+    }
+
+    fun softDelete(
+        reviewId: Long,
+        placeId: Long,
+        userId: Long,
+    ): Int {
+        val now = Clock.System.now()
+        return PlaceReviewTable.update({
+            (PlaceReviewTable.id eq reviewId) and
+                (PlaceReviewTable.placeId eq placeId) and
+                (PlaceReviewTable.userId eq userId) and
+                PlaceReviewTable.deletedAt.isNull()
+        }) {
+            it[deletedAt] = now
+            it[status] = PlaceReviewStatus.DELETED
+            it[updatedAt] = now
+        }
     }
 
     /** 사진은 목록 순서가 곧 노출 순서(order_no)다. */

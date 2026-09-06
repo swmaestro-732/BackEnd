@@ -49,9 +49,16 @@ class PlaceReviewController(
     }
 
     @DeleteMapping("/{reviewId}")
+    @AccessTokenRequired
     fun delete(
         @PathVariable placeId: Long,
         @PathVariable reviewId: Long,
         @CurrentUserId userId: Long,
-    ): ApiResponse<Nothing?> = ApiResponse.ok("리뷰가 삭제되었습니다.")
+        @RequestParam(required = false) mock: Boolean = false,
+    ): ApiResponse<Nothing?> {
+        if (mock && mockGuard.isMockAllowed()) return ApiResponse.ok("리뷰가 삭제되었습니다.")
+
+        placeReviewUseCase.delete(userId = userId, placeId = placeId, reviewId = reviewId)
+        return ApiResponse.ok("리뷰가 삭제되었습니다.")
+    }
 }

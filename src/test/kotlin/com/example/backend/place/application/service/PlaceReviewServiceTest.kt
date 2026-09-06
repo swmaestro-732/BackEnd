@@ -47,6 +47,12 @@ class PlaceReviewServiceTest {
         object : PlaceReviewPersistencePort {
             var saved: PlaceReview? = null
 
+            override fun softDelete(
+                reviewId: Long,
+                placeId: Long,
+                userId: Long,
+            ): Int = 0
+
             override fun save(review: PlaceReview): PlaceReview {
                 saved = review
                 return PlaceReview.reconstitute(

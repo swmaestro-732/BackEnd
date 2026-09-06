@@ -11,7 +11,7 @@ import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
 
 /**
- * 장소 리뷰 작성 유스케이스.
+ * 장소 리뷰 작성·삭제 유스케이스.
  *
  * 리뷰 대상 장소가 살아 있는지 [PlaceQueryPort] 로 확인한다(없거나 삭제됐으면 404).
  * 태그 코드 → 도메인 enum 변환(모르는 코드는 400)은 웹 어댑터(toCommand)가 맡는다.
@@ -37,6 +37,17 @@ class PlaceReviewService(
                 tags = command.tags,
             ),
         )
+    }
+
+    override fun delete(
+        userId: Long,
+        placeId: Long,
+        reviewId: Long,
+    ) {
+        val deleted = placeReviewPersistencePort.softDelete(reviewId = reviewId, placeId = placeId, userId = userId)
+        if (deleted == 0) {
+            throw BusinessException(PlaceErrorCode.PLACE_REVIEW_NOT_FOUND)
+        }
     }
 
     private fun requirePlaceExist(placeId: Long) {

@@ -118,8 +118,19 @@ Authorization: Bearer {{accessToken}}
   "rating": 4
 }
 
-## 장소 리뷰 삭제 (DELETE /api/v1/places/{placeId}/reviews/{reviewId}) — **모킹**(실구현 별도 티켓)
+## 장소 리뷰 삭제 (DELETE /api/v1/places/{placeId}/reviews/{reviewId}) — **실구현**(소프트 삭제, `?mock=true` 폴백 있음)
 
-### 11) 리뷰 삭제 → 200 (삭제하지 않고 고정 성공 메시지)
+### 11) 리뷰 삭제 → 200 (deleted_at 스탬프 + status=DELETED)
 DELETE http://localhost:8080/api/v1/places/1/reviews/1
+Authorization: Bearer {{accessToken}}
+
+### 12) 리뷰 삭제 — 없는·타인·이미 삭제된 리뷰 → 404 / 4045 PLACE_REVIEW_NOT_FOUND (사유 구분 없이 은닉)
+DELETE http://localhost:8080/api/v1/places/1/reviews/999999
+Authorization: Bearer {{accessToken}}
+
+### 13) 리뷰 삭제 — 토큰 없음 → 401
+DELETE http://localhost:8080/api/v1/places/1/reviews/1
+
+### 14) 리뷰 삭제 — mock 폴백(삭제 없이 고정 성공 메시지) → 200
+DELETE http://localhost:8080/api/v1/places/1/reviews/1?mock=true
 Authorization: Bearer {{accessToken}}
