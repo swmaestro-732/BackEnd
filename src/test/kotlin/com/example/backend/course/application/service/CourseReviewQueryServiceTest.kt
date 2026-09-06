@@ -126,7 +126,7 @@ class CourseReviewQueryServiceTest {
                 cursor = cursor,
                 limit = 11,
             ),
-        ).thenReturn(emptyList())
+        ).thenReturn(listOf(row(id = 1, rating = 4, createdAt = "2026-09-01T00:00:00Z")))
 
         val result =
             service.getReviews(
@@ -138,8 +138,8 @@ class CourseReviewQueryServiceTest {
                 ),
             )
 
-        // 스텁이 디코딩된 커서 인자와 정확히 일치할 때만 응답하므로, 여기 도달하면 전달이 검증된 것이다.
-        assertEquals(emptyList<Long>(), result.reviews.map { it.id })
+        // 인자가 하나라도 어긋나면 스텁 대신 Mockito 기본값(빈 리스트)이 돌아와 실패한다 — 행이 보이면 전달이 검증된 것.
+        assertEquals(listOf(1L), result.reviews.map { it.id })
     }
 
     private fun row(
