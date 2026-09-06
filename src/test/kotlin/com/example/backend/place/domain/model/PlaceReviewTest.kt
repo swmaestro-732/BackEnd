@@ -72,38 +72,19 @@ class PlaceReviewTest {
     }
 
     @Test
-    fun `같은 태그가 여러 번 오면 하나로 접는다`() {
-        // 링크 테이블 PK 가 (리뷰, 태그)라 중복이 그대로 가면 저장에서 터진다.
-        val review =
-            review(
-                tags = listOf(PlaceReviewTag.COFFEE, PlaceReviewTag.VIEW, PlaceReviewTag.COFFEE),
-            )
-
-        assertEquals(listOf(PlaceReviewTag.COFFEE, PlaceReviewTag.VIEW), review.tags)
-    }
-
-    @Test
     fun `태그는 5개까지 고를 수 있다`() {
-        val tags = PlaceReviewTag.entries.take(5)
+        val tags = PlaceReviewTag.entries.take(5).toSet()
 
         assertEquals(5, review(tags = tags).tags.size)
 
-        assertThrows<IllegalArgumentException> { review(tags = PlaceReviewTag.entries.take(6)) }
-    }
-
-    @Test
-    fun `태그 상한은 중복을 접은 뒤 개수로 센다`() {
-        // 중복까지 세면 8개라 상한을 넘지만, 접으면 5개라 통과해야 한다.
-        val tags = PlaceReviewTag.entries.take(5) + PlaceReviewTag.entries.take(3)
-
-        assertEquals(5, review(tags = tags).tags.size)
+        assertThrows<IllegalArgumentException> { review(tags = PlaceReviewTag.entries.take(6).toSet()) }
     }
 
     private fun review(
         rating: Int = 5,
         content: String? = null,
         photoUrls: List<String> = emptyList(),
-        tags: List<PlaceReviewTag> = emptyList(),
+        tags: Set<PlaceReviewTag> = emptySet(),
     ) = PlaceReview.create(
         placeId = PLACE_ID,
         userId = USER_ID,

@@ -1,8 +1,8 @@
 package com.example.backend.place.application.service
 
 import com.example.backend.common.exception.BusinessException
-import com.example.backend.common.persistence.postgis.GeoPoint
-import com.example.backend.common.response.ErrorCode
+import com.example.backend.common.geo.Coordinate
+import com.example.backend.common.response.PlaceErrorCode
 import com.example.backend.place.application.port.inbound.dto.CreatePlaceReviewCommand
 import com.example.backend.place.application.port.outbound.PlaceQueryPort
 import com.example.backend.place.application.port.outbound.PlaceReviewPersistencePort
@@ -20,14 +20,16 @@ import kotlin.time.Clock
 /**
  * [PlaceReviewService] 단위 테스트 — 포트를 페이크로 대체해 서비스 규칙만 검증한다
  * ([com.example.backend.user.application.service.SavedPlaceServiceTest] 와 같은 형식).
- * 검증 대상: 장소 존재 검증(없으면 404), 태그 코드 → 도메인 enum 변환(모르는 코드는 400),
- * 도메인 조립 후 영속 포트 위임.
+ * 검증 대상: 장소 존재 검증(없으면 404), 도메인 조립 후 영속 포트 위임.
+ * (태그 코드 → enum 변환은 웹 어댑터 toCommand 책임 — 컨트롤러 테스트가 커버한다.)
  */
 class PlaceReviewServiceTest {
     private val fakeQueryPort =
         object : PlaceQueryPort {
             /** 살아있는 장소 id 집합. 없는 키는 삭제/부재 장소로 취급한다. */
             var existingPlaceIds: Set<Long> = setOf(PLACE_ID)
+
+            override fun findPlaceById(placeId: Long): Place? = if (placeId in existingPlaceIds) place() else null
 
             override fun findPlacesById(placeIds: List<Long>): List<Place> =
                 placeIds.filter { it in existingPlaceIds }.map { place() }
@@ -71,7 +73,7 @@ class PlaceReviewServiceTest {
                     rating = 5,
                     content = "  통창 뷰가 좋아요  ",
                     photoUrls = listOf("https://cdn.example.com/1.jpg", "https://cdn.example.com/2.jpg"),
-                    tagCodes = listOf("coffee", "view"),
+                    tags = setOf(PlaceReviewTag.COFFEE, PlaceReviewTag.VIEW),
                 ),
             )
 
@@ -104,24 +106,8 @@ class PlaceReviewServiceTest {
 
         val exception = assertThrows<BusinessException> { service.create(command()) }
 
-        assertEquals(ErrorCode.PLACE_NOT_FOUND, exception.errorCode)
+        assertEquals(PlaceErrorCode.PLACE_NOT_FOUND, exception.errorCode)
         assertNull(fakePersistencePort.saved) // 저장까지 가지 않는다
-    }
-
-    @Test
-    fun `모르는 태그 코드는 400 이고 저장하지 않는다`() {
-        val exception =
-            assertThrows<BusinessException> { service.create(command(tagCodes = listOf("coffee", "nosuchtag"))) }
-
-        assertEquals(ErrorCode.INVALID_INPUT, exception.errorCode)
-        assertNull(fakePersistencePort.saved)
-    }
-
-    @Test
-    fun `태그 코드는 대소문자·앞뒤 공백을 가리지 않는다`() {
-        service.create(command(tagCodes = listOf(" COFFEE ", "view")))
-
-        assertEquals(listOf(PlaceReviewTag.COFFEE, PlaceReviewTag.VIEW), requireNotNull(fakePersistencePort.saved).tags)
     }
 
     @Test
@@ -138,14 +124,14 @@ class PlaceReviewServiceTest {
         rating: Int = 4,
         content: String? = null,
         photoUrls: List<String> = emptyList(),
-        tagCodes: List<String> = emptyList(),
+        tags: Set<PlaceReviewTag> = emptySet(),
     ) = CreatePlaceReviewCommand(
         placeId = placeId,
         userId = USER_ID,
         rating = rating,
         content = content,
         photoUrls = photoUrls,
-        tagCodes = tagCodes,
+        tags = tags,
     )
 
     private fun place() =
@@ -153,7 +139,7 @@ class PlaceReviewServiceTest {
             name = "어니언 성수",
             description = null,
             category = PlaceCategory.CAFE,
-            location = GeoPoint(latitude = 37.5446, longitude = 127.0559),
+            location = Coordinate(latitude = 37.5446, longitude = 127.0559),
             address = "서울 성동구 아차산로 100",
             imageUrl = null,
         )

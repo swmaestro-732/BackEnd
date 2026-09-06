@@ -48,13 +48,15 @@ class PlaceReviewTagTest {
     }
 
     @Test
-    fun `대문자·앞뒤 공백이 섞인 코드도 받아준다`() {
-        assertSame(PlaceReviewTag.VIEW, PlaceReviewTag.fromCodeOrNull(" VIEW "))
+    fun `코드는 소문자 표기만 받는다`() {
+        // API 계약이 소문자 코드라 대문자·공백 섞인 입력은 정규화 없이 거른다.
+        assertNull(PlaceReviewTag.fromCodeOrNull(" VIEW "))
+        assertNull(PlaceReviewTag.fromCodeOrNull("Coffee"))
     }
 
     @Test
     fun `모르는 코드는 null 이다`() {
-        // 호출부(PlaceReviewService)가 이 null 을 400 으로 바꾼다.
+        // 호출부(CreatePlaceReviewRequest.toCommand)가 이 null 을 400 으로 바꾼다.
         assertNull(PlaceReviewTag.fromCodeOrNull("nosuchtag"))
         assertNull(PlaceReviewTag.fromCodeOrNull(""))
     }

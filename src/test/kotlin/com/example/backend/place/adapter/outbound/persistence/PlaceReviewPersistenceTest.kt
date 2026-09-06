@@ -1,6 +1,10 @@
 package com.example.backend.place.adapter.outbound.persistence
 
-import com.example.backend.common.persistence.postgis.GeoPoint
+import com.example.backend.common.geo.Coordinate
+import com.example.backend.place.adapter.outbound.persistence.exposed.PlaceReviewPhotoTable
+import com.example.backend.place.adapter.outbound.persistence.exposed.PlaceReviewTable
+import com.example.backend.place.adapter.outbound.persistence.exposed.PlaceReviewTagLinkTable
+import com.example.backend.place.adapter.outbound.persistence.exposed.PlaceTable
 import com.example.backend.place.application.port.outbound.PlaceReviewPersistencePort
 import com.example.backend.place.domain.model.PlaceCategory
 import com.example.backend.place.domain.model.PlaceReview
@@ -92,7 +96,7 @@ class PlaceReviewPersistenceTest
             transaction {
                 val placeId = insertPlace("리움미술관")
 
-                val saved = port.save(review(placeId, tags = listOf(PlaceReviewTag.COFFEE, PlaceReviewTag.VIEW)))
+                val saved = port.save(review(placeId, tags = setOf(PlaceReviewTag.COFFEE, PlaceReviewTag.VIEW)))
 
                 val tags =
                     PlaceReviewTagLinkTable
@@ -154,7 +158,7 @@ class PlaceReviewPersistenceTest
             rating: Int = 4,
             content: String? = null,
             photoUrls: List<String> = emptyList(),
-            tags: List<PlaceReviewTag> = emptyList(),
+            tags: Set<PlaceReviewTag> = emptySet(),
         ) = PlaceReview.create(
             placeId = placeId,
             userId = USER_ID,
@@ -170,7 +174,7 @@ class PlaceReviewPersistenceTest
                 .insertAndGetId {
                     it[PlaceTable.name] = name
                     it[category] = PlaceCategory.CAFE
-                    it[location] = GeoPoint(latitude = 37.5446, longitude = 127.0559)
+                    it[location] = Coordinate(latitude = 37.5446, longitude = 127.0559)
                     it[address] = "서울 성동구 아차산로 100"
                 }.value
 

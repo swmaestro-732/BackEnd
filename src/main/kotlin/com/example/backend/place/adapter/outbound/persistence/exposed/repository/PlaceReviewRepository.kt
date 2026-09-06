@@ -1,8 +1,8 @@
 package com.example.backend.place.adapter.outbound.persistence.exposed.repository
 
-import com.example.backend.place.adapter.outbound.persistence.PlaceReviewPhotoTable
-import com.example.backend.place.adapter.outbound.persistence.PlaceReviewTable
-import com.example.backend.place.adapter.outbound.persistence.PlaceReviewTagLinkTable
+import com.example.backend.place.adapter.outbound.persistence.exposed.PlaceReviewPhotoTable
+import com.example.backend.place.adapter.outbound.persistence.exposed.PlaceReviewTable
+import com.example.backend.place.adapter.outbound.persistence.exposed.PlaceReviewTagLinkTable
 import com.example.backend.place.domain.model.PlaceReview
 import com.example.backend.place.domain.model.PlaceReviewTag
 import org.jetbrains.exposed.v1.jdbc.batchInsert

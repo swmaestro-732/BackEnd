@@ -3,13 +3,7 @@ package com.example.backend.place.domain.model
 /**
  * 장소 리뷰 태그 — `.ai/taxonomy.md` "장소 리뷰 태그"(공통 14 + 업종별 50 = 64종)의 **코드 정본**.
  *
- * 마스터 테이블(place_review_tags)은 두지 않는다(V4 에서 제거) — 서버가 저장할 것은 태그 코드뿐이고
- * 문구·이모지는 화면 표기라서다. enum 이름(대문자)이 곧 DB 저장 계약이고(place_review_tag_links.tag),
- * API 계약의 태그 코드는 그 소문자 표기([code]) 다 — 요청 `tagCodes`, 응답 태그의 `code`.
- * 값 추가·변경은 taxonomy.md 와 같은 PR 에서 함께 고친다(상수 이름 변경 금지 — 저장된 값이 깨진다).
- *
- * [label]·[icon] 은 taxonomy 정본 표기를 그대로 담아 두어, 태그를 그리는 쪽(리뷰 목록 BFF 등)이
- * 별도 마스터 조회 없이 code → 문구·이모지를 채울 수 있게 한다.
+ * enum 이름(대문자)이 곧 DB 저장 계약이다(place_review_tag_links.tag) — 상수 이름을 바꾸면 저장된 값이 깨지므로 리네임 금지.
  */
 enum class PlaceReviewTag(
     val label: String,
@@ -110,9 +104,6 @@ enum class PlaceReviewTag(
     val code: String get() = name.lowercase()
 
     companion object {
-        private val BY_CODE = entries.associateBy { it.code }
-
-        /** 태그 코드를 enum 으로 옮긴다. 아는 코드가 아니면 null — 호출부가 400 으로 돌려준다. */
-        fun fromCodeOrNull(code: String): PlaceReviewTag? = BY_CODE[code.trim().lowercase()]
+        fun fromCodeOrNull(code: String): PlaceReviewTag? = entries.firstOrNull { it.code == code }
     }
 }
