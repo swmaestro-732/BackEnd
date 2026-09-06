@@ -1,7 +1,7 @@
 package com.example.backend.user.application.service
 
 import com.example.backend.common.exception.BusinessException
-import com.example.backend.common.response.ErrorCode
+import com.example.backend.common.response.UserErrorCode
 import com.example.backend.user.application.port.inbound.UserUseCase
 import com.example.backend.user.application.port.inbound.dto.UserProfileResult
 import com.example.backend.user.application.port.outbound.CourseCleanupPort
@@ -37,7 +37,7 @@ class UserService(
     ): UserProfileResult {
         val row =
             userPersistencePort.findProfile(userId)
-                ?: throw BusinessException(ErrorCode.USER_NOT_FOUND, "사용자를 찾을 수 없습니다: id=$userId")
+                ?: throw BusinessException(UserErrorCode.USER_NOT_FOUND, "사용자를 찾을 수 없습니다: id=$userId")
         return toProfileResult(
             row = row,
             isFollowing = viewerId?.let { followPersistencePort.isFollowing(it, userId) } ?: false,
@@ -90,7 +90,7 @@ class UserService(
     ): UserProfileResult {
         val user =
             userPersistencePort.findByHandle(handle)
-                ?: throw BusinessException(ErrorCode.USER_NOT_FOUND, "사용자를 찾을 수 없습니다: handle=$handle")
+                ?: throw BusinessException(UserErrorCode.USER_NOT_FOUND, "사용자를 찾을 수 없습니다: handle=$handle")
         val userId = checkNotNull(user.id) { "영속화된 User 는 id 를 가진다." }
         return getProfile(userId, viewerId)
     }
@@ -104,11 +104,11 @@ class UserService(
         // (같은 행 잠금을 follow/save 도 획득 → 정리 후 유입분이 잔여 행·카운터를 남기지 못한다.)
         // 잠금 결과가 비면 그 사이 다른 트랜잭션이 이미 탈퇴시킨 것 → 활성 상태를 확인한 뒤에야 조회·정리한다(중복 탈퇴 방어).
         if (userId !in userPersistencePort.lockActive(listOf(userId))) {
-            throw BusinessException(ErrorCode.USER_NOT_FOUND, "사용자를 찾을 수 없습니다: id=$userId")
+            throw BusinessException(UserErrorCode.USER_NOT_FOUND, "사용자를 찾을 수 없습니다: id=$userId")
         }
         val user =
             userPersistencePort.findById(userId)
-                ?: throw BusinessException(ErrorCode.USER_NOT_FOUND, "사용자를 찾을 수 없습니다: id=$userId")
+                ?: throw BusinessException(UserErrorCode.USER_NOT_FOUND, "사용자를 찾을 수 없습니다: id=$userId")
 
         // 소유 데이터를 먼저 정리해 (같은 소셜로) 재가입 시 "처음 계정처럼" 시작하게 한다 — 전 과정 단일 트랜잭션.
         // 1) 저장 코스: 원저자 saves_cnt 를 먼저 보정한 뒤 저장 레코드·폴더를 지운다.

@@ -1,5 +1,6 @@
 package com.example.backend.common.persistence.postgis
 
+import com.example.backend.common.geo.Coordinate
 import org.jetbrains.exposed.v1.core.BooleanColumnType
 import org.jetbrains.exposed.v1.core.Cast
 import org.jetbrains.exposed.v1.core.ColumnType
@@ -14,7 +15,7 @@ import org.jetbrains.exposed.v1.core.intLiteral
 fun makePoint(
     latitude: Double,
     longitude: Double,
-): Expression<GeoPoint> {
+): Expression<Coordinate> {
     val point =
         CustomFunction(
             "ST_MakePoint",
@@ -26,17 +27,17 @@ fun makePoint(
     return Cast(pointWithSrid, GeographyPointColumnType())
 }
 
-fun Expression<GeoPoint>.stX(): Expression<Double> =
+fun Expression<Coordinate>.stX(): Expression<Double> =
     CustomFunction("ST_X", DoubleColumnType(), Cast(this, GeometryColumnType))
 
-fun Expression<GeoPoint>.stY(): Expression<Double> =
+fun Expression<Coordinate>.stY(): Expression<Double> =
     CustomFunction("ST_Y", DoubleColumnType(), Cast(this, GeometryColumnType))
 
-fun Expression<GeoPoint>.stDistance(other: Expression<GeoPoint>): Expression<Double> =
+fun Expression<Coordinate>.stDistance(other: Expression<Coordinate>): Expression<Double> =
     CustomFunction("ST_Distance", DoubleColumnType(), this, other)
 
-fun Expression<GeoPoint>.stDWithin(
-    other: Expression<GeoPoint>,
+fun Expression<Coordinate>.stDWithin(
+    other: Expression<Coordinate>,
     meters: Double,
 ): Op<Boolean> =
     PostGisBooleanFunction(

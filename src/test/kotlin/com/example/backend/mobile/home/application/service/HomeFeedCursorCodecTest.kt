@@ -1,7 +1,7 @@
 package com.example.backend.mobile.home.application.service
 
 import com.example.backend.common.exception.BusinessException
-import com.example.backend.common.response.ErrorCode
+import com.example.backend.common.response.CommonErrorCode
 import com.example.backend.mobile.home.application.port.outbound.dto.HomeFeedCursor
 import org.assertj.core.api.Assertions.assertThat
 import org.assertj.core.api.Assertions.assertThatThrownBy
@@ -43,7 +43,7 @@ class HomeFeedCursorCodecTest {
         assertThatThrownBy { HomeFeedCursorCodec.decode(raw("0:0:1000000000:1")) }
             .isInstanceOf(BusinessException::class.java)
             .extracting("errorCode")
-            .isEqualTo(ErrorCode.INVALID_INPUT)
+            .isEqualTo(CommonErrorCode.INVALID_INPUT)
     }
 
     @Test
@@ -52,7 +52,7 @@ class HomeFeedCursorCodecTest {
         assertThatThrownBy { HomeFeedCursorCodec.decode(raw("0:9223372036854775807:0:1")) }
             .isInstanceOf(BusinessException::class.java)
             .extracting("errorCode")
-            .isEqualTo(ErrorCode.INVALID_INPUT)
+            .isEqualTo(CommonErrorCode.INVALID_INPUT)
     }
 
     @Test
@@ -60,10 +60,10 @@ class HomeFeedCursorCodecTest {
         assertThatThrownBy { HomeFeedCursorCodec.decode("not-base64!!!") }
             .isInstanceOf(BusinessException::class.java)
             .extracting("errorCode")
-            .isEqualTo(ErrorCode.INVALID_INPUT)
+            .isEqualTo(CommonErrorCode.INVALID_INPUT)
         assertThatThrownBy { HomeFeedCursorCodec.decode(raw("0:0:0")) }
             .isInstanceOf(BusinessException::class.java)
             .extracting("errorCode")
-            .isEqualTo(ErrorCode.INVALID_INPUT)
+            .isEqualTo(CommonErrorCode.INVALID_INPUT)
     }
 }

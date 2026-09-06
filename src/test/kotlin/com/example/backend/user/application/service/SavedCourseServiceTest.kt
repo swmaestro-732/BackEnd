@@ -1,7 +1,9 @@
 package com.example.backend.user.application.service
 
 import com.example.backend.common.exception.BusinessException
-import com.example.backend.common.response.ErrorCode
+import com.example.backend.common.response.CommonErrorCode
+import com.example.backend.common.response.CourseErrorCode
+import com.example.backend.common.response.UserErrorCode
 import com.example.backend.user.application.port.inbound.dto.SavedCoursesCommand
 import com.example.backend.user.application.port.outbound.CourseAccessPort
 import com.example.backend.user.application.port.outbound.CourseFolderCountRow
@@ -213,7 +215,7 @@ class SavedCourseServiceTest {
 
         val ex = assertThrows<BusinessException> { service.save(userId = 1L, courseId = 42L, folderId = null) }
 
-        assertEquals(ErrorCode.USER_NOT_FOUND, ex.errorCode)
+        assertEquals(UserErrorCode.USER_NOT_FOUND, ex.errorCode)
         assertNull(fakePort.insertArgs)
     }
 
@@ -224,7 +226,7 @@ class SavedCourseServiceTest {
 
         val ex = assertThrows<BusinessException> { service.save(userId = 1L, courseId = 42L, folderId = null) }
 
-        assertEquals(ErrorCode.COURSE_NOT_FOUND, ex.errorCode)
+        assertEquals(CourseErrorCode.COURSE_NOT_FOUND, ex.errorCode)
     }
 
     @Test
@@ -233,7 +235,7 @@ class SavedCourseServiceTest {
 
         val ex = assertThrows<BusinessException> { service.save(userId = 1L, courseId = 42L, folderId = null) }
 
-        assertEquals(ErrorCode.COURSE_NOT_FOUND, ex.errorCode)
+        assertEquals(CourseErrorCode.COURSE_NOT_FOUND, ex.errorCode)
         assertNull(fakePort.insertArgs)
     }
 
@@ -244,7 +246,7 @@ class SavedCourseServiceTest {
 
         val ex = assertThrows<BusinessException> { service.save(userId = 1L, courseId = 42L, folderId = 7L) }
 
-        assertEquals(ErrorCode.INVALID_INPUT, ex.errorCode)
+        assertEquals(CommonErrorCode.INVALID_INPUT, ex.errorCode)
         assertNull(fakePort.insertArgs)
     }
 
@@ -255,7 +257,7 @@ class SavedCourseServiceTest {
 
         val ex = assertThrows<BusinessException> { service.save(userId = 1L, courseId = 42L, folderId = null) }
 
-        assertEquals(ErrorCode.COURSE_ALREADY_SAVED, ex.errorCode)
+        assertEquals(UserErrorCode.COURSE_ALREADY_SAVED, ex.errorCode)
         assertNull(fakePort.insertArgs)
     }
 
@@ -338,7 +340,7 @@ class SavedCourseServiceTest {
                 service.getSavedCourses(SavedCoursesCommand(userId = 1L, folderId = null, cursor = "abc", size = 10))
             }
 
-        assertEquals(ErrorCode.INVALID_INPUT, ex.errorCode)
+        assertEquals(CommonErrorCode.INVALID_INPUT, ex.errorCode)
     }
 
     // --- createFolder ---
@@ -349,7 +351,7 @@ class SavedCourseServiceTest {
 
         val ex = assertThrows<BusinessException> { service.createFolder(userId = 1L, name = "가고싶다") }
 
-        assertEquals(ErrorCode.USER_NOT_FOUND, ex.errorCode)
+        assertEquals(UserErrorCode.USER_NOT_FOUND, ex.errorCode)
         assertNull(fakePort.insertFolderArgs)
     }
 
@@ -359,7 +361,7 @@ class SavedCourseServiceTest {
 
         val ex = assertThrows<BusinessException> { service.createFolder(userId = 1L, name = "가고싶다") }
 
-        assertEquals(ErrorCode.FOLDER_NAME_ALREADY_TAKEN, ex.errorCode)
+        assertEquals(UserErrorCode.FOLDER_NAME_ALREADY_TAKEN, ex.errorCode)
         assertNull(fakePort.insertFolderArgs)
     }
 

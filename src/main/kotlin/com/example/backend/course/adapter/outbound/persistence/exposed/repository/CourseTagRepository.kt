@@ -1,6 +1,6 @@
 package com.example.backend.course.adapter.outbound.persistence.exposed.repository
 
-import com.example.backend.course.adapter.outbound.persistence.CourseTagTable
+import com.example.backend.course.adapter.outbound.persistence.exposed.CourseTagTable
 import org.jetbrains.exposed.v1.core.eq
 import org.jetbrains.exposed.v1.jdbc.deleteWhere
 import org.jetbrains.exposed.v1.jdbc.insert

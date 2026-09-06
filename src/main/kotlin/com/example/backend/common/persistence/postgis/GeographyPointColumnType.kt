@@ -1,5 +1,6 @@
 package com.example.backend.common.persistence.postgis
 
+import com.example.backend.common.geo.Coordinate
 import org.jetbrains.exposed.v1.core.Column
 import org.jetbrains.exposed.v1.core.ColumnType
 import org.jetbrains.exposed.v1.core.Table
@@ -7,18 +8,18 @@ import org.postgresql.util.PGobject
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
 
-class GeographyPointColumnType : ColumnType<GeoPoint>() {
+class GeographyPointColumnType : ColumnType<Coordinate>() {
     override fun sqlType(): String = "geography(Point, 4326)"
 
-    override fun notNullValueToDB(value: GeoPoint): Any =
+    override fun notNullValueToDB(value: Coordinate): Any =
         PGobject().apply {
             type = "geography"
             this.value = "SRID=4326;POINT(${value.longitude} ${value.latitude})"
         }
 
-    override fun valueFromDB(value: Any): GeoPoint {
-        // 같은 트랜잭션에서 insert 후 되읽을 때는 Exposed 캐시가 이미 변환된 GeoPoint 를 그대로 넘긴다. 그대로 반환한다.
-        if (value is GeoPoint) return value
+    override fun valueFromDB(value: Any): Coordinate {
+        // 같은 트랜잭션에서 insert 후 되읽을 때는 Exposed 캐시가 이미 변환된 Coordinate 를 그대로 넘긴다. 그대로 반환한다.
+        if (value is Coordinate) return value
 
         val ewkbHex =
             when (value) {
@@ -30,7 +31,7 @@ class GeographyPointColumnType : ColumnType<GeoPoint>() {
         return parseEwkbPoint(ewkbHex)
     }
 
-    private fun parseEwkbPoint(ewkbHex: String): GeoPoint {
+    private fun parseEwkbPoint(ewkbHex: String): Coordinate {
         val normalizedHex = ewkbHex.removePrefix("\\x").removePrefix("0x")
         require(normalizedHex.length % 2 == 0) { "EWKB hex 길이가 올바르지 않습니다." }
 
@@ -58,7 +59,7 @@ class GeographyPointColumnType : ColumnType<GeoPoint>() {
 
         val longitude = buffer.double
         val latitude = buffer.double
-        return GeoPoint(latitude = latitude, longitude = longitude)
+        return Coordinate(latitude = latitude, longitude = longitude)
     }
 
     private companion object {
@@ -70,4 +71,4 @@ class GeographyPointColumnType : ColumnType<GeoPoint>() {
     }
 }
 
-fun Table.geographyPoint(name: String): Column<GeoPoint> = registerColumn(name, GeographyPointColumnType())
+fun Table.geographyPoint(name: String): Column<Coordinate> = registerColumn(name, GeographyPointColumnType())

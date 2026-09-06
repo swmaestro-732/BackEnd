@@ -1,7 +1,6 @@
 package com.example.backend.place.application.service
 
 import com.example.backend.common.geo.Coordinate
-import com.example.backend.common.persistence.postgis.GeoPoint
 import com.example.backend.place.application.event.PlacesSavedEvent
 import com.example.backend.place.application.port.inbound.PlaceSearchExternalUseCase
 import com.example.backend.place.application.port.inbound.dto.PlaceSearchResult
@@ -65,7 +64,7 @@ class PlaceSearchService(
                         name = ext.name,
                         description = null,
                         category = ext.category,
-                        location = GeoPoint(ext.coordinate.latitude, ext.coordinate.longitude),
+                        location = ext.coordinate,
                         address = address,
                         // 신규 저장 장소에만 좌표→법정동 변환을 호출한다(dedup 이후라 호출 수가 신규분으로 제한됨).
                         // 트랜잭션 밖 외부 HTTP 호출 — DB 커넥션을 잡은 채 대기하지 않는다. 실패 시 null.

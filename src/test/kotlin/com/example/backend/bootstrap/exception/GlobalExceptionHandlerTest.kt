@@ -1,6 +1,6 @@
 package com.example.backend.bootstrap.exception
 
-import com.example.backend.common.response.ErrorCode
+import com.example.backend.common.response.CommonErrorCode
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Test
 import org.springframework.web.bind.MissingServletRequestParameterException
@@ -15,8 +15,8 @@ class GlobalExceptionHandlerTest {
         val response = handler.handleNotFound(NoSuchElementException(stdlibMessage))
 
         assertEquals(404, response.statusCode.value())
-        assertEquals(ErrorCode.NOT_FOUND.code, response.body?.code)
-        assertEquals(ErrorCode.NOT_FOUND.message, response.body?.message)
+        assertEquals(CommonErrorCode.NOT_FOUND.code, response.body?.code)
+        assertEquals(CommonErrorCode.NOT_FOUND.message, response.body?.message)
     }
 
     @Test
@@ -24,7 +24,7 @@ class GlobalExceptionHandlerTest {
         val response = handler.handleMissingParam(MissingServletRequestParameterException("placeId", "Long"))
 
         assertEquals(400, response.statusCode.value())
-        assertEquals(ErrorCode.INVALID_INPUT.code, response.body?.code)
+        assertEquals(CommonErrorCode.INVALID_INPUT.code, response.body?.code)
         assertEquals("필수 요청 파라미터가 누락되었습니다: placeId", response.body?.message)
     }
 }

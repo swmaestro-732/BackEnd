@@ -1,4 +1,4 @@
-package com.example.backend.course.adapter.outbound.persistence
+package com.example.backend.course.adapter.outbound.persistence.exposed
 
 import org.jetbrains.exposed.v1.core.dao.id.EntityID
 import org.jetbrains.exposed.v1.core.dao.id.LongIdTable

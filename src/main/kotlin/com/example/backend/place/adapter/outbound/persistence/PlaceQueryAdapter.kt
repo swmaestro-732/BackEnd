@@ -15,7 +15,7 @@ class PlaceQueryAdapter(
 ) : PlaceQueryPort {
     override fun findPlacesById(placeIds: List<Long>): List<Place> {
         if (placeIds.isEmpty()) return emptyList()
-        return placeRepository.findByIds(placeIds)
+        return placeRepository.findByIds(placeIds).map { it.toDomain() }
     }
 
     override fun searchByName(
@@ -24,7 +24,7 @@ class PlaceQueryAdapter(
         limit: Int,
     ): List<Place> {
         if (query.isBlank()) return emptyList()
-        return placeRepository.searchByName(query.trim(), cursor?.toLong(), limit)
+        return placeRepository.searchByName(query.trim(), cursor?.toLong(), limit).map { it.toDomain() }
     }
 
     override fun countByName(query: String): Long {
