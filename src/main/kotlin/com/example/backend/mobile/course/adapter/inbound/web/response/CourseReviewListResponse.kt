@@ -1,9 +1,10 @@
 package com.example.backend.mobile.course.adapter.inbound.web.response
 
+import com.example.backend.mobile.course.application.port.inbound.dto.CourseReviewScreenResult
 import java.time.Instant
 
 /**
- * 웹 응답 DTO — 코스 후기 전체보기 **화면 조합**(BFF) 한 페이지(**모킹 API**).
+ * 웹 응답 DTO — 코스 후기 전체보기 **화면 조합**(BFF) 한 페이지.
  * averageRating/totalCount/ratingDistribution/photoCount 는 코스 전체 집계,
  * nextCursor/hasNext 는 커서 페이지 메타다.
  *
@@ -30,6 +31,35 @@ data class CourseReviewListResponse(
     val reviews: List<CourseReviewItemResponse>,
 ) {
     companion object {
+        /** 화면 조합 결과([CourseReviewScreenResult])를 응답으로 옮긴다. */
+        fun from(result: CourseReviewScreenResult) =
+            CourseReviewListResponse(
+                averageRating = result.averageRating,
+                totalCount = result.totalCount,
+                ratingDistribution = result.ratingDistribution.map { RatingCountResponse(it.rating, it.count) },
+                photoCount = result.photoCount,
+                hasCompletedCourse = result.hasCompletedCourse,
+                nextCursor = result.nextCursor,
+                hasNext = result.hasNext,
+                reviews =
+                    result.reviews.map { item ->
+                        CourseReviewItemResponse(
+                            id = item.id,
+                            author =
+                                CourseReviewAuthorResponse(
+                                    id = item.author.id,
+                                    nickname = item.author.nickname,
+                                    profileImageUrl = item.author.profileImageUrl,
+                                ),
+                            rating = item.rating,
+                            content = item.content,
+                            createdAt = item.createdAt,
+                            photoUrls = item.photoUrls,
+                            tags = item.tags.map { CourseReviewTagResponse(it.code, it.label, it.icon) },
+                        )
+                    },
+            )
+
         /** MOCK: 조회자별 완주 이력 조회 전 고정값. 실제 구현 시 tracing_course 로 조회자별 완주 여부를 조회한다. */
         private const val MOCK_HAS_COMPLETED_COURSE = true
 
@@ -52,8 +82,8 @@ data class CourseReviewListResponse(
             tags: List<CourseReviewTagResponse> = emptyList(),
         ) = CourseReviewItemResponse(id, author, rating, content, createdAt, photoUrls, tags)
 
-        // 코스 리뷰 태그 카탈로그(코드 → 문구·이모지). `.ai/taxonomy.md` "코스 리뷰 태그"가 정본이며,
-        // 실제 구현 시 course_review_tags 마스터 행에서 온다.
+        // 코스 리뷰 태그 카탈로그(코드 → 문구·이모지) — 목 전용 상수. `.ai/taxonomy.md` "코스 리뷰 태그"가 정본이며,
+        // 실응답은 도메인 enum(CourseReviewTag)의 표시 값이 온다.
         private val PACKED = CourseReviewTagResponse("packed", "구성이 알차요", "📦")
         private val COMBO = CourseReviewTagResponse("combo", "장소 조합이 좋아요", "🌿")
         private val SMOOTH = CourseReviewTagResponse("smooth", "흐름이 자연스러워요", "🌊")
@@ -147,12 +177,15 @@ data class CourseReviewListResponse(
     }
 }
 
-/** 상대 시간("2일 전")은 내려주지 않는다 — [createdAt](UTC)으로 클라이언트가 표기한다. */
+/**
+ * 상대 시간("2일 전")은 내려주지 않는다 — [createdAt](UTC)으로 클라이언트가 표기한다.
+ * [content]("한마디")는 별점만 남긴 리뷰라면 없다 — 작성 API 가 선택 값으로 받으므로 null 로 내려간다.
+ */
 data class CourseReviewItemResponse(
     val id: Long,
     val author: CourseReviewAuthorResponse,
     val rating: Int,
-    val content: String,
+    val content: String?,
     val createdAt: Instant,
     val photoUrls: List<String>,
     val tags: List<CourseReviewTagResponse>,
