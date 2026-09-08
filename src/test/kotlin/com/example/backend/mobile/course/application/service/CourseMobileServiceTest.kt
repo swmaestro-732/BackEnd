@@ -4,6 +4,9 @@ import com.example.backend.course.application.port.inbound.CourseQueryUseCase
 import com.example.backend.course.application.port.inbound.dto.CourseDetailResult
 import com.example.backend.course.application.port.inbound.dto.CoursePlaceResult
 import com.example.backend.course.domain.model.CourseVisibility
+import com.example.backend.mobile.course.application.port.inbound.CourseReviewScreenUseCase
+import com.example.backend.mobile.course.application.port.inbound.dto.CourseReviewScreenQuery
+import com.example.backend.mobile.course.application.port.inbound.dto.CourseReviewScreenResult
 import com.example.backend.place.application.port.inbound.PlaceQueryUseCase
 import com.example.backend.place.application.port.inbound.dto.PlaceSummary
 import com.example.backend.user.application.port.inbound.UserUseCase
@@ -18,25 +21,37 @@ class CourseMobileServiceTest {
     private val courseQueryUseCase = mock(CourseQueryUseCase::class.java)
     private val userUseCase = mock(UserUseCase::class.java)
     private val placeQueryUseCase = mock(PlaceQueryUseCase::class.java)
-    private val service = CourseMobileService(courseQueryUseCase, userUseCase, placeQueryUseCase)
+    private val courseReviewScreenUseCase = mock(CourseReviewScreenUseCase::class.java)
+    private val service =
+        CourseMobileService(
+            courseQueryUseCase,
+            userUseCase,
+            placeQueryUseCase,
+            courseReviewScreenUseCase,
+        )
 
     @Test
-    fun `코스 작성자와 장소를 조회해 화면 결과로 조립한다`() {
+    fun `코스 작성자와 장소와 리뷰 요약을 조회해 화면 결과로 조립한다`() {
         val course = course(placeIds = listOf(30L, 20L))
         val author = mock(UserProfileResult::class.java)
         val places = listOf(mock(PlaceSummary::class.java), mock(PlaceSummary::class.java))
+        val previewQuery = CourseReviewScreenQuery(courseId = 10L, size = 2)
+        val reviewSummary = mock(CourseReviewScreenResult::class.java)
         `when`(courseQueryUseCase.getDetail(10L, 7L)).thenReturn(course)
         `when`(userUseCase.getProfile(3L, 7L)).thenReturn(author)
         `when`(placeQueryUseCase.findPlacesById(listOf(30L, 20L))).thenReturn(places)
+        `when`(courseReviewScreenUseCase.getScreen(previewQuery)).thenReturn(reviewSummary)
 
         val result = service.getScreen(10L, 7L)
 
         assertSame(course, result.course)
         assertSame(author, result.author)
         assertSame(places, result.places)
+        assertSame(reviewSummary, result.reviewSummary)
         verify(courseQueryUseCase).getDetail(10L, 7L)
         verify(userUseCase).getProfile(3L, 7L)
         verify(placeQueryUseCase).findPlacesById(listOf(30L, 20L))
+        verify(courseReviewScreenUseCase).getScreen(previewQuery)
     }
 
     private fun course(placeIds: List<Long>) =

@@ -1,12 +1,13 @@
 package com.example.backend.mobile.place.adapter.inbound.web.response
 
 import com.example.backend.mobile.place.application.port.inbound.dto.PlaceDetailScreenResult
+import com.example.backend.mobile.place.application.port.inbound.dto.PlaceReviewScreenResult
 import java.time.Instant
 
 /**
  * 웹 응답 DTO — 장소 상세 화면 조합(BFF). 프론트 화면 계약 형태.
  * 장소 정보 + 리뷰 요약/미리보기(작성자) + 저장 여부 + "이 근처 코스"(이 장소를 포함한 코스)를 한 번에 내려준다.
- * 실구현은 place 도메인 인바운드 포트로 장소를 조회해 채운다([from]). 리뷰·이 근처 코스·저장 여부는 아직
+ * 실구현은 place 도메인 인바운드 포트로 장소·리뷰 요약을 조회해 채운다([from]). 이 근처 코스·저장 여부는 아직
  * 백엔드가 없어 빈/false 스텁으로 채운다(MVP 범위). `?mock=true` 폴백은 고정 목([MOCK])을 반환한다.
  */
 data class PlaceDetailScreenResponse(
@@ -14,7 +15,7 @@ data class PlaceDetailScreenResponse(
     val nearbyCourses: List<NearbyCourseResponse>,
 ) {
     companion object {
-        /** 실구현 매핑 — 장소 재료만 채우고 리뷰·이 근처 코스·저장 여부는 빈/false 스텁. */
+        /** 실구현 매핑 — 장소·리뷰 요약을 채우고 이 근처 코스·저장 여부는 빈/false 스텁. */
         fun from(result: PlaceDetailScreenResult) =
             PlaceDetailScreenResponse(
                 place =
@@ -27,12 +28,7 @@ data class PlaceDetailScreenResponse(
                         location = PlaceLocationResponse(latitude = result.latitude, longitude = result.longitude),
                         openStatus = "UNKNOWN",
                         openingHoursText = null,
-                        reviewSummary =
-                            PlaceReviewSummaryResponse(
-                                averageRating = 0.0,
-                                totalCount = 0,
-                                reviews = emptyList(),
-                            ),
+                        reviewSummary = PlaceReviewSummaryResponse.from(result.reviewSummary),
                         viewer = PlaceViewerResponse(hasSaved = false),
                     ),
                 nearbyCourses = emptyList(),
@@ -61,7 +57,7 @@ data class PlaceDetailScreenResponse(
                                 totalCount = 128,
                                 reviews =
                                     listOf(
-                                        PlaceReviewResponse(
+                                        PlaceReviewItemResponse(
                                             id = 1,
                                             author =
                                                 PlaceReviewAuthorResponse(
@@ -72,10 +68,14 @@ data class PlaceDetailScreenResponse(
                                             rating = 5,
                                             content = "팡도르가 정말 맛있어요. 통창 자리 뷰도 최고. 웨이팅은 조금 있었어요.",
                                             createdAt = Instant.parse("2026-07-08T04:20:00Z"),
-                                            relativeTime = "9일 전",
                                             photoUrls = emptyList(),
+                                            tags =
+                                                listOf(
+                                                    PlaceReviewTagResponse("coffee", "커피가 맛있어요", "☕"),
+                                                    PlaceReviewTagResponse("view", "뷰가 좋아요", "🏔️"),
+                                                ),
                                         ),
-                                        PlaceReviewResponse(
+                                        PlaceReviewItemResponse(
                                             id = 2,
                                             author =
                                                 PlaceReviewAuthorResponse(
@@ -86,8 +86,8 @@ data class PlaceDetailScreenResponse(
                                             rating = 4,
                                             content = "빵이 다양하고 공간이 넓어요.",
                                             createdAt = Instant.parse("2026-07-06T09:00:00Z"),
-                                            relativeTime = "11일 전",
                                             photoUrls = emptyList(),
+                                            tags = listOf(PlaceReviewTagResponse("spacious", "공간이 넓어요", "↔️")),
                                         ),
                                     ),
                             ),
@@ -132,22 +132,24 @@ data class PlaceLocationResponse(
     val longitude: Double,
 )
 
-/** 리뷰 섹션 — 장소 전체 집계 + 최신순 미리보기. 전체 목록은 `/api/v1/places/{id}/reviews` 로 조회한다. */
+/**
+ * 리뷰 섹션 — 장소 전체 집계 + 최신순 미리보기. 전체 목록/페이징은 `/service/v1/places/{id}/reviews` 로 조회한다.
+ * 미리보기 항목은 후기 전체보기와 같은 [PlaceReviewItemResponse] 계약을 쓴다.
+ */
 data class PlaceReviewSummaryResponse(
     val averageRating: Double,
     val totalCount: Int,
-    val reviews: List<PlaceReviewResponse>,
-)
-
-data class PlaceReviewResponse(
-    val id: Long,
-    val author: PlaceReviewAuthorResponse,
-    val rating: Int,
-    val content: String,
-    val createdAt: Instant,
-    val relativeTime: String,
-    val photoUrls: List<String>,
-)
+    val reviews: List<PlaceReviewItemResponse>,
+) {
+    companion object {
+        fun from(result: PlaceReviewScreenResult) =
+            PlaceReviewSummaryResponse(
+                averageRating = result.averageRating,
+                totalCount = result.totalCount,
+                reviews = result.reviews.map(PlaceReviewItemResponse::from),
+            )
+    }
+}
 
 /** 리뷰 작성자 — 간략 정보(닉네임·프로필 이미지). 프로필 이미지는 없을 수 있다. */
 data class PlaceReviewAuthorResponse(

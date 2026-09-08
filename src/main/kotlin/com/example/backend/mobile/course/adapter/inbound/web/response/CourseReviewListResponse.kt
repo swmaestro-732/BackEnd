@@ -14,9 +14,7 @@ import java.time.Instant
  * 최신순/높은 평점 정렬 + 작성자 닉네임·별점·상대시간·태그 칩)이다.
  * 장소 후기 목록([com.example.backend.mobile.place.adapter.inbound.web.response.PlaceReviewListResponse])과
  * 같은 모양으로 맞췄다 — 두 후기 화면이 같은 구성이라 프론트가 컴포넌트를 공유할 수 있게 했다.
- *
- * 코스 상세 시트의 리뷰 미리보기([ReviewPreviewResponse])와는 DTO 가 갈라져 있다 —
- * 미리보기는 태그에 code 가 없고 작성자 프로필이 논널이라, 통합은 실구현 때 함께 정리한다.
+ * 코스 상세 화면의 리뷰 미리보기([ReviewSummaryResponse.previews])도 같은 [CourseReviewItemResponse] 를 쓴다.
  */
 data class CourseReviewListResponse(
     val averageRating: Double,
@@ -41,23 +39,7 @@ data class CourseReviewListResponse(
                 hasCompletedCourse = result.hasCompletedCourse,
                 nextCursor = result.nextCursor,
                 hasNext = result.hasNext,
-                reviews =
-                    result.reviews.map { item ->
-                        CourseReviewItemResponse(
-                            id = item.id,
-                            author =
-                                CourseReviewAuthorResponse(
-                                    id = item.author.id,
-                                    nickname = item.author.nickname,
-                                    profileImageUrl = item.author.profileImageUrl,
-                                ),
-                            rating = item.rating,
-                            content = item.content,
-                            createdAt = item.createdAt,
-                            photoUrls = item.photoUrls,
-                            tags = item.tags.map { CourseReviewTagResponse(it.code, it.label, it.icon) },
-                        )
-                    },
+                reviews = result.reviews.map(CourseReviewItemResponse::from),
             )
 
         /** MOCK: 조회자별 완주 이력 조회 전 고정값. 실제 구현 시 tracing_course 로 조회자별 완주 여부를 조회한다. */
@@ -189,7 +171,25 @@ data class CourseReviewItemResponse(
     val createdAt: Instant,
     val photoUrls: List<String>,
     val tags: List<CourseReviewTagResponse>,
-)
+) {
+    companion object {
+        fun from(item: CourseReviewScreenResult.ReviewItem) =
+            CourseReviewItemResponse(
+                id = item.id,
+                author =
+                    CourseReviewAuthorResponse(
+                        id = item.author.id,
+                        nickname = item.author.nickname,
+                        profileImageUrl = item.author.profileImageUrl,
+                    ),
+                rating = item.rating,
+                content = item.content,
+                createdAt = item.createdAt,
+                photoUrls = item.photoUrls,
+                tags = item.tags.map { CourseReviewTagResponse(it.code, it.label, it.icon) },
+            )
+    }
+}
 
 /**
  * 리뷰 작성자 — 간략 정보(닉네임·프로필 이미지). 프로필 이미지는 없을 수 있다.

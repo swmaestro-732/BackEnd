@@ -2,16 +2,12 @@ package com.example.backend.mobile.course.application.service
 
 import com.example.backend.course.application.port.inbound.CourseReviewQueryUseCase
 import com.example.backend.course.application.port.inbound.dto.CourseReviewsQuery
-import com.example.backend.course.application.port.inbound.dto.CourseReviewsResult
 import com.example.backend.mobile.course.application.port.inbound.CourseReviewScreenUseCase
 import com.example.backend.mobile.course.application.port.inbound.dto.CourseReviewScreenQuery
 import com.example.backend.mobile.course.application.port.inbound.dto.CourseReviewScreenResult
 import com.example.backend.user.application.port.inbound.UserSummaryUseCase
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
-
-/** 탈퇴·미존재 작성자의 대체 닉네임 — 리뷰 자체는 남으므로 카드가 비지 않게 채운다. */
-private const val UNKNOWN_AUTHOR_NICKNAME = "알 수 없음"
 
 /** 코스 후기 전체보기 화면 조합 서비스(BFF). */
 @Service
@@ -35,42 +31,10 @@ class CourseReviewScreenService(
             userSummaryUseCase
                 .findSummaries(page.reviews.map { it.userId }.distinct())
                 .associateBy { it.id }
-
-        return CourseReviewScreenResult(
-            averageRating = page.averageRating,
-            totalCount = page.totalCount,
-            ratingDistribution =
-                page.ratingDistribution.map { CourseReviewScreenResult.RatingCount(it.rating, it.count) },
-            photoCount = page.photoCount,
-            hasCompletedCourse = STUB_HAS_COMPLETED_COURSE,
-            nextCursor = page.nextCursor,
-            hasNext = page.hasNext,
-            reviews =
-                page.reviews.map { review ->
-                    val author = authors[review.userId]
-                    review.toItem(
-                        CourseReviewScreenResult.Author(
-                            id = review.userId,
-                            nickname = author?.nickname ?: UNKNOWN_AUTHOR_NICKNAME,
-                            profileImageUrl = author?.profileImageUrl,
-                        ),
-                    )
-                },
-        )
+        return CourseReviewScreenResult.of(page, authors, hasCompletedCourse = STUB_HAS_COMPLETED_COURSE)
     }
 
-    private fun CourseReviewsResult.CourseReviewItem.toItem(author: CourseReviewScreenResult.Author) =
-        CourseReviewScreenResult.ReviewItem(
-            id = id,
-            author = author,
-            rating = rating,
-            content = content,
-            createdAt = createdAt,
-            photoUrls = photoUrls,
-            tags = tags.map { CourseReviewScreenResult.Tag(code = it.code, label = it.label, icon = it.icon) },
-        )
-
-    private companion object {
+    companion object {
         /** STUB: 완주(따라가기 완료) 판정 전 고정값(모킹 응답과 같은 값). tracing_courses 실구현 시 제거한다. */
         const val STUB_HAS_COMPLETED_COURSE = true
     }

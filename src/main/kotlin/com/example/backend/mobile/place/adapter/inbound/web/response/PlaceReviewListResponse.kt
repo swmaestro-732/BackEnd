@@ -14,8 +14,7 @@ import java.time.Instant
  * 장소 상세 시트("리뷰 ★ 4.8 · 1,240 · 전체보기", 작성자·별점·상대시간 미리보기)와
  * 후기 전체보기 화면(평균 평점 + 별점 분포 + 후기 사진 개수 + 최신순/높은 평점 정렬).
  *
- * 장소 상세 시트의 리뷰 미리보기([PlaceReviewResponse])와는 DTO 가 갈라져 있다 —
- * 미리보기에는 태그가 없어서다. 통합은 실구현 때 함께 정리한다(작성자는 [PlaceReviewAuthorResponse] 공용).
+ * 장소 상세 화면의 리뷰 미리보기([PlaceReviewSummaryResponse.reviews])도 같은 [PlaceReviewItemResponse] 를 쓴다.
  */
 data class PlaceReviewListResponse(
     val averageRating: Double,
@@ -40,23 +39,7 @@ data class PlaceReviewListResponse(
                 hasVisitedPlace = result.hasVisitedPlace,
                 nextCursor = result.nextCursor,
                 hasNext = result.hasNext,
-                reviews =
-                    result.reviews.map { item ->
-                        PlaceReviewItemResponse(
-                            id = item.id,
-                            author =
-                                PlaceReviewAuthorResponse(
-                                    id = item.author.id,
-                                    nickname = item.author.nickname,
-                                    profileImageUrl = item.author.profileImageUrl,
-                                ),
-                            rating = item.rating,
-                            content = item.content,
-                            createdAt = item.createdAt,
-                            photoUrls = item.photoUrls,
-                            tags = item.tags.map { PlaceReviewTagResponse(it.code, it.label, it.icon) },
-                        )
-                    },
+                reviews = result.reviews.map(PlaceReviewItemResponse::from),
             )
 
         /** MOCK: 조회자별 방문 이력 조회 전 고정값. 실제 구현 시 saved_places.visited_at·따라가기 체크인으로 판정한다. */
@@ -190,7 +173,25 @@ data class PlaceReviewItemResponse(
     val createdAt: Instant,
     val photoUrls: List<String>,
     val tags: List<PlaceReviewTagResponse>,
-)
+) {
+    companion object {
+        fun from(item: PlaceReviewScreenResult.ReviewItem) =
+            PlaceReviewItemResponse(
+                id = item.id,
+                author =
+                    PlaceReviewAuthorResponse(
+                        id = item.author.id,
+                        nickname = item.author.nickname,
+                        profileImageUrl = item.author.profileImageUrl,
+                    ),
+                rating = item.rating,
+                content = item.content,
+                createdAt = item.createdAt,
+                photoUrls = item.photoUrls,
+                tags = item.tags.map { PlaceReviewTagResponse(it.code, it.label, it.icon) },
+            )
+    }
+}
 
 /**
  * 리뷰 태그 — code(`.ai/taxonomy.md` 키워드) + label(문구) + icon(이모지).

@@ -1,5 +1,7 @@
 package com.example.backend.mobile.course.application.port.inbound.dto
 
+import com.example.backend.course.application.port.inbound.dto.CourseReviewsResult
+import com.example.backend.user.application.port.inbound.UserSummaryUseCase.UserSummary
 import java.time.Instant
 
 /**
@@ -19,6 +21,44 @@ data class CourseReviewScreenResult(
     val hasNext: Boolean,
     val reviews: List<ReviewItem>,
 ) {
+    companion object {
+        /** 탈퇴·미존재 작성자의 대체 닉네임 — 리뷰 자체는 남으므로 카드가 비지 않게 채운다. */
+        private const val UNKNOWN_AUTHOR_NICKNAME = "알 수 없음"
+
+        /** 도메인 리뷰 페이지([CourseReviewsResult])에 작성자 프로필을 병합한다. */
+        fun of(
+            page: CourseReviewsResult,
+            authors: Map<Long, UserSummary>,
+            hasCompletedCourse: Boolean,
+        ) = CourseReviewScreenResult(
+            averageRating = page.averageRating,
+            totalCount = page.totalCount,
+            ratingDistribution = page.ratingDistribution.map { RatingCount(it.rating, it.count) },
+            photoCount = page.photoCount,
+            hasCompletedCourse = hasCompletedCourse,
+            nextCursor = page.nextCursor,
+            hasNext = page.hasNext,
+            reviews =
+                page.reviews.map { review ->
+                    val author = authors[review.userId]
+                    ReviewItem(
+                        id = review.id,
+                        author =
+                            Author(
+                                id = review.userId,
+                                nickname = author?.nickname ?: UNKNOWN_AUTHOR_NICKNAME,
+                                profileImageUrl = author?.profileImageUrl,
+                            ),
+                        rating = review.rating,
+                        content = review.content,
+                        createdAt = review.createdAt,
+                        photoUrls = review.photoUrls,
+                        tags = review.tags.map { Tag(code = it.code, label = it.label, icon = it.icon) },
+                    )
+                },
+        )
+    }
+
     data class RatingCount(
         val rating: Int,
         val count: Int,
