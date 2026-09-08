@@ -6,6 +6,7 @@ import com.example.backend.place.domain.model.Place
 import org.jetbrains.exposed.v1.core.Op
 import org.jetbrains.exposed.v1.core.SortOrder
 import org.jetbrains.exposed.v1.core.and
+import org.jetbrains.exposed.v1.core.eq
 import org.jetbrains.exposed.v1.core.greater
 import org.jetbrains.exposed.v1.core.inList
 import org.jetbrains.exposed.v1.core.isNull
@@ -19,6 +20,12 @@ import org.springframework.stereotype.Repository
  */
 @Repository
 class PlaceRepository {
+    /** deleted_at IS NULL 인 장소 한 건을 id 로 읽어 엔티티로 반환한다. 없거나 삭제됐으면 null. */
+    internal fun findById(placeId: Long): PlaceEntity? =
+        PlaceEntity
+            .find { (PlaceTable.id eq placeId) and PlaceTable.deletedAt.isNull() }
+            .firstOrNull()
+
     /** deleted_at IS NULL 인 장소들을 id 목록으로 읽어 엔티티로 반환한다. */
     internal fun findByIds(placeIds: List<Long>): List<PlaceEntity> =
         PlaceEntity

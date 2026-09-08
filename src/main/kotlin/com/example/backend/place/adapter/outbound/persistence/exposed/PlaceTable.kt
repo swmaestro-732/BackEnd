@@ -31,6 +31,10 @@ internal object PlaceTable : LongIdTable("places") {
     val imageUrl = text("image_url").nullable()
     val businessStatus = enumerationByName<PlaceBusinessStatus>("business_status", 32)
     val kakaoPlaceId = varchar("kakao_place_id", 64).nullable()
+
+    // 별점 비정규화 카운터(V5) — 리뷰 작성 +rating/+1, 소프트 삭제 -rating/-1. 평균 = rating_sum / rating_cnt.
+    val ratingSum = long("rating_sum").default(0)
+    val ratingCnt = integer("rating_cnt").default(0)
 }
 
 /**
@@ -56,6 +60,8 @@ internal class PlaceEntity(
     var imageUrl by PlaceTable.imageUrl
     var businessStatus by PlaceTable.businessStatus
     var kakaoPlaceId by PlaceTable.kakaoPlaceId
+    var ratingSum by PlaceTable.ratingSum
+    var ratingCnt by PlaceTable.ratingCnt
 
     /** DAO 엔티티를 도메인 [Place] 로 변환한다(생성된 id·DB 생성값 포함). */
     fun toDomain(): Place =
@@ -74,5 +80,7 @@ internal class PlaceEntity(
             createdAt = createdAt,
             updatedAt = updatedAt,
             deletedAt = deletedAt,
+            ratingSum = ratingSum,
+            ratingCnt = ratingCnt,
         )
 }
