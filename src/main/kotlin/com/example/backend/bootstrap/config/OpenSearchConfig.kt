@@ -1,5 +1,8 @@
 package com.example.backend.bootstrap.config
 
+import com.fasterxml.jackson.databind.DeserializationFeature
+import com.fasterxml.jackson.databind.ObjectMapper
+import com.fasterxml.jackson.module.kotlin.registerKotlinModule
 import org.apache.hc.client5.http.auth.AuthScope
 import org.apache.hc.client5.http.auth.UsernamePasswordCredentials
 import org.apache.hc.client5.http.config.RequestConfig
@@ -54,9 +57,15 @@ class OpenSearchConfig(
                 .setResponseTimeout(Timeout.ofSeconds(2))
                 .setConnectionRequestTimeout(Timeout.ofSeconds(2))
                 .build()
+        // Kotlin data class(CourseDocument 등)를 검색 응답에서 역직렬화하려면 kotlin 모듈이 필요하다.
+        // 색인 문서에 없는 필드가 늘어도 읽기가 깨지지 않도록 알 수 없는 속성은 무시한다.
+        val jsonMapper =
+            ObjectMapper()
+                .registerKotlinModule()
+                .configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false)
         return ApacheHttpClient5TransportBuilder
             .builder(host)
-            .setMapper(JacksonJsonpMapper())
+            .setMapper(JacksonJsonpMapper(jsonMapper))
             .setHttpClientConfigCallback {
                 it
                     .setDefaultCredentialsProvider(credentialsProvider)

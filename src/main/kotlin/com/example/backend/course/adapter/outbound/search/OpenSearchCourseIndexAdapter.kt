@@ -81,9 +81,14 @@ class OpenSearchCourseIndexAdapter(
 
     private fun Course.toDocument(): CourseDocument =
         CourseDocument(
+            // 색인 대상은 id 가 채워진(영속화된) 코스뿐이다 — 호출부(save)에서 null 을 걸러낸다.
+            id = id!!,
             title = title,
             description = description,
             area = area,
+            category = category?.name,
+            tags = tags,
+            coverImageUrl = coverImageUrl,
             visibility = visibility.name,
             isPublished = isPublished,
             userId = userId.toString(),
