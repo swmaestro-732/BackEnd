@@ -77,3 +77,7 @@ sentry:
   environment: ${SENTRY_ENVIRONMENT:local}
   traces-sample-rate: 0.1   # 성능 트레이스 샘플링. 부하에 따라 조정
   send-default-pii: false
+
+app:
+  version:
+    features: {}

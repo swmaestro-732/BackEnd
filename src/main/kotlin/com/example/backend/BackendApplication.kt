@@ -1,5 +1,6 @@
 package com.example.backend
 
+import com.example.backend.bootstrap.appversion.AppVersionProperties
 import com.example.backend.bootstrap.config.KakaoLocalProperties
 import com.example.backend.bootstrap.config.MediaProperties
 import com.example.backend.bootstrap.config.OpenSearchProperties
@@ -18,6 +19,7 @@ import org.springframework.boot.runApplication
     KakaoLocalProperties::class,
     TmapProperties::class,
     OpenSearchProperties::class,
+    AppVersionProperties::class,
 )
 class BackendApplication
 
