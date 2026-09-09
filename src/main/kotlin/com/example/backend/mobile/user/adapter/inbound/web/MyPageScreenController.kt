@@ -1,5 +1,6 @@
 package com.example.backend.mobile.user.adapter.inbound.web
 
+import com.example.backend.bootstrap.appversion.RequiresAppFeature
 import com.example.backend.bootstrap.mock.MockGuard
 import com.example.backend.bootstrap.security.AccessTokenRequired
 import com.example.backend.bootstrap.security.CurrentUserId
@@ -21,6 +22,7 @@ import org.springframework.web.bind.annotation.RestController
  *
  * 시드/DB 없이 프론트가 붙어볼 수 있도록 `?mock=true` 면 조회 없이 고정 목([MyPageScreenResponse.MOCK])을 반환한다.
  */
+@RequiresAppFeature("user-profile")
 @RestController
 @RequestMapping("/service/v1")
 class MyPageScreenController(

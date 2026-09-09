@@ -1,5 +1,6 @@
 package com.example.backend.user.adapter.inbound.web
 
+import com.example.backend.bootstrap.appversion.RequiresAppFeature
 import com.example.backend.common.exception.BusinessException
 import com.example.backend.common.response.ApiResponse
 import com.example.backend.common.response.CommonErrorCode
@@ -27,6 +28,7 @@ import org.springframework.web.bind.annotation.RestController
  * social-login·signup 은 [AuthUseCase]로 실구현하며, 개발 환경에서 `?mock=true`로 DB 저장 없는
  * 폴백을 제공한다(`?mockError`는 모킹 에러 화면 작업용). 운영 차단은 프로파일 게이팅으로 다룬다.
  */
+@RequiresAppFeature("auth")
 @RestController
 @RequestMapping("/api/v1/auth")
 class AuthController(

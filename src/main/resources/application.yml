@@ -80,4 +80,28 @@ sentry:
 
 app:
   version:
-    features: {}
+    features:
+      auth:
+        android-version: 4
+      user-profile:
+        android-version: 4
+      user-course:
+        android-version: 4
+      user-place:
+        android-version: 4
+      course-detail:
+        android-version: 4
+      course-create:
+        android-version: 4
+      course-review:
+        android-version: 4
+      place-detail:
+        android-version: 4
+      place-search:
+        android-version: 4
+      place-review:
+        android-version: 4
+      media:
+        android-version: 4
+      area:
+        android-version: 4

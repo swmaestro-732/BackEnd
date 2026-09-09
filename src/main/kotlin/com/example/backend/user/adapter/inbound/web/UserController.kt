@@ -1,5 +1,6 @@
 package com.example.backend.user.adapter.inbound.web
 
+import com.example.backend.bootstrap.appversion.RequiresAppFeature
 import com.example.backend.bootstrap.mock.MockGuard
 import com.example.backend.bootstrap.security.AccessTokenRequired
 import com.example.backend.bootstrap.security.CurrentUserId
@@ -28,18 +29,8 @@ import org.springframework.web.bind.annotation.RequestMapping
 import org.springframework.web.bind.annotation.RequestParam
 import org.springframework.web.bind.annotation.RestController
 
-/**
- * 인바운드 어댑터 — users 리소스(user 도메인). Request → Command, Result → Response 로 매핑한다.
- *
- * 현재 사용자("나")는 JWT 로 식별되므로 식별자 없는 컬렉션 경로(`/api/v1/users`)에 둔다:
- * 내 프로필 조회 `GET`(편집 화면용), 수정 `PATCH`, 회원 탈퇴 `DELETE`,
- * 팔로우 `PUT`·`DELETE /followers/{userId}`(대상의 팔로워로 나를 추가·제거).
- * (프로필을 **보여주는** 화면은 마이페이지 `GET /service/v1/mypage` 담당 — `GET` 은 편집 폼 채우기용이라 역할이 다르다.)
- * 팔로워·팔로잉 목록은 `GET /{userId}/followers`·`/{userId}/followings`(공개, 커서 페이지네이션).
- * 핸들 가용성은 `GET /availability`(공개). 다른 사용자 프로필은 마이페이지 `GET /service/v1/mypage/{handle}` 로.
- * "나" 기준 핸들러에만 [AccessTokenRequired] 로 access 토큰 인증을 강제한다(그 외는 공개).
- * 시드 데이터가 없는 개발 환경에서는 `?mock=true` 폴백을 제공한다.
- */
+/** 인바운드 어댑터 */
+@RequiresAppFeature("user-profile")
 @RestController
 @RequestMapping("/api/v1/users")
 class UserController(

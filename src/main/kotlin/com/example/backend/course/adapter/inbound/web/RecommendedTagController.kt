@@ -1,5 +1,6 @@
 package com.example.backend.course.adapter.inbound.web
 
+import com.example.backend.bootstrap.appversion.RequiresAppFeature
 import com.example.backend.common.response.ApiResponse
 import com.example.backend.course.adapter.inbound.web.response.RecommendedTagsResponse
 import com.example.backend.course.application.port.inbound.RecommendedTagUseCase
@@ -17,6 +18,7 @@ import org.springframework.web.bind.annotation.RestController
  * `?mock=true` 는 DB에 데이터가 없는 동안 프론트 개발용 **모킹 폴백** — 고정 태그를 반환한다.
  * 시드 데이터가 확보되면 파라미터와 모킹 상수를 제거한다.
  */
+@RequiresAppFeature("course-create")
 @RestController
 @RequestMapping("/api/v1/recommended-tags")
 class RecommendedTagController(

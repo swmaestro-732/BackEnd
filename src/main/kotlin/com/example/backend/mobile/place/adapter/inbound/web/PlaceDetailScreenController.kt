@@ -1,5 +1,6 @@
 package com.example.backend.mobile.place.adapter.inbound.web
 
+import com.example.backend.bootstrap.appversion.RequiresAppFeature
 import com.example.backend.bootstrap.mock.MockGuard
 import com.example.backend.common.response.ApiResponse
 import com.example.backend.mobile.place.adapter.inbound.web.response.PlaceDetailScreenResponse
@@ -26,6 +27,7 @@ import org.springframework.web.bind.annotation.RestController
  * 모킹 에러(`?mockError=<code>`)는 전역 아스펙트([com.example.backend.bootstrap.mock.MockErrorAspect])가 주입한다.
  */
 @Tag(name = "Place")
+@RequiresAppFeature("place-detail")
 @RestController
 @RequestMapping("/service/v1")
 class PlaceDetailScreenController(

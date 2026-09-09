@@ -1,5 +1,6 @@
 package com.example.backend.course.adapter.inbound.web
 
+import com.example.backend.bootstrap.appversion.RequiresAppFeature
 import com.example.backend.bootstrap.mock.MockGuard
 import com.example.backend.bootstrap.security.CurrentUserId
 import com.example.backend.common.response.ApiResponse
@@ -29,6 +30,7 @@ import java.time.Instant
  * 인바운드 어댑터 — 코스(노션 명세 · Course).
  * 모킹 에러(`?mockError=<code>`)는 전역 아스펙트([com.example.backend.bootstrap.mock.MockErrorAspect])가 주입한다.
  */
+@RequiresAppFeature("course-detail")
 @RestController
 @RequestMapping("/api/v1/courses")
 class CourseController(
@@ -40,6 +42,7 @@ class CourseController(
      * 로그인 작성자의 임시저장 코스를 최근 수정순으로 조회한다. 공개범위는 본인 목록이라 적용하지 않는다.
      * `?mock=true` 이고 [MockGuard] 가 모킹을 허용할 때만 DB 조회 없이 고정 목록을 반환한다.
      */
+    @RequiresAppFeature("course-create")
     @GetMapping("/drafts")
     fun listDrafts(
         @CurrentUserId userId: Long,
@@ -65,6 +68,7 @@ class CourseController(
     }
 
     /** 코스 생성. 발행(isPublished=true)과 임시저장(false)을 함께 처리한다. */
+    @RequiresAppFeature("course-create")
     @PostMapping("")
     @ResponseStatus(HttpStatus.CREATED)
     fun create(

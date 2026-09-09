@@ -1,5 +1,6 @@
 package com.example.backend.place.adapter.inbound.web
 
+import com.example.backend.bootstrap.appversion.RequiresAppFeature
 import com.example.backend.bootstrap.mock.MockGuard
 import com.example.backend.common.exception.BusinessException
 import com.example.backend.common.response.ApiResponse
@@ -28,6 +29,7 @@ import org.springframework.web.bind.annotation.RestController
  * ([com.example.backend.mobile.place.adapter.inbound.web.PlaceDetailScreenController]).
  */
 @Tag(name = "Place")
+@RequiresAppFeature("place-search")
 @RestController
 @RequestMapping("/api/v1/places")
 class PlaceController(

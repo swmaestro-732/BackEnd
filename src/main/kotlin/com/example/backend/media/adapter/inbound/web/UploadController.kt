@@ -1,5 +1,6 @@
 package com.example.backend.media.adapter.inbound.web
 
+import com.example.backend.bootstrap.appversion.RequiresAppFeature
 import com.example.backend.bootstrap.security.CurrentUserId
 import com.example.backend.common.response.ApiResponse
 import com.example.backend.media.adapter.inbound.web.request.PresignRequest
@@ -12,6 +13,7 @@ import org.springframework.web.bind.annotation.RequestMapping
 import org.springframework.web.bind.annotation.RestController
 
 /** 인바운드 어댑터 — 이미지 업로드용 S3 프리사인 URL 발급. */
+@RequiresAppFeature("media")
 @RestController
 @RequestMapping("/api/v1/uploads")
 class UploadController(

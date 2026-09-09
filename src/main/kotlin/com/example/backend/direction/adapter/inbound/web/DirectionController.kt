@@ -1,5 +1,6 @@
 package com.example.backend.direction.adapter.inbound.web
 
+import com.example.backend.bootstrap.appversion.RequiresAppFeature
 import com.example.backend.common.response.ApiResponse
 import com.example.backend.direction.adapter.inbound.web.request.WalkingRequest
 import com.example.backend.direction.adapter.inbound.web.response.WalkingResponse
@@ -16,6 +17,7 @@ import org.springframework.web.bind.annotation.RestController
  *
  * 방문 순서대로 나열한 좌표 목록을 받아 구간별 도보 시간과 총합(분)을 내려준다.
  */
+@RequiresAppFeature("place-detail")
 @Tag(name = "Place")
 @RestController
 @RequestMapping("/api/v1/directions")
