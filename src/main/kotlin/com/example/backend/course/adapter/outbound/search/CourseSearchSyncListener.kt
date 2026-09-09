@@ -22,7 +22,7 @@ class CourseSearchSyncListener(
 ) {
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
     fun onCourseSaved(event: CourseSavedEvent) {
-        port.save(event.course)
+        port.save(event.newCourse)
     }
 
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)

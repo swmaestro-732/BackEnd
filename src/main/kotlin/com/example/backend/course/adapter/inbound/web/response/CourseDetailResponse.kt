@@ -1,7 +1,7 @@
 package com.example.backend.course.adapter.inbound.web.response
 
+import com.example.backend.common.domain.CourseVisibility
 import com.example.backend.course.application.port.inbound.dto.CourseDetailResult
-import com.example.backend.course.domain.model.CourseVisibility
 
 /**
  * 웹 응답 DTO — 코스 상세. 프론트 계약대로 최상위를 { "course": {...} } 로 감싼다

@@ -1,5 +1,6 @@
 package com.example.backend.course.domain.model
 
+import com.example.backend.common.domain.CourseVisibility
 import com.example.backend.common.exception.BusinessException
 import com.example.backend.common.response.CommonErrorCode
 import kotlinx.datetime.LocalDate
@@ -52,6 +53,15 @@ data class Course private constructor(
             } else {
                 (originPlaceCount + 1) / 2
             }
+
+        /**
+         * 작성자 코스 개수에 "잡히는" 공개범위 — 발행·활성 코스만 카운트 대상이라 발행이면 [visibility], 임시저장이면 null.
+         * 어느 공개범위가 어느 버킷으로 가는지·델타 계산은 카운트를 소유한 user 도메인 몫이고, 여기선 카운트 대상 여부만 정한다.
+         */
+        fun countedVisibility(
+            isPublished: Boolean,
+            visibility: CourseVisibility,
+        ): CourseVisibility? = if (isPublished) visibility else null
 
         fun create(
             userId: Long,

@@ -3,14 +3,16 @@ package com.example.backend.course.application.service
 import com.example.backend.area.application.port.inbound.AreaQueryUseCase
 import com.example.backend.area.application.port.inbound.dto.AreaDescriptor
 import com.example.backend.area.domain.model.AreaLevel
+import com.example.backend.common.domain.CourseVisibility
 import com.example.backend.common.exception.BusinessException
 import com.example.backend.common.response.CourseErrorCode
 import com.example.backend.common.response.PlaceErrorCode
+import com.example.backend.course.application.event.CourseDeletedEvent
+import com.example.backend.course.application.event.CourseSavedEvent
 import com.example.backend.course.application.port.inbound.CourseQueryUseCase
 import com.example.backend.course.application.port.inbound.dto.CreateCourseCommand
 import com.example.backend.course.application.port.inbound.dto.CreateCoursePlaceCommand
 import com.example.backend.course.application.port.inbound.dto.EditCourseCommand
-import com.example.backend.course.application.port.outbound.AuthorCourseCountPort
 import com.example.backend.course.application.port.outbound.CourseDetailRow
 import com.example.backend.course.application.port.outbound.CoursePersistencePort
 import com.example.backend.course.application.port.outbound.CoursePlaceImageRow
@@ -20,12 +22,10 @@ import com.example.backend.course.application.port.outbound.PlaceRef
 import com.example.backend.course.domain.model.Course
 import com.example.backend.course.domain.model.CourseCategory
 import com.example.backend.course.domain.model.CourseStatus
-import com.example.backend.course.domain.model.CourseVisibility
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Assertions.assertThrows
 import org.junit.jupiter.api.Test
-import org.mockito.ArgumentCaptor
 import org.mockito.Mockito.any
 import org.mockito.Mockito.mock
 import org.mockito.Mockito.never
@@ -39,12 +39,14 @@ class CourseServiceTest {
     private val query = mock(CourseQueryUseCase::class.java)
     private val places = mock(PlaceLookupPort::class.java)
     private val areas = mock(AreaQueryUseCase::class.java)
-    private val counts = mock(AuthorCourseCountPort::class.java)
-    private val events = mock(ApplicationEventPublisher::class.java)
-    private val service = CourseService(persistence, query, places, areas, counts, events)
+
+    // 카운트는 이제 별도 포트가 아니라 발행 이벤트로 전달된다 → 발행된 이벤트를 기록해 검증한다.
+    private val publishedEvents = mutableListOf<Any>()
+    private val events = ApplicationEventPublisher { publishedEvents.add(it) }
+    private val service = CourseService(persistence, query, places, areas, events)
 
     @Test
-    fun `발행 코스 생성 시 카테고리 지역을 도출하고 카운터를 증가시킨다`() {
+    fun `발행 코스 생성 시 카테고리 지역을 도출하고 공개범위 전이를 이벤트로 알린다`() {
         stubPlaces()
         `when`(areas.findAreaByCode(AREA_CODE)).thenReturn(area("성수동1가"))
         `when`(persistence.save(anyValue())).thenAnswer { it.arguments[0] as Course }
@@ -54,7 +56,10 @@ class CourseServiceTest {
         assertEquals(CourseCategory.CAFETOUR, result.category)
         assertEquals(AREA_CODE, result.areaCode)
         assertEquals("성수동1가", result.area)
-        verify(counts).applyDelta(1L, 1, 0, 0)
+        val saved = publishedEvents.filterIsInstance<CourseSavedEvent>().single()
+        assertEquals(1L, saved.authorId)
+        assertNull(saved.oldVisibility)
+        assertEquals(CourseVisibility.PUBLIC, saved.newVisibility)
     }
 
     @Test
@@ -67,7 +72,10 @@ class CourseServiceTest {
         assertNull(result.category)
         assertNull(result.areaCode)
         assertNull(result.area)
-        verifyNoInteractions(areas, counts)
+        verifyNoInteractions(areas)
+        // 임시저장은 카운트 대상이 아니다 → 발행 이벤트의 newVisibility 는 null.
+        val saved = publishedEvents.filterIsInstance<CourseSavedEvent>().single()
+        assertNull(saved.newVisibility)
     }
 
     @Test
@@ -93,7 +101,10 @@ class CourseServiceTest {
         assertEquals(AREA_CODE, result.areaCode)
         assertEquals("성수동1가", result.area)
         verify(areas).findAreaByCode(AREA_CODE)
-        verify(counts).applyDelta(1L, 0, 0, 0)
+        // PUBLIC → PUBLIC 은 버킷 변화 없음(전이만 전달, 델타 계산은 user 도메인 몫).
+        val saved = publishedEvents.filterIsInstance<CourseSavedEvent>().single()
+        assertEquals(CourseVisibility.PUBLIC, saved.oldVisibility)
+        assertEquals(CourseVisibility.PUBLIC, saved.newVisibility)
     }
 
     @Test
@@ -122,13 +133,16 @@ class CourseServiceTest {
     }
 
     @Test
-    fun `발행 코스를 삭제하면 공개 카운터를 감소시킨다`() {
+    fun `발행 코스를 삭제하면 삭제 이벤트로 공개범위 감소를 알린다`() {
         `when`(persistence.findCourseDetail(10L)).thenReturn(detail(isPublished = true))
+        `when`(persistence.softDelete(10L)).thenReturn(1) // 실제 1행 삭제됨(동시삭제 아님)
 
         service.delete(1L, 10L)
 
         verify(persistence).softDelete(10L)
-        verify(counts).applyDelta(1L, -1, 0, 0)
+        val deleted = publishedEvents.filterIsInstance<CourseDeletedEvent>().single()
+        assertEquals(1L, deleted.authorId)
+        assertEquals(CourseVisibility.PUBLIC, deleted.oldVisibility)
     }
 
     private fun stubPlaces(areaCode: String? = AREA_CODE) {

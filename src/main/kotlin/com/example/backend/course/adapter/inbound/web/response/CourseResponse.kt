@@ -1,7 +1,7 @@
 package com.example.backend.course.adapter.inbound.web.response
 
+import com.example.backend.common.domain.CourseVisibility
 import com.example.backend.course.application.port.inbound.dto.CourseDetailResult
-import com.example.backend.course.domain.model.CourseVisibility
 
 data class CourseResponse(
     val id: String,

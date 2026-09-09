@@ -1,11 +1,11 @@
 package com.example.backend.course.application.port.outbound
 
+import com.example.backend.common.domain.CourseVisibility
 import com.example.backend.course.application.port.inbound.dto.AuthorCourseCursor
 import com.example.backend.course.application.port.inbound.dto.FeedCursor
 import com.example.backend.course.domain.model.Course
 import com.example.backend.course.domain.model.CourseCategory
 import com.example.backend.course.domain.model.CourseStatus
-import com.example.backend.course.domain.model.CourseVisibility
 import java.time.Instant
 
 /** 코스 단건 읽기 모델. deleted_at IS NULL 인 행만 반환한다(상태·공개범위 판정은 서비스가 수행). */

@@ -1,12 +1,12 @@
 package com.example.backend.course.adapter.outbound.search
 
+import com.example.backend.common.domain.CourseVisibility
 import com.example.backend.course.application.event.CourseAuthorWithdrawnEvent
 import com.example.backend.course.application.event.CourseDeletedEvent
 import com.example.backend.course.application.event.CourseSavedEvent
 import com.example.backend.course.application.port.outbound.CourseSearchIndexPort
 import com.example.backend.course.domain.model.Course
 import com.example.backend.course.domain.model.CourseStatus
-import com.example.backend.course.domain.model.CourseVisibility
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Test
 
@@ -42,14 +42,23 @@ class CourseSearchSyncListenerTest {
     fun `onCourseSaved 는 코스를 포트에 저장한다`() {
         val course = course(1L)
 
-        listener.onCourseSaved(CourseSavedEvent(course))
+        listener.onCourseSaved(
+            CourseSavedEvent(
+                newCourse = course,
+                authorId = course.userId,
+                oldVisibility = null,
+                newVisibility = CourseVisibility.PUBLIC,
+            ),
+        )
 
         assertEquals(listOf(course), savedCourses)
     }
 
     @Test
     fun `onCourseDeleted 는 코스 id 를 포트에서 삭제한다`() {
-        listener.onCourseDeleted(CourseDeletedEvent(42L))
+        listener.onCourseDeleted(
+            CourseDeletedEvent(courseId = 42L, authorId = 1L, oldVisibility = CourseVisibility.PUBLIC),
+        )
 
         assertEquals(listOf(42L), deletedIds)
     }

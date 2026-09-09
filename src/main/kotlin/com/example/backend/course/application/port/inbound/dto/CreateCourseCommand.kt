@@ -1,6 +1,6 @@
 package com.example.backend.course.application.port.inbound.dto
 
-import com.example.backend.course.domain.model.CourseVisibility
+import com.example.backend.common.domain.CourseVisibility
 
 /**
  * 코스 생성 명령(애플리케이션 경계 타입). 웹 요청(CreateCourseRequest)에서 매핑된다.

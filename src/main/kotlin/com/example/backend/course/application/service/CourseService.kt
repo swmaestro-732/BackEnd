@@ -1,6 +1,7 @@
 package com.example.backend.course.application.service
 
 import com.example.backend.area.application.port.inbound.AreaQueryUseCase
+import com.example.backend.common.domain.CourseVisibility
 import com.example.backend.common.exception.BusinessException
 import com.example.backend.common.response.CourseErrorCode
 import com.example.backend.common.response.PlaceErrorCode
@@ -14,7 +15,6 @@ import com.example.backend.course.application.port.inbound.dto.CreateCourseComma
 import com.example.backend.course.application.port.inbound.dto.CreateCoursePlaceCommand
 import com.example.backend.course.application.port.inbound.dto.EditCourseCommand
 import com.example.backend.course.application.port.inbound.dto.ForkCourseCommand
-import com.example.backend.course.application.port.outbound.AuthorCourseCountPort
 import com.example.backend.course.application.port.outbound.CourseDetailRow
 import com.example.backend.course.application.port.outbound.CoursePersistencePort
 import com.example.backend.course.application.port.outbound.CoursePlaceImageRow
@@ -24,13 +24,18 @@ import com.example.backend.course.application.port.outbound.PlaceRef
 import com.example.backend.course.domain.model.Course
 import com.example.backend.course.domain.model.CoursePlace
 import com.example.backend.course.domain.model.CourseStatus
-import com.example.backend.course.domain.model.CourseVisibility
 import org.springframework.context.ApplicationEventPublisher
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
 
 /**
  * 코스 쓰기(커맨드) 유스케이스 — 생성·편집·삭제. 조회는 [CourseQueryService] 가 담당한다(커맨드/쿼리 분리).
+ *
+ * 생성/편집: 발행·임시저장 공통. 불변식 검증과 카테고리 도출은 [Course] 애그리거트가 수행하고,
+ * 서비스는 카테고리 도출에 필요한 place 카테고리(아웃바운드 [PlaceLookupPort], ACL)만 조회해 넘긴다.
+ * 한 비즈니스 로직 = 이벤트 하나: 생성·편집은 [CourseSavedEvent], 삭제는 [CourseDeletedEvent] 만 발행한다.
+ * 검색 색인과 작성자 코스 개수(user 도메인 ACL) 는 커밋 후 이 이벤트를 각자 소비한다 — 개수에 필요한
+ * 공개범위 전이(old→new)는 서비스가 계산해 이벤트에 파생 필드로 실어 보낸다(동기 크로스 도메인 호출 대신).
  */
 @Service
 @Transactional
@@ -39,7 +44,6 @@ class CourseService(
     private val courseQueryUseCase: CourseQueryUseCase,
     private val placeLookupPort: PlaceLookupPort,
     private val areaQueryUseCase: AreaQueryUseCase,
-    private val authorCourseCountPort: AuthorCourseCountPort,
     private val eventPublisher: ApplicationEventPublisher,
 ) : CourseUseCase {
     override fun create(command: CreateCourseCommand): Course {
@@ -47,10 +51,15 @@ class CourseService(
         val foundPlaces = requirePlacesExist(command.places.map { it.placeId })
         val saved = coursePersistencePort.save(command.toCourse(foundPlaces))
 
-        if (command.isPublished) {
-            adjustAuthorCourseCount(command.userId, removed = null, added = command.visibility)
-        }
-        eventPublisher.publishEvent(CourseSavedEvent(saved))
+        // 커밋 후(AFTER_COMMIT) 검색 색인 + 작성자 코스 개수 반영. 발행 코스만 개수에 잡힌다(임시저장 제외 → new=null).
+        eventPublisher.publishEvent(
+            CourseSavedEvent(
+                newCourse = saved,
+                authorId = command.userId,
+                oldVisibility = null,
+                newVisibility = Course.countedVisibility(saved.isPublished, saved.visibility),
+            ),
+        )
         return saved
     }
 
@@ -112,19 +121,26 @@ class CourseService(
 
         return updateCourse(
             command.toCourse(existing, newPlaces, foundPlaces),
-            removed = existing.visibility.takeIf { existing.isPublished },
-            added = command.visibility.takeIf { command.isPublished },
+            removed = Course.countedVisibility(existing.isPublished, existing.visibility),
         )
     }
 
     private fun updateCourse(
         course: Course,
         removed: CourseVisibility?,
-        added: CourseVisibility?,
     ): Course {
         val updated = coursePersistencePort.update(course)
-        adjustAuthorCourseCount(course.userId, removed, added)
-        eventPublisher.publishEvent(CourseSavedEvent(updated)) // 커밋 후 검색 색인(AFTER_COMMIT 리스너)
+        // 편집은 ACTIVE 코스만 통과한다(위 가드). 발행 상태·공개범위 전이(초안→발행, 발행→초안, 공개범위 변경, 변화 없음)를
+        // 이벤트에 실어 보내면 user 도메인이 버킷 델타를 계산한다. 검색 색인도 같은 이벤트를 소비한다(커밋 후).
+        // 새 상태는 요청이 아니라 저장 결과([updated])에서 도출한다.
+        eventPublisher.publishEvent(
+            CourseSavedEvent(
+                newCourse = updated,
+                authorId = course.userId,
+                oldVisibility = removed,
+                newVisibility = Course.countedVisibility(updated.isPublished, updated.visibility),
+            ),
+        )
         return updated
     }
 
@@ -209,14 +225,18 @@ class CourseService(
     ) {
         val existing = requireOwnedCourse(courseId, userId)
 
-        coursePersistencePort.softDelete(courseId)
-        // 발행 코스였다면 삭제로 해당 공개범위 버킷 −1(임시저장은 애초에 안 잡혀 있었다).
-        adjustAuthorCourseCount(
-            userId = userId,
-            removed = if (existing.isPublished) existing.visibility else null,
-            added = null,
+        // 동시 삭제 레이스 방지: softDelete 는 deleted_at IS NULL 조건이라 실제 갱신 행이 0이면(이미 다른 요청이 삭제)
+        // 이벤트를 발행하지 않는다 — 안 그러면 두 요청이 각기 다른 eventId 로 발행해 작성자 카운터가 두 번 감소한다.
+        if (coursePersistencePort.softDelete(courseId) == 0) return
+        // 커밋 후(AFTER_COMMIT) 검색 문서 삭제 + 작성자 코스 개수 감소. 발행 코스였다면 해당 공개범위 버킷 −1
+        // (임시저장은 애초에 안 잡혀 있었다 → oldVisibility=null).
+        eventPublisher.publishEvent(
+            CourseDeletedEvent(
+                courseId = courseId,
+                authorId = userId,
+                oldVisibility = Course.countedVisibility(existing.isPublished, existing.visibility),
+            ),
         )
-        eventPublisher.publishEvent(CourseDeletedEvent(courseId)) // 커밋 후 검색 색인(이벤트 — AFTER_COMMIT 리스너)
     }
 
     override fun deleteAllByAuthor(authorId: Long) {
@@ -267,24 +287,5 @@ class CourseService(
                 .sortedBy { it.orderNo }
                 .map { Triple(it.placeId, it.orderNo, it.imageUrls) }
         return storedSignature != newSignature
-    }
-
-    /**
-     * 코스 상태 변화에 따른 작성자의 공개범위별 코스 개수 델타를 반영한다.
-     * [removed]/[added] 는 "카운트되는 상태(발행·활성·미삭제)"의 공개범위이고, 그 상태가 아니면 null.
-     * 크로스 도메인 경계라 공개범위 enum 대신 버킷별 원시 int 델타로 넘긴다([AuthorCourseCountPort]).
-     */
-    private fun adjustAuthorCourseCount(
-        userId: Long,
-        removed: CourseVisibility?,
-        added: CourseVisibility?,
-    ) {
-        fun delta(v: CourseVisibility) = (if (added == v) 1 else 0) - (if (removed == v) 1 else 0)
-        authorCourseCountPort.applyDelta(
-            authorId = userId,
-            publicDelta = delta(CourseVisibility.PUBLIC),
-            followerDelta = delta(CourseVisibility.FOLLOWER),
-            privateDelta = delta(CourseVisibility.PRIVATE),
-        )
     }
 }

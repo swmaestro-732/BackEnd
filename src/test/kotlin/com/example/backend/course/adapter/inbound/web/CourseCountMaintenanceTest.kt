@@ -1,6 +1,9 @@
 package com.example.backend.course.adapter.inbound.web
 
 import com.example.backend.bootstrap.security.JwtTokenProvider
+import com.example.backend.common.domain.CourseVisibility
+import com.example.backend.course.application.event.CourseDeletedEvent
+import com.example.backend.course.application.event.CourseSavedEvent
 import com.example.backend.support.IntegrationTestBase
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Test
@@ -8,7 +11,8 @@ import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc
 import org.springframework.http.HttpHeaders
 import org.springframework.http.MediaType
-import org.springframework.jdbc.core.JdbcTemplate
+import org.springframework.test.context.event.ApplicationEvents
+import org.springframework.test.context.event.RecordApplicationEvents
 import org.springframework.test.context.jdbc.Sql
 import org.springframework.test.web.servlet.MockMvc
 import org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete
@@ -17,36 +21,43 @@ import org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post
 import org.springframework.test.web.servlet.result.MockMvcResultMatchers.status
 
 /**
- * 작성자의 공개범위별 코스 개수 캐시(users.public/follower/private_courses_cnt) 유지 검증.
- * 코스 발행 생성/편집(공개범위·발행 전이)/삭제가 매 조회 GROUP BY 대신 이 저장 카운터를 ±1 로 정확히 움직이는지 확인한다.
+ * 작성자의 공개범위별 코스 개수 캐시 유지 검증.
+ *
+ * 한 비즈니스 로직 = 이벤트 하나: 생성·편집은 [CourseSavedEvent], 삭제는 [CourseDeletedEvent] 만 발행한다(SCRUM-523).
+ * 실제 버킷 델타 계산·반영·멱등은 CourseCountServiceTest 가 단위로 검증하고, 여기서는 웹 → 서비스 경로에서
+ * 발행·공개범위 전이가 이벤트의 **파생 필드**(old→new, removed)에 올바르게 실리는지 확인한다.
  * 픽스처(course-crud-fixture)는 소유자(1)를 public=1(course 1 PUBLIC·발행 반영)로 심는다.
  */
 @AutoConfigureMockMvc
+@RecordApplicationEvents
 @Sql(scripts = ["/sql/course-crud-fixture.sql"], executionPhase = Sql.ExecutionPhase.BEFORE_TEST_METHOD)
 class CourseCountMaintenanceTest
     @Autowired
     constructor(
         private val mockMvc: MockMvc,
         private val jwtTokenProvider: JwtTokenProvider,
-        private val jdbcTemplate: JdbcTemplate,
     ) : IntegrationTestBase() {
+        @Autowired
+        private lateinit var events: ApplicationEvents
+
         @Test
-        fun `발행 PUBLIC 코스를 생성하면 작성자 public 카운트가 +1 된다`() {
+        fun `발행 PUBLIC 코스를 생성하면 null→PUBLIC 전이가 실린다`() {
             createCourse(visibility = "PUBLIC", published = true)
 
-            assertCounts(public = 2, follower = 0, private = 0)
+            assertSavedTransition(old = null, new = CourseVisibility.PUBLIC)
         }
 
         @Test
-        fun `임시저장 코스를 생성하면 카운트는 그대로다`() {
+        fun `임시저장 코스를 생성하면 카운트 전이가 없다(new=null)`() {
             createCourse(visibility = "PRIVATE", published = false)
 
-            assertCounts(public = 1, follower = 0, private = 0)
+            // 검색 색인용 CourseSavedEvent 는 발행되지만, 카운트되는 공개범위 전이는 없다(old=null·new=null).
+            assertSavedTransition(old = null, new = null)
         }
 
         @Test
-        fun `임시저장 초안을 FOLLOWER 로 발행 편집하면 follower 카운트가 +1 된다`() {
-            // course 2 = PRIVATE 임시저장(카운트 미포함) → 발행하면 발행 상태로 들어와 follower +1(초안이라 removed 없음).
+        fun `임시저장 초안을 FOLLOWER 로 발행 편집하면 null→FOLLOWER 전이가 실린다`() {
+            // course 2 = PRIVATE 임시저장(카운트 미포함) → 발행하면 발행 상태로 들어와 old=null·new=FOLLOWER.
             val body =
                 """
                 {
@@ -68,18 +79,21 @@ class CourseCountMaintenanceTest
                         .content(body),
                 ).andExpect(status().isOk)
 
-            assertCounts(public = 1, follower = 1, private = 0)
+            assertSavedTransition(old = null, new = CourseVisibility.FOLLOWER)
         }
 
         @Test
-        fun `발행 PUBLIC 코스를 삭제하면 작성자 public 카운트가 -1 된다`() {
+        fun `발행 PUBLIC 코스를 삭제하면 oldVisibility=PUBLIC 로 실린다`() {
             mockMvc
                 .perform(
                     delete("/api/v1/courses/$PUBLIC_COURSE_ID")
                         .header(HttpHeaders.AUTHORIZATION, "Bearer ${tokenFor(OWNER_ID)}"),
                 ).andExpect(status().isOk)
 
-            assertCounts(public = 0, follower = 0, private = 0)
+            val event = events.stream(CourseDeletedEvent::class.java).toList().single()
+            assertEquals(PUBLIC_COURSE_ID, event.courseId, "courseId")
+            assertEquals(OWNER_ID, event.authorId, "authorId")
+            assertEquals(CourseVisibility.PUBLIC, event.oldVisibility, "oldVisibility")
         }
 
         private fun createCourse(
@@ -108,19 +122,15 @@ class CourseCountMaintenanceTest
                 ).andExpect(status().isCreated)
         }
 
-        private fun assertCounts(
-            public: Int,
-            follower: Int,
-            private: Int,
+        /** CourseSavedEvent 가 정확히 하나 발행됐고 카운트 파생 필드(old→new)가 기대와 같은지 검증한다. */
+        private fun assertSavedTransition(
+            old: CourseVisibility?,
+            new: CourseVisibility?,
         ) {
-            val row =
-                jdbcTemplate.queryForMap(
-                    "SELECT public_courses_cnt, follower_courses_cnt, private_courses_cnt FROM users WHERE id = ?",
-                    OWNER_ID,
-                )
-            assertEquals(public, (row["public_courses_cnt"] as Number).toInt(), "public_courses_cnt")
-            assertEquals(follower, (row["follower_courses_cnt"] as Number).toInt(), "follower_courses_cnt")
-            assertEquals(private, (row["private_courses_cnt"] as Number).toInt(), "private_courses_cnt")
+            val event = events.stream(CourseSavedEvent::class.java).toList().single()
+            assertEquals(OWNER_ID, event.authorId, "authorId")
+            assertEquals(old, event.oldVisibility, "oldVisibility")
+            assertEquals(new, event.newVisibility, "newVisibility")
         }
 
         private fun tokenFor(userId: Long) = jwtTokenProvider.issueAccessToken(userId)
