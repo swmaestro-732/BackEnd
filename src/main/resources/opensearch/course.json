@@ -1,5 +1,6 @@
 {
   "properties": {
+    "id": { "type": "long" },
     "title": {
       "type": "text",
       "analyzer": "nori",
@@ -7,6 +8,9 @@
     },
     "description": { "type": "text", "analyzer": "nori" },
     "area": { "type": "keyword" },
+    "category": { "type": "keyword" },
+    "tags": { "type": "keyword" },
+    "coverImageUrl": { "type": "keyword", "index": false },
     "visibility": { "type": "keyword" },
     "isPublished": { "type": "boolean" },
     "userId": { "type": "keyword" },
