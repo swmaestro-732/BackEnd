@@ -14,7 +14,6 @@ import com.example.backend.user.application.port.outbound.UserPersistencePort
 import com.example.backend.user.application.port.outbound.UserProfileRow
 import com.example.backend.user.domain.model.CourseFolder
 import com.example.backend.user.domain.model.SavedCourse
-import com.example.backend.user.domain.model.SocialProvider
 import com.example.backend.user.domain.model.User
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
@@ -177,16 +176,6 @@ class SavedCourseServiceTest {
 
             override fun existsByHandle(handle: String): Boolean = TODO()
 
-            override fun findBySocial(
-                provider: SocialProvider,
-                socialId: String,
-            ): User? = TODO()
-
-            override fun findWithdrawnBySocial(
-                provider: SocialProvider,
-                socialId: String,
-            ): User? = TODO()
-
             override fun existsByNicknameExcludingUser(
                 nickname: String,
                 excludeUserId: Long,
@@ -196,8 +185,6 @@ class SavedCourseServiceTest {
                 handle: String,
                 excludeUserId: Long,
             ): Boolean = TODO()
-
-            override fun saveWithSocial(user: User): User = TODO()
 
             override fun reactivate(user: User): User = TODO()
         }
