@@ -35,7 +35,7 @@ import org.springframework.transaction.annotation.Transactional
  * 서비스는 카테고리 도출에 필요한 place 카테고리(아웃바운드 [PlaceLookupPort], ACL)만 조회해 넘긴다.
  * 한 비즈니스 로직 = 이벤트 하나: 생성·편집은 [CourseSavedEvent], 삭제는 [CourseDeletedEvent] 만 발행한다.
  * 검색 색인과 작성자 코스 개수(user 도메인 ACL) 는 커밋 후 이 이벤트를 각자 소비한다 — 개수에 필요한
- * 공개범위 전이(old→new)는 서비스가 계산해 이벤트에 파생 필드로 실어 보낸다(동기 크로스 도메인 호출 대신).
+ * 이전 공개범위는 서비스가 전달하고, 작성자·새 공개범위는 이벤트가 저장된 Course 에서 도출한다.
  */
 @Service
 @Transactional
@@ -55,9 +55,7 @@ class CourseService(
         eventPublisher.publishEvent(
             CourseSavedEvent(
                 newCourse = saved,
-                authorId = command.userId,
                 oldVisibility = null,
-                newVisibility = Course.countedVisibility(saved.isPublished, saved.visibility),
             ),
         )
         return saved
@@ -136,9 +134,7 @@ class CourseService(
         eventPublisher.publishEvent(
             CourseSavedEvent(
                 newCourse = updated,
-                authorId = course.userId,
                 oldVisibility = removed,
-                newVisibility = Course.countedVisibility(updated.isPublished, updated.visibility),
             ),
         )
         return updated

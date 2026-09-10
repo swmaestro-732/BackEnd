@@ -8,6 +8,7 @@ import com.example.backend.course.application.port.outbound.CourseSearchIndexPor
 import com.example.backend.course.domain.model.Course
 import com.example.backend.course.domain.model.CourseStatus
 import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Test
 
 /**
@@ -45,13 +46,26 @@ class CourseSearchSyncListenerTest {
         listener.onCourseSaved(
             CourseSavedEvent(
                 newCourse = course,
-                authorId = course.userId,
                 oldVisibility = null,
-                newVisibility = CourseVisibility.PUBLIC,
             ),
         )
 
         assertEquals(listOf(course), savedCourses)
+    }
+
+    @Test
+    fun `저장 이벤트는 발행 코스만 집계하고 코스 교체 시 파생값도 바뀐다`() {
+        for (visibility in CourseVisibility.entries) {
+            val published = CourseSavedEvent(course(1L, visibility = visibility), CourseVisibility.FOLLOWER)
+            assertEquals(1L, published.authorId)
+            assertEquals(CourseVisibility.FOLLOWER, published.oldVisibility)
+            assertEquals(visibility, published.newVisibility)
+
+            val draft = published.copy(newCourse = course(2L, visibility, isPublished = false, userId = 7L))
+            assertEquals(7L, draft.authorId)
+            assertEquals(CourseVisibility.FOLLOWER, draft.oldVisibility)
+            assertNull(draft.newVisibility)
+        }
     }
 
     @Test
@@ -70,10 +84,15 @@ class CourseSearchSyncListenerTest {
         assertEquals(listOf(7L), deletedAuthorIds)
     }
 
-    private fun course(id: Long): Course =
+    private fun course(
+        id: Long,
+        visibility: CourseVisibility = CourseVisibility.PUBLIC,
+        isPublished: Boolean = true,
+        userId: Long = 1L,
+    ): Course =
         Course.reconstitute(
             id = id,
-            userId = 1L,
+            userId = userId,
             status = CourseStatus.ACTIVE,
             title = "코스 $id",
             description = null,
@@ -82,8 +101,8 @@ class CourseSearchSyncListenerTest {
             area = null,
             areaCode = null,
             visitDate = null,
-            visibility = CourseVisibility.PUBLIC,
-            isPublished = true,
+            visibility = visibility,
+            isPublished = isPublished,
             likesCnt = 0,
             commentsCnt = 0,
             savesCnt = 0,

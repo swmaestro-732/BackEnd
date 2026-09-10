@@ -13,10 +13,12 @@ import com.example.backend.course.domain.model.Course
  *
  * user 어댑터가 course 내부 이벤트/[Course] 를 직접 만지지 않도록, 카운트에 필요한 값은 계약 필드로만 노출한다.
  * [oldVisibility]/[newVisibility] 는 "카운트되는 상태(발행)"의 공개범위이고 아니면 null([Course.countedVisibility]).
+ * 작성자와 새 공개범위는 저장된 [newCourse] 에서 도출한다 — 호출자가 서로 다른 상태를 조합할 수 없다.
  */
 data class CourseSavedEvent(
     val newCourse: Course,
-    override val authorId: Long,
     override val oldVisibility: CourseVisibility?,
-    override val newVisibility: CourseVisibility?,
-) : AuthorCourseCountChanged
+) : AuthorCourseCountChanged {
+    override val authorId: Long get() = newCourse.userId
+    override val newVisibility: CourseVisibility? get() = newCourse.countedVisibility
+}

@@ -39,11 +39,6 @@ class CourseCountService(
         // 이미 처리한 메시지면(재전송) 아무 것도 하지 않는다 — 중복 반영 방지.
         if (!processedEventPort.markProcessedIfAbsent(eventId)) return
 
-        courseCountPersistencePort.applyCourseCountDelta(
-            userId = authorId,
-            publicDelta = delta.publicDelta,
-            followerDelta = delta.followerDelta,
-            privateDelta = delta.privateDelta,
-        )
+        courseCountPersistencePort.applyCourseCountDelta(authorId, delta)
     }
 }

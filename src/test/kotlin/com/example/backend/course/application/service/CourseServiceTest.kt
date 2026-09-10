@@ -21,6 +21,7 @@ import com.example.backend.course.application.port.outbound.PlaceLookupPort
 import com.example.backend.course.application.port.outbound.PlaceRef
 import com.example.backend.course.domain.model.Course
 import com.example.backend.course.domain.model.CourseCategory
+import com.example.backend.course.domain.model.CoursePlace
 import com.example.backend.course.domain.model.CourseStatus
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertNull
@@ -76,6 +77,35 @@ class CourseServiceTest {
         // 임시저장은 카운트 대상이 아니다 → 발행 이벤트의 newVisibility 는 null.
         val saved = publishedEvents.filterIsInstance<CourseSavedEvent>().single()
         assertNull(saved.newVisibility)
+    }
+
+    @Test
+    fun `생성 이벤트의 작성자와 공개범위는 요청이 아니라 저장 결과를 따른다`() {
+        stubPlaces()
+        val savedCourse =
+            Course.create(
+                userId = 7L,
+                title = "저장된 코스",
+                description = null,
+                coverImageUrl = "cover",
+                visibility = CourseVisibility.PRIVATE,
+                isPublished = true,
+                forkedFromId = null,
+                tags = emptyList(),
+                places = listOf(CoursePlace(1L, 0, null, listOf("a")), CoursePlace(2L, 1, null, listOf("b"))),
+                placeCategoryByPlaceId = emptyMap(),
+                areaCode = null,
+                area = null,
+            )
+        `when`(persistence.save(anyValue())).thenReturn(savedCourse)
+
+        service.create(createCommand(isPublished = false))
+
+        val event = publishedEvents.filterIsInstance<CourseSavedEvent>().single()
+        assertEquals(savedCourse, event.newCourse)
+        assertEquals(7L, event.authorId)
+        assertNull(event.oldVisibility)
+        assertEquals(CourseVisibility.PRIVATE, event.newVisibility)
     }
 
     @Test

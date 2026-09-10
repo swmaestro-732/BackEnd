@@ -34,6 +34,9 @@ data class Course private constructor(
     val tags: List<String>,
     val places: List<CoursePlace>,
 ) {
+    /** 이 코스가 작성자 개수에 기여하는 공개범위. 임시저장은 집계하지 않는다. */
+    val countedVisibility: CourseVisibility? get() = countedVisibility(isPublished, visibility)
+
     companion object {
         /** 코스가 담아야 하는 최소 장소 수 — 발행·임시저장 공통. */
         private const val MIN_PLACES = 2
@@ -57,6 +60,7 @@ data class Course private constructor(
         /**
          * 작성자 코스 개수에 "잡히는" 공개범위 — 발행·활성 코스만 카운트 대상이라 발행이면 [visibility], 임시저장이면 null.
          * 어느 공개범위가 어느 버킷으로 가는지·델타 계산은 카운트를 소유한 user 도메인 몫이고, 여기선 카운트 대상 여부만 정한다.
+         * 편집·삭제 전 읽기 모델의 상태에도 같은 규칙을 적용한다. Course 객체는 [Course.countedVisibility] 로 조회한다.
          */
         fun countedVisibility(
             isPublished: Boolean,
