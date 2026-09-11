@@ -11,11 +11,11 @@ import java.util.UUID
 
 /**
  * user 도메인 ACL — course 의 공개범위 전이 이벤트([AuthorCourseCountChanged] 공개 계약)를 받아 작성자 코스 개수에 반영한다.
- * 크로스도메인 결합을 어댑터에 격리하고, course 내부 이벤트가 아니라 **inbound 포트 계약만** 참조한다(규칙 7).
+ * 크로스도메인 결합을 어댑터에 격리하고 course 내부 이벤트가 아니라 **inbound 포트 계약만** 참조한다(규칙 7).
  *
  * 주 경로는 **동기(in-process)**: 커밋 후(AFTER_COMMIT) [CourseCountUseCase.apply] 를 바로 호출한다.
  * 실패하면 그때만 [CourseCountFallbackPort] 로 SQS 폴백에 실어 재시도한다(SQS 컨슈머가 같은 use case 로 반영).
- * eventId 를 한 번 만들어 동기·폴백에 공유하고, 멱등은 use case 안에서 지켜 재전송·이중 집계를 막는다.
+ * eventId 를 한 번 만들어 동기·폴백에 공유하고 멱등은 use case 안에서 지켜 재전송·이중 집계를 막는다.
  */
 @Component
 class CourseCountEventHandler(

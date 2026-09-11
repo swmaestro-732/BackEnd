@@ -24,7 +24,7 @@ import org.springframework.test.web.servlet.result.MockMvcResultMatchers.status
  * 작성자의 공개범위별 코스 개수 캐시 유지 검증.
  *
  * 한 비즈니스 로직 = 이벤트 하나: 생성·편집은 [CourseSavedEvent], 삭제는 [CourseDeletedEvent] 만 발행한다(SCRUM-523).
- * 실제 버킷 델타 계산·반영·멱등은 CourseCountServiceTest 가 단위로 검증하고, 여기서는 웹 → 서비스 경로에서
+ * 실제 버킷 델타 계산·반영·멱등은 CourseCountServiceTest 가 단위로 검증하고 여기서는 웹 → 서비스 경로에서
  * 발행·공개범위 전이가 이벤트의 **파생 필드**(old→new, removed)에 올바르게 실리는지 확인한다.
  * 픽스처(course-crud-fixture)는 소유자(1)를 public=1(course 1 PUBLIC·발행 반영)로 심는다.
  */
@@ -51,7 +51,7 @@ class CourseCountMaintenanceTest
         fun `임시저장 코스를 생성하면 카운트 전이가 없다(new=null)`() {
             createCourse(visibility = "PRIVATE", published = false)
 
-            // 검색 색인용 CourseSavedEvent 는 발행되지만, 카운트되는 공개범위 전이는 없다(old=null·new=null).
+            // 검색 색인용 CourseSavedEvent 는 발행되지만 카운트되는 공개범위 전이는 없다(old=null·new=null).
             assertSavedTransition(old = null, new = null)
         }
 

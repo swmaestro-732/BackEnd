@@ -3,6 +3,7 @@ package com.example.backend.course.domain.model
 import com.example.backend.common.domain.CourseVisibility
 import com.example.backend.common.exception.BusinessException
 import com.example.backend.common.response.CommonErrorCode
+import com.example.backend.common.response.CourseErrorCode
 import kotlinx.datetime.LocalDate
 import kotlin.time.Instant
 
@@ -59,13 +60,52 @@ data class Course private constructor(
 
         /**
          * 작성자 코스 개수에 "잡히는" 공개범위 — 발행·활성 코스만 카운트 대상이라 발행이면 [visibility], 임시저장이면 null.
-         * 어느 공개범위가 어느 버킷으로 가는지·델타 계산은 카운트를 소유한 user 도메인 몫이고, 여기선 카운트 대상 여부만 정한다.
+         * 어느 공개범위가 어느 버킷으로 가는지·델타 계산은 카운트를 소유한 user 도메인 몫이고 여기선 카운트 대상 여부만 정한다.
          * 편집·삭제 전 읽기 모델의 상태에도 같은 규칙을 적용한다. Course 객체는 [Course.countedVisibility] 로 조회한다.
          */
         fun countedVisibility(
             isPublished: Boolean,
             visibility: CourseVisibility,
         ): CourseVisibility? = if (isPublished) visibility else null
+
+        /**
+         * 편집·삭제 접근 정책 — 소유자 본인의 아직 삭제되지 않은 코스만 쓰기(편집/삭제)할 수 있다.
+         * 접근 정책이 바뀌면(예: 발행 코스 삭제 제한, 관리자 예외) **이 함수만** 고친다 — 서비스는 조회 후 위임만 한다.
+         */
+        fun ensureModifiable(
+            status: CourseStatus,
+            ownerId: Long,
+            requesterId: Long,
+        ) {
+            if (status == CourseStatus.DELETED || ownerId != requesterId) {
+                throw BusinessException(CourseErrorCode.COURSE_NOT_FOUND)
+            }
+        }
+
+        /**
+         * 발행 코스 불변식 — 이미 발행된 코스는 장소 구성(장소·순서·사진)을 편집으로 바꿀 수 없다.
+         * 정책이 바뀌면 이 함수만 고친다. (영속 상태 비교라 호출부가 저장된 장소를 [CoursePlace] 로 투영해 넘긴다.)
+         */
+        fun ensurePublishedPlacesUnchanged(
+            wasPublished: Boolean,
+            storedPlaces: List<CoursePlace>,
+            newPlaces: List<CoursePlace>,
+        ) {
+            if (wasPublished && placesStructureChanged(storedPlaces, newPlaces)) {
+                throw BusinessException(CourseErrorCode.PUBLISHED_COURSE_PLACES_IMMUTABLE)
+            }
+        }
+
+        private fun placesStructureChanged(
+            storedPlaces: List<CoursePlace>,
+            newPlaces: List<CoursePlace>,
+        ): Boolean {
+            if (storedPlaces.size != newPlaces.size) return true
+
+            fun signature(places: List<CoursePlace>) =
+                places.sortedBy { it.orderNo }.map { Triple(it.placeId, it.orderNo, it.imageUrls) }
+            return signature(storedPlaces) != signature(newPlaces)
+        }
 
         fun create(
             userId: Long,
@@ -295,6 +335,35 @@ data class Course private constructor(
             val dongCodes = orderedCodes.filter { it.startsWith(sigungu) }.distinct()
             return dongCodes.singleOrNull() ?: sigungu.padEnd(AREA_CODE_LENGTH, '0')
         }
+
+        /**
+         * 편집 시 지역코드 결정 규칙 — 초안이면 null, 발행 상태를 유지하면 기존 코드를 보존, 그 외엔 장소들에서 재도출한다.
+         * [edit] 의 category 결정([deriveCategory])과 같은 모양의 규칙을 지역코드에 적용한다.
+         */
+        fun editAreaCode(
+            isPublished: Boolean,
+            wasPublished: Boolean,
+            existingAreaCode: String?,
+            places: List<CoursePlace>,
+            placeAreaCodeByPlaceId: Map<Long, String?>,
+        ): String? =
+            when {
+                !isPublished -> {
+                    null
+                }
+
+                wasPublished && existingAreaCode != null -> {
+                    existingAreaCode
+                }
+
+                else -> {
+                    deriveAreaCode(
+                        isPublished = true,
+                        places = places,
+                        placeAreaCodeByPlaceId = placeAreaCodeByPlaceId,
+                    )
+                }
+            }
 
         /** 법정동코드 자릿수 — 앞 5자리=시군구, 전체 10자리=읍면동(시군구 레벨은 뒤를 0 으로 패딩). */
         private const val SIGUNGU_CODE_LENGTH = 5

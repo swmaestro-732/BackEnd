@@ -4,7 +4,6 @@ import com.example.backend.user.adapter.outbound.persistence.exposed.repository.
 import com.example.backend.user.application.port.outbound.CourseCountPersistencePort
 import com.example.backend.user.application.port.outbound.UserPersistencePort
 import com.example.backend.user.application.port.outbound.UserProfileRow
-import com.example.backend.user.domain.model.CourseCountDelta
 import com.example.backend.user.domain.model.SocialProvider
 import com.example.backend.user.domain.model.User
 import org.springframework.stereotype.Component
@@ -36,12 +35,14 @@ class UserPersistenceAdapter(
 
     override fun applyCourseCountDelta(
         userId: Long,
-        delta: CourseCountDelta,
+        publicDelta: Int,
+        followerDelta: Int,
+        privateDelta: Int,
     ) = userRepository.applyCourseCountDelta(
         userId = userId,
-        publicDelta = delta.publicDelta,
-        followerDelta = delta.followerDelta,
-        privateDelta = delta.privateDelta,
+        publicDelta = publicDelta,
+        followerDelta = followerDelta,
+        privateDelta = privateDelta,
     )
 
     override fun softDelete(user: User) = userRepository.softDelete(user)

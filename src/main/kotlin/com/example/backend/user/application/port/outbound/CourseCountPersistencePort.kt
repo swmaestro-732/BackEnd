@@ -1,10 +1,8 @@
 package com.example.backend.user.application.port.outbound
 
-import com.example.backend.user.domain.model.CourseCountDelta
-
 /**
  * 아웃바운드 포트 — 작성자의 공개범위별 코스 개수 캐시(users 컬럼)를 증감한다.
- * 공개범위 전이로부터 계산한 [CourseCountDelta] 를 반영한다. dedup 은 별도([ProcessedCourseCountEventPort]).
+ * 공개범위 전이로부터 서비스가 계산한 버킷 델타를 반영한다. dedup 은 별도([ProcessedCourseCountEventPort]).
  *
  * 카운트 유지 전용 좁은 포트라 넓은 [UserPersistencePort] 를 끌어오지 않는다(ISP).
  */
@@ -15,6 +13,8 @@ interface CourseCountPersistencePort {
      */
     fun applyCourseCountDelta(
         userId: Long,
-        delta: CourseCountDelta,
+        publicDelta: Int,
+        followerDelta: Int,
+        privateDelta: Int,
     )
 }

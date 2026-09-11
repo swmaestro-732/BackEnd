@@ -3,7 +3,6 @@ package com.example.backend.user.application.service
 import com.example.backend.common.domain.CourseVisibility
 import com.example.backend.user.application.port.outbound.CourseCountPersistencePort
 import com.example.backend.user.application.port.outbound.ProcessedCourseCountEventPort
-import com.example.backend.user.domain.model.CourseCountDelta
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
@@ -23,7 +22,9 @@ class CourseCountServiceTest {
 
     private data class Applied(
         val userId: Long,
-        val delta: CourseCountDelta,
+        val publicDelta: Int,
+        val followerDelta: Int,
+        val privateDelta: Int,
     )
 
     private val fakePersistence =
@@ -32,9 +33,11 @@ class CourseCountServiceTest {
 
             override fun applyCourseCountDelta(
                 userId: Long,
-                delta: CourseCountDelta,
+                publicDelta: Int,
+                followerDelta: Int,
+                privateDelta: Int,
             ) {
-                calls += Applied(userId, delta)
+                calls += Applied(userId, publicDelta, followerDelta, privateDelta)
             }
         }
 
@@ -44,7 +47,7 @@ class CourseCountServiceTest {
     fun `PUBLIC 신규 발행은 public 델타 +1 로 반영한다`() {
         service.apply(eventId = "e1", authorId = 7L, oldVisibility = null, newVisibility = CourseVisibility.PUBLIC)
 
-        assertEquals(Applied(7L, CourseCountDelta(1, 0, 0)), fakePersistence.calls.single())
+        assertEquals(Applied(7L, 1, 0, 0), fakePersistence.calls.single())
     }
 
     @Test
@@ -56,14 +59,14 @@ class CourseCountServiceTest {
             newVisibility = CourseVisibility.PRIVATE,
         )
 
-        assertEquals(Applied(7L, CourseCountDelta(-1, 0, 1)), fakePersistence.calls.single())
+        assertEquals(Applied(7L, -1, 0, 1), fakePersistence.calls.single())
     }
 
     @Test
     fun `FOLLOWER 삭제는 follower 델타 -1 로 반영한다`() {
         service.apply(eventId = "e3", authorId = 7L, oldVisibility = CourseVisibility.FOLLOWER, newVisibility = null)
 
-        assertEquals(Applied(7L, CourseCountDelta(0, -1, 0)), fakePersistence.calls.single())
+        assertEquals(Applied(7L, 0, -1, 0), fakePersistence.calls.single())
     }
 
     @Test
