@@ -10,11 +10,14 @@ import com.example.backend.user.application.port.inbound.dto.SignupResult
 import com.example.backend.user.application.port.inbound.dto.SignupUserResult
 import com.example.backend.user.application.port.inbound.dto.TokenPair
 import com.example.backend.user.application.port.outbound.AuthTokenPort
+import com.example.backend.user.application.port.outbound.IdentityPersistencePort
 import com.example.backend.user.application.port.outbound.RefreshTokenPort
 import com.example.backend.user.application.port.outbound.SocialVerificationPort
 import com.example.backend.user.application.port.outbound.UserAreaPersistencePort
 import com.example.backend.user.application.port.outbound.UserLikeThemePort
 import com.example.backend.user.application.port.outbound.UserPersistencePort
+import com.example.backend.user.domain.model.Identity
+import com.example.backend.user.domain.model.OAuthCredential
 import com.example.backend.user.domain.model.SocialProvider
 import com.example.backend.user.domain.model.User
 import com.example.backend.user.domain.model.UserStatus
@@ -27,6 +30,7 @@ import org.springframework.transaction.annotation.Transactional
 class AuthService(
     private val socialVerificationPort: SocialVerificationPort,
     private val userPersistencePort: UserPersistencePort,
+    private val identityPersistencePort: IdentityPersistencePort,
     private val userAreaPersistencePort: UserAreaPersistencePort,
     private val userLikeThemePort: UserLikeThemePort,
     private val authTokenPort: AuthTokenPort,
@@ -39,15 +43,15 @@ class AuthService(
         provider: SocialProvider,
         idToken: String,
     ): LoginResult {
-        val identity = socialVerificationPort.verify(provider, idToken)
+        val social = socialVerificationPort.verify(provider, idToken)
         val user =
-            userPersistencePort.findBySocial(identity.provider, identity.socialId)
+            identityPersistencePort.findActiveUserByCredential(social.provider, social.socialId)
                 ?: return LoginResult(
                     isNewUser = true,
                     registrationToken =
                         authTokenPort.issueRegistrationToken(
-                            provider = identity.provider,
-                            socialId = identity.socialId,
+                            provider = social.provider,
+                            socialId = social.socialId,
                         ),
                 )
 
@@ -63,13 +67,13 @@ class AuthService(
 
     @Transactional
     override fun signup(command: SignupCommand): SignupResult {
-        val identity = authTokenPort.parseRegistrationToken(command.registrationToken)
-        userPersistencePort.findBySocial(identity.provider, identity.socialId)?.let {
+        val social = authTokenPort.parseRegistrationToken(command.registrationToken)
+        identityPersistencePort.findActiveUserByCredential(social.provider, social.socialId)?.let {
             throw BusinessException(CommonErrorCode.SOCIAL_ACCOUNT_ALREADY_REGISTERED)
         }
         val areaCodes = userAreaResolver.normalizeAndValidate(command.areaCodes)
         val likeThemes = userLikeThemeResolver.validate(command.likeThemes)
-        val withdrawn = userPersistencePort.findWithdrawnBySocial(identity.provider, identity.socialId)
+        val withdrawn = identityPersistencePort.findWithdrawnUserByCredential(social.provider, social.socialId)
         val saved =
             if (withdrawn != null) {
                 val excludeId = checkNotNull(withdrawn.id) { "영속화된 User 는 id 를 가진다." }
@@ -89,14 +93,15 @@ class AuthService(
                 if (userPersistencePort.existsByHandle(command.handle)) {
                     throw BusinessException(UserErrorCode.HANDLE_ALREADY_TAKEN)
                 }
-                userPersistencePort.saveWithSocial(
-                    User.createWithSocial(
-                        nickname = command.nickname,
-                        profileImageUrl = command.profileImageUrl,
-                        socialProvider = identity.provider,
-                        socialId = identity.socialId,
-                        handle = command.handle,
-                    ),
+                // identity + 자격증명 + 기본 프로필(User)을 한 번에 만든다(SCRUM-466 계정 분리).
+                identityPersistencePort.register(
+                    identity = Identity.create(OAuthCredential.create(social.provider, social.socialId)),
+                    primaryUser =
+                        User.create(
+                            nickname = command.nickname,
+                            handle = command.handle,
+                            profileImageUrl = command.profileImageUrl,
+                        ),
                 )
             }
         val userId = checkNotNull(saved.id) { "영속화된 User 는 id 를 가진다." }

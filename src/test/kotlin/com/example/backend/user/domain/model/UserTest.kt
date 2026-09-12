@@ -19,8 +19,6 @@ class UserTest {
         assertNull(user.handle)
         assertNull(user.profileImageUrl)
         assertNull(user.bio)
-        assertNull(user.socialProvider)
-        assertNull(user.socialId)
         assertEquals(UserStatus.ACTIVE, user.status)
     }
 
@@ -37,77 +35,31 @@ class UserTest {
     }
 
     @Test
-    fun `createWithSocial 은 핸들을 포함한 소셜 User 를 생성한다`() {
+    fun `create 는 핸들과 프로필을 포함해 생성한다`() {
         val user =
-            User.createWithSocial(
+            User.create(
                 nickname = "hello",
-                profileImageUrl = "https://example.com/profile.jpg",
-                socialProvider = SocialProvider.KAKAO,
-                socialId = "social-id",
                 handle = "hello_handle",
+                profileImageUrl = "https://example.com/profile.jpg",
             )
 
         assertNull(user.id)
         assertEquals("hello", user.nickname)
         assertEquals("hello_handle", user.handle)
         assertEquals("https://example.com/profile.jpg", user.profileImageUrl)
-        assertEquals(SocialProvider.KAKAO, user.socialProvider)
-        assertEquals("social-id", user.socialId)
         assertEquals(UserStatus.ACTIVE, user.status)
     }
 
     @Test
-    fun `createWithSocial 은 핸들 없이 소셜 User 를 생성한다`() {
-        val user =
-            User.createWithSocial(
-                nickname = "hello",
-                profileImageUrl = null,
-                socialProvider = SocialProvider.APPLE,
-                socialId = "social-id",
-            )
-
-        assertNull(user.handle)
-        assertEquals(SocialProvider.APPLE, user.socialProvider)
-        assertEquals("social-id", user.socialId)
+    fun `create 는 핸들이 비면 예외를 던진다`() {
+        assertThrows<IllegalArgumentException> { User.create("hello", handle = " ") }
     }
 
     @Test
-    fun `createWithSocial 은 닉네임이 비면 예외를 던진다`() {
-        assertThrows<IllegalArgumentException> {
-            User.createWithSocial(" ", null, SocialProvider.KAKAO, "social-id")
-        }
-    }
-
-    @Test
-    fun `createWithSocial 은 닉네임이 최대 길이를 넘으면 예외를 던진다`() {
-        val tooLong = "a".repeat(User.MAX_NICKNAME_LENGTH + 1)
-
-        assertThrows<IllegalArgumentException> {
-            User.createWithSocial(tooLong, null, SocialProvider.KAKAO, "social-id")
-        }
-    }
-
-    @Test
-    fun `createWithSocial 은 핸들이 비면 예외를 던진다`() {
-        assertThrows<IllegalArgumentException> {
-            User.createWithSocial("hello", null, SocialProvider.KAKAO, "social-id", " ")
-        }
-    }
-
-    @Test
-    fun `createWithSocial 은 핸들이 최대 길이를 넘으면 예외를 던진다`() {
+    fun `create 는 핸들이 최대 길이를 넘으면 예외를 던진다`() {
         val tooLong = "a".repeat(User.MAX_HANDLE_LENGTH + 1)
 
-        assertThrows<IllegalArgumentException> {
-            User.createWithSocial("hello", null, SocialProvider.KAKAO, "social-id", tooLong)
-        }
-    }
-
-    @Test
-    fun `createWithSocial 은 소셜 식별자가 비면 예외를 던진다`() {
-        assertThrows<IllegalArgumentException> {
-            User.createWithSocial("hello", null, SocialProvider.KAKAO, " ")
-        }
+        assertThrows<IllegalArgumentException> { User.create("hello", handle = tooLong) }
     }
 
     @Test
@@ -203,42 +155,6 @@ class UserTest {
         val tooLong = "a".repeat(User.MAX_HANDLE_LENGTH + 1)
 
         assertThrows<IllegalArgumentException> { existingUser().updateProfile(handle = tooLong) }
-    }
-
-    @Test
-    fun `reconstitute 는 소셜 제공자만 있으면 예외를 던진다`() {
-        assertThrows<IllegalArgumentException> {
-            User.reconstitute(id = 1, nickname = "hello", socialProvider = SocialProvider.GOOGLE)
-        }
-    }
-
-    @Test
-    fun `reconstitute 는 소셜 식별자만 있으면 예외를 던진다`() {
-        assertThrows<IllegalArgumentException> {
-            User.reconstitute(id = 1, nickname = "hello", socialId = "social-id")
-        }
-    }
-
-    @Test
-    fun `reconstitute 는 소셜 정보가 모두 null 이면 복원한다`() {
-        val user = User.reconstitute(id = 1, nickname = "hello")
-
-        assertNull(user.socialProvider)
-        assertNull(user.socialId)
-    }
-
-    @Test
-    fun `reconstitute 는 소셜 정보가 모두 있으면 복원한다`() {
-        val user =
-            User.reconstitute(
-                id = 1,
-                nickname = "hello",
-                socialProvider = SocialProvider.GOOGLE,
-                socialId = "social-id",
-            )
-
-        assertEquals(SocialProvider.GOOGLE, user.socialProvider)
-        assertEquals("social-id", user.socialId)
     }
 
     private fun existingUser() =
