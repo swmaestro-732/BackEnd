@@ -1,13 +1,14 @@
 package com.example.backend.course.adapter.outbound.search
 
+import com.example.backend.common.domain.CourseVisibility
 import com.example.backend.course.application.event.CourseAuthorWithdrawnEvent
 import com.example.backend.course.application.event.CourseDeletedEvent
 import com.example.backend.course.application.event.CourseSavedEvent
 import com.example.backend.course.application.port.outbound.CourseSearchIndexPort
 import com.example.backend.course.domain.model.Course
 import com.example.backend.course.domain.model.CourseStatus
-import com.example.backend.course.domain.model.CourseVisibility
 import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Test
 
 /**
@@ -42,14 +43,36 @@ class CourseSearchSyncListenerTest {
     fun `onCourseSaved 는 코스를 포트에 저장한다`() {
         val course = course(1L)
 
-        listener.onCourseSaved(CourseSavedEvent(course))
+        listener.onCourseSaved(
+            CourseSavedEvent(
+                newCourse = course,
+                oldVisibility = null,
+            ),
+        )
 
         assertEquals(listOf(course), savedCourses)
     }
 
     @Test
+    fun `저장 이벤트는 발행 코스만 집계하고 코스 교체 시 파생값도 바뀐다`() {
+        for (visibility in CourseVisibility.entries) {
+            val published = CourseSavedEvent(course(1L, visibility = visibility), CourseVisibility.FOLLOWER)
+            assertEquals(1L, published.authorId)
+            assertEquals(CourseVisibility.FOLLOWER, published.oldVisibility)
+            assertEquals(visibility, published.newVisibility)
+
+            val draft = published.copy(newCourse = course(2L, visibility, isPublished = false, userId = 7L))
+            assertEquals(7L, draft.authorId)
+            assertEquals(CourseVisibility.FOLLOWER, draft.oldVisibility)
+            assertNull(draft.newVisibility)
+        }
+    }
+
+    @Test
     fun `onCourseDeleted 는 코스 id 를 포트에서 삭제한다`() {
-        listener.onCourseDeleted(CourseDeletedEvent(42L))
+        listener.onCourseDeleted(
+            CourseDeletedEvent(courseId = 42L, authorId = 1L, oldVisibility = CourseVisibility.PUBLIC),
+        )
 
         assertEquals(listOf(42L), deletedIds)
     }
@@ -61,10 +84,15 @@ class CourseSearchSyncListenerTest {
         assertEquals(listOf(7L), deletedAuthorIds)
     }
 
-    private fun course(id: Long): Course =
+    private fun course(
+        id: Long,
+        visibility: CourseVisibility = CourseVisibility.PUBLIC,
+        isPublished: Boolean = true,
+        userId: Long = 1L,
+    ): Course =
         Course.reconstitute(
             id = id,
-            userId = 1L,
+            userId = userId,
             status = CourseStatus.ACTIVE,
             title = "코스 $id",
             description = null,
@@ -73,8 +101,8 @@ class CourseSearchSyncListenerTest {
             area = null,
             areaCode = null,
             visitDate = null,
-            visibility = CourseVisibility.PUBLIC,
-            isPublished = true,
+            visibility = visibility,
+            isPublished = isPublished,
             likesCnt = 0,
             commentsCnt = 0,
             savesCnt = 0,

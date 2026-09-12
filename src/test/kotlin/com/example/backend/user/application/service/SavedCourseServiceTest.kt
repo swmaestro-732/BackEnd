@@ -164,13 +164,6 @@ class SavedCourseServiceTest {
 
             override fun update(user: User) = TODO()
 
-            override fun applyCourseCountDelta(
-                userId: Long,
-                publicDelta: Int,
-                followerDelta: Int,
-                privateDelta: Int,
-            ) = TODO()
-
             override fun softDelete(user: User) = TODO()
 
             override fun existsByNickname(nickname: String): Boolean = TODO()

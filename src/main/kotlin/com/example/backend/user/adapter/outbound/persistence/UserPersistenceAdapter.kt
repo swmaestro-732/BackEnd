@@ -1,6 +1,7 @@
 package com.example.backend.user.adapter.outbound.persistence
 
 import com.example.backend.user.adapter.outbound.persistence.exposed.repository.UserRepository
+import com.example.backend.user.application.port.outbound.CourseCountPersistencePort
 import com.example.backend.user.application.port.outbound.UserPersistencePort
 import com.example.backend.user.application.port.outbound.UserProfileRow
 import com.example.backend.user.domain.model.SocialProvider
@@ -14,7 +15,8 @@ import org.springframework.stereotype.Component
 @Component
 class UserPersistenceAdapter(
     private val userRepository: UserRepository,
-) : UserPersistencePort {
+) : UserPersistencePort,
+    CourseCountPersistencePort {
     override fun findAll(): List<User> = userRepository.findAll().map { it.toDomain() }
 
     override fun findById(id: Long): User? = userRepository.findById(id)?.toDomain()
@@ -36,7 +38,12 @@ class UserPersistenceAdapter(
         publicDelta: Int,
         followerDelta: Int,
         privateDelta: Int,
-    ) = userRepository.applyCourseCountDelta(userId, publicDelta, followerDelta, privateDelta)
+    ) = userRepository.applyCourseCountDelta(
+        userId = userId,
+        publicDelta = publicDelta,
+        followerDelta = followerDelta,
+        privateDelta = privateDelta,
+    )
 
     override fun softDelete(user: User) = userRepository.softDelete(user)
 

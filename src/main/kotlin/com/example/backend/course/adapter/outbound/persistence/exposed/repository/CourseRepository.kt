@@ -1,5 +1,6 @@
 package com.example.backend.course.adapter.outbound.persistence.exposed.repository
 
+import com.example.backend.common.domain.CourseVisibility
 import com.example.backend.common.exception.BusinessException
 import com.example.backend.common.response.CourseErrorCode
 import com.example.backend.course.adapter.outbound.persistence.exposed.CourseEntity
@@ -10,7 +11,6 @@ import com.example.backend.course.application.port.outbound.CourseDetailRow
 import com.example.backend.course.application.port.outbound.CourseSummaryRow
 import com.example.backend.course.domain.model.Course
 import com.example.backend.course.domain.model.CourseStatus
-import com.example.backend.course.domain.model.CourseVisibility
 import org.jetbrains.exposed.v1.core.ResultRow
 import org.jetbrains.exposed.v1.core.SortOrder
 import org.jetbrains.exposed.v1.core.and

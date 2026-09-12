@@ -1,5 +1,6 @@
 package com.example.backend.course.adapter.outbound.persistence
 
+import com.example.backend.common.domain.CourseVisibility
 import com.example.backend.course.adapter.outbound.persistence.exposed.repository.CoursePlaceRepository
 import com.example.backend.course.adapter.outbound.persistence.exposed.repository.CourseRepository
 import com.example.backend.course.adapter.outbound.persistence.exposed.repository.CourseTagRepository
@@ -11,7 +12,6 @@ import com.example.backend.course.application.port.outbound.CoursePersistencePor
 import com.example.backend.course.application.port.outbound.CoursePlaceRow
 import com.example.backend.course.application.port.outbound.CourseSummaryRow
 import com.example.backend.course.domain.model.Course
-import com.example.backend.course.domain.model.CourseVisibility
 import org.springframework.stereotype.Component
 
 /**
