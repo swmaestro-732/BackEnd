@@ -1,6 +1,6 @@
 package com.example.backend.course.adapter.inbound.web.response
 
-import com.example.backend.course.application.port.inbound.CourseSearchResult
+import com.example.backend.course.application.port.inbound.dto.CourseSearchResult
 import java.time.Instant
 
 /**

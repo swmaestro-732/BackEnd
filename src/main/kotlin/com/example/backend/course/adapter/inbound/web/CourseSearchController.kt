@@ -2,12 +2,13 @@ package com.example.backend.course.adapter.inbound.web
 
 import com.example.backend.common.response.ApiResponse
 import com.example.backend.course.adapter.inbound.web.response.CourseSearchResponse
-import com.example.backend.course.application.port.inbound.CourseSearchCommand
-import com.example.backend.course.application.port.inbound.CourseSearchSort
 import com.example.backend.course.application.port.inbound.CourseSearchUseCase
+import com.example.backend.course.application.port.inbound.dto.CourseSearchCommand
+import com.example.backend.course.application.port.inbound.dto.CourseSearchSort
 import io.swagger.v3.oas.annotations.tags.Tag
 import jakarta.validation.constraints.Max
 import jakarta.validation.constraints.Min
+import jakarta.validation.constraints.NotBlank
 import org.springframework.web.bind.annotation.GetMapping
 import org.springframework.web.bind.annotation.RequestMapping
 import org.springframework.web.bind.annotation.RequestParam
@@ -27,7 +28,9 @@ class CourseSearchController(
 ) {
     @GetMapping("/search")
     fun search(
-        @RequestParam(required = false) q: String?,
+        @RequestParam
+        @NotBlank(message = "검색어(keyword)는 필수입니다")
+        keyword: String,
         @RequestParam(required = false) area: String?,
         @RequestParam(required = false) category: String?,
         @RequestParam(required = false) tags: List<String> = emptyList(),
@@ -41,7 +44,7 @@ class CourseSearchController(
         val result =
             courseSearchUseCase.search(
                 CourseSearchCommand(
-                    keyword = q,
+                    keyword = keyword,
                     area = area,
                     category = category,
                     tags = tags,

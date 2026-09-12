@@ -2,7 +2,7 @@ package com.example.backend.course.adapter.outbound.search
 
 import com.example.backend.common.exception.BusinessException
 import com.example.backend.common.response.CommonErrorCode
-import com.example.backend.course.application.port.inbound.CourseSearchSort
+import com.example.backend.course.application.port.inbound.dto.CourseSearchSort
 import java.nio.charset.StandardCharsets
 import java.util.Base64
 

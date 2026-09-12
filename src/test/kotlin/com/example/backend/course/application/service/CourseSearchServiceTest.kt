@@ -1,11 +1,11 @@
 package com.example.backend.course.application.service
 
-import com.example.backend.course.application.port.inbound.CourseSearchCommand
-import com.example.backend.course.application.port.inbound.CourseSearchSort
-import com.example.backend.course.application.port.inbound.dto.CourseSearchHit
+import com.example.backend.course.application.port.inbound.dto.CourseSearchCommand
+import com.example.backend.course.application.port.inbound.dto.CourseSearchSort
 import com.example.backend.course.application.port.outbound.CourseSearchCriteria
 import com.example.backend.course.application.port.outbound.CourseSearchPage
 import com.example.backend.course.application.port.outbound.CourseSearchQueryPort
+import com.example.backend.course.application.port.outbound.CourseSearchRow
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.Test
 import java.time.Instant
@@ -28,7 +28,7 @@ class CourseSearchServiceTest {
     }
 
     private fun hit(id: Long) =
-        CourseSearchHit(
+        CourseSearchRow(
             id = id,
             authorId = 1,
             title = "코스",
@@ -55,7 +55,7 @@ class CourseSearchServiceTest {
         val port = FakePort(CourseSearchPage(hits = listOf(hit(1)), hasNext = true, nextCursor = "NEXT"))
         val service = CourseSearchService(port)
 
-        val result = service.search(command(cursor = "PREV"))
+        val result = service.search(command(keyword = "카페", cursor = "PREV"))
 
         assertThat(port.lastCriteria!!.cursor).isEqualTo("PREV") // 요청 커서 그대로 전달
         assertThat(result.nextCursor).isEqualTo("NEXT") // 페이지의 다음 커서 그대로 반환
@@ -65,7 +65,7 @@ class CourseSearchServiceTest {
     @Test
     fun `hasNext 가 아니면 nextCursor 는 null 이다`() {
         val port = FakePort(CourseSearchPage(hits = listOf(hit(1)), hasNext = false, nextCursor = null))
-        val result = CourseSearchService(port).search(command())
+        val result = CourseSearchService(port).search(command(keyword = "카페"))
 
         assertThat(result.nextCursor).isNull()
         assertThat(result.hasNext).isFalse()
@@ -83,14 +83,14 @@ class CourseSearchServiceTest {
     }
 
     @Test
-    fun `빈 문자열 파라미터는 필터 미적용으로 정규화된다`() {
+    fun `빈 문자열 필터는 미적용으로 정규화된다`() {
         val port = FakePort(CourseSearchPage(hits = emptyList(), hasNext = false, nextCursor = null))
         CourseSearchService(port).search(
-            command(keyword = "  ", area = "", category = "  ", tags = listOf(" 데이트 ", "", "  ")),
+            command(keyword = "카페", area = "", category = "  ", tags = listOf(" 데이트 ", "", "  ")),
         )
 
         val criteria = port.lastCriteria!!
-        assertThat(criteria.keyword).isNull()
+        assertThat(criteria.keyword).isEqualTo("카페")
         assertThat(criteria.area).isNull()
         assertThat(criteria.category).isNull()
         assertThat(criteria.tags).containsExactly("데이트")
@@ -99,7 +99,7 @@ class CourseSearchServiceTest {
     @Test
     fun `area 와 category 는 앞뒤 공백을 제거해 전달한다`() {
         val port = FakePort(CourseSearchPage(hits = emptyList(), hasNext = false, nextCursor = null))
-        CourseSearchService(port).search(command(area = "  서울  ", category = " 카페 "))
+        CourseSearchService(port).search(command(keyword = "카페", area = "  서울  ", category = " 카페 "))
 
         val criteria = port.lastCriteria!!
         assertThat(criteria.area).isEqualTo("서울")
