@@ -7,12 +7,16 @@ import com.example.backend.common.domain.CourseVisibility
 import com.example.backend.common.exception.BusinessException
 import com.example.backend.common.response.CourseErrorCode
 import com.example.backend.common.response.PlaceErrorCode
+import com.example.backend.course.application.event.CourseAuthorWithdrawnEvent
 import com.example.backend.course.application.event.CourseDeletedEvent
 import com.example.backend.course.application.event.CourseSavedEvent
 import com.example.backend.course.application.port.inbound.CourseQueryUseCase
+import com.example.backend.course.application.port.inbound.dto.CourseDetailResult
+import com.example.backend.course.application.port.inbound.dto.CoursePlaceResult
 import com.example.backend.course.application.port.inbound.dto.CreateCourseCommand
 import com.example.backend.course.application.port.inbound.dto.CreateCoursePlaceCommand
 import com.example.backend.course.application.port.inbound.dto.EditCourseCommand
+import com.example.backend.course.application.port.inbound.dto.ForkCourseCommand
 import com.example.backend.course.application.port.outbound.CourseDetailRow
 import com.example.backend.course.application.port.outbound.CoursePersistencePort
 import com.example.backend.course.application.port.outbound.CoursePlaceImageRow
@@ -175,6 +179,141 @@ class CourseServiceTest {
         assertEquals(CourseVisibility.PUBLIC, deleted.oldVisibility)
     }
 
+    @Test
+    fun `softDelete 가 0 을 반환하면(동시 삭제) 이벤트를 발행하지 않는다`() {
+        `when`(persistence.findCourseDetail(10L)).thenReturn(detail(isPublished = true))
+        `when`(persistence.softDelete(10L)).thenReturn(0) // 이미 다른 요청이 삭제함
+
+        service.delete(1L, 10L)
+
+        verify(persistence).softDelete(10L)
+        assert(publishedEvents.filterIsInstance<CourseDeletedEvent>().isEmpty())
+    }
+
+    @Test
+    fun `임시저장 코스를 발행으로 수정하면 oldVisibility=null, newVisibility=PUBLIC 이벤트를 발행한다`() {
+        stubEdit(detail(isPublished = false, areaCode = null, category = null))
+        stubPlaces()
+        `when`(areas.findAreaByCode(AREA_CODE)).thenReturn(area("성수동1가"))
+        `when`(persistence.update(anyValue())).thenAnswer { it.arguments[0] as Course }
+
+        service.edit(editCommand(isPublished = true))
+
+        val saved = publishedEvents.filterIsInstance<CourseSavedEvent>().single()
+        assertNull(saved.oldVisibility) // 임시저장은 카운트 안 됨
+        assertEquals(CourseVisibility.PUBLIC, saved.newVisibility)
+    }
+
+    @Test
+    fun `발행 코스를 임시저장으로 수정하면 oldVisibility=PUBLIC, newVisibility=null 이벤트를 발행한다`() {
+        stubEdit(detail(isPublished = true))
+        stubPlaces()
+        `when`(areas.findAreaByCode(AREA_CODE)).thenReturn(area("성수동1가"))
+        `when`(persistence.update(anyValue())).thenAnswer { it.arguments[0] as Course }
+
+        service.edit(editCommand(isPublished = false))
+
+        val saved = publishedEvents.filterIsInstance<CourseSavedEvent>().single()
+        assertEquals(CourseVisibility.PUBLIC, saved.oldVisibility)
+        assertNull(saved.newVisibility) // 임시저장으로 전환 → 카운트 대상 아님
+    }
+
+    @Test
+    fun `deleteAllByAuthor 는 소프트 삭제 후 탈퇴 이벤트를 발행한다`() {
+        service.deleteAllByAuthor(7L)
+
+        verify(persistence).softDeleteAllByAuthor(7L)
+        val event = publishedEvents.filterIsInstance<CourseAuthorWithdrawnEvent>().single()
+        assertEquals(7L, event.authorId)
+    }
+
+    @Test
+    fun `포크 원본이 존재하지 않으면 예외를 던진다`() {
+        `when`(persistence.existsById(99L)).thenReturn(false)
+        stubPlaces()
+
+        val exception =
+            assertThrows(BusinessException::class.java) {
+                service.create(createCommand(isPublished = true, forkedFromId = 99L))
+            }
+
+        assertEquals(CourseErrorCode.COURSE_NOT_FOUND, exception.errorCode)
+        verify(persistence, never()).save(anyValue())
+    }
+
+    @Test
+    fun `포크 시 원본 코스가 없으면 예외를 던진다`() {
+        `when`(query.getDetails(listOf(50L), 1L)).thenReturn(emptyList())
+
+        val exception =
+            assertThrows(BusinessException::class.java) {
+                service.fork(forkCommand())
+            }
+
+        assertEquals(CourseErrorCode.COURSE_NOT_FOUND, exception.errorCode)
+    }
+
+    @Test
+    fun `포크 시 원본 장소를 충분히 유지하지 않으면 예외를 던진다`() {
+        `when`(query.getDetails(listOf(50L), 1L)).thenReturn(listOf(originDetail(listOf(1L, 2L))))
+        // 원본 2곳 → 전부 유지해야 함, 1곳만 제공
+        val fewPlaces = listOf(CreateCoursePlaceCommand(1L, 0, null, listOf("a"), null))
+
+        val exception =
+            assertThrows(BusinessException::class.java) {
+                service.fork(forkCommand(places = fewPlaces))
+            }
+
+        assertEquals(CourseErrorCode.FORK_PLACES_NOT_KEPT, exception.errorCode)
+    }
+
+    @Test
+    fun `포크 성공 시 CourseSavedEvent 를 발행한다`() {
+        `when`(query.getDetails(listOf(50L), 1L)).thenReturn(listOf(originDetail(listOf(1L, 2L))))
+        `when`(persistence.existsById(50L)).thenReturn(true) // toCreateCommand 의 requireForkOriginExists
+        stubPlaces()
+        `when`(areas.findAreaByCode(AREA_CODE)).thenReturn(area("성수동1가"))
+        `when`(persistence.save(anyValue())).thenAnswer { it.arguments[0] as Course }
+
+        service.fork(forkCommand())
+
+        val saved = publishedEvents.filterIsInstance<CourseSavedEvent>().single()
+        assertEquals(CourseVisibility.PUBLIC, saved.newVisibility)
+    }
+
+    private fun forkCommand(places: List<CreateCoursePlaceCommand> = commandPlaces()) =
+        ForkCourseCommand(
+            userId = 1L,
+            forkedFromId = 50L,
+            title = "포크 코스",
+            description = null,
+            coverImageUrl = "cover",
+            tags = emptyList(),
+            visibility = CourseVisibility.PUBLIC,
+            isPublished = true,
+            places = places,
+        )
+
+    private fun originDetail(placeIds: List<Long>) =
+        CourseDetailResult(
+            id = 50L,
+            title = "원본 코스",
+            coverImageUrl = "cover",
+            theme = null,
+            area = null,
+            tags = emptyList(),
+            description = "",
+            visibility = CourseVisibility.PUBLIC,
+            authorId = 2L,
+            tracingsCnt = 0,
+            places =
+                placeIds.mapIndexed { idx, pid ->
+                    CoursePlaceResult(idx.toLong(), pid, idx, null, null, emptyList())
+                },
+            hasSaved = false,
+            hasStartedCourse = false,
+        )
+
     private fun stubPlaces(areaCode: String? = AREA_CODE) {
         `when`(places.findPlacesByIds(listOf(1L, 2L)))
             .thenReturn(listOf(placeRef(1L, areaCode), placeRef(2L, areaCode)))
@@ -185,18 +324,20 @@ class CourseServiceTest {
         `when`(persistence.findPlaces(10L)).thenReturn(storedPlaces())
     }
 
-    private fun createCommand(isPublished: Boolean) =
-        CreateCourseCommand(
-            1L,
-            "성수 코스",
-            null,
-            if (isPublished) "cover" else null,
-            emptyList(),
-            CourseVisibility.PUBLIC,
-            isPublished,
-            null,
-            commandPlaces(),
-        )
+    private fun createCommand(
+        isPublished: Boolean,
+        forkedFromId: Long? = null,
+    ) = CreateCourseCommand(
+        1L,
+        "성수 코스",
+        null,
+        if (isPublished) "cover" else null,
+        emptyList(),
+        CourseVisibility.PUBLIC,
+        isPublished,
+        forkedFromId,
+        commandPlaces(),
+    )
 
     private fun editCommand(isPublished: Boolean) =
         EditCourseCommand(
