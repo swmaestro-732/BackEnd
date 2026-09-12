@@ -1,8 +1,8 @@
 package com.example.backend.course.adapter.outbound.search
 
-import com.example.backend.course.application.port.inbound.CourseSearchCommand
-import com.example.backend.course.application.port.inbound.CourseSearchSort
 import com.example.backend.course.application.port.inbound.CourseSearchUseCase
+import com.example.backend.course.application.port.inbound.dto.CourseSearchCommand
+import com.example.backend.course.application.port.inbound.dto.CourseSearchSort
 import com.example.backend.support.IntegrationTestBase
 import com.example.backend.support.NoriOpenSearchContainer
 import org.assertj.core.api.Assertions.assertThat
@@ -99,10 +99,20 @@ class OpenSearchCourseSearchIntegrationTest
             index(id = 2, title = "코스 B", savesCnt = 10, createdAt = 2000)
             index(id = 3, title = "코스 C", savesCnt = 1, createdAt = 3000)
 
-            assertThat(courseSearchUseCase.search(command(sort = CourseSearchSort.LATEST)).courses.map { it.id })
-                .containsExactly(3L, 2L, 1L)
-            assertThat(courseSearchUseCase.search(command(sort = CourseSearchSort.POPULAR)).courses.map { it.id })
-                .containsExactly(2L, 1L, 3L)
+            assertThat(
+                courseSearchUseCase
+                    .search(
+                        command(keyword = "코스", sort = CourseSearchSort.LATEST),
+                    ).courses
+                    .map { it.id },
+            ).containsExactly(3L, 2L, 1L)
+            assertThat(
+                courseSearchUseCase
+                    .search(
+                        command(keyword = "코스", sort = CourseSearchSort.POPULAR),
+                    ).courses
+                    .map { it.id },
+            ).containsExactly(2L, 1L, 3L)
         }
 
         @Test
@@ -110,7 +120,7 @@ class OpenSearchCourseSearchIntegrationTest
             index(id = 1, title = "코스 A", savesCnt = 5, createdAt = 1000, tags = listOf("데이트", "힐링"))
             index(id = 2, title = "코스 B", savesCnt = 10, createdAt = 2000, tags = listOf("맛집"))
 
-            val result = courseSearchUseCase.search(command(tags = listOf("힐링")))
+            val result = courseSearchUseCase.search(command(keyword = "코스", tags = listOf("힐링")))
 
             assertThat(result.courses.map { it.id }).containsExactly(1L)
         }
@@ -121,13 +131,13 @@ class OpenSearchCourseSearchIntegrationTest
             index(id = 2, title = "코스 B", savesCnt = 10, createdAt = 2000)
             index(id = 3, title = "코스 C", savesCnt = 1, createdAt = 3000)
 
-            val first = courseSearchUseCase.search(command(sort = CourseSearchSort.LATEST, size = 2))
+            val first = courseSearchUseCase.search(command(keyword = "코스", sort = CourseSearchSort.LATEST, size = 2))
             assertThat(first.courses.map { it.id }).containsExactly(3L, 2L)
             assertThat(first.hasNext).isTrue()
 
             val second =
                 courseSearchUseCase.search(
-                    command(sort = CourseSearchSort.LATEST, size = 2, cursor = first.nextCursor),
+                    command(keyword = "코스", sort = CourseSearchSort.LATEST, size = 2, cursor = first.nextCursor),
                 )
             assertThat(second.courses.map { it.id }).containsExactly(1L)
             assertThat(second.hasNext).isFalse()

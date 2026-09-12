@@ -138,6 +138,7 @@ class CourseController(
                     title = "비 오는 날 성수 감성 카페 코스",
                     coverImageUrl = "https://images.unsplash.com/photo-1554118811-1e0d58224f24?w=600",
                     theme = null,
+                    area = null,
                     likesCnt = 0,
                     savesCnt = 0,
                     createdAt = Instant.parse("2026-07-20T02:30:00Z"),

@@ -1,10 +1,10 @@
 package com.example.backend.course.adapter.outbound.search
 
-import com.example.backend.course.application.port.inbound.CourseSearchSort
-import com.example.backend.course.application.port.inbound.dto.CourseSearchHit
+import com.example.backend.course.application.port.inbound.dto.CourseSearchSort
 import com.example.backend.course.application.port.outbound.CourseSearchCriteria
 import com.example.backend.course.application.port.outbound.CourseSearchPage
 import com.example.backend.course.application.port.outbound.CourseSearchQueryPort
+import com.example.backend.course.application.port.outbound.CourseSearchRow
 import io.github.oshai.kotlinlogging.KotlinLogging
 import org.opensearch.client.opensearch.OpenSearchClient
 import org.opensearch.client.opensearch._types.FieldValue
@@ -44,7 +44,7 @@ class OpenSearchCourseSearchAdapter(
             val hasNext = allHits.size > criteria.size
             val trimmed = allHits.take(criteria.size)
             CourseSearchPage(
-                hits = trimmed.mapNotNull { hit -> hit.source()?.toHit() },
+                hits = trimmed.mapNotNull { hit -> hit.source()?.toRow() },
                 hasNext = hasNext,
                 nextCursor = nextCursor(criteria.sort, hasNext, trimmed),
             )
@@ -105,8 +105,8 @@ class OpenSearchCourseSearchAdapter(
         buildList {
             add(termQuery("visibility", FieldValue.of("PUBLIC")))
             add(termQuery("isPublished", FieldValue.of(true)))
-            // 정렬 tiebreak(id)·정렬축 값이 없는 미백필 문서(가산적 매핑 이전 색인분)는 search_after 커서를
-            // 어긋나게 해 페이지 중복/누락을 만든다 → id 가 있는(재색인 완료) 문서만 검색 대상으로 한다.
+            // 미백필 문서(가산적 매핑 이전 색인분)에는 정렬 tiebreak(id)·정렬축 값이 없다. 이 때문에 search_after 커서가
+            // 어긋나 페이지 중복/누락이 생긴다 → id 가 있는(재색인 완료) 문서만 검색 대상으로 한다.
             add(Query.of { q -> q.exists { e -> e.field("id") } })
             criteria.area?.let { add(termQuery("area", FieldValue.of(it))) }
             criteria.category?.let { add(termQuery("category", FieldValue.of(it))) }
@@ -153,8 +153,8 @@ class OpenSearchCourseSearchAdapter(
             else -> throw IllegalArgumentException("지원하지 않는 search_after 값 타입: ${value::class}")
         }
 
-    private fun CourseDocument.toHit(): CourseSearchHit =
-        CourseSearchHit(
+    private fun CourseDocument.toRow(): CourseSearchRow =
+        CourseSearchRow(
             id = id,
             authorId = userId.toLong(),
             title = title,
