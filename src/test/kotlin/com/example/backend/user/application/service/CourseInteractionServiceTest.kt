@@ -23,6 +23,7 @@ class CourseInteractionServiceTest {
 
         assertTrue(result.isEmpty())
         verify(interactionPort, never()).findSavedCourseIds(1L, emptyList())
+        verify(interactionPort, never()).findCompletedAt(1L, emptyList())
     }
 
     @Test

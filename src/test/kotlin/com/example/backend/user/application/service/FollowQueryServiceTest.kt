@@ -13,6 +13,7 @@ import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 import org.mockito.Mockito.mock
+import org.mockito.Mockito.verify
 import org.mockito.Mockito.`when`
 
 class FollowQueryServiceTest {
@@ -108,6 +109,7 @@ class FollowQueryServiceTest {
         val cmd = FollowListCommand(targetUserId = 10L, viewerId = null, cursor = "100", size = 10)
         val result = service.getFollowers(cmd)
 
+        verify(followPort).findFollowers(10L, 100L, 11) // 디코딩된 cursor(100L)와 size+1(11)이 그대로 전달됨
         assertFalse(result.hasNext)
         assertTrue(result.users.isEmpty())
     }

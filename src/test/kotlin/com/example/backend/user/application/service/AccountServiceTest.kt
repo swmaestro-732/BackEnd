@@ -56,8 +56,8 @@ class AccountServiceTest {
 
     @Test
     fun `follow - 팔로우 대상이 비활성이면 USER_NOT_FOUND 를 던진다`() {
-        // lockActive 가 빈 셋을 반환 → targetId(2L)가 active 에 없음
-        `when`(userPersistencePort.lockActive(listOf(1L, 2L))).thenReturn(emptySet())
+        // followerId(1L)만 active → targetId(2L)가 active 에 없어 첫 번째 가드가 발동
+        `when`(userPersistencePort.lockActive(listOf(1L, 2L))).thenReturn(setOf(1L))
 
         val ex = assertThrows(BusinessException::class.java) { service.follow(followerId = 1L, targetId = 2L) }
 
@@ -76,7 +76,8 @@ class AccountServiceTest {
 
     @Test
     fun `unfollow - 팔로우 대상이 비활성이면 USER_NOT_FOUND 를 던진다`() {
-        `when`(userPersistencePort.lockActive(listOf(1L, 2L))).thenReturn(emptySet())
+        // followerId(1L)만 active → targetId(2L)가 active 에 없어 첫 번째 가드가 발동
+        `when`(userPersistencePort.lockActive(listOf(1L, 2L))).thenReturn(setOf(1L))
 
         val ex = assertThrows(BusinessException::class.java) { service.unfollow(followerId = 1L, targetId = 2L) }
 
