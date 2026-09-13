@@ -2,6 +2,7 @@ package com.example.backend.place.adapter.outbound.search
 
 import com.example.backend.bootstrap.config.KakaoLocalProperties
 import com.example.backend.common.geo.Coordinate
+import org.hamcrest.Matchers.allOf
 import org.hamcrest.Matchers.containsString
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertNull
@@ -33,8 +34,15 @@ class KakaoRegionCodeClientTest {
                 {"region_type":"B","code":"1168010100"}
             ]}"""
         server
-            .expect(requestTo(containsString("/v2/local/geo/coord2regioncode.json")))
-            .andExpect(header("Authorization", "KakaoAK test-key"))
+            .expect(
+                requestTo(
+                    allOf(
+                        containsString("/v2/local/geo/coord2regioncode.json"),
+                        containsString("x=127.0578"),
+                        containsString("y=37.5445"),
+                    ),
+                ),
+            ).andExpect(header("Authorization", "KakaoAK test-key"))
             .andRespond(withSuccess(body, MediaType.APPLICATION_JSON))
 
         val result = client.findLegalDongCode(coord)

@@ -13,6 +13,7 @@ class PlaceQueryServiceTest {
     private var portSearchResult: List<Place> = emptyList()
     private var portFindResult: List<Place> = emptyList()
     private var portCount: Long = 0L
+    private var capturedSearchLimit: Int? = null
 
     private val port =
         object : PlaceQueryPort {
@@ -22,7 +23,10 @@ class PlaceQueryServiceTest {
                 query: String,
                 cursor: String?,
                 limit: Int,
-            ): List<Place> = portSearchResult
+            ): List<Place> {
+                capturedSearchLimit = limit
+                return portSearchResult
+            }
 
             override fun countByName(query: String): Long = portCount
         }
@@ -54,6 +58,7 @@ class PlaceQueryServiceTest {
 
         val page = service.searchByName("카페", null, 10)
 
+        assertThat(capturedSearchLimit).isEqualTo(11) // service passes size+1
         assertThat(page.hasNext).isFalse
         assertThat(page.items).hasSize(3)
         assertThat(page.totalCount).isEqualTo(3)

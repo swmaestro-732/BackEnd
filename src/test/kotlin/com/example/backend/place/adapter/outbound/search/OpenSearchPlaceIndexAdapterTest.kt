@@ -10,6 +10,8 @@ import org.mockito.Mockito.mock
 import org.mockito.Mockito.never
 import org.mockito.Mockito.verify
 import org.opensearch.client.opensearch.OpenSearchClient
+import org.opensearch.client.opensearch.core.BulkRequest
+import org.opensearch.client.util.ObjectBuilder
 import org.springframework.beans.factory.ObjectProvider
 
 class OpenSearchPlaceIndexAdapterTest {
@@ -81,6 +83,8 @@ class OpenSearchPlaceIndexAdapterTest {
         // → caught by catch block → no propagation
 
         adapter.save(listOf(placeWithId(1L))) // no exception
+
+        verify(client).bulk(anyArg<java.util.function.Function<BulkRequest.Builder, ObjectBuilder<BulkRequest>>>())
     }
 
     @Test
@@ -93,3 +97,7 @@ class OpenSearchPlaceIndexAdapterTest {
         adapter.save(listOf(placeWithId(1L), placeWithNullId(), placeWithId(2L))) // no exception
     }
 }
+
+/** Kotlin-safe Mockito any() — same pattern as mockito-kotlin. */
+@Suppress("UNCHECKED_CAST")
+private fun <T> anyArg(): T = org.mockito.Mockito.any<T>() as T

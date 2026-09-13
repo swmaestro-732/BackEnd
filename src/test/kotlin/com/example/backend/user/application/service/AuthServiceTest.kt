@@ -127,7 +127,12 @@ class AuthServiceTest {
 
             override fun findValid(token: String): RefreshTokenRecord? = valid
 
-            override fun revoke(token: String): Boolean = false
+            var revokedToken: String? = null
+
+            override fun revoke(token: String): Boolean {
+                revokedToken = token
+                return false
+            }
 
             override fun revokeAllByUser(userId: Long) = Unit
         }
@@ -338,6 +343,8 @@ class AuthServiceTest {
     @Test
     fun `logout — refreshToken 을 폐기하고 예외가 발생하지 않는다`() {
         service.logout("some-refresh-token") // no exception
+
+        assertEquals("some-refresh-token", refreshTokenPort.revokedToken)
     }
 
     @Test
