@@ -37,6 +37,7 @@ class SavedCourseScreenResponseMockTest {
     fun `mock() 각 저장 코스는 id·courseId·course 가 채워져 있다`() {
         val response = SavedCourseScreenResponse.mock()
 
+        assertThat(response.savedCourses).isNotEmpty
         response.savedCourses.forEach { item ->
             assertThat(item.id).isPositive
             assertThat(item.courseId).isPositive
@@ -87,6 +88,7 @@ class SavedPlaceScreenResponseMockTest {
     fun `mock() 각 저장 장소는 id·placeId·place 정보가 채워져 있다`() {
         val response = SavedPlaceScreenResponse.mock()
 
+        assertThat(response.savedPlaces).isNotEmpty
         response.savedPlaces.forEach { item ->
             assertThat(item.id).isPositive
             assertThat(item.placeId).isPositive

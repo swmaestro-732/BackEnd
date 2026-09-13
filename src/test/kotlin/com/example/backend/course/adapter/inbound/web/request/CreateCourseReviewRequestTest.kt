@@ -26,7 +26,10 @@ class CreateCourseReviewRequestTest {
 
         assertThat(request.rating).isEqualTo(3)
         assertThat(request.content).isEqualTo("동선이 좋았어요")
-        assertThat(request.photoUrls).hasSize(2)
+        assertThat(request.photoUrls).containsExactly(
+            "https://cdn.example.com/photo1.jpg",
+            "https://cdn.example.com/photo2.jpg",
+        )
         assertThat(request.tagCodes).containsExactly("packed", "walkable")
     }
 }

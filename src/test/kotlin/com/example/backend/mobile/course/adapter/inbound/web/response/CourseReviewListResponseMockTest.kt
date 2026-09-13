@@ -12,10 +12,11 @@ class CourseReviewListResponseMockTest {
     }
 
     @Test
-    fun `mock() 평균 평점은 양수다`() {
+    fun `mock() 평균 평점은 reviews 기반 계산값과 일치한다`() {
         val response = CourseReviewListResponse.mock()
 
-        assertThat(response.averageRating).isGreaterThan(0.0)
+        // ratings: [5,4,5,3,4,5] → sum=26, round(26*10/6)=43 → 4.3
+        assertThat(response.averageRating).isEqualTo(4.3)
     }
 
     @Test
@@ -31,6 +32,20 @@ class CourseReviewListResponseMockTest {
 
         assertThat(response.ratingDistribution).hasSize(5)
         assertThat(response.ratingDistribution.map { it.rating }).containsExactly(5, 4, 3, 2, 1)
+    }
+
+    @Test
+    fun `mock() ratingDistribution 각 별점 개수가 reviews 와 일치한다`() {
+        val response = CourseReviewListResponse.mock()
+
+        // ratings: [5,4,5,3,4,5] → 5→3, 4→2, 3→1, 2→0, 1→0
+        val countByRating = response.ratingDistribution.associate { it.rating to it.count }
+        assertThat(countByRating[5]).isEqualTo(3)
+        assertThat(countByRating[4]).isEqualTo(2)
+        assertThat(countByRating[3]).isEqualTo(1)
+        assertThat(countByRating[2]).isEqualTo(0)
+        assertThat(countByRating[1]).isEqualTo(0)
+        assertThat(response.ratingDistribution.sumOf { it.count }).isEqualTo(response.totalCount)
     }
 
     @Test
