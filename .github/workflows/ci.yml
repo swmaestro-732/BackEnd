@@ -98,6 +98,47 @@ jobs:
           path: out/
           if-no-files-found: ignore
 
+  # ───────────────────────── 변경분(diff) 커버리지 게이트 ─────────────────────────
+  # PR 이 바꾼 src/main 코틀린 라인 중 JaCoCo 계측 라인의 커버리지가 임계 미만이면 실패.
+  # 전체 커버리지(위 test)와 별개로 "새 코드가 테스트로 덮였는가"를 PR 단위로 강제한다.
+  diff-coverage:
+    name: diff coverage
+    needs: test
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+          fetch-depth: 0 # base 와 diff 하려면 전체 히스토리 필요
+      - name: Download coverage
+        # test 잡이 jacocoTestReport 전에 실패하면 result-test 아티팩트가 없다 —
+        # 그 경우 다운로드 실패를 삼키고 아래 가드(jacoco.xml 없음 → 스킵)로 처리한다.
+        continue-on-error: true
+        uses: actions/download-artifact@v4
+        with:
+          name: result-test
+          path: results
+      - name: Diff coverage (compute + gate)
+        env:
+          BASE_REF: ${{ github.event.pull_request.base.ref }}
+          MIN_DIFF_COVERAGE: "80"
+        run: |
+          git fetch --no-tags --quiet origin "$BASE_REF"
+          mkdir -p out
+          # 컴파일/테스트 실패로 jacoco.xml 이 없으면 게이트 스킵(테스트 잡이 이미 빨감).
+          if [ ! -f results/jacoco.xml ]; then
+            echo "jacoco.xml 없음 — diff 커버리지 스킵"; exit 0
+          fi
+          python3 .github/scripts/diff_coverage.py "origin/$BASE_REF" results/jacoco.xml "$MIN_DIFF_COVERAGE" out/diffcov.json
+      - name: Upload diffcov result
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: result-diffcov
+          path: out/
+          if-no-files-found: ignore
+
   # ───────────────────────── 도커 빌드 + Trivy ─────────────────────────
   docker:
     name: docker & trivy
@@ -275,7 +316,7 @@ jobs:
   # ───────────────────────── 통합 리포트 (단일 PR 코멘트) ─────────────────────────
   report:
     name: CI report
-    needs: [lint, test, docker, codesec, architecture]
+    needs: [lint, test, diff-coverage, docker, codesec, architecture]
     if: always()
     runs-on: ubuntu-latest
     permissions:
@@ -293,6 +334,7 @@ jobs:
         env:
           R_LINT: ${{ needs.lint.result }}
           R_TEST: ${{ needs.test.result }}
+          R_DIFFCOV: ${{ needs.diff-coverage.result }}
           R_DOCKER: ${{ needs.docker.result }}
           R_CODESEC: ${{ needs.codesec.result }}
           R_ARCH: ${{ needs.architecture.result }}
@@ -325,6 +367,21 @@ jobs:
             } catch (e) {}
             let testSection = `### 테스트 & 커버리지 ${icon(process.env.R_TEST)}\n\n`;
             testSection += covPct != null ? `라인 커버리지(instruction): **${covPct}%**` : '커버리지 데이터 없음';
+
+            // ── 변경분(diff) 커버리지 게이트 ──
+            let diffSection = `### 변경분 커버리지 (diff) ${icon(process.env.R_DIFFCOV)}\n\n`;
+            try {
+              const dc = JSON.parse(read('results/diffcov.json') || '{}');
+              if (dc.total == null || dc.total === 0) {
+                diffSection += '변경된 계측 라인 없음 — 게이트 N/A';
+              } else {
+                diffSection += `변경 라인 커버리지: **${dc.pct}%** (${dc.covered}/${dc.total}) · 임계 ${dc.threshold}% ${dc.pass ? '✅ 통과' : '❌ 미달'}`;
+                const low = (dc.files || []).filter(f => f.pct < 100);
+                if (low.length)
+                  diffSection += `\n\n<details><summary>미달 파일 (${low.length})</summary>\n\n| 파일 | 커버리지 |\n|---|---|\n`
+                    + low.map(f => `| \`${f.path}\` | ${f.pct}% (${f.covered}/${f.total}) |`).join('\n') + `\n</details>`;
+              }
+            } catch (e) { diffSection += '데이터 없음'; }
 
             // ── 도커 + Trivy ──
             const dExit = read('results/docker_exit.txt').trim();
@@ -392,6 +449,7 @@ jobs:
               `## Backend CI 리포트 — \`${context.sha.slice(0,7)}\` · @${context.actor}`,
               '', lintSection,
               '', '---', '', testSection,
+              '', '---', '', diffSection,
               '', '---', '', dockerSection,
               '', '---', '', codeSection,
               '', '---', '', archSection,

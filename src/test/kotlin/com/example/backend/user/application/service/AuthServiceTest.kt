@@ -4,6 +4,8 @@ import com.example.backend.area.application.port.inbound.AreaQueryUseCase
 import com.example.backend.area.application.port.inbound.dto.AreaDescriptor
 import com.example.backend.common.exception.BusinessException
 import com.example.backend.common.response.CommonErrorCode
+import com.example.backend.common.response.UserErrorCode
+import com.example.backend.user.application.port.inbound.dto.SignupCommand
 import com.example.backend.user.application.port.outbound.AuthTokenPort
 import com.example.backend.user.application.port.outbound.LikeThemePort
 import com.example.backend.user.application.port.outbound.RefreshTokenPort
@@ -19,6 +21,9 @@ import com.example.backend.user.domain.model.User
 import com.example.backend.user.domain.model.UserStatus
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
+import org.junit.jupiter.api.Assertions.assertNotNull
+import org.junit.jupiter.api.Assertions.assertNull
+import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 import java.time.Instant
@@ -68,9 +73,12 @@ class AuthServiceTest {
 
             override fun softDelete(user: User) = Unit
 
-            override fun existsByNickname(nickname: String): Boolean = false
+            var nicknameExists = false
+            var handleExists = false
 
-            override fun existsByHandle(handle: String): Boolean = false
+            override fun existsByNickname(nickname: String): Boolean = nicknameExists
+
+            override fun existsByHandle(handle: String): Boolean = handleExists
 
             override fun findBySocial(
                 provider: SocialProvider,
@@ -126,7 +134,12 @@ class AuthServiceTest {
 
             override fun findValid(token: String): RefreshTokenRecord? = valid
 
-            override fun revoke(token: String): Boolean = false
+            var revokedToken: String? = null
+
+            override fun revoke(token: String): Boolean {
+                revokedToken = token
+                return false
+            }
 
             override fun revokeAllByUser(userId: Long) = Unit
         }
@@ -246,5 +259,171 @@ class AuthServiceTest {
         assertEquals(CommonErrorCode.ACCOUNT_SUSPENDED, ex.errorCode)
         assertFalse(authTokenPort.accessTokenIssued)
         assertFalse(refreshTokenPort.refreshTokenIssued)
+    }
+
+    @Test
+    fun `신규 소셜 유저(미가입)는 로그인 시 registrationToken 과 isNewUser=true 를 받는다`() {
+        // bySocial defaults to null → new user branch
+        val result = service.socialLogin(SocialProvider.KAKAO, "kakao-token")
+
+        assertTrue(result.isNewUser)
+        assertEquals("registration-token", result.registrationToken)
+        assertNull(result.accessToken)
+        assertNull(result.refreshToken)
+    }
+
+    @Test
+    fun `기존 활성 유저는 소셜 로그인 시 accessToken 과 refreshToken 을 받는다`() {
+        userPersistencePort.bySocial =
+            User.reconstitute(
+                id = 1L,
+                nickname = "활성유저",
+                handle = "active_handle",
+                socialProvider = identity.provider,
+                socialId = identity.socialId,
+                status = UserStatus.ACTIVE,
+            )
+
+        val result = service.socialLogin(SocialProvider.KAKAO, "kakao-token")
+
+        assertFalse(result.isNewUser)
+        assertEquals("access-token", result.accessToken)
+        assertEquals("refresh-token", result.refreshToken)
+        assertNull(result.registrationToken)
+        assertTrue(authTokenPort.accessTokenIssued)
+        assertTrue(refreshTokenPort.refreshTokenIssued)
+    }
+
+    @Test
+    fun `reissue — 유효하지 않은 refreshToken 은 INVALID_REFRESH_TOKEN 을 던진다`() {
+        // valid defaults to null → token not found
+        val ex = assertThrows<BusinessException> { service.reissue("unknown-token") }
+
+        assertEquals(CommonErrorCode.INVALID_REFRESH_TOKEN, ex.errorCode)
+    }
+
+    @Test
+    fun `reissue — refreshToken 은 유효하나 userId 에 해당하는 유저가 없으면 INVALID_REFRESH_TOKEN 을 던진다`() {
+        refreshTokenPort.valid =
+            RefreshTokenRecord(
+                id = 2L,
+                userId = 99L,
+                tokenHash = "h",
+                expiresAt = Instant.EPOCH,
+                revoked = false,
+                createdAt = Instant.EPOCH,
+            )
+        // byId defaults to null
+
+        val ex = assertThrows<BusinessException> { service.reissue("refresh-token") }
+
+        assertEquals(CommonErrorCode.INVALID_REFRESH_TOKEN, ex.errorCode)
+    }
+
+    @Test
+    fun `reissue — revoke 가 실패하면 INVALID_REFRESH_TOKEN 을 던진다`() {
+        refreshTokenPort.valid =
+            RefreshTokenRecord(
+                id = 3L,
+                userId = 1L,
+                tokenHash = "h",
+                expiresAt = Instant.EPOCH,
+                revoked = false,
+                createdAt = Instant.EPOCH,
+            )
+        userPersistencePort.byId =
+            User.reconstitute(
+                id = 1L,
+                nickname = "유저",
+                handle = "user_handle",
+                socialProvider = identity.provider,
+                socialId = identity.socialId,
+                status = UserStatus.ACTIVE,
+            )
+        // refreshTokenPort.revoke always returns false (fake) → throws
+
+        val ex = assertThrows<BusinessException> { service.reissue("refresh-token") }
+
+        assertEquals(CommonErrorCode.INVALID_REFRESH_TOKEN, ex.errorCode)
+    }
+
+    @Test
+    fun `logout — refreshToken 을 폐기하고 예외가 발생하지 않는다`() {
+        service.logout("some-refresh-token") // no exception
+
+        assertEquals("some-refresh-token", refreshTokenPort.revokedToken)
+    }
+
+    @Test
+    fun `issueDevAccessToken — DEV 사용자 accessToken 을 반환한다`() {
+        val token = service.issueDevAccessToken()
+
+        assertNotNull(token)
+        assertEquals("access-token", token)
+    }
+
+    @Test
+    fun `signup - 이미 가입된 소셜 계정이면 SOCIAL_ACCOUNT_ALREADY_REGISTERED 를 던진다`() {
+        userPersistencePort.bySocial =
+            User.reconstitute(
+                id = 1L,
+                nickname = "기존유저",
+                handle = "existing_handle",
+                socialProvider = identity.provider,
+                socialId = identity.socialId,
+                status = UserStatus.ACTIVE,
+            )
+
+        val ex =
+            assertThrows<BusinessException> {
+                service.signup(
+                    SignupCommand(
+                        registrationToken = "reg-token",
+                        nickname = "신규닉네임",
+                        handle = "new_handle",
+                        profileImageUrl = null,
+                    ),
+                )
+            }
+
+        assertEquals(CommonErrorCode.SOCIAL_ACCOUNT_ALREADY_REGISTERED, ex.errorCode)
+    }
+
+    @Test
+    fun `signup - 닉네임이 중복이면 NICKNAME_ALREADY_TAKEN 을 던진다`() {
+        userPersistencePort.nicknameExists = true
+
+        val ex =
+            assertThrows<BusinessException> {
+                service.signup(
+                    SignupCommand(
+                        registrationToken = "reg-token",
+                        nickname = "중복닉네임",
+                        handle = "unique_handle",
+                        profileImageUrl = null,
+                    ),
+                )
+            }
+
+        assertEquals(UserErrorCode.NICKNAME_ALREADY_TAKEN, ex.errorCode)
+    }
+
+    @Test
+    fun `signup - handle 이 중복이면 HANDLE_ALREADY_TAKEN 을 던진다`() {
+        userPersistencePort.handleExists = true
+
+        val ex =
+            assertThrows<BusinessException> {
+                service.signup(
+                    SignupCommand(
+                        registrationToken = "reg-token",
+                        nickname = "unique_nickname",
+                        handle = "중복핸들",
+                        profileImageUrl = null,
+                    ),
+                )
+            }
+
+        assertEquals(UserErrorCode.HANDLE_ALREADY_TAKEN, ex.errorCode)
     }
 }

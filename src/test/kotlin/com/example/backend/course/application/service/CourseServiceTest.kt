@@ -7,9 +7,12 @@ import com.example.backend.common.exception.BusinessException
 import com.example.backend.common.response.CourseErrorCode
 import com.example.backend.common.response.PlaceErrorCode
 import com.example.backend.course.application.port.inbound.CourseQueryUseCase
+import com.example.backend.course.application.port.inbound.dto.CourseDetailResult
+import com.example.backend.course.application.port.inbound.dto.CoursePlaceResult
 import com.example.backend.course.application.port.inbound.dto.CreateCourseCommand
 import com.example.backend.course.application.port.inbound.dto.CreateCoursePlaceCommand
 import com.example.backend.course.application.port.inbound.dto.EditCourseCommand
+import com.example.backend.course.application.port.inbound.dto.ForkCourseCommand
 import com.example.backend.course.application.port.outbound.AuthorCourseCountPort
 import com.example.backend.course.application.port.outbound.CourseDetailRow
 import com.example.backend.course.application.port.outbound.CoursePersistencePort
@@ -22,11 +25,13 @@ import com.example.backend.course.domain.model.CourseCategory
 import com.example.backend.course.domain.model.CourseStatus
 import com.example.backend.course.domain.model.CourseVisibility
 import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertNotNull
 import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Assertions.assertThrows
 import org.junit.jupiter.api.Test
 import org.mockito.ArgumentCaptor
 import org.mockito.Mockito.any
+import org.mockito.Mockito.anyLong
 import org.mockito.Mockito.mock
 import org.mockito.Mockito.never
 import org.mockito.Mockito.verify
@@ -130,6 +135,89 @@ class CourseServiceTest {
         verify(persistence).softDelete(10L)
         verify(counts).applyDelta(1L, -1, 0, 0)
     }
+
+    @Test
+    fun `fork - 원본 코스가 없으면 COURSE_NOT_FOUND 를 던진다`() {
+        `when`(query.getDetails(listOf(10L), 1L)).thenReturn(emptyList())
+
+        val ex = assertThrows(BusinessException::class.java) { service.fork(forkCommand()) }
+
+        assertEquals(CourseErrorCode.COURSE_NOT_FOUND, ex.errorCode)
+        verify(persistence, never()).save(anyValue())
+    }
+
+    @Test
+    fun `fork - 원본 장소를 충분히 유지하지 않으면 FORK_PLACES_NOT_KEPT 를 던진다`() {
+        // 원본에 장소 2개 → requiredKeptPlaceCount(2) = 2, 포크 명령에 전혀 다른 장소만 담음
+        `when`(query.getDetails(listOf(10L), 1L)).thenReturn(listOf(detailWithPlaces(listOf(1L, 2L))))
+
+        val ex = assertThrows(BusinessException::class.java) { service.fork(forkCommand(placeIds = listOf(99L, 100L))) }
+
+        assertEquals(CourseErrorCode.FORK_PLACES_NOT_KEPT, ex.errorCode)
+    }
+
+    @Test
+    fun `fork - 원본 장소를 모두 유지하면 새 코스를 생성한다`() {
+        `when`(query.getDetails(listOf(10L), 1L)).thenReturn(listOf(detailWithPlaces(listOf(1L, 2L))))
+        `when`(persistence.existsById(10L)).thenReturn(true) // requireForkOriginExists 통과
+        stubPlaces()
+        `when`(persistence.save(anyValue())).thenAnswer { it.arguments[0] as Course }
+
+        val result = service.fork(forkCommand())
+
+        assertNotNull(result)
+        verify(persistence).save(anyValue())
+    }
+
+    @Test
+    fun `delete - 다른 사용자 코스를 삭제하려 하면 COURSE_NOT_FOUND 를 던진다`() {
+        `when`(persistence.findCourseDetail(10L)).thenReturn(detail(isPublished = true)) // userId=1L 소유
+
+        val ex = assertThrows(BusinessException::class.java) { service.delete(userId = 2L, courseId = 10L) }
+
+        assertEquals(CourseErrorCode.COURSE_NOT_FOUND, ex.errorCode)
+        verify(persistence, never()).softDelete(anyLong())
+    }
+
+    private fun forkCommand(placeIds: List<Long> = listOf(1L, 2L)): ForkCourseCommand =
+        ForkCourseCommand(
+            userId = 1L,
+            forkedFromId = 10L,
+            title = "포크 코스",
+            description = null,
+            coverImageUrl = null,
+            tags = emptyList(),
+            visibility = CourseVisibility.PUBLIC,
+            isPublished = false, // 이미지 없는 장소로 테스트 — 발행 시 이미지 필수 제약 우회
+            places = placeIds.mapIndexed { i, id -> CreateCoursePlaceCommand(id, i, null, emptyList(), null) },
+        )
+
+    private fun detailWithPlaces(placeIds: List<Long>): CourseDetailResult =
+        CourseDetailResult(
+            id = 10L,
+            title = "원본 코스",
+            coverImageUrl = "cover",
+            theme = "CAFETOUR",
+            area = "성수동",
+            tags = emptyList(),
+            description = "",
+            visibility = CourseVisibility.PUBLIC,
+            authorId = 99L,
+            tracingsCnt = 0,
+            places =
+                placeIds.mapIndexed { i, pid ->
+                    CoursePlaceResult(
+                        id = i.toLong(),
+                        placeId = pid,
+                        orderNo = i,
+                        caption = null,
+                        walkingMinutesToNext = null,
+                        images = emptyList(),
+                    )
+                },
+            hasSaved = false,
+            hasStartedCourse = false,
+        )
 
     private fun stubPlaces(areaCode: String? = AREA_CODE) {
         `when`(places.findPlacesByIds(listOf(1L, 2L)))
