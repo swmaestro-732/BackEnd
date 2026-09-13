@@ -34,6 +34,20 @@ class PlaceReviewListResponseMockTest {
     }
 
     @Test
+    fun `mock() ratingDistribution 각 별점 개수가 reviews 와 일치하고 합계가 totalCount 와 같다`() {
+        val response = PlaceReviewListResponse.mock()
+
+        // ratings: [5,4,5,3,4,5] → 5→3, 4→2, 3→1, 2→0, 1→0
+        val countByRating = response.ratingDistribution.associate { it.rating to it.count }
+        assertThat(countByRating[5]).isEqualTo(response.reviews.count { it.rating == 5 })
+        assertThat(countByRating[4]).isEqualTo(response.reviews.count { it.rating == 4 })
+        assertThat(countByRating[3]).isEqualTo(response.reviews.count { it.rating == 3 })
+        assertThat(countByRating[2]).isEqualTo(response.reviews.count { it.rating == 2 })
+        assertThat(countByRating[1]).isEqualTo(response.reviews.count { it.rating == 1 })
+        assertThat(response.ratingDistribution.sumOf { it.count }).isEqualTo(response.totalCount)
+    }
+
+    @Test
     fun `mock() photoCount 는 reviews 의 photoUrls 합계와 일치한다`() {
         val response = PlaceReviewListResponse.mock()
 

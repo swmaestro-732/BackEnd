@@ -1,7 +1,9 @@
 package com.example.backend.user.adapter.inbound.web.response
 
+import com.example.backend.user.application.port.inbound.dto.SavedPlacesResult
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.Test
+import java.time.Instant
 
 class SavedPlaceListResponseMockTest {
     @Test
@@ -38,6 +40,72 @@ class SavedPlaceListResponseMockTest {
         val response = SavedPlaceListResponse.mock()
 
         assertThat(response.categoryCounts).isNotEmpty
+    }
+
+    @Test
+    fun `from() — SavedPlacesResult 를 SavedPlaceListResponse 로 변환한다`() {
+        val now = Instant.parse("2026-08-01T00:00:00Z")
+        val result =
+            SavedPlacesResult(
+                totalCount = 2L,
+                unvisitedCount = 1L,
+                visitedCount = 1L,
+                categoryCounts = listOf(SavedPlacesResult.CategoryCount(category = "CAFE", count = 2L)),
+                nextCursor = "cursor-abc",
+                hasNext = true,
+                savedPlaces =
+                    listOf(
+                        SavedPlacesResult.SavedPlaceItem(
+                            id = 10L,
+                            placeId = 101L,
+                            category = "CAFE",
+                            visited = false,
+                            savedAt = now,
+                        ),
+                        SavedPlacesResult.SavedPlaceItem(
+                            id = 11L,
+                            placeId = 102L,
+                            category = null,
+                            visited = true,
+                            savedAt = now,
+                        ),
+                    ),
+            )
+
+        val response = SavedPlaceListResponse.from(result)
+
+        assertThat(response.totalCount).isEqualTo(2)
+        assertThat(response.unvisitedCount).isEqualTo(1)
+        assertThat(response.visitedCount).isEqualTo(1)
+        assertThat(response.categoryCounts).hasSize(1)
+        assertThat(response.categoryCounts[0].category).isEqualTo("CAFE")
+        assertThat(response.categoryCounts[0].count).isEqualTo(2)
+        assertThat(response.nextCursor).isEqualTo("cursor-abc")
+        assertThat(response.hasNext).isTrue
+        assertThat(response.savedPlaces).hasSize(2)
+        assertThat(response.savedPlaces[0].placeId).isEqualTo(101L)
+        assertThat(response.savedPlaces[1].category).isNull()
+    }
+
+    @Test
+    fun `from() — 빈 결과를 빈 응답으로 변환한다`() {
+        val result =
+            SavedPlacesResult(
+                totalCount = 0L,
+                unvisitedCount = 0L,
+                visitedCount = 0L,
+                categoryCounts = emptyList(),
+                nextCursor = null,
+                hasNext = false,
+                savedPlaces = emptyList(),
+            )
+
+        val response = SavedPlaceListResponse.from(result)
+
+        assertThat(response.totalCount).isEqualTo(0)
+        assertThat(response.hasNext).isFalse
+        assertThat(response.nextCursor).isNull()
+        assertThat(response.savedPlaces).isEmpty()
     }
 }
 
@@ -100,6 +168,7 @@ class SavedCourseListResponseMockTest {
     fun `mock() 각 저장 코스는 id·courseId·savedAt 이 채워져 있다`() {
         val response = SavedCourseListResponse.mock()
 
+        assertThat(response.savedCourses).isNotEmpty
         response.savedCourses.forEach { item ->
             assertThat(item.id).isPositive
             assertThat(item.courseId).isPositive
@@ -135,6 +204,7 @@ class FollowListResponseMockTest {
     fun `mock() 각 유저는 id·nickname 이 채워져 있다`() {
         val response = FollowListResponse.mock()
 
+        assertThat(response.users).isNotEmpty
         response.users.forEach { user ->
             assertThat(user.id).isPositive
             assertThat(user.nickname).isNotBlank
@@ -168,6 +238,7 @@ class CourseFolderListResponseMockTest {
     fun `mock() 각 폴더는 id·name 이 채워져 있다`() {
         val response = CourseFolderListResponse.mock()
 
+        assertThat(response.folders).isNotEmpty
         response.folders.forEach { folder ->
             assertThat(folder.id).isPositive
             assertThat(folder.name).isNotBlank
