@@ -11,6 +11,7 @@ import org.jetbrains.exposed.v1.jdbc.selectAll
 import org.jetbrains.exposed.v1.jdbc.transactions.transaction
 import org.junit.jupiter.api.Test
 import kotlin.time.Clock
+import kotlin.time.Instant
 
 /**
  * course 리뷰 계열 DAO/Table 매핑 영속성 통합 테스트(실제 PostgreSQL, [IntegrationTestBase]).
@@ -26,7 +27,7 @@ class CourseReviewPersistenceTest : IntegrationTestBase() {
     fun `리뷰를 저장하면 발급된 id 와 설정한 모든 컬럼을 그대로 되읽는다`() {
         transaction {
             val courseId = insertCourse()
-            val now = Clock.System.now()
+            val now = Instant.fromEpochMilliseconds(Clock.System.now().toEpochMilliseconds())
 
             val review =
                 CourseReviewEntity.new {
@@ -66,7 +67,7 @@ class CourseReviewPersistenceTest : IntegrationTestBase() {
     fun `content 없는 리뷰와 소프트 삭제 상태 전이를 반영한다`() {
         transaction {
             val courseId = insertCourse()
-            val now = Clock.System.now()
+            val now = Instant.fromEpochMilliseconds(Clock.System.now().toEpochMilliseconds())
             val review =
                 CourseReviewEntity.new {
                     this.courseId = courseId
@@ -79,7 +80,7 @@ class CourseReviewPersistenceTest : IntegrationTestBase() {
                 }
             assertThat(review.content).isNull()
 
-            val deletedMoment = Clock.System.now()
+            val deletedMoment = Instant.fromEpochMilliseconds(Clock.System.now().toEpochMilliseconds())
             review.status = CourseReviewStatus.DELETED
             review.deletedAt = deletedMoment
             review.updatedAt = deletedMoment
@@ -158,7 +159,7 @@ class CourseReviewPersistenceTest : IntegrationTestBase() {
     }
 
     private fun newReview(courseId: Long): CourseReviewEntity {
-        val now = Clock.System.now()
+        val now = Instant.fromEpochMilliseconds(Clock.System.now().toEpochMilliseconds())
         return CourseReviewEntity.new {
             this.courseId = courseId
             status = CourseReviewStatus.PUBLISHED

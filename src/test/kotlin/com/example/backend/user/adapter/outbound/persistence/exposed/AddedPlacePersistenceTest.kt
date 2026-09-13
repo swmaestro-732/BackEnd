@@ -9,6 +9,7 @@ import org.jetbrains.exposed.v1.jdbc.selectAll
 import org.jetbrains.exposed.v1.jdbc.transactions.transaction
 import org.junit.jupiter.api.Test
 import kotlin.time.Clock
+import kotlin.time.Instant
 
 /**
  * added_places(코스 따라가기 중 방문 체크인) Table 매핑 영속성 통합 테스트(실제 PostgreSQL, [IntegrationTestBase]).
@@ -21,7 +22,7 @@ class AddedPlacePersistenceTest : IntegrationTestBase() {
     @Test
     fun `체크인을 저장하면 autoIncrement id 를 발급하고 컬럼을 되읽는다`() {
         transaction {
-            val now = Clock.System.now()
+            val now = Instant.fromEpochMilliseconds(Clock.System.now().toEpochMilliseconds())
             val tracingCourseId = insertTracingCourse(insertUser("따라가기유저1"))
 
             val addedId =
@@ -48,7 +49,7 @@ class AddedPlacePersistenceTest : IntegrationTestBase() {
     @Test
     fun `같은 따라가기에 여러 장소를 체크인할 수 있다`() {
         transaction {
-            val now = Clock.System.now()
+            val now = Instant.fromEpochMilliseconds(Clock.System.now().toEpochMilliseconds())
             val tracingCourseId = insertTracingCourse(insertUser("따라가기유저2"))
 
             listOf(100L, 101L, 102L).forEach { pid ->
@@ -73,7 +74,7 @@ class AddedPlacePersistenceTest : IntegrationTestBase() {
         TracingCourseTable.insert {
             it[TracingCourseTable.userId] = userId
             it[courseId] = 22L // cross-domain(course): FK 없음
-            it[createdAt] = Clock.System.now()
+            it[createdAt] = Instant.fromEpochMilliseconds(Clock.System.now().toEpochMilliseconds())
         }[TracingCourseTable.id]
 
     /** tracing_courses.user_id 가 참조하는 활성 사용자 한 명. */

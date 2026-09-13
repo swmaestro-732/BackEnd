@@ -15,6 +15,7 @@ import org.jetbrains.exposed.v1.jdbc.selectAll
 import org.jetbrains.exposed.v1.jdbc.transactions.transaction
 import org.junit.jupiter.api.Test
 import kotlin.time.Clock
+import kotlin.time.Instant
 
 /**
  * place 리뷰 계열 DAO/Table 매핑 영속성 통합 테스트(실제 PostgreSQL, [IntegrationTestBase]).
@@ -80,7 +81,7 @@ class PlaceReviewPersistenceTest : IntegrationTestBase() {
                 }
             assertThat(review.content).isNull()
 
-            val deletedMoment = Clock.System.now()
+            val deletedMoment = Instant.fromEpochMilliseconds(Clock.System.now().toEpochMilliseconds())
             review.status = PlaceReviewStatus.DELETED
             review.deletedAt = deletedMoment
             review.updatedAt = deletedMoment
