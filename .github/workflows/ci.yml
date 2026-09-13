@@ -122,7 +122,7 @@ jobs:
       - name: Diff coverage (compute + gate)
         env:
           BASE_REF: ${{ github.event.pull_request.base.ref }}
-          MIN_DIFF_COVERAGE: "80"
+          MIN_DIFF_COVERAGE: "90"
         run: |
           git fetch --no-tags --quiet origin "$BASE_REF"
           mkdir -p out
