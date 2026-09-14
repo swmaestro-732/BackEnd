@@ -7,8 +7,8 @@ import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import org.mockito.Mockito.mock
-import org.mockito.Mockito.never
 import org.mockito.Mockito.verify
+import org.mockito.Mockito.verifyNoInteractions
 import org.mockito.Mockito.`when`
 import java.time.Instant
 
@@ -22,8 +22,7 @@ class CourseInteractionServiceTest {
         val result = service.getViewerStates(userId = 1L, courseIds = emptyList())
 
         assertTrue(result.isEmpty())
-        verify(interactionPort, never()).findSavedCourseIds(1L, emptyList())
-        verify(interactionPort, never()).findCompletedAt(1L, emptyList())
+        verifyNoInteractions(interactionPort)
     }
 
     @Test

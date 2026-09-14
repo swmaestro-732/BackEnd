@@ -85,9 +85,15 @@ class CourseReviewPersistenceTest : IntegrationTestBase() {
             review.deletedAt = deletedMoment
             review.updatedAt = deletedMoment
 
-            val reloaded = CourseReviewEntity.findById(review.id)!!
-            assertThat(reloaded.status).isEqualTo(CourseReviewStatus.DELETED)
-            assertThat(reloaded.deletedAt).isEqualTo(deletedMoment)
+            // 같은 트랜잭션의 DAO 1차 캐시가 아니라 실제 DB 값을 확인한다 — flush 후 Table DSL 로 재조회.
+            review.flush()
+            val row =
+                CourseReviewTable
+                    .selectAll()
+                    .where { CourseReviewTable.id eq review.id }
+                    .single()
+            assertThat(row[CourseReviewTable.status]).isEqualTo(CourseReviewStatus.DELETED)
+            assertThat(row[CourseReviewTable.deletedAt]).isEqualTo(deletedMoment)
             rollback()
         }
     }

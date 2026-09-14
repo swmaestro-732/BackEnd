@@ -86,9 +86,15 @@ class PlaceReviewPersistenceTest : IntegrationTestBase() {
             review.deletedAt = deletedMoment
             review.updatedAt = deletedMoment
 
-            val reloaded = PlaceReviewEntity.findById(review.id)!!
-            assertThat(reloaded.status).isEqualTo(PlaceReviewStatus.DELETED)
-            assertThat(reloaded.deletedAt).isEqualTo(deletedMoment)
+            // 같은 트랜잭션의 DAO 1차 캐시가 아니라 실제 DB 값을 확인한다 — flush 후 Table DSL 로 재조회.
+            review.flush()
+            val row =
+                PlaceReviewTable
+                    .selectAll()
+                    .where { PlaceReviewTable.id eq review.id }
+                    .single()
+            assertThat(row[PlaceReviewTable.status]).isEqualTo(PlaceReviewStatus.DELETED)
+            assertThat(row[PlaceReviewTable.deletedAt]).isEqualTo(deletedMoment)
             rollback()
         }
     }
