@@ -161,12 +161,13 @@ class CourseReviewControllerTest
         }
 
         @Test
-        fun `한마디가 1000자를 넘으면 도메인 불변식이 4001로 막는다`() {
-            // 요청 DTO 에는 길이 제한이 없어 도메인(CourseReview.create)에서 걸린다 — 필드 단위 4002 가 아니다.
+        fun `한마디가 1000자를 넘으면 요청 검증이 4002로 막는다`() {
+            // 요청 DTO 의 @Size 가 먼저 걸린다(도메인 불변식은 최후 방어선).
             mockMvc
                 .perform(createReviewRequest(COURSE_ID, """{"rating":4,"content":"${"가".repeat(1001)}"}"""))
                 .andExpect(status().isBadRequest)
-                .andExpect(jsonPath("$.code").value(4001))
+                .andExpect(jsonPath("$.code").value(4002))
+                .andExpect(jsonPath("$.fieldErrors[0].field").value("content"))
 
             assertEquals(0, countRows("course_reviews"))
         }

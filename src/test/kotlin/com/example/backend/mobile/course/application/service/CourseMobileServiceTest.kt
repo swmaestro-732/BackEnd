@@ -35,7 +35,7 @@ class CourseMobileServiceTest {
         val course = course(placeIds = listOf(30L, 20L))
         val author = mock(UserProfileResult::class.java)
         val places = listOf(mock(PlaceSummary::class.java), mock(PlaceSummary::class.java))
-        val previewQuery = CourseReviewScreenQuery(courseId = 10L, size = 2)
+        val previewQuery = CourseReviewScreenQuery(courseId = 10L, viewerId = 7L, size = 2)
         val reviewSummary = mock(CourseReviewScreenResult::class.java)
         `when`(courseQueryUseCase.getDetail(10L, 7L)).thenReturn(course)
         `when`(userUseCase.getProfile(3L, 7L)).thenReturn(author)

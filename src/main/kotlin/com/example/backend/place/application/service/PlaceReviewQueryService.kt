@@ -22,7 +22,7 @@ class PlaceReviewQueryService(
     private val placeQueryPort: PlaceQueryPort,
 ) : PlaceReviewQueryUseCase {
     override fun getReviews(query: PlaceReviewsQuery): PlaceReviewsResult {
-        val cursor = PlaceReviewCursorCodec.decode(query.cursor)
+        val cursor = PlaceReviewCursorCodec.decode(query.sort, query.descending, query.cursor)
 
         // hasNext 판정을 위해 한 개 더 조회한 뒤, 페이지 크기만큼 잘라낸다.
         val rows =
@@ -43,7 +43,11 @@ class PlaceReviewQueryService(
         val photoCount = placeReviewQueryPort.countPhotosByPlace(query.placeId)
         val place = placeQueryPort.findPlaceById(query.placeId)
         val nextCursor =
-            if (hasNext) page.lastOrNull()?.let { PlaceReviewCursorCodec.encode(it.toCursor()) } else null
+            if (hasNext) {
+                page.lastOrNull()?.let { PlaceReviewCursorCodec.encode(query.sort, query.descending, it.toCursor()) }
+            } else {
+                null
+            }
 
         return PlaceReviewsResult(
             averageRating = place?.averageRating ?: 0.0,

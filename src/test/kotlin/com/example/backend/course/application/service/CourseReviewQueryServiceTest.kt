@@ -76,7 +76,7 @@ class CourseReviewQueryServiceTest {
         // nextCursor 는 페이지 마지막 행(id=2)의 키다.
         assertEquals(
             CourseReviewCursor(rating = 4, createdAt = Instant.parse("2026-09-02T00:00:00Z"), id = 2),
-            CourseReviewCursorCodec.decode(result.nextCursor),
+            CourseReviewCursorCodec.decode(CourseReviewSortKey.LATEST, true, result.nextCursor),
         )
     }
 
@@ -134,7 +134,7 @@ class CourseReviewQueryServiceTest {
                     courseId = COURSE_ID,
                     sort = CourseReviewSortKey.RATING,
                     descending = false,
-                    cursor = CourseReviewCursorCodec.encode(cursor),
+                    cursor = CourseReviewCursorCodec.encode(CourseReviewSortKey.RATING, false, cursor),
                 ),
             )
 

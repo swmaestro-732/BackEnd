@@ -15,6 +15,7 @@ data class CreatePlaceReviewRequest(
     @field:Min(1)
     @field:Max(5)
     val rating: Int,
+    @field:Size(max = PlaceReview.MAX_CONTENT_LENGTH)
     val content: String? = null,
     @field:Size(max = PlaceReview.MAX_PHOTOS)
     val photoUrls: List<

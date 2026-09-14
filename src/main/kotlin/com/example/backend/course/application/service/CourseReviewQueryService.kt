@@ -23,7 +23,7 @@ class CourseReviewQueryService(
     private val courseReviewQueryPort: CourseReviewQueryPort,
 ) : CourseReviewQueryUseCase {
     override fun getReviews(query: CourseReviewsQuery): CourseReviewsResult {
-        val cursor = CourseReviewCursorCodec.decode(query.cursor)
+        val cursor = CourseReviewCursorCodec.decode(query.sort, query.descending, query.cursor)
 
         // hasNext 판정을 위해 한 개 더 조회한 뒤, 페이지 크기만큼 잘라낸다.
         val rows =
@@ -44,7 +44,11 @@ class CourseReviewQueryService(
         val photoCount = courseReviewQueryPort.countPhotosByCourse(query.courseId)
         val counters = courseReviewQueryPort.findRatingCounters(query.courseId)
         val nextCursor =
-            if (hasNext) page.lastOrNull()?.let { CourseReviewCursorCodec.encode(it.toCursor()) } else null
+            if (hasNext) {
+                page.lastOrNull()?.let { CourseReviewCursorCodec.encode(query.sort, query.descending, it.toCursor()) }
+            } else {
+                null
+            }
 
         return CourseReviewsResult(
             averageRating = counters?.averageRating ?: 0.0,

@@ -40,6 +40,7 @@ class PlaceReviewScreenController(
                 placeReviewScreenUseCase.getScreen(
                     PlaceReviewScreenQuery(
                         placeId = placeId,
+                        viewerId = viewerId,
                         sort = sort,
                         descending = order == SortDirection.DESC,
                         cursor = cursor,

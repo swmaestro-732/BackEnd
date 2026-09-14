@@ -31,11 +31,13 @@ class PlaceReviewScreenService(
             userSummaryUseCase
                 .findSummaries(page.reviews.map { it.userId }.distinct())
                 .associateBy { it.id }
-        return PlaceReviewScreenResult.of(page, authors, hasVisitedPlace = STUB_HAS_VISITED_PLACE)
+        // 비로그인은 방문 이력이 있을 수 없으니 무조건 false. 로그인 유저 판정은 실구현에서 채운다.
+        val hasVisitedPlace = if (query.viewerId == null) false else STUB_HAS_VISITED_PLACE
+        return PlaceReviewScreenResult.of(page, authors, hasVisitedPlace = hasVisitedPlace)
     }
 
     companion object {
-        /** STUB: 방문 이력 판정 전 고정값(모킹 응답과 같은 값). 방문 처리 실구현 시 제거한다. */
-        const val STUB_HAS_VISITED_PLACE = true
+        /** STUB: 방문 이력 판정 전 안전 고정값(false). 방문 처리 실구현 시 제거한다. */
+        const val STUB_HAS_VISITED_PLACE = false
     }
 }

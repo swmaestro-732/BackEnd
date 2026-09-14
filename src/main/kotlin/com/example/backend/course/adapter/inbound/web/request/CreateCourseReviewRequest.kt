@@ -15,6 +15,7 @@ data class CreateCourseReviewRequest(
     @field:Min(1)
     @field:Max(5)
     val rating: Int,
+    @field:Size(max = CourseReview.MAX_CONTENT_LENGTH)
     val content: String? = null,
     @field:Size(max = CourseReview.MAX_PHOTOS)
     val photoUrls: List<

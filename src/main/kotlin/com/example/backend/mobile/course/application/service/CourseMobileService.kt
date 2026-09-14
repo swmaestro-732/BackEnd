@@ -28,7 +28,7 @@ class CourseMobileService(
         val places = placeQueryUseCase.findPlacesById(course.places.map { it.placeId })
         val reviewSummary =
             courseReviewScreenUseCase.getScreen(
-                CourseReviewScreenQuery(courseId = courseId, size = REVIEW_PREVIEW_SIZE),
+                CourseReviewScreenQuery(courseId = courseId, viewerId = viewerId, size = REVIEW_PREVIEW_SIZE),
             )
         return CourseDetailScreenResult(
             course = course,

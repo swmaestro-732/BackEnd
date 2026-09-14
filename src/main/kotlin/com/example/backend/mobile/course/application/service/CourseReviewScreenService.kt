@@ -31,11 +31,13 @@ class CourseReviewScreenService(
             userSummaryUseCase
                 .findSummaries(page.reviews.map { it.userId }.distinct())
                 .associateBy { it.id }
-        return CourseReviewScreenResult.of(page, authors, hasCompletedCourse = STUB_HAS_COMPLETED_COURSE)
+        // 비로그인은 완주 이력이 있을 수 없으니 무조건 false. 로그인 유저 판정은 실구현에서 채운다.
+        val hasCompletedCourse = if (query.viewerId == null) false else STUB_HAS_COMPLETED_COURSE
+        return CourseReviewScreenResult.of(page, authors, hasCompletedCourse = hasCompletedCourse)
     }
 
     companion object {
-        /** STUB: 완주(따라가기 완료) 판정 전 고정값(모킹 응답과 같은 값). tracing_courses 실구현 시 제거한다. */
-        const val STUB_HAS_COMPLETED_COURSE = true
+        /** STUB: 완주(따라가기 완료) 판정 전 안전 고정값(false). tracing_courses 실구현 시 제거한다. */
+        const val STUB_HAS_COMPLETED_COURSE = false
     }
 }

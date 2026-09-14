@@ -40,6 +40,7 @@ class CourseReviewScreenController(
                 courseReviewScreenUseCase.getScreen(
                     CourseReviewScreenQuery(
                         courseId = courseId,
+                        viewerId = viewerId,
                         sort = sort,
                         descending = order == SortDirection.DESC,
                         cursor = cursor,

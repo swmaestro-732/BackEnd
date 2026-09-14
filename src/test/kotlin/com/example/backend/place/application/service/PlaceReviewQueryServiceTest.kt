@@ -117,7 +117,7 @@ class PlaceReviewQueryServiceTest {
         // nextCursor 는 페이지 마지막 행(id=2)의 키다.
         assertEquals(
             PlaceReviewCursor(rating = 4, createdAt = Instant.parse("2026-09-02T00:00:00Z"), id = 2),
-            PlaceReviewCursorCodec.decode(result.nextCursor),
+            PlaceReviewCursorCodec.decode(PlaceReviewSortKey.LATEST, true, result.nextCursor),
         )
     }
 
@@ -152,7 +152,12 @@ class PlaceReviewQueryServiceTest {
     fun `커서 문자열을 디코딩해 포트에 넘긴다`() {
         val cursor = PlaceReviewCursor(rating = 4, createdAt = Instant.parse("2026-09-02T00:00:00.123456Z"), id = 2)
 
-        service.getReviews(PlaceReviewsQuery(placeId = PLACE_ID, cursor = PlaceReviewCursorCodec.encode(cursor)))
+        service.getReviews(
+            PlaceReviewsQuery(
+                placeId = PLACE_ID,
+                cursor = PlaceReviewCursorCodec.encode(PlaceReviewSortKey.LATEST, true, cursor),
+            ),
+        )
 
         assertEquals(cursor, fakeReviewQueryPort.receivedCursor)
     }
