@@ -1,5 +1,6 @@
 package com.example.backend.course.adapter.inbound.web
 
+import com.example.backend.bootstrap.appversion.AppFeature
 import com.example.backend.bootstrap.appversion.RequiresAppFeature
 import com.example.backend.bootstrap.security.CurrentUserId
 import com.example.backend.common.response.ApiResponse
@@ -16,7 +17,7 @@ import org.springframework.web.bind.annotation.ResponseStatus
 import org.springframework.web.bind.annotation.RestController
 
 /** 인바운드 어댑터 */
-@RequiresAppFeature("course-review")
+@RequiresAppFeature(AppFeature.COURSE_REVIEW)
 @RestController
 @RequestMapping("/api/v1/courses/{courseId}/reviews")
 class CourseReviewController {

@@ -1,5 +1,6 @@
 package com.example.backend.user.adapter.inbound.web
 
+import com.example.backend.bootstrap.appversion.AppFeature
 import com.example.backend.bootstrap.appversion.RequiresAppFeature
 import com.example.backend.bootstrap.mock.MockGuard
 import com.example.backend.bootstrap.security.AccessTokenRequired
@@ -30,7 +31,7 @@ import org.springframework.web.bind.annotation.RequestParam
 import org.springframework.web.bind.annotation.RestController
 
 /** 인바운드 어댑터 */
-@RequiresAppFeature("user-profile")
+@RequiresAppFeature(AppFeature.USER_PROFILE)
 @RestController
 @RequestMapping("/api/v1/users")
 class UserController(

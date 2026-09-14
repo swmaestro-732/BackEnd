@@ -77,31 +77,3 @@ sentry:
   environment: ${SENTRY_ENVIRONMENT:local}
   traces-sample-rate: 0.1   # 성능 트레이스 샘플링. 부하에 따라 조정
   send-default-pii: false
-
-app:
-  version:
-    features:
-      auth:
-        android-version: 4
-      user-profile:
-        android-version: 4
-      user-course:
-        android-version: 4
-      user-place:
-        android-version: 4
-      course-detail:
-        android-version: 4
-      course-create:
-        android-version: 4
-      course-review:
-        android-version: 4
-      place-detail:
-        android-version: 4
-      place-search:
-        android-version: 4
-      place-review:
-        android-version: 4
-      media:
-        android-version: 4
-      area:
-        android-version: 4

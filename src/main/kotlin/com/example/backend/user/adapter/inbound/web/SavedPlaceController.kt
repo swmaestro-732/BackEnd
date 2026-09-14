@@ -1,5 +1,6 @@
 package com.example.backend.user.adapter.inbound.web
 
+import com.example.backend.bootstrap.appversion.AppFeature
 import com.example.backend.bootstrap.appversion.RequiresAppFeature
 import com.example.backend.bootstrap.mock.MockGuard
 import com.example.backend.bootstrap.security.AccessTokenRequired
@@ -25,7 +26,7 @@ import org.springframework.web.bind.annotation.ResponseStatus
 import org.springframework.web.bind.annotation.RestController
 
 /** 인바운드 어댑터 */
-@RequiresAppFeature("user-place")
+@RequiresAppFeature(AppFeature.USER_PLACE)
 @RestController
 class SavedPlaceController(
     private val savedPlaceUseCase: SavedPlaceUseCase,

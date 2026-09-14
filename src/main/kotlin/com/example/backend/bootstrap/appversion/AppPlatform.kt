@@ -6,9 +6,6 @@ enum class AppPlatform {
     ;
 
     companion object {
-        fun fromUserAgent(userAgent: String?): AppPlatform {
-            val ua = userAgent?.lowercase() ?: return ANDROID
-            return if ("iphone" in ua || "ipad" in ua) IOS else ANDROID
-        }
+        fun fromHeader(value: String): AppPlatform? = entries.firstOrNull { it.name.equals(value, ignoreCase = true) }
     }
 }
