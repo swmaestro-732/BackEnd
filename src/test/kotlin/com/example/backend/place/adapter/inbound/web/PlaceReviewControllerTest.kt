@@ -108,11 +108,26 @@ class PlaceReviewControllerTest
         }
 
         @Test
-        fun `같은 사용자가 같은 장소에 또 써도 막지 않는다`() {
-            // 재방문마다 남길 수 있어야 한다 — 스키마에도 유니크 제약이 없다.
+        fun `같은 사용자가 같은 장소에 또 쓰면 4096을 내려준다`() {
+            // 장소 하나에 사용자당 리뷰 1개 — 서비스 사전검사(409)와 uq_place_reviews_user_place 가 함께 막는다.
             mockMvc.perform(createReviewRequest(PLACE_ID, """{"rating":5}""")).andExpect(status().isCreated)
+
+            mockMvc
+                .perform(createReviewRequest(PLACE_ID, """{"rating":3}"""))
+                .andExpect(status().isConflict)
+                .andExpect(jsonPath("$.code").value(4096))
+
+            assertEquals(1, countRows("place_reviews"))
+        }
+
+        @Test
+        fun `리뷰를 지우면 같은 장소에 다시 쓸 수 있다`() {
+            mockMvc.perform(createReviewRequest(PLACE_ID, """{"rating":5}""")).andExpect(status().isCreated)
+            mockMvc.perform(deleteReviewRequest(reviewId = 1, token = accessToken(USER_ID))).andExpect(status().isOk)
+
             mockMvc.perform(createReviewRequest(PLACE_ID, """{"rating":3}""")).andExpect(status().isCreated)
 
+            // 소프트 삭제된 행은 남아 있다 — 유니크는 살아있는(deleted_at IS NULL) 행에만 걸린다.
             assertEquals(2, countRows("place_reviews"))
         }
 

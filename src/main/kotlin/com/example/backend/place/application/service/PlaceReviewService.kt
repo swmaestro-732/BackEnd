@@ -26,6 +26,7 @@ class PlaceReviewService(
 ) : PlaceReviewUseCase {
     override fun create(command: CreatePlaceReviewCommand): PlaceReview {
         requirePlaceExist(command.placeId)
+        requireNoExistingReview(command.placeId, command.userId)
 
         return placeReviewPersistencePort.save(
             PlaceReview.create(
@@ -53,5 +54,21 @@ class PlaceReviewService(
     private fun requirePlaceExist(placeId: Long) {
         placeQueryPort.findPlaceById(placeId)
             ?: throw BusinessException(PlaceErrorCode.PLACE_NOT_FOUND)
+    }
+
+    /**
+     * 장소 하나에 사용자당 리뷰는 1개 — 이미 있으면 409. 삭제한 리뷰는 세지 않아 다시 쓸 수 있다.
+     * 동시 작성 경합은 이 검사를 통과할 수 있어 DB 유니크 인덱스(uq_place_reviews_user_place)가 최종 방어선이다.
+     */
+    private fun requireNoExistingReview(
+        placeId: Long,
+        userId: Long,
+    ) {
+        if (placeReviewPersistencePort.existsActiveReview(placeId = placeId, userId = userId)) {
+            throw BusinessException(
+                PlaceErrorCode.PLACE_REVIEW_ALREADY_EXISTS,
+                "이미 이 장소에 리뷰를 작성했습니다: placeId=$placeId",
+            )
+        }
     }
 }

@@ -13,6 +13,7 @@ import org.jetbrains.exposed.v1.core.isNull
 import org.jetbrains.exposed.v1.core.plus
 import org.jetbrains.exposed.v1.jdbc.batchInsert
 import org.jetbrains.exposed.v1.jdbc.insertAndGetId
+import org.jetbrains.exposed.v1.jdbc.selectAll
 import org.jetbrains.exposed.v1.jdbc.update
 import org.jetbrains.exposed.v1.jdbc.updateReturning
 import org.springframework.stereotype.Repository
@@ -27,6 +28,21 @@ import kotlin.time.Clock
  */
 @Repository
 class PlaceReviewRepository {
+    /** 1인 1리뷰 사전검사 — 소프트 삭제된 리뷰는 세지 않아 다시 쓸 수 있다(uq_place_reviews_user_place 와 같은 조건). */
+    fun existsActiveReview(
+        placeId: Long,
+        userId: Long,
+    ): Boolean =
+        PlaceReviewTable
+            .selectAll()
+            .where {
+                (PlaceReviewTable.placeId eq placeId) and
+                    (PlaceReviewTable.userId eq userId) and
+                    PlaceReviewTable.deletedAt.isNull()
+            }.limit(1)
+            .empty()
+            .not()
+
     /** 리뷰 본문·사진·태그 연결을 심고, 생성값(id·created_at)까지 채운 도메인 [PlaceReview] 로 돌려준다. */
     fun insert(review: PlaceReview): PlaceReview {
         val now = Clock.System.now()
@@ -112,7 +128,7 @@ class PlaceReviewRepository {
         }
     }
 
-    /** 태그 연결은 마스터 조회 없이 enum 이름을 그대로 심는다(태그 코드가 정본 — V5). */
+    /** 태그 연결은 마스터 조회 없이 enum 이름을 그대로 심는다(태그 코드가 정본 — V6). */
     private fun insertTagLinks(
         reviewId: Long,
         tags: List<PlaceReviewTag>,

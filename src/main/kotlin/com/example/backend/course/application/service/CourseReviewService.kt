@@ -19,6 +19,7 @@ class CourseReviewService(
 ) : CourseReviewUseCase {
     override fun create(command: CreateCourseReviewCommand): CourseReview {
         requireCourseExist(command.courseId)
+        requireNoExistingReview(command.courseId, command.userId)
 
         return courseReviewPersistencePort.save(
             CourseReview.create(
@@ -46,6 +47,22 @@ class CourseReviewService(
     private fun requireCourseExist(courseId: Long) {
         if (!coursePersistencePort.existsById(courseId)) {
             throw BusinessException(CourseErrorCode.COURSE_NOT_FOUND)
+        }
+    }
+
+    /**
+     * 코스 하나에 사용자당 리뷰는 1개 — 이미 있으면 409. 삭제한 리뷰는 세지 않아 다시 쓸 수 있다.
+     * 동시 작성 경합은 이 검사를 통과할 수 있어 DB 유니크 인덱스(uq_course_reviews_user_course)가 최종 방어선이다.
+     */
+    private fun requireNoExistingReview(
+        courseId: Long,
+        userId: Long,
+    ) {
+        if (courseReviewPersistencePort.existsActiveReview(courseId = courseId, userId = userId)) {
+            throw BusinessException(
+                CourseErrorCode.COURSE_REVIEW_ALREADY_EXISTS,
+                "이미 이 코스에 리뷰를 작성했습니다: courseId=$courseId",
+            )
         }
     }
 }

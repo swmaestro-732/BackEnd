@@ -13,6 +13,7 @@ import com.example.backend.place.domain.model.PlaceReviewTag
 import com.example.backend.support.IntegrationTestBase
 import org.jetbrains.exposed.v1.core.SortOrder
 import org.jetbrains.exposed.v1.core.eq
+import org.jetbrains.exposed.v1.exceptions.ExposedSQLException
 import org.jetbrains.exposed.v1.jdbc.insertAndGetId
 import org.jetbrains.exposed.v1.jdbc.selectAll
 import org.jetbrains.exposed.v1.jdbc.transactions.transaction
@@ -22,6 +23,7 @@ import org.junit.jupiter.api.Assertions.assertNotNull
 import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.assertThrows
 import org.springframework.beans.factory.annotation.Autowired
 import java.time.temporal.ChronoUnit
 import kotlin.time.toJavaInstant
@@ -30,7 +32,7 @@ import kotlin.time.toJavaInstant
  * place_reviews 영속성 통합 테스트(실제 PostgreSQL, [IntegrationTestBase]).
  *
  * DSL insert 가 생성 id·작성 시각을 재조회 없이 돌려주는지, 자식(사진 순서·태그 코드)이 함께 심기는지,
- * 태그가 마스터 테이블 없이 enum 이름으로 저장되는지(V5), 별점 카운터(places.rating_sum/rating_cnt)가
+ * 태그가 마스터 테이블 없이 enum 이름으로 저장되는지(V6), 별점 카운터(places.rating_sum/rating_cnt)가
  * 작성·소프트 삭제와 같은 트랜잭션에서 상대 갱신되는지 검증한다.
  * 각 테스트는 transaction { ... rollback() } 으로 격리한다(픽스처 오염 없음).
  */
@@ -135,14 +137,42 @@ class PlaceReviewPersistenceTest
         }
 
         @Test
-        fun `같은 사용자가 같은 장소에 여러 번 남길 수 있고 별점 카운터가 누적된다`() {
+        fun `같은 사용자가 같은 장소에 두 번 남기면 유니크 인덱스가 막는다`() {
             transaction {
                 val placeId = insertPlace("재방문 장소")
+                port.save(review(placeId, rating = 5))
 
+                // uq_place_reviews_user_place — 서비스 사전검사를 통과한 동시 작성 경합의 최종 방어선.
+                val ex = assertThrows<ExposedSQLException> { port.save(review(placeId, rating = 3)) }
+
+                assertEquals("23505", ex.sqlState)
+                rollback()
+            }
+        }
+
+        @Test
+        fun `소프트 삭제한 뒤에는 같은 장소에 다시 남길 수 있다`() {
+            transaction {
+                val placeId = insertPlace("재작성 장소")
                 val first = port.save(review(placeId, rating = 5))
+                port.softDelete(reviewId = first.id!!, placeId = placeId, userId = USER_ID)
+
                 val second = port.save(review(placeId, rating = 3))
 
                 assertNotEquals(first.id, second.id)
+                assertEquals(3L to 1, ratingCounters(placeId)) // 삭제로 -5/-1 되돌린 뒤 +3/+1
+                rollback()
+            }
+        }
+
+        @Test
+        fun `다른 사용자는 같은 장소에 남길 수 있다`() {
+            transaction {
+                val placeId = insertPlace("공용 장소")
+                port.save(review(placeId, rating = 5))
+
+                port.save(review(placeId, rating = 3, userId = OTHER_USER_ID))
+
                 assertEquals(
                     2,
                     PlaceReviewTable
@@ -151,7 +181,6 @@ class PlaceReviewPersistenceTest
                         .count()
                         .toInt(),
                 )
-                assertEquals(8L to 2, ratingCounters(placeId)) // +5/+1, +3/+1
                 rollback()
             }
         }
@@ -199,9 +228,10 @@ class PlaceReviewPersistenceTest
             content: String? = null,
             photoUrls: List<String> = emptyList(),
             tags: Set<PlaceReviewTag> = emptySet(),
+            userId: Long = USER_ID,
         ) = PlaceReview.create(
             placeId = placeId,
-            userId = USER_ID,
+            userId = userId,
             rating = rating,
             content = content,
             photoUrls = photoUrls,
@@ -226,5 +256,6 @@ class PlaceReviewPersistenceTest
 
         private companion object {
             const val USER_ID = 1L
+            const val OTHER_USER_ID = 2L
         }
     }

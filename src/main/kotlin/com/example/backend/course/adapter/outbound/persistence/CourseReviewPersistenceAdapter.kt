@@ -12,6 +12,11 @@ import org.springframework.stereotype.Component
 class CourseReviewPersistenceAdapter(
     private val courseReviewRepository: CourseReviewRepository,
 ) : CourseReviewPersistencePort {
+    override fun existsActiveReview(
+        courseId: Long,
+        userId: Long,
+    ): Boolean = courseReviewRepository.existsActiveReview(courseId = courseId, userId = userId)
+
     override fun save(review: CourseReview): CourseReview = courseReviewRepository.insert(review)
 
     override fun softDelete(

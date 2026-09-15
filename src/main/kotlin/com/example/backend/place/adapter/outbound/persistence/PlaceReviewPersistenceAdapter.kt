@@ -12,6 +12,11 @@ import org.springframework.stereotype.Component
 class PlaceReviewPersistenceAdapter(
     private val placeReviewRepository: PlaceReviewRepository,
 ) : PlaceReviewPersistencePort {
+    override fun existsActiveReview(
+        placeId: Long,
+        userId: Long,
+    ): Boolean = placeReviewRepository.existsActiveReview(placeId = placeId, userId = userId)
+
     override fun save(review: PlaceReview): PlaceReview = placeReviewRepository.insert(review)
 
     override fun softDelete(

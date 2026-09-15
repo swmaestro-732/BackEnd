@@ -11,4 +11,7 @@ enum class CourseErrorCode(
 
     // 4042(USER)·4043(PLACE)·4044(AREA)·4045(PLACE_REVIEW)는 다른 도메인이 선점 — 노션 명세대로 4046 채번
     COURSE_REVIEW_NOT_FOUND(404, 4046, "리뷰를 찾을 수 없습니다."),
+
+    // 4096 은 장소 리뷰 중복(PlaceErrorCode.PLACE_REVIEW_ALREADY_EXISTS)이 선점 — 4097 로 채번했다.
+    COURSE_REVIEW_ALREADY_EXISTS(409, 4097, "이미 이 코스에 리뷰를 작성했습니다."),
 }

@@ -12,4 +12,7 @@ enum class PlaceErrorCode(
 
     // 4094 는 장소 저장 중복이 선점 — 폴더 이름 중복(UserErrorCode.FOLDER_NAME_ALREADY_TAKEN)은 4095 로 채번했다.
     PLACE_ALREADY_SAVED(409, 4094, "이미 저장한 장소입니다."),
+
+    // 4090~4095 는 이미 선점 — 리뷰 1인 1개 제한은 4096 으로 채번했다(코스 리뷰는 4097).
+    PLACE_REVIEW_ALREADY_EXISTS(409, 4096, "이미 이 장소에 리뷰를 작성했습니다."),
 }

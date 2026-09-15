@@ -6,7 +6,7 @@ import org.junit.jupiter.api.Assertions.assertSame
 import org.junit.jupiter.api.Test
 
 /**
- * [CourseReviewTag] 단위 테스트 — 태그 마스터 테이블이 없어진 뒤 이 enum 이 코드 정본이다(V5).
+ * [CourseReviewTag] 단위 테스트 — 태그 마스터 테이블이 없어진 뒤 이 enum 이 코드 정본이다(V6).
  * 저장 값(enum 이름)과 API 코드(소문자)의 대응, 코드 → enum 변환 규칙을 고정한다.
  */
 class CourseReviewTagTest {

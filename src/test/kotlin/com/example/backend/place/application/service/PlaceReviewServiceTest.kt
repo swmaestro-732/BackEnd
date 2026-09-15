@@ -51,6 +51,14 @@ class PlaceReviewServiceTest {
             var softDeleteResult: Int = 0
             var softDeletedArgs: Triple<Long, Long, Long>? = null
 
+            /** 1인 1리뷰 사전검사 결과 — true 면 이미 리뷰가 있는 상황을 흉내 낸다. */
+            var existingReview: Boolean = false
+
+            override fun existsActiveReview(
+                placeId: Long,
+                userId: Long,
+            ): Boolean = existingReview
+
             override fun softDelete(
                 reviewId: Long,
                 placeId: Long,

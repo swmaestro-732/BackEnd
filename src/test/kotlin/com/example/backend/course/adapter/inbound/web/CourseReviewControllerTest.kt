@@ -71,7 +71,7 @@ class CourseReviewControllerTest
                     String::class.java,
                 ),
             )
-            // 태그는 마스터 테이블 없이 enum 이름으로 저장된다(V5).
+            // 태그는 마스터 테이블 없이 enum 이름으로 저장된다(V6).
             assertEquals(
                 listOf("PACKED", "SMOOTH"),
                 jdbcTemplate.queryForList(
@@ -98,13 +98,29 @@ class CourseReviewControllerTest
         }
 
         @Test
-        fun `같은 사용자가 같은 코스에 또 써도 막지 않고 카운터가 누적된다`() {
-            // 다시 따라갈 때마다 남길 수 있어야 한다 — 스키마에도 유니크 제약이 없다.
+        fun `같은 사용자가 같은 코스에 또 쓰면 4097을 내려주고 카운터도 그대로다`() {
+            // 코스 하나에 사용자당 리뷰 1개 — 서비스 사전검사(409)와 uq_course_reviews_user_course 가 함께 막는다.
             mockMvc.perform(createReviewRequest(COURSE_ID, """{"rating":5}""")).andExpect(status().isCreated)
+
+            mockMvc
+                .perform(createReviewRequest(COURSE_ID, """{"rating":3}"""))
+                .andExpect(status().isConflict)
+                .andExpect(jsonPath("$.code").value(4097))
+
+            assertEquals(1, countRows("course_reviews"))
+            assertEquals(5L to 1, ratingCounters())
+        }
+
+        @Test
+        fun `리뷰를 지우면 같은 코스에 다시 쓸 수 있다`() {
+            mockMvc.perform(createReviewRequest(COURSE_ID, """{"rating":5}""")).andExpect(status().isCreated)
+            mockMvc.perform(deleteReviewRequest(reviewId = 1, token = accessToken(USER_ID))).andExpect(status().isOk)
+
             mockMvc.perform(createReviewRequest(COURSE_ID, """{"rating":3}""")).andExpect(status().isCreated)
 
+            // 소프트 삭제된 행은 남아 있고(유니크는 살아있는 행만) 카운터는 새 리뷰 것만 남는다.
             assertEquals(2, countRows("course_reviews"))
-            assertEquals(8L to 2, ratingCounters())
+            assertEquals(3L to 1, ratingCounters())
         }
 
         @Test
