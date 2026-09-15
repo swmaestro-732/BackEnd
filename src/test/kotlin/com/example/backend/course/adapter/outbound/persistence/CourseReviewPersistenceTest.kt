@@ -1,5 +1,6 @@
 package com.example.backend.course.adapter.outbound.persistence
 
+import com.example.backend.common.domain.CourseVisibility
 import com.example.backend.course.adapter.outbound.persistence.exposed.CourseReviewPhotoTable
 import com.example.backend.course.adapter.outbound.persistence.exposed.CourseReviewTable
 import com.example.backend.course.adapter.outbound.persistence.exposed.CourseReviewTagLinkTable
@@ -9,7 +10,6 @@ import com.example.backend.course.domain.model.CourseReview
 import com.example.backend.course.domain.model.CourseReviewStatus
 import com.example.backend.course.domain.model.CourseReviewTag
 import com.example.backend.course.domain.model.CourseStatus
-import com.example.backend.course.domain.model.CourseVisibility
 import com.example.backend.support.IntegrationTestBase
 import org.jetbrains.exposed.v1.core.SortOrder
 import org.jetbrains.exposed.v1.core.eq

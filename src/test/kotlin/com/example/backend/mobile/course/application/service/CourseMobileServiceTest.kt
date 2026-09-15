@@ -1,9 +1,9 @@
 package com.example.backend.mobile.course.application.service
 
+import com.example.backend.common.domain.CourseVisibility
 import com.example.backend.course.application.port.inbound.CourseQueryUseCase
 import com.example.backend.course.application.port.inbound.dto.CourseDetailResult
 import com.example.backend.course.application.port.inbound.dto.CoursePlaceResult
-import com.example.backend.course.domain.model.CourseVisibility
 import com.example.backend.mobile.course.application.port.inbound.CourseReviewScreenUseCase
 import com.example.backend.mobile.course.application.port.inbound.dto.CourseReviewScreenQuery
 import com.example.backend.mobile.course.application.port.inbound.dto.CourseReviewScreenResult
