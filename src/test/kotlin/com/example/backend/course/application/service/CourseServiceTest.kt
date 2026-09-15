@@ -28,10 +28,12 @@ import com.example.backend.course.domain.model.CourseCategory
 import com.example.backend.course.domain.model.CoursePlace
 import com.example.backend.course.domain.model.CourseStatus
 import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertNotNull
 import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Assertions.assertThrows
 import org.junit.jupiter.api.Test
 import org.mockito.Mockito.any
+import org.mockito.Mockito.anyLong
 import org.mockito.Mockito.mock
 import org.mockito.Mockito.never
 import org.mockito.Mockito.verify
@@ -279,6 +281,16 @@ class CourseServiceTest {
 
         val saved = publishedEvents.filterIsInstance<CourseSavedEvent>().single()
         assertEquals(CourseVisibility.PUBLIC, saved.newVisibility)
+    }
+
+    @Test
+    fun `다른 사용자 코스를 삭제하려 하면 COURSE_NOT_FOUND 를 던진다`() {
+        `when`(persistence.findCourseDetail(10L)).thenReturn(detail(isPublished = true)) // userId=1L 소유
+
+        val exception = assertThrows(BusinessException::class.java) { service.delete(userId = 2L, courseId = 10L) }
+
+        assertEquals(CourseErrorCode.COURSE_NOT_FOUND, exception.errorCode)
+        verify(persistence, never()).softDelete(anyLong())
     }
 
     private fun forkCommand(places: List<CreateCoursePlaceCommand> = commandPlaces()) =
