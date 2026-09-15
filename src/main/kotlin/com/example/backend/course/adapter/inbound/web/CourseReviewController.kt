@@ -1,5 +1,7 @@
 package com.example.backend.course.adapter.inbound.web
 
+import com.example.backend.bootstrap.appversion.AppFeature
+import com.example.backend.bootstrap.appversion.RequiresAppFeature
 import com.example.backend.bootstrap.mock.MockGuard
 import com.example.backend.bootstrap.security.AccessTokenRequired
 import com.example.backend.bootstrap.security.CurrentUserId
@@ -19,6 +21,7 @@ import org.springframework.web.bind.annotation.ResponseStatus
 import org.springframework.web.bind.annotation.RestController
 
 /** 인바운드 어댑터 — 코스 리뷰 작성·삭제 */
+@RequiresAppFeature(AppFeature.COURSE_REVIEW)
 @RestController
 @RequestMapping("/api/v1/courses/{courseId}/reviews")
 class CourseReviewController(

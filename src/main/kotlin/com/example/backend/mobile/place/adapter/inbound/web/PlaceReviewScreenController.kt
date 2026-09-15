@@ -1,5 +1,7 @@
 package com.example.backend.mobile.place.adapter.inbound.web
 
+import com.example.backend.bootstrap.appversion.AppFeature
+import com.example.backend.bootstrap.appversion.RequiresAppFeature
 import com.example.backend.bootstrap.mock.MockGuard
 import com.example.backend.bootstrap.security.CurrentUserId
 import com.example.backend.common.response.ApiResponse
@@ -17,6 +19,7 @@ import org.springframework.web.bind.annotation.RequestParam
 import org.springframework.web.bind.annotation.RestController
 
 /** 장소 후기 전체보기 **화면 조합 API**(BFF) */
+@RequiresAppFeature(AppFeature.PLACE_REVIEW)
 @RestController
 @RequestMapping("/service/v1")
 class PlaceReviewScreenController(

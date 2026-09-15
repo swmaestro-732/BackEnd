@@ -1,5 +1,7 @@
 package com.example.backend.place.adapter.inbound.web
 
+import com.example.backend.bootstrap.appversion.AppFeature
+import com.example.backend.bootstrap.appversion.RequiresAppFeature
 import com.example.backend.bootstrap.mock.MockGuard
 import com.example.backend.bootstrap.security.AccessTokenRequired
 import com.example.backend.bootstrap.security.CurrentUserId
@@ -25,6 +27,7 @@ import org.springframework.web.bind.annotation.RestController
  * 반환한다(장소 저장 선례와 동일 규칙 — 운영 프로파일에서는 [MockGuard] 가 무시한다).
  * 모킹 에러(`?mockError=<code>`)는 전역 아스펙트([com.example.backend.bootstrap.mock.MockErrorAspect])가 주입한다.
  */
+@RequiresAppFeature(AppFeature.PLACE_REVIEW)
 @RestController
 @RequestMapping("/api/v1/places/{placeId}/reviews")
 class PlaceReviewController(
