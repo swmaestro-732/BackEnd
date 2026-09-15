@@ -2,9 +2,14 @@ package com.example.backend.mobile.course.adapter.inbound.web
 
 import com.example.backend.bootstrap.appversion.AppFeature
 import com.example.backend.bootstrap.appversion.RequiresAppFeature
+import com.example.backend.bootstrap.mock.MockGuard
 import com.example.backend.bootstrap.security.CurrentUserId
 import com.example.backend.common.response.ApiResponse
+import com.example.backend.common.web.SortDirection
+import com.example.backend.course.application.port.inbound.dto.CourseReviewSortKey
 import com.example.backend.mobile.course.adapter.inbound.web.response.CourseReviewListResponse
+import com.example.backend.mobile.course.application.port.inbound.CourseReviewScreenUseCase
+import com.example.backend.mobile.course.application.port.inbound.dto.CourseReviewScreenQuery
 import jakarta.validation.constraints.Max
 import jakarta.validation.constraints.Min
 import org.springframework.web.bind.annotation.GetMapping
@@ -13,25 +18,39 @@ import org.springframework.web.bind.annotation.RequestMapping
 import org.springframework.web.bind.annotation.RequestParam
 import org.springframework.web.bind.annotation.RestController
 
-/** 코스 후기 전체보기 **화면 조합 목업 API** (BFF)  */
+/** 코스 후기 전체보기 **화면 조합 API**(BFF) */
 @RequiresAppFeature(AppFeature.COURSE_REVIEW)
 @RestController
 @RequestMapping("/service/v1")
-class CourseReviewScreenController {
-    /**
-     * 쿼리 파라미터(모두 받기만 하고 응답에 영향 없음)
-     * - sort: LATEST(작성일, 기본) | RATING(평점) — 디자인 "최신순 / 높은 평점".
-     * - order: ASC(오름차순) | DESC(내림차순, 기본).
-     * - cursor: 직전 응답의 nextCursor(첫 페이지는 생략).
-     * - size: 페이지 크기(기본 10, 1~50). 범위를 벗어나면 400.
-     */
+class CourseReviewScreenController(
+    private val courseReviewScreenUseCase: CourseReviewScreenUseCase,
+    private val mockGuard: MockGuard,
+) {
     @GetMapping("/courses/{courseId}/reviews")
     fun getScreen(
         @PathVariable courseId: Long,
         @CurrentUserId viewerId: Long?,
-        @RequestParam(required = false) sort: CourseReviewSort = CourseReviewSort.LATEST,
+        @RequestParam(required = false) sort: CourseReviewSortKey = CourseReviewSortKey.LATEST,
         @RequestParam(required = false) order: SortDirection = SortDirection.DESC,
         @RequestParam(required = false) cursor: String?,
         @RequestParam(required = false) @Min(1) @Max(50) size: Int = 10,
-    ): ApiResponse<CourseReviewListResponse> = ApiResponse.success(CourseReviewListResponse.mock())
+        @RequestParam(required = false) mock: Boolean = false,
+    ): ApiResponse<CourseReviewListResponse> {
+        if (mock && mockGuard.isMockAllowed()) return ApiResponse.success(CourseReviewListResponse.mock())
+
+        return ApiResponse.success(
+            CourseReviewListResponse.from(
+                courseReviewScreenUseCase.getScreen(
+                    CourseReviewScreenQuery(
+                        courseId = courseId,
+                        viewerId = viewerId,
+                        sort = sort,
+                        descending = order == SortDirection.DESC,
+                        cursor = cursor,
+                        size = size,
+                    ),
+                ),
+            ),
+        )
+    }
 }

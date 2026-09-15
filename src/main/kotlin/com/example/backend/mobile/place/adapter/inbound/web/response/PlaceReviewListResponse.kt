@@ -1,9 +1,10 @@
 package com.example.backend.mobile.place.adapter.inbound.web.response
 
+import com.example.backend.mobile.place.application.port.inbound.dto.PlaceReviewScreenResult
 import java.time.Instant
 
 /**
- * 웹 응답 DTO — 장소 후기 전체보기 **화면 조합**(BFF) 한 페이지(**모킹 API**).
+ * 웹 응답 DTO — 장소 후기 전체보기 **화면 조합**(BFF) 한 페이지.
  * averageRating/totalCount/ratingDistribution/photoCount 는 장소 전체 집계,
  * nextCursor/hasNext 는 커서 페이지 메타다.
  *
@@ -13,8 +14,7 @@ import java.time.Instant
  * 장소 상세 시트("리뷰 ★ 4.8 · 1,240 · 전체보기", 작성자·별점·상대시간 미리보기)와
  * 후기 전체보기 화면(평균 평점 + 별점 분포 + 후기 사진 개수 + 최신순/높은 평점 정렬).
  *
- * 장소 상세 시트의 리뷰 미리보기([PlaceReviewResponse])와는 DTO 가 갈라져 있다 —
- * 미리보기에는 태그가 없어서다. 통합은 실구현 때 함께 정리한다(작성자는 [PlaceReviewAuthorResponse] 공용).
+ * 장소 상세 화면의 리뷰 미리보기([PlaceReviewSummaryResponse.reviews])도 같은 [PlaceReviewItemResponse] 를 쓴다.
  */
 data class PlaceReviewListResponse(
     val averageRating: Double,
@@ -29,6 +29,19 @@ data class PlaceReviewListResponse(
     val reviews: List<PlaceReviewItemResponse>,
 ) {
     companion object {
+        /** 화면 조합 결과([PlaceReviewScreenResult])를 응답으로 옮긴다. */
+        fun from(result: PlaceReviewScreenResult) =
+            PlaceReviewListResponse(
+                averageRating = result.averageRating,
+                totalCount = result.totalCount,
+                ratingDistribution = result.ratingDistribution.map { PlaceRatingCountResponse(it.rating, it.count) },
+                photoCount = result.photoCount,
+                hasVisitedPlace = result.hasVisitedPlace,
+                nextCursor = result.nextCursor,
+                hasNext = result.hasNext,
+                reviews = result.reviews.map(PlaceReviewItemResponse::from),
+            )
+
         /** MOCK: 조회자별 방문 이력 조회 전 고정값. 실제 구현 시 saved_places.visited_at·따라가기 체크인으로 판정한다. */
         private const val MOCK_HAS_VISITED_PLACE = true
 
@@ -148,16 +161,37 @@ data class PlaceRatingCountResponse(
     val count: Int,
 )
 
-/** 상대 시간("2일 전")은 내려주지 않는다 — [createdAt](UTC)으로 클라이언트가 표기한다. */
+/**
+ * 상대 시간("2일 전")은 내려주지 않는다 — [createdAt](UTC)으로 클라이언트가 표기한다.
+ * [content]("한마디")는 별점만 남긴 리뷰라면 없다 — 작성 API 가 선택 값으로 받으므로 null 로 내려간다.
+ */
 data class PlaceReviewItemResponse(
     val id: Long,
     val author: PlaceReviewAuthorResponse,
     val rating: Int,
-    val content: String,
+    val content: String?,
     val createdAt: Instant,
     val photoUrls: List<String>,
     val tags: List<PlaceReviewTagResponse>,
-)
+) {
+    companion object {
+        fun from(item: PlaceReviewScreenResult.ReviewItem) =
+            PlaceReviewItemResponse(
+                id = item.id,
+                author =
+                    PlaceReviewAuthorResponse(
+                        id = item.author.id,
+                        nickname = item.author.nickname,
+                        profileImageUrl = item.author.profileImageUrl,
+                    ),
+                rating = item.rating,
+                content = item.content,
+                createdAt = item.createdAt,
+                photoUrls = item.photoUrls,
+                tags = item.tags.map { PlaceReviewTagResponse(it.code, it.label, it.icon) },
+            )
+    }
+}
 
 /**
  * 리뷰 태그 — code(`.ai/taxonomy.md` 키워드) + label(문구) + icon(이모지).

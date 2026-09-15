@@ -1,10 +1,10 @@
 package com.example.backend.course.adapter.outbound.persistence.exposed
 
+import com.example.backend.common.domain.CourseVisibility
 import com.example.backend.course.domain.model.Course
 import com.example.backend.course.domain.model.CourseCategory
 import com.example.backend.course.domain.model.CoursePlace
 import com.example.backend.course.domain.model.CourseStatus
-import com.example.backend.course.domain.model.CourseVisibility
 import org.jetbrains.exposed.v1.core.dao.id.EntityID
 import org.jetbrains.exposed.v1.core.dao.id.LongIdTable
 import org.jetbrains.exposed.v1.dao.LongEntity
@@ -37,6 +37,10 @@ internal object CourseTable : LongIdTable("courses") {
     val commentsCnt = integer("comments_cnt").default(0)
     val savesCnt = integer("saves_cnt").default(0)
     val tracingsCnt = integer("tracings_cnt").default(0)
+
+    // 별점 비정규화 카운터(V6) — 리뷰 작성 +rating/+1, 소프트 삭제 -rating/-1 상대 갱신. 평균 = rating_sum / rating_cnt.
+    val ratingSum = long("rating_sum").default(0)
+    val ratingCnt = integer("rating_cnt").default(0)
     val forkedFromId = long("forked_from_id").nullable() // 포크 원본 course (같은 도메인)
 }
 
