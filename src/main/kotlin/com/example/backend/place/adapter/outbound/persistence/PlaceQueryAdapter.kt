@@ -13,6 +13,8 @@ import org.springframework.stereotype.Component
 class PlaceQueryAdapter(
     private val placeRepository: PlaceRepository,
 ) : PlaceQueryPort {
+    override fun findPlaceById(placeId: Long): Place? = placeRepository.findById(placeId)?.toDomain()
+
     override fun findPlacesById(placeIds: List<Long>): List<Place> {
         if (placeIds.isEmpty()) return emptyList()
         return placeRepository.findByIds(placeIds).map { it.toDomain() }

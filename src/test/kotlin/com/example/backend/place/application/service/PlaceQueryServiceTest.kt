@@ -17,6 +17,8 @@ class PlaceQueryServiceTest {
 
     private val port =
         object : PlaceQueryPort {
+            override fun findPlaceById(placeId: Long): Place? = portFindResult.firstOrNull { it.id == placeId }
+
             override fun findPlacesById(placeIds: List<Long>): List<Place> = portFindResult
 
             override fun searchByName(

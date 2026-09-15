@@ -3,6 +3,7 @@ package com.example.backend.bootstrap.exception
 import com.example.backend.common.exception.BusinessException
 import com.example.backend.common.response.ApiResponse
 import com.example.backend.common.response.CommonErrorCode
+import com.example.backend.common.response.CourseErrorCode
 import com.example.backend.common.response.ErrorCode
 import com.example.backend.common.response.PlaceErrorCode
 import com.example.backend.common.response.UserErrorCode
@@ -96,6 +97,7 @@ class GlobalExceptionHandler {
         if (e.sqlState == UNIQUE_VIOLATION_SQL_STATE) {
             val message = e.message?.lowercase().orEmpty()
             // 폴더(saved_course_folders)를 저장 코스(saved_courses)보다 먼저 본다 — 테이블 이름이 서로 닮아 있다.
+            // 리뷰 1인 1개 제한은 테이블명 대신 인덱스명으로 본다 — place_reviews 는 사진·태그 링크 인덱스와도 겹친다.
             val errorCode =
                 when {
                     "handle" in message -> UserErrorCode.HANDLE_ALREADY_TAKEN
@@ -103,6 +105,8 @@ class GlobalExceptionHandler {
                     "saved_course_folders" in message -> UserErrorCode.FOLDER_NAME_ALREADY_TAKEN
                     "saved_courses" in message -> UserErrorCode.COURSE_ALREADY_SAVED
                     "saved_places" in message -> PlaceErrorCode.PLACE_ALREADY_SAVED
+                    "uq_place_reviews_user_place" in message -> PlaceErrorCode.PLACE_REVIEW_ALREADY_EXISTS
+                    "uq_course_reviews_user_course" in message -> CourseErrorCode.COURSE_REVIEW_ALREADY_EXISTS
                     else -> null
                 }
             if (errorCode != null) {

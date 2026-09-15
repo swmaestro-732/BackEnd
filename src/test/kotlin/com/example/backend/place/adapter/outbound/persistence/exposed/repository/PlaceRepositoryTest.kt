@@ -124,17 +124,23 @@ class PlaceRepositoryTest
                 repository.insertIgnoringConflicts(
                     listOf(place("색인1", "i-1"), place("색인2", "i-2"), place("색인3", "i-3")),
                 )
-                // 한 batchInsert 라 id 가 연속 → 방금 넣은 3건이 테이블에서 가장 큰 id(가장 최신)다.
+                // 한 batchInsert 라 id 가 연속이다.
                 val all = repository.findByKakaoIds(listOf("i-1", "i-2", "i-3")).sortedBy { it.id.value }
                 softDelete(all[1].id.value) // 가운데 하나 소프트 삭제
 
-                // afterId 로 방금 넣은 첫 행 뒤부터 → 삭제된 all[1] 은 건너뛰고 all[2] 만(그 뒤 행은 없음).
+                // 결과는 이 테스트가 넣은 3건으로 좁혀 본다 — @Sql 픽스처가 명시 id(예: place-review-fixture 의 601)로
+                // 심은 행이 커밋된 채 남아 있어, "방금 넣은 3건이 테이블에서 가장 큰 id" 라고 가정할 수 없다.
+                val mine = all.map { it.id.value }.toSet()
+
+                // afterId 로 방금 넣은 첫 행 뒤부터 → 삭제된 all[1] 은 건너뛰고 all[2] 만.
                 val afterFirst = repository.findForIndex(afterId = all[0].id.value, limit = 10)
-                assertThat(afterFirst.map { it.id.value }).containsExactly(all[2].id.value)
+                assertThat(afterFirst.map { it.id.value }.filter { it in mine })
+                    .containsExactly(all[2].id.value)
 
                 // afterId 바로 이전부터 시작하면 살아있는 all[0]·all[2] 를 오름차순으로 준다(삭제된 all[1] 제외).
                 val fromBeforeFirst = repository.findForIndex(afterId = all[0].id.value - 1, limit = 10)
-                assertThat(fromBeforeFirst.map { it.id.value }).containsExactly(all[0].id.value, all[2].id.value)
+                assertThat(fromBeforeFirst.map { it.id.value }.filter { it in mine })
+                    .containsExactly(all[0].id.value, all[2].id.value)
                 rollback()
             }
         }

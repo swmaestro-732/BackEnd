@@ -4,33 +4,28 @@ import com.example.backend.course.application.port.inbound.dto.CourseDetailResul
 import com.example.backend.course.application.port.inbound.dto.CoursePlaceImageResult
 import com.example.backend.course.application.port.inbound.dto.CoursePlaceResult
 import com.example.backend.mobile.course.application.port.inbound.dto.CourseDetailScreenResult
+import com.example.backend.mobile.course.application.port.inbound.dto.CourseReviewScreenResult
 import com.example.backend.mobile.place.adapter.inbound.web.response.PlaceLocationResponse
 import com.example.backend.place.application.port.inbound.dto.PlaceSummary
 import com.example.backend.user.application.port.inbound.dto.UserProfileResult
-import java.time.OffsetDateTime
-import java.time.ZoneOffset
+import java.time.Instant
 
 /**
  * 웹 응답 DTO — 코스 상세 화면 조합(BFF). 프론트 화면 계약 형태.
- * 코스 상세([CourseDetailResult]) + 작성자 프로필([UserProfileResult]) + 장소 요약([PlaceSummary])을
- * 조합해 채운다. 표시 로직(도보 시간 합계·따라가기 축약 라벨·장소명/카테고리 결합)은 이 계층의 [from] 매퍼가 담당한다.
- * `reviewSummary` 는 아직 리뷰 조회 유스케이스가 없어 실 응답에서는 null 로 내려간다(유스케이스 도입 시 result 에서 매핑).
- * 목([MOCK]) 응답에만 고정 예시를 채워 프론트가 형태를 확인할 수 있게 한다.
+ * 코스 상세([CourseDetailResult]) + 작성자 프로필([UserProfileResult]) + 장소 요약([PlaceSummary]) +
+ * 리뷰 요약([CourseReviewScreenResult])을 조합해 채운다.
+ * 표시 로직(도보 시간 합계·따라가기 축약 라벨·장소명/카테고리 결합)은 이 계층의 [from] 매퍼가 담당한다.
  */
 data class CourseDetailScreenResponse(
     val course: CourseScreenResponse,
-    val reviewSummary: ReviewSummaryResponse?,
+    val reviewSummary: ReviewSummaryResponse,
 ) {
     companion object {
-        /**
-         * 화면 조합 결과([CourseDetailScreenResult]) → 응답 매핑.
-         * `reviewSummary` 는 리뷰 조회 유스케이스가 없어 아직 null 이다 — 목 값([MOCK])을 실 응답에 노출하지 않는다
-         * (유스케이스 도입 시 result 에서 매핑).
-         */
+        /** 화면 조합 결과([CourseDetailScreenResult]) → 응답 매핑. */
         fun from(result: CourseDetailScreenResult): CourseDetailScreenResponse =
             CourseDetailScreenResponse(
                 course = CourseScreenResponse.from(result.course, result.author, result.places),
-                reviewSummary = null,
+                reviewSummary = ReviewSummaryResponse.from(result.reviewSummary),
             )
 
         private fun image(token: String) = "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9Gc$token&s=10"
@@ -40,21 +35,13 @@ data class CourseDetailScreenResponse(
             orderNo: Int,
         ) = CoursePlaceImageResponse(image(token), orderNo)
 
-        private fun kst(
-            year: Int,
-            month: Int,
-            day: Int,
-            hour: Int,
-            minute: Int,
-        ) = OffsetDateTime.of(year, month, day, hour, minute, 0, 0, ZoneOffset.ofHours(9))
-
         private const val PROFILE_IMAGE =
             "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQi7ZSFKA2brmDYt72J8vLDQxgOJKxs-lj4tavhXo_pEA&s=10"
 
         /**
          * `?mock=true` 폴백 응답 — 시드/DB 없이 프론트가 붙어볼 수 있게 고정 화면 목을 내려준다.
          * 코스 상세 목([com.example.backend.course.adapter.inbound.web.response.CourseDetailResponse.MOCK])과 같은 코스
-         * (비 오는 날 성수 감성 카페 코스)로 값을 맞춰 두었다. `reviewSummary` 는 리뷰 조회 유스케이스 도입 전까지 이 목을 그대로 쓴다.
+         * (비 오는 날 성수 감성 카페 코스)로 값을 맞춰 두었다.
          */
         val MOCK: CourseDetailScreenResponse =
             CourseDetailScreenResponse(
@@ -150,18 +137,17 @@ data class CourseDetailScreenResponse(
                             ),
                         previews =
                             listOf(
-                                ReviewPreviewResponse(
-                                    id = "1",
+                                CourseReviewItemResponse(
+                                    id = 1,
                                     author =
-                                        ReviewAuthorResponse(
+                                        CourseReviewAuthorResponse(
                                             id = 2,
                                             nickname = "성수러버",
                                             profileImageUrl = PROFILE_IMAGE,
                                         ),
                                     rating = 5,
                                     content = "비 오는 날 딱이에요. 통창 자리 순서대로 도니 동선도 완벽했어요. 웨이팅도 거의 없었어요 🌧️",
-                                    createdAt = kst(2026, 7, 7, 13, 20),
-                                    relativeTime = "4일 전",
+                                    createdAt = Instant.parse("2026-07-07T04:20:00Z"),
                                     photoUrls =
                                         listOf(
                                             image("ri_COfUpGil6k79RTh7vRhzDdP08yEcUmXIHnvn7Hfw"),
@@ -169,24 +155,23 @@ data class CourseDetailScreenResponse(
                                         ),
                                     tags =
                                         listOf(
-                                            ReviewTagResponse("구성이 알차요", "packed"),
-                                            ReviewTagResponse("흐름이 자연스러워요", "smooth"),
+                                            CourseReviewTagResponse("packed", "구성이 알차요", "📦"),
+                                            CourseReviewTagResponse("smooth", "흐름이 자연스러워요", "🌊"),
                                         ),
                                 ),
-                                ReviewPreviewResponse(
-                                    id = "2",
+                                CourseReviewItemResponse(
+                                    id = 2,
                                     author =
-                                        ReviewAuthorResponse(
+                                        CourseReviewAuthorResponse(
                                             id = 3,
                                             nickname = "카페투어",
                                             profileImageUrl = PROFILE_IMAGE,
                                         ),
                                     rating = 4,
                                     content = "코스 좋아요! 세 번째 카페가 조금 붐볐어요.",
-                                    createdAt = kst(2026, 7, 5, 18, 5),
-                                    relativeTime = "6일 전",
+                                    createdAt = Instant.parse("2026-07-05T09:05:00Z"),
                                     photoUrls = emptyList(),
-                                    tags = listOf(ReviewTagResponse("장소 조합이 좋아요", "combo")),
+                                    tags = listOf(CourseReviewTagResponse("combo", "장소 조합이 좋아요", "🌿")),
                                 ),
                             ),
                     ),
@@ -325,39 +310,30 @@ data class CourseViewerResponse(
     val hasStartedCourse: Boolean,
 )
 
-/** 리뷰 섹션 — 코스 전체 집계 + 최신순 프리뷰. 전체 목록/페이징은 `/api/v1/courses/{id}/reviews` 로 조회한다. */
+/**
+ * 리뷰 섹션 — 코스 전체 집계 + 최신순 미리보기. 전체 목록/페이징은 `/service/v1/courses/{id}/reviews` 로 조회한다.
+ * 미리보기 항목은 후기 전체보기와 같은 [CourseReviewItemResponse] 계약을 쓴다.
+ */
 data class ReviewSummaryResponse(
     val averageRating: Double,
     val totalCount: Int,
     val hasCompletedCourse: Boolean,
     val ratingDistribution: List<RatingCountResponse>,
-    val previews: List<ReviewPreviewResponse>,
-)
+    val previews: List<CourseReviewItemResponse>,
+) {
+    companion object {
+        fun from(result: CourseReviewScreenResult) =
+            ReviewSummaryResponse(
+                averageRating = result.averageRating,
+                totalCount = result.totalCount,
+                hasCompletedCourse = result.hasCompletedCourse,
+                ratingDistribution = result.ratingDistribution.map { RatingCountResponse(it.rating, it.count) },
+                previews = result.reviews.map(CourseReviewItemResponse::from),
+            )
+    }
+}
 
 data class RatingCountResponse(
     val rating: Int,
     val count: Int,
-)
-
-data class ReviewPreviewResponse(
-    val id: String,
-    val author: ReviewAuthorResponse?,
-    val rating: Int,
-    val content: String,
-    val createdAt: OffsetDateTime,
-    val relativeTime: String,
-    val photoUrls: List<String>,
-    val tags: List<ReviewTagResponse>,
-)
-
-/** 리뷰 작성자 — 간략 정보(닉네임·프로필 이미지). */
-data class ReviewAuthorResponse(
-    val id: Long,
-    val nickname: String,
-    val profileImageUrl: String,
-)
-
-data class ReviewTagResponse(
-    val label: String,
-    val icon: String,
 )

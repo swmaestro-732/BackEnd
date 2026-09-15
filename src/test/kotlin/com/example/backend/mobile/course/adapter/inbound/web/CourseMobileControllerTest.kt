@@ -65,8 +65,11 @@ class CourseMobileControllerTest
                 .andExpect(jsonPath("$.data.course.places[1].name").value("카페B"))
                 .andExpect(jsonPath("$.data.course.places[1].location.latitude").value(37.55))
                 .andExpect(jsonPath("$.data.course.places[1].location.longitude").value(127.06))
-                // 리뷰 조회 유스케이스 도입 전까지 실 응답의 리뷰 요약은 null 이다(목 값 노출 금지)
-                .andExpect(jsonPath("$.data.reviewSummary").isEmpty)
+                // 리뷰 요약(후기 전체보기 유스케이스 재사용) — 리뷰가 없으면 집계 0·빈 미리보기
+                .andExpect(jsonPath("$.data.reviewSummary.averageRating").value(0.0))
+                .andExpect(jsonPath("$.data.reviewSummary.totalCount").value(0))
+                .andExpect(jsonPath("$.data.reviewSummary.ratingDistribution.length()").value(5))
+                .andExpect(jsonPath("$.data.reviewSummary.previews").isEmpty)
         }
 
         @Test

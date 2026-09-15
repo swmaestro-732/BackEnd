@@ -1,6 +1,7 @@
 package com.example.backend.place.domain.model
 
 import com.example.backend.common.geo.Coordinate
+import kotlin.math.round
 import kotlin.time.Instant
 
 /**
@@ -26,7 +27,13 @@ data class Place private constructor(
     val createdAt: Instant?,
     val updatedAt: Instant?,
     val deletedAt: Instant?,
+    val ratingSum: Long,
+    val ratingCnt: Int,
 ) {
+    /** 리뷰가 없으면 0.0, 있으면 소수 첫째 자리까지 반올림한 평균 별점. */
+    val averageRating: Double
+        get() = if (ratingCnt == 0) 0.0 else round(ratingSum * 10.0 / ratingCnt) / 10.0
+
     companion object {
         /** 신규 생성 — 도메인 불변식을 검증한다. 생성 시점에 미정인 값(id·타임스탬프)은 null, 상태는 pre-persist 기본값. */
         fun create(
@@ -57,6 +64,8 @@ data class Place private constructor(
                 createdAt = null,
                 updatedAt = null,
                 deletedAt = null,
+                ratingSum = 0,
+                ratingCnt = 0,
             )
         }
 
@@ -80,6 +89,8 @@ data class Place private constructor(
             createdAt: Instant?,
             updatedAt: Instant?,
             deletedAt: Instant?,
+            ratingSum: Long = 0,
+            ratingCnt: Int = 0,
         ): Place =
             Place(
                 id = id,
@@ -96,6 +107,8 @@ data class Place private constructor(
                 createdAt = createdAt,
                 updatedAt = updatedAt,
                 deletedAt = deletedAt,
+                ratingSum = ratingSum,
+                ratingCnt = ratingCnt,
             )
     }
 }
