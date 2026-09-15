@@ -1,6 +1,6 @@
 package com.example.backend.course.adapter.inbound.web.request
 
-import com.example.backend.course.domain.model.CourseVisibility
+import com.example.backend.common.domain.CourseVisibility
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Assertions.assertTrue

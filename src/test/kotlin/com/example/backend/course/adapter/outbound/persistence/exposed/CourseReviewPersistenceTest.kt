@@ -1,8 +1,8 @@
 package com.example.backend.course.adapter.outbound.persistence.exposed
 
+import com.example.backend.common.domain.CourseVisibility
 import com.example.backend.course.domain.model.CourseReviewStatus
 import com.example.backend.course.domain.model.CourseStatus
-import com.example.backend.course.domain.model.CourseVisibility
 import com.example.backend.support.IntegrationTestBase
 import org.assertj.core.api.Assertions.assertThat
 import org.jetbrains.exposed.v1.core.eq
