@@ -15,8 +15,7 @@ class AppVersionPolicyRepository {
             .selectAll()
             .mapNotNull { row ->
                 val feature = AppFeature.fromKey(row[AppVersionPolicyTable.feature])
-                val platform =
-                    runCatching { AppPlatform.valueOf(row[AppVersionPolicyTable.platform].uppercase()) }.getOrNull()
+                val platform = AppPlatform.fromHeader(row[AppVersionPolicyTable.platform])
                 if (feature == null || platform == null) {
                     log.warn {
                         "미정의 앱 버전 정책 행 무시: feature=${row[AppVersionPolicyTable.feature]}, " +
