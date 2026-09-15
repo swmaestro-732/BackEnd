@@ -1,8 +1,8 @@
 package com.example.backend.course.adapter.inbound.web.request
 
+import com.example.backend.common.domain.CourseVisibility
 import com.example.backend.course.application.port.inbound.dto.CreateCoursePlaceCommand
 import com.example.backend.course.application.port.inbound.dto.ForkCourseCommand
-import com.example.backend.course.domain.model.CourseVisibility
 import jakarta.validation.Valid
 import jakarta.validation.constraints.NotBlank
 import jakarta.validation.constraints.Size

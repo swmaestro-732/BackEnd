@@ -1,5 +1,6 @@
 package com.example.backend.course.application.service
 
+import com.example.backend.common.domain.CourseVisibility
 import com.example.backend.common.exception.BusinessException
 import com.example.backend.common.response.CourseErrorCode
 import com.example.backend.course.application.port.outbound.CoursePersistencePort
@@ -11,7 +12,6 @@ import com.example.backend.course.application.port.outbound.ViewerCourseState
 import com.example.backend.course.application.port.outbound.ViewerInteractionPort
 import com.example.backend.course.domain.model.CourseCategory
 import com.example.backend.course.domain.model.CourseStatus
-import com.example.backend.course.domain.model.CourseVisibility
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertThrows

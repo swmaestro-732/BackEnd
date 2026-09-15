@@ -1,6 +1,10 @@
 package com.example.backend.course.application.port.inbound.dto
 
-import com.example.backend.course.domain.model.CourseVisibility
+import com.example.backend.common.domain.CourseVisibility
+import com.example.backend.course.application.port.outbound.CourseDetailRow
+import com.example.backend.course.application.port.outbound.PlaceRef
+import com.example.backend.course.domain.model.Course
+import com.example.backend.course.domain.model.CoursePlace
 
 /**
  * 코스 생성 명령(애플리케이션 경계 타입). 웹 요청(CreateCourseRequest)에서 매핑된다.
@@ -76,3 +80,66 @@ data class EditCourseCommand(
     val isPublished: Boolean,
     val places: List<CreateCoursePlaceCommand>,
 )
+
+// ── 커맨드 → 도메인 매핑(순수) ──────────────────────────────────
+// 포트 I/O(장소 존재 검증·지역명 조회)와 파생 결정(areaCode)은 서비스가 먼저 수행하고, 그 결과를 인자로 넘긴다.
+// 여기서는 이미 구해진 값으로 도메인 애그리거트를 조립만 한다 — 그래서 순수하고 커맨드 옆에 둘 수 있다.
+
+/** 커맨드 장소 목록 → 도메인 [CoursePlace] 매핑. */
+fun List<CreateCoursePlaceCommand>.toCoursePlaces(): List<CoursePlace> =
+    map {
+        CoursePlace(
+            placeId = it.placeId,
+            orderNo = it.orderNo,
+            caption = it.caption,
+            imageUrls = it.imageUrls,
+            walkingMinutes = it.walkingMinutes,
+        )
+    }
+
+/** 생성 커맨드 → 도메인 [Course]. [places]·[areaCode]·[area] 는 서비스가 미리 도출·조회해 넘긴다. */
+fun CreateCourseCommand.toCourse(
+    places: List<CoursePlace>,
+    foundPlaces: List<PlaceRef>,
+    areaCode: String?,
+    area: String?,
+): Course =
+    Course.create(
+        userId = userId,
+        title = title,
+        description = description,
+        coverImageUrl = coverImageUrl,
+        visibility = visibility,
+        isPublished = isPublished,
+        forkedFromId = forkedFromId,
+        tags = tags,
+        places = places,
+        placeCategoryByPlaceId = foundPlaces.associate { it.id to it.category },
+        areaCode = areaCode,
+        area = area,
+    )
+
+/** 편집 커맨드 → 도메인 [Course]. [places]·[areaCode]·[area] 는 서비스가 미리 도출·조회해 넘긴다. */
+fun EditCourseCommand.toCourse(
+    existing: CourseDetailRow,
+    places: List<CoursePlace>,
+    foundPlaces: List<PlaceRef>,
+    areaCode: String?,
+    area: String?,
+): Course =
+    Course.edit(
+        id = courseId,
+        userId = userId,
+        title = title,
+        description = description,
+        coverImageUrl = coverImageUrl,
+        visibility = visibility,
+        isPublished = isPublished,
+        tags = tags,
+        places = places,
+        wasPublished = existing.isPublished,
+        existingCategory = existing.category,
+        placeCategoryByPlaceId = foundPlaces.associate { it.id to it.category },
+        areaCode = areaCode,
+        area = area,
+    )
