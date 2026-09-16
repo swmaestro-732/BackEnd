@@ -1,5 +1,6 @@
 package com.example.backend.area.adapter.outbound.persistence
 
+import com.example.backend.area.adapter.outbound.persistence.exposed.AreaTable
 import com.example.backend.area.adapter.outbound.persistence.exposed.repository.AreaRepository
 import com.example.backend.support.IntegrationTestBase
 import org.jetbrains.exposed.v1.core.eq

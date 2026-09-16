@@ -5,6 +5,7 @@ import com.example.backend.user.adapter.outbound.persistence.exposed.SavedPlaceT
 import com.example.backend.user.adapter.outbound.persistence.exposed.UserTable
 import com.example.backend.user.application.port.outbound.SavedPlacePersistencePort
 import com.example.backend.user.domain.model.SavedPlaceCategory
+import com.example.backend.user.domain.model.UserStatus
 import org.jetbrains.exposed.v1.core.and
 import org.jetbrains.exposed.v1.core.eq
 import org.jetbrains.exposed.v1.core.isNull
@@ -296,7 +297,7 @@ class SavedPlacePersistenceTest
                 .insert {
                     it[UserTable.nickname] = nickname
                     it[handle] = "h_$nickname"
-                    it[status] = 0 // ACTIVE
+                    it[status] = UserStatus.ACTIVE
                     it[followersCnt] = 0
                     it[followingsCnt] = 0
                     it[publicCoursesCnt] = 0

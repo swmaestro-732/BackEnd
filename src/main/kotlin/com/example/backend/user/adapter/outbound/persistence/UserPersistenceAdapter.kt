@@ -1,6 +1,7 @@
 package com.example.backend.user.adapter.outbound.persistence
 
 import com.example.backend.user.adapter.outbound.persistence.exposed.repository.UserRepository
+import com.example.backend.user.application.port.outbound.CourseCountPersistencePort
 import com.example.backend.user.application.port.outbound.UserPersistencePort
 import com.example.backend.user.application.port.outbound.UserProfileRow
 import com.example.backend.user.domain.model.SocialProvider
@@ -9,25 +10,26 @@ import org.springframework.stereotype.Component
 
 /**
  * 아웃바운드 어댑터 — [UserPersistencePort] 를 구현한다.
- * 실제 테이블 접근·도메인 매핑은 [UserRepository] 에 위임하고, 이 어댑터는 유스케이스 계약만 맞춘다.
+ * 실제 테이블 접근은 [UserRepository] 에 위임하고, DAO 엔티티를 도메인으로 변환해 유스케이스 계약을 맞춘다.
  */
 @Component
 class UserPersistenceAdapter(
     private val userRepository: UserRepository,
-) : UserPersistencePort {
-    override fun findAll(): List<User> = userRepository.findAll()
+) : UserPersistencePort,
+    CourseCountPersistencePort {
+    override fun findAll(): List<User> = userRepository.findAll().map { it.toDomain() }
 
-    override fun findById(id: Long): User? = userRepository.findById(id)
+    override fun findById(id: Long): User? = userRepository.findById(id)?.toDomain()
 
     override fun lockActive(userIds: List<Long>): Set<Long> = userRepository.lockActive(userIds)
 
-    override fun findByHandle(handle: String): User? = userRepository.findByHandle(handle)
+    override fun findByHandle(handle: String): User? = userRepository.findByHandle(handle)?.toDomain()
 
     override fun findProfile(userId: Long): UserProfileRow? = userRepository.findProfile(userId)
 
     override fun findProfiles(userIds: List<Long>): List<UserProfileRow> = userRepository.findProfiles(userIds)
 
-    override fun save(user: User): User = userRepository.save(user)
+    override fun save(user: User): User = userRepository.save(user).toDomain()
 
     override fun update(user: User) = userRepository.update(user)
 
@@ -36,7 +38,12 @@ class UserPersistenceAdapter(
         publicDelta: Int,
         followerDelta: Int,
         privateDelta: Int,
-    ) = userRepository.applyCourseCountDelta(userId, publicDelta, followerDelta, privateDelta)
+    ) = userRepository.applyCourseCountDelta(
+        userId = userId,
+        publicDelta = publicDelta,
+        followerDelta = followerDelta,
+        privateDelta = privateDelta,
+    )
 
     override fun softDelete(user: User) = userRepository.softDelete(user)
 
@@ -47,12 +54,12 @@ class UserPersistenceAdapter(
     override fun findBySocial(
         provider: SocialProvider,
         socialId: String,
-    ): User? = userRepository.findBySocial(provider, socialId)
+    ): User? = userRepository.findBySocial(provider, socialId)?.toDomain()
 
     override fun findWithdrawnBySocial(
         provider: SocialProvider,
         socialId: String,
-    ): User? = userRepository.findWithdrawnBySocial(provider, socialId)
+    ): User? = userRepository.findWithdrawnBySocial(provider, socialId)?.toDomain()
 
     override fun existsByNicknameExcludingUser(
         nickname: String,
@@ -64,7 +71,7 @@ class UserPersistenceAdapter(
         excludeUserId: Long,
     ): Boolean = userRepository.existsByHandleExcludingUser(handle, excludeUserId)
 
-    override fun saveWithSocial(user: User): User = userRepository.saveWithSocial(user)
+    override fun saveWithSocial(user: User): User = userRepository.saveWithSocial(user).toDomain()
 
-    override fun reactivate(user: User): User = userRepository.reactivate(user)
+    override fun reactivate(user: User): User = userRepository.reactivate(user).toDomain()
 }

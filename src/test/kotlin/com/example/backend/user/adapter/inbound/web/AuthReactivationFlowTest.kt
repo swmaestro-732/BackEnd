@@ -24,7 +24,7 @@ import org.springframework.test.web.servlet.result.MockMvcResultMatchers.status
         [
             "TRUNCATE TABLE users RESTART IDENTITY CASCADE",
             "INSERT INTO users (nickname, handle, status, social_provider, social_id, deleted_at) " +
-                "VALUES ('탈퇴유저', 'old_handle', 3, 'KAKAO', 'withdrawn-social-id', now())",
+                "VALUES ('탈퇴유저', 'old_handle', 'WITHDRAWN', 'KAKAO', 'withdrawn-social-id', now())",
         ],
     executionPhase = Sql.ExecutionPhase.BEFORE_TEST_METHOD,
 )

@@ -1,6 +1,6 @@
 package com.example.backend.course.application.port.inbound.dto
 
-import com.example.backend.course.domain.model.CourseVisibility
+import com.example.backend.common.domain.CourseVisibility
 
 /**
  * 코스 상세 조회 결과(애플리케이션 계층 DTO). 웹 응답 매퍼가 표시 로직을 입힌다 —

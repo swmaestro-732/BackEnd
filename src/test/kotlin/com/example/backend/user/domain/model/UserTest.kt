@@ -130,18 +130,6 @@ class UserTest {
     }
 
     @Test
-    fun `UserStatus fromCode 는 코드에 맞는 상태를 반환한다`() {
-        UserStatus.entries.forEach { status ->
-            assertEquals(status, UserStatus.fromCode(status.code))
-        }
-    }
-
-    @Test
-    fun `UserStatus fromCode 는 알 수 없는 코드면 예외를 던진다`() {
-        assertThrows<IllegalArgumentException> { UserStatus.fromCode(99) }
-    }
-
-    @Test
     fun `updateProfile 은 닉네임만 변경하고 핸들과 프로필 이미지를 유지한다`() {
         val user = existingUser()
 

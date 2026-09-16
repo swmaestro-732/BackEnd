@@ -1,7 +1,13 @@
 package com.example.backend.common.mock
 
 import com.example.backend.common.exception.BusinessException
+import com.example.backend.common.response.AreaErrorCode
+import com.example.backend.common.response.CommonErrorCode
+import com.example.backend.common.response.CourseErrorCode
+import com.example.backend.common.response.DirectionErrorCode
 import com.example.backend.common.response.ErrorCode
+import com.example.backend.common.response.PlaceErrorCode
+import com.example.backend.common.response.UserErrorCode
 
 /**
  * 모킹 API 전용 에러 주입 지원.
@@ -10,9 +16,17 @@ import com.example.backend.common.response.ErrorCode
  * 해당 API가 실제 구현으로 전환되면 호출부와 함께 제거한다.
  */
 object MockErrors {
+    private val errorCodes: List<ErrorCode> =
+        CommonErrorCode.entries +
+            CourseErrorCode.entries +
+            UserErrorCode.entries +
+            PlaceErrorCode.entries +
+            AreaErrorCode.entries +
+            DirectionErrorCode.entries
+
     fun throwIfRequested(mockError: Int?) {
         if (mockError == null) return
-        val errorCode = ErrorCode.entries.firstOrNull { it.code == mockError } ?: ErrorCode.INVALID_INPUT
+        val errorCode = errorCodes.firstOrNull { it.code == mockError } ?: CommonErrorCode.INVALID_INPUT
         throw BusinessException(errorCode)
     }
 }

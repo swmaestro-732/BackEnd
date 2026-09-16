@@ -1,7 +1,7 @@
 package com.example.backend.mobile.home.application.service
 
 import com.example.backend.common.exception.BusinessException
-import com.example.backend.common.response.ErrorCode
+import com.example.backend.common.response.CommonErrorCode
 import com.example.backend.mobile.home.application.port.outbound.dto.HomeFeedCursor
 import java.nio.charset.StandardCharsets
 import java.time.DateTimeException
@@ -53,7 +53,7 @@ internal object HomeFeedCursorCodec {
         )
     }
 
-    private fun invalidCursor() = BusinessException(ErrorCode.INVALID_INPUT, "유효하지 않은 코스 피드 커서입니다.")
+    private fun invalidCursor() = BusinessException(CommonErrorCode.INVALID_INPUT, "유효하지 않은 코스 피드 커서입니다.")
 
     private const val CURSOR_FIELD_COUNT = 4
 

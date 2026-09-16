@@ -1,5 +1,6 @@
 package com.example.backend.course.adapter.outbound.persistence
 
+import com.example.backend.common.domain.CourseVisibility
 import com.example.backend.course.adapter.outbound.persistence.exposed.repository.CoursePlaceRepository
 import com.example.backend.course.adapter.outbound.persistence.exposed.repository.CourseRepository
 import com.example.backend.course.adapter.outbound.persistence.exposed.repository.CourseTagRepository
@@ -11,7 +12,6 @@ import com.example.backend.course.application.port.outbound.CoursePersistencePor
 import com.example.backend.course.application.port.outbound.CoursePlaceRow
 import com.example.backend.course.application.port.outbound.CourseSummaryRow
 import com.example.backend.course.domain.model.Course
-import com.example.backend.course.domain.model.CourseVisibility
 import org.springframework.stereotype.Component
 
 /**
@@ -84,16 +84,14 @@ class CoursePersistenceAdapter(
     override fun findForIndex(
         afterId: Long?,
         limit: Int,
-    ): List<Course> = courseRepository.findForIndex(afterId, limit)
+    ): List<Course> = courseRepository.findForIndex(afterId, limit).map { it.toDomain(emptyList(), emptyList()) }
 
-    /** 코스에 담긴 장소·이미지와 태그 연결을 심는다(생성·편집 공용). */
+    /** 코스에 담긴 장소·이미지와 태그 연결을 심는다(생성·편집 공용) — 테이블별 배치 insert 로 왕복을 줄인다. */
     private fun insertChildren(
         courseId: Long,
         course: Course,
     ) {
-        course.places.forEach { place -> coursePlaceRepository.insert(courseId, place) }
-        course.tags.forEach { tagName ->
-            courseTagRepository.link(courseId, tagRepository.findOrCreate(tagName))
-        }
+        coursePlaceRepository.insertAll(courseId, course.places)
+        courseTagRepository.linkAll(courseId, tagRepository.findOrCreateAll(course.tags))
     }
 }

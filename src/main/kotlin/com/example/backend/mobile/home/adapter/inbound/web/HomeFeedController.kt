@@ -1,5 +1,7 @@
 package com.example.backend.mobile.home.adapter.inbound.web
 
+import com.example.backend.bootstrap.appversion.AppFeature
+import com.example.backend.bootstrap.appversion.RequiresAppFeature
 import com.example.backend.common.response.ApiResponse
 import com.example.backend.mobile.home.adapter.inbound.web.response.HomeFeedResponse
 import com.example.backend.mobile.home.application.port.inbound.HomeFeedUseCase
@@ -18,6 +20,7 @@ import org.springframework.web.bind.annotation.RestController
  *
  * 시드/DB 없이 프론트가 붙어볼 수 있도록 `?mock=true` 면 조회 없이 고정 목([HomeFeedResponse.MOCK])을 반환한다.
  */
+@RequiresAppFeature(AppFeature.COURSE_DETAIL)
 @RestController
 @RequestMapping("/service/v1")
 class HomeFeedController(

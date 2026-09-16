@@ -1,7 +1,7 @@
 package com.example.backend.user.application.service
 
 import com.example.backend.common.exception.BusinessException
-import com.example.backend.common.response.ErrorCode
+import com.example.backend.common.response.UserErrorCode
 import com.example.backend.media.application.port.inbound.MediaCleanupUseCase
 import com.example.backend.user.application.port.inbound.AccountUseCase
 import com.example.backend.user.application.port.inbound.dto.FollowResult
@@ -28,7 +28,7 @@ class AccountService(
     override fun getProfile(userId: Long): UserProfileResult {
         val row =
             userPersistencePort.findProfile(userId)
-                ?: throw BusinessException(ErrorCode.USER_NOT_FOUND, "사용자를 찾을 수 없습니다: id=$userId")
+                ?: throw BusinessException(UserErrorCode.USER_NOT_FOUND, "사용자를 찾을 수 없습니다: id=$userId")
         return UserProfileResult(
             id = row.id,
             nickname = row.nickname,
@@ -54,7 +54,7 @@ class AccountService(
     ): UserProfileResult {
         val user =
             userPersistencePort.findById(userId)
-                ?: throw BusinessException(ErrorCode.USER_NOT_FOUND, "사용자를 찾을 수 없습니다: id=$userId")
+                ?: throw BusinessException(UserErrorCode.USER_NOT_FOUND, "사용자를 찾을 수 없습니다: id=$userId")
 
         val nickname = command.nickname
         val handle = command.handle
@@ -65,13 +65,13 @@ class AccountService(
             nickname != user.nickname &&
             userPersistencePort.existsByNickname(nickname)
         ) {
-            throw BusinessException(ErrorCode.NICKNAME_ALREADY_TAKEN)
+            throw BusinessException(UserErrorCode.NICKNAME_ALREADY_TAKEN)
         }
         if (handle != null &&
             handle != user.handle &&
             userPersistencePort.existsByHandle(handle)
         ) {
-            throw BusinessException(ErrorCode.HANDLE_ALREADY_TAKEN)
+            throw BusinessException(UserErrorCode.HANDLE_ALREADY_TAKEN)
         }
 
         // 관심 테마 검증 — 유효한 코스 카테고리가 아닌 값이 섞이면 update·미디어 정리 전에 거부한다(FK 없음 방어).
@@ -108,10 +108,10 @@ class AccountService(
         // 두 사용자 행을 FOR UPDATE 로 잠가 동시 탈퇴 정리와 직렬화한다(활성 검사도 잠금 아래에서 수행).
         val active = userPersistencePort.lockActive(listOf(followerId, targetId))
         if (targetId !in active) {
-            throw BusinessException(ErrorCode.USER_NOT_FOUND, "사용자를 찾을 수 없습니다: id=$targetId")
+            throw BusinessException(UserErrorCode.USER_NOT_FOUND, "사용자를 찾을 수 없습니다: id=$targetId")
         }
         if (followerId !in active) {
-            throw BusinessException(ErrorCode.USER_NOT_FOUND, "사용자를 찾을 수 없습니다: id=$followerId")
+            throw BusinessException(UserErrorCode.USER_NOT_FOUND, "사용자를 찾을 수 없습니다: id=$followerId")
         }
         followPersistencePort.follow(followerId, targetId)
         val followersCnt = userPersistencePort.findProfile(targetId)!!.followersCnt
@@ -126,10 +126,10 @@ class AccountService(
         // follow 와 같은 행 잠금으로 직렬화한다. 삭제는 멱등이지만 두 사용자 모두 활성일 때만 진행한다(follow 와 대칭).
         val active = userPersistencePort.lockActive(listOf(followerId, targetId))
         if (targetId !in active) {
-            throw BusinessException(ErrorCode.USER_NOT_FOUND, "사용자를 찾을 수 없습니다: id=$targetId")
+            throw BusinessException(UserErrorCode.USER_NOT_FOUND, "사용자를 찾을 수 없습니다: id=$targetId")
         }
         if (followerId !in active) {
-            throw BusinessException(ErrorCode.USER_NOT_FOUND, "사용자를 찾을 수 없습니다: id=$followerId")
+            throw BusinessException(UserErrorCode.USER_NOT_FOUND, "사용자를 찾을 수 없습니다: id=$followerId")
         }
         followPersistencePort.unfollow(followerId, targetId)
         val followersCnt = userPersistencePort.findProfile(targetId)!!.followersCnt

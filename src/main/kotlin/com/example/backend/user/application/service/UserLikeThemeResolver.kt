@@ -1,7 +1,7 @@
 package com.example.backend.user.application.service
 
 import com.example.backend.common.exception.BusinessException
-import com.example.backend.common.response.ErrorCode
+import com.example.backend.common.response.CommonErrorCode
 import com.example.backend.user.application.port.outbound.LikeThemePort
 import org.springframework.stereotype.Component
 
@@ -25,7 +25,7 @@ class UserLikeThemeResolver(
         if (distinct.isEmpty()) return distinct
         val unknown = distinct - likeThemePort.listThemeNames().toSet()
         if (unknown.isNotEmpty()) {
-            throw BusinessException(ErrorCode.INVALID_INPUT, "존재하지 않는 관심 테마가 포함되어 있습니다: $unknown")
+            throw BusinessException(CommonErrorCode.INVALID_INPUT, "존재하지 않는 관심 테마가 포함되어 있습니다: $unknown")
         }
         return distinct
     }

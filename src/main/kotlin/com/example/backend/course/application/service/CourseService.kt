@@ -1,8 +1,10 @@
 package com.example.backend.course.application.service
 
 import com.example.backend.area.application.port.inbound.AreaQueryUseCase
+import com.example.backend.common.domain.CourseVisibility
 import com.example.backend.common.exception.BusinessException
-import com.example.backend.common.response.ErrorCode
+import com.example.backend.common.response.CourseErrorCode
+import com.example.backend.common.response.PlaceErrorCode
 import com.example.backend.course.application.event.CourseAuthorWithdrawnEvent
 import com.example.backend.course.application.event.CourseDeletedEvent
 import com.example.backend.course.application.event.CourseSavedEvent
@@ -13,16 +15,15 @@ import com.example.backend.course.application.port.inbound.dto.CreateCourseComma
 import com.example.backend.course.application.port.inbound.dto.CreateCoursePlaceCommand
 import com.example.backend.course.application.port.inbound.dto.EditCourseCommand
 import com.example.backend.course.application.port.inbound.dto.ForkCourseCommand
-import com.example.backend.course.application.port.outbound.AuthorCourseCountPort
+import com.example.backend.course.application.port.inbound.dto.toCourse
+import com.example.backend.course.application.port.inbound.dto.toCoursePlaces
+import com.example.backend.course.application.port.outbound.CourseDetailRow
 import com.example.backend.course.application.port.outbound.CoursePersistencePort
 import com.example.backend.course.application.port.outbound.CoursePlaceImageRow
-import com.example.backend.course.application.port.outbound.CoursePlaceRow
 import com.example.backend.course.application.port.outbound.PlaceLookupPort
 import com.example.backend.course.application.port.outbound.PlaceRef
 import com.example.backend.course.domain.model.Course
 import com.example.backend.course.domain.model.CoursePlace
-import com.example.backend.course.domain.model.CourseStatus
-import com.example.backend.course.domain.model.CourseVisibility
 import org.springframework.context.ApplicationEventPublisher
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
@@ -30,220 +31,160 @@ import org.springframework.transaction.annotation.Transactional
 /**
  * 코스 쓰기(커맨드) 유스케이스 — 생성·편집·삭제. 조회는 [CourseQueryService] 가 담당한다(커맨드/쿼리 분리).
  *
- * 생성/편집: 발행·임시저장 공통. 불변식 검증과 카테고리 도출은 [Course] 애그리거트가 수행하고,
+ * 생성/편집: 발행·임시저장 공통. 불변식 검증과 카테고리 도출은 [Course] 애그리거트가 수행하고
  * 서비스는 카테고리 도출에 필요한 place 카테고리(아웃바운드 [PlaceLookupPort], ACL)만 조회해 넘긴다.
- * 코스 발행/공개범위변경/삭제로 작성자의 공개범위별 코스 개수가 바뀌면 [AuthorCourseCountPort] 로 반영한다.
+ * 한 비즈니스 로직 = 이벤트 하나: 생성·편집은 [CourseSavedEvent], 삭제는 [CourseDeletedEvent] 만 발행한다.
+ * 검색 색인과 작성자 코스 개수(user 도메인 ACL) 는 커밋 후 이 이벤트를 각자 소비한다 — 개수에 필요한
+ * 이전 공개범위는 서비스가 전달하고 작성자·새 공개범위는 이벤트가 저장된 Course 에서 도출한다.
  */
 @Service
 @Transactional
 class CourseService(
     private val coursePersistencePort: CoursePersistencePort,
-    // 포크 원본의 조회 가능 여부 판정을 조회 유스케이스와 공유한다(공개범위·팔로우 규칙 중복 방지).
     private val courseQueryUseCase: CourseQueryUseCase,
     private val placeLookupPort: PlaceLookupPort,
     private val areaQueryUseCase: AreaQueryUseCase,
-    private val authorCourseCountPort: AuthorCourseCountPort,
     private val eventPublisher: ApplicationEventPublisher,
 ) : CourseUseCase {
+    /** 코스 생성(발행·임시저장 공통) — 장소 검증·지역코드 도출 후 저장하고 [CourseSavedEvent] 를 발행한다. */
     override fun create(command: CreateCourseCommand): Course {
-        // fork 원본 코스가 실제로 존재하는지 검증(없으면 404).
-        command.forkedFromId?.let { forkedFromId ->
-            if (!coursePersistencePort.existsById(forkedFromId)) {
-                throw BusinessException(ErrorCode.COURSE_NOT_FOUND, "원본 코스를 찾을 수 없습니다: id=$forkedFromId")
-            }
-        }
-
-        // 참조 place 존재 검증(발행·임시저장 공통 — place_id 는 FK 가 없어 여기서만 걸러진다).
+        command.requireForkOriginExists()
         val foundPlaces = requirePlacesExist(command.places.map { it.placeId })
-        val places =
-            command.places.map {
-                CoursePlace(
-                    placeId = it.placeId,
-                    orderNo = it.orderNo,
-                    caption = it.caption,
-                    imageUrls = it.imageUrls,
-                    walkingMinutes = it.walkingMinutes,
-                )
-            }
-
-        // 파생 값(카테고리·지역코드·지역 이름) 도출 — 규칙은 도메인 순수 함수가, 조회(place 요약·지역 이름)는 서비스가 담당한다.
-        // 발행 코스만 도출하며(deriveXxx 가 임시저장이면 null), 검증차 조회한 place 요약을 그대로 재사용한다.
-        val category =
-            Course.deriveCategory(command.isPublished, places, foundPlaces.associate { it.id to it.category })
+        val places = command.places.toCoursePlaces()
         val areaCode =
-            Course.deriveAreaCode(command.isPublished, places, foundPlaces.associate { it.id to it.areaCode })
-
-        val course =
-            Course.create(
-                userId = command.userId,
-                title = command.title,
-                description = command.description,
-                coverImageUrl = command.coverImageUrl,
-                visibility = command.visibility,
+            Course.deriveAreaCode(
                 isPublished = command.isPublished,
-                forkedFromId = command.forkedFromId,
-                tags = command.tags,
                 places = places,
-                category = category,
-                areaCode = areaCode,
-                area = resolveAreaName(areaCode),
+                placeAreaCodeByPlaceId = foundPlaces.associate { it.id to it.areaCode },
             )
-        val saved = coursePersistencePort.save(course)
-        // 발행 코스만 개수에 잡힌다(임시저장은 제외). 발행이면 해당 공개범위 버킷 +1.
-        adjustAuthorCourseCount(
-            userId = command.userId,
-            removed = null,
-            added = if (command.isPublished) command.visibility else null,
+        val savedCourse =
+            coursePersistencePort.save(
+                command.toCourse(places, foundPlaces, areaCode, resolveAreaName(areaCode)),
+            )
+
+        // 커밋 후(AFTER_COMMIT) 검색 색인 + 작성자 코스 개수 반영. 발행 코스만 개수에 잡힌다(임시저장 제외 → new=null).
+        eventPublisher.publishEvent(
+            CourseSavedEvent(
+                newCourse = savedCourse,
+                oldVisibility = null,
+            ),
         )
-        eventPublisher.publishEvent(CourseSavedEvent(saved)) // 커밋 후 검색 색인(이벤트 — AFTER_COMMIT 리스너)
-        return saved
+        return savedCourse
     }
 
+    /** 코스 편집(전체 치환) — 소유·발행 불변식 검증 후 저장하고 [CourseSavedEvent] 를 발행한다. */
     override fun edit(command: EditCourseCommand): Course {
-        // 존재·소유권 검증 — 없거나(삭제 포함)·비활성·타인 소유면 존재를 드러내지 않도록 404(COURSE_NOT_FOUND).
-        val existing =
-            coursePersistencePort.findCourseDetail(command.courseId)
-                ?: throw BusinessException(ErrorCode.COURSE_NOT_FOUND, "코스를 찾을 수 없습니다: id=${command.courseId}")
-        if (existing.status != CourseStatus.ACTIVE || existing.userId != command.userId) {
-            throw BusinessException(ErrorCode.COURSE_NOT_FOUND, "코스를 찾을 수 없습니다: id=${command.courseId}")
-        }
+        val existingCourse = requireOwnedCourse(command.courseId, command.userId)
 
-        val places =
-            command.places.map {
-                CoursePlace(
-                    placeId = it.placeId,
-                    orderNo = it.orderNo,
-                    caption = it.caption,
-                    imageUrls = it.imageUrls,
-                    walkingMinutes = it.walkingMinutes,
-                )
-            }
-
-        // 이미 게시된 코스는 장소 구성(place_id·순서·사진)을 바꿀 수 없고 캡션만 수정할 수 있다.
-        // (임시저장→발행 전환은 existing.isPublished 가 false 라 이 제약에서 자유롭다.)
-        if (existing.isPublished) {
-            val storedPlaces = coursePersistencePort.findPlaces(command.courseId)
-            if (placesStructureChanged(storedPlaces, places)) {
-                throw BusinessException(
-                    ErrorCode.PUBLISHED_COURSE_PLACES_IMMUTABLE,
-                    "게시된 코스는 장소를 추가·삭제·교체하거나 순서·사진을 바꿀 수 없습니다: id=${command.courseId}",
-                )
-            }
-        }
-
-        // 참조 place 존재 검증(발행·임시저장 공통 — place_id 는 FK 가 없어 여기서만 걸러진다).
-        // 발행 코스의 장소 구성 불변(4003) 검증 뒤에 둬 기존 오류 우선순위를 유지한다.
-        val foundPlaces = requirePlacesExist(places.map { it.placeId })
-
-        // 카테고리·지역코드 유지/재도출 판정이 공유한다 — placesChanged 는 DB 조회라 발행 편집에서 한 번만 계산한다.
-        val placesUnchanged = command.isPublished && !placesChanged(command.courseId, places)
-        val areaCode =
-            resolveEditedDerivedValue(command.isPublished, existing.areaCode, placesUnchanged) {
-                Course.deriveAreaCode(command.isPublished, places, foundPlaces.associate { it.id to it.areaCode })
-            }
-
-        val course =
-            Course.edit(
-                id = command.courseId,
-                userId = command.userId,
-                title = command.title,
-                description = command.description,
-                coverImageUrl = command.coverImageUrl,
-                visibility = command.visibility,
-                isPublished = command.isPublished,
-                tags = command.tags,
-                places = places,
-                category =
-                    resolveEditedDerivedValue(command.isPublished, existing.category, placesUnchanged) {
-                        Course.deriveCategory(
-                            command.isPublished,
-                            places,
-                            foundPlaces.associate { it.id to it.category },
-                        )
-                    },
-                areaCode = areaCode,
-                // 지역 이름은 코드에서 결정적으로 풀리므로 유지/재도출 판정 없이 항상 코드로 재해석한다.
-                area = resolveAreaName(areaCode),
-            )
-        val updated = coursePersistencePort.update(course)
-        // 편집은 ACTIVE 코스만 통과한다(위 가드). 발행 상태·공개범위 전이만큼 작성자 카운터를 조정한다
-        // (초안→발행 +1, 발행→초안 −1, 공개범위 변경 시 old −1·new +1, 변화 없으면 0).
-        adjustAuthorCourseCount(
-            userId = command.userId,
-            removed = if (existing.isPublished) existing.visibility else null,
-            added = if (command.isPublished) command.visibility else null,
+        val newPlaces = command.places.toCoursePlaces()
+        Course.ensurePublishedPlacesUnchanged(
+            wasPublished = existingCourse.isPublished,
+            storedPlaces =
+                coursePersistencePort.findPlaces(command.courseId).map {
+                    CoursePlace(
+                        it.placeId,
+                        it.orderNo,
+                        it.caption,
+                        it.images.map(CoursePlaceImageRow::imageUrl),
+                        it.walkingMinutes,
+                    )
+                },
+            newPlaces = newPlaces,
         )
-        eventPublisher.publishEvent(CourseSavedEvent(updated)) // 커밋 후 검색 색인(이벤트 — AFTER_COMMIT 리스너)
-        return updated
+        val foundPlaces = requirePlacesExist(newPlaces.map { it.placeId })
+        val areaCode =
+            Course.editAreaCode(
+                isPublished = command.isPublished,
+                wasPublished = existingCourse.isPublished,
+                existingAreaCode = existingCourse.areaCode,
+                places = newPlaces,
+                placeAreaCodeByPlaceId = foundPlaces.associate { it.id to it.areaCode },
+            )
+
+        return updateCourse(
+            command.toCourse(existingCourse, newPlaces, foundPlaces, areaCode, resolveAreaName(areaCode)),
+            removed = Course.countedVisibility(existingCourse.isPublished, existingCourse.visibility),
+        )
     }
 
-    /**
-     * 코스 포크. 원본은 **장소 구성(어디를 어떤 순서로)만** 물려주고, 그 위의 콘텐츠(장소별 캡션·사진,
-     * 제목·설명·커버·태그·공개 설정)는 포크하는 사람이 새로 입력한 값이라 저장은 생성 경로를 그대로 탄다 —
-     * 포크라는 사실은 courses.forked_from_id 로만 남는다(출처 표시).
-     *
-     * 포크 전에 두 가지를 추가로 검증한다.
-     * 1. **원본을 볼 수 있는지** — 조회와 같은 규칙([CourseQueryUseCase])이라 볼 수 없는 코스
-     *    (없음·삭제·비활성·PRIVATE 타인·FOLLOWER 비팔로워)는 존재를 드러내지 않도록 404 로 막는다.
-     *    자기 코스 포크는 막지 않는다(볼 수 있으므로 통과) — 같은 코스를 다시 기록하는 것도 유효한 사용이다.
-     * 2. **원본 장소를 충분히 담았는지**([requireOriginPlacesKept]) — 포크가 원본과 다른 코스가 되는 것을 막는다.
-     */
     override fun fork(command: ForkCourseCommand): Course {
         // 상세와 같은 배치 조회 경로를 쓴다(해시태그를 읽지 않아 단건 조회보다 쿼리가 하나 적다).
         // 원본 장소는 이 결과에 함께 실려 오므로 유지 검증을 위해 따로 조회하지 않는다.
-        val origin =
+        val originCourse =
             courseQueryUseCase
                 .getDetails(listOf(command.forkedFromId), command.userId)
                 .firstOrNull()
                 ?: throw BusinessException(
-                    ErrorCode.COURSE_NOT_FOUND,
+                    CourseErrorCode.COURSE_NOT_FOUND,
                     "원본 코스를 찾을 수 없습니다: id=${command.forkedFromId}",
                 )
 
-        requireOriginPlacesKept(origin.places.map(CoursePlaceResult::placeId), command.places)
+        requireOriginPlacesKept(originCourse.places.map(CoursePlaceResult::placeId), command.places)
         return create(command.toCreateCommand())
     }
 
+    /** 코스 소프트 삭제. */
+    override fun delete(
+        userId: Long,
+        courseId: Long,
+    ) {
+        val existingCourse = requireOwnedCourse(courseId, userId)
+
+        // 동시 삭제 레이스 방지: softDelete 는 deleted_at IS NULL 조건이라 실제 갱신 행이 0이면(이미 다른 요청이 삭제)
+        // 이벤트를 발행하지 않는다 — 안 그러면 두 요청이 각기 다른 eventId 로 발행해 작성자 카운터가 두 번 감소한다.
+        if (coursePersistencePort.softDelete(courseId) == 0) return
+        // 커밋 후(AFTER_COMMIT) 검색 문서 삭제 + 작성자 코스 개수 감소. 발행 코스였다면 해당 공개범위 버킷 −1
+        // (임시저장은 애초에 안 잡혀 있었다 → oldVisibility=null).
+        eventPublisher.publishEvent(
+            CourseDeletedEvent(
+                courseId = courseId,
+                authorId = userId,
+                oldVisibility = Course.countedVisibility(existingCourse.isPublished, existingCourse.visibility),
+            ),
+        )
+    }
+
+    /** 편집한 코스를 저장하고 발행 상태·공개범위 전이를 담은 [CourseSavedEvent] 를 발행한다. */
+    private fun updateCourse(
+        course: Course,
+        removed: CourseVisibility?,
+    ): Course {
+        val updatedCourse = coursePersistencePort.update(course)
+        // 편집은 ACTIVE 코스만 통과한다(위 가드). 발행 상태·공개범위 전이(초안→발행, 발행→초안, 공개범위 변경, 변화 없음)를
+        // 이벤트에 실어 보내면 user 도메인이 버킷 델타를 계산한다. 검색 색인도 같은 이벤트를 소비한다(커밋 후).
+        // 새 상태는 요청이 아니라 저장 결과([updatedCourse])에서 도출한다.
+        eventPublisher.publishEvent(
+            CourseSavedEvent(
+                newCourse = updatedCourse,
+                oldVisibility = removed,
+            ),
+        )
+        return updatedCourse
+    }
+
+    /** 포크가 원본 장소를 최소 유지 개수([Course.requiredKeptPlaceCount]) 이상 담았는지 검증한다(미달이면 예외). */
     private fun requireOriginPlacesKept(
         originPlaceIds: List<Long>,
         forkedPlaces: List<CreateCoursePlaceCommand>,
     ) {
         val originIds = originPlaceIds.distinct()
-        val required = Course.requiredKeptPlaceCount(originIds.size)
+        val requiredKeptCount = Course.requiredKeptPlaceCount(originIds.size)
         val forkedIds = forkedPlaces.map { it.placeId }.toSet()
-        val kept = originIds.count { it in forkedIds }
-        if (kept < required) {
+        val keptCount = originIds.count { it in forkedIds }
+        if (keptCount < requiredKeptCount) {
             throw BusinessException(
-                ErrorCode.FORK_PLACES_NOT_KEPT,
-                "원본 장소 ${originIds.size}곳 중 ${required}곳 이상을 그대로 담아야 합니다(현재 ${kept}곳).",
+                CourseErrorCode.FORK_PLACES_NOT_KEPT,
+                "원본 장소 ${originIds.size}곳 중 ${requiredKeptCount}곳 이상을 그대로 담아야 합니다(현재 ${keptCount}곳).",
             )
         }
     }
 
-    /**
-     * 코스 소프트 삭제. 존재·소유권을 검증한 뒤 deleted_at 스탬프만 찍는다(전체 치환·애그리거트 재구성 없음).
-     * 자식(장소·이미지·태그)은 그대로 두며, 모든 조회가 courses.deleted_at 로 걸러 도달 불가하다.
-     */
-    override fun delete(
-        userId: Long,
-        courseId: Long,
-    ) {
-        // 존재·소유권 검증 — 없거나(삭제 포함)·비활성·타인 소유면 존재를 드러내지 않도록 404(COURSE_NOT_FOUND).
-        val existing =
-            coursePersistencePort.findCourseDetail(courseId)
-                ?: throw BusinessException(ErrorCode.COURSE_NOT_FOUND, "코스를 찾을 수 없습니다: id=$courseId")
-        if (existing.status != CourseStatus.ACTIVE || existing.userId != userId) {
-            throw BusinessException(ErrorCode.COURSE_NOT_FOUND, "코스를 찾을 수 없습니다: id=$courseId")
+    /** 포크 원본([forkedFromId])이 지정됐으면 실제 존재하는 코스인지 검증한다(없으면 예외). */
+    private fun CreateCourseCommand.requireForkOriginExists() {
+        val originCourseId = forkedFromId ?: return
+        if (!coursePersistencePort.existsById(originCourseId)) {
+            throw BusinessException(CourseErrorCode.COURSE_NOT_FOUND)
         }
-
-        coursePersistencePort.softDelete(courseId)
-        // 발행 코스였다면 삭제로 해당 공개범위 버킷 −1(임시저장은 애초에 안 잡혀 있었다).
-        adjustAuthorCourseCount(
-            userId = userId,
-            removed = if (existing.isPublished) existing.visibility else null,
-            added = null,
-        )
-        eventPublisher.publishEvent(CourseDeletedEvent(courseId)) // 커밋 후 검색 색인(이벤트 — AFTER_COMMIT 리스너)
     }
 
     override fun deleteAllByAuthor(authorId: Long) {
@@ -253,89 +194,31 @@ class CourseService(
         eventPublisher.publishEvent(CourseAuthorWithdrawnEvent(authorId)) // 커밋 후 검색 색인(이벤트 — AFTER_COMMIT 리스너)
     }
 
-    /**
-     * 편집 코스의 파생 값(카테고리·지역코드)을 해석한다 — 두 값이 같은 유지/재도출 규칙을 공유한다.
-     * - 임시저장이면 null(생성과 동일).
-     * - 발행이면서 **기존 값이 있고 장소 구성이 그대로면**([placesUnchanged]) 재도출 없이 기존 값을 유지한다 —
-     *   장소를 바꾸지 않은 편집(제목·설명 등)에서 외부 place 데이터 드리프트로 값이 바뀌는 것을 막는다.
-     * - 그 외(초안→발행, 장소 변경, 값 미지정 코스)에만 [derive] 로 place 데이터에서 도출한다(생성과 동일 규칙).
-     */
-    private fun <T : Any> resolveEditedDerivedValue(
-        isPublished: Boolean,
-        existingValue: T?,
-        placesUnchanged: Boolean,
-        derive: () -> T?,
-    ): T? {
-        if (!isPublished) return null
-        if (existingValue != null && placesUnchanged) return existingValue
-        return derive()
-    }
-
-    /** 지역코드(법정동코드)를 표시 이름으로 푼다 — 동 레벨은 동 이름("성수동1가"), 시군구 레벨은 시군구 이름("강남구"). */
+    /** 법정동코드로 지역 표시명(shortName)을 조회한다. 코드가 null 이면 null. */
     private fun resolveAreaName(areaCode: String?): String? =
-        areaCode?.let { areaQueryUseCase.findAreaByCode(it)?.shortName }
+        areaCode?.let {
+            areaQueryUseCase.findAreaByCode(it)?.shortName
+        }
 
-    /**
-     * 발행 코스가 참조하는 place_id 가 모두 실제로 존재하는지 검증하고, 조회한 장소 요약을 돌려준다.
-     */
+    /** 요청한 장소가 모두 존재하는지 확인하고 [PlaceRef] 목록으로 반환한다(하나라도 없으면 예외). */
     private fun requirePlacesExist(placeIds: List<Long>): List<PlaceRef> {
         val requestedIds = placeIds.distinct()
-        val found = placeLookupPort.findPlacesByIds(requestedIds)
-        val missing = requestedIds.filterNot { id -> found.any { it.id == id } }
-        if (missing.isNotEmpty()) {
-            throw BusinessException(ErrorCode.PLACE_NOT_FOUND, "존재하지 않는 장소가 포함되어 있습니다: ids=$missing")
+        val foundPlaces = placeLookupPort.findPlacesByIds(requestedIds)
+        if (foundPlaces.size != requestedIds.size) {
+            throw BusinessException(PlaceErrorCode.PLACE_NOT_FOUND)
         }
-        return found
+        return foundPlaces
     }
 
-    /**
-     * 게시된 코스 편집에서 **캡션을 제외한** 장소 구성이 바뀌었는지 판정한다.
-     * place_id·순서(orderNo)·사진(imageUrls)이 저장본과 완전히 같아야 false(변경 없음)다.
-     * 저장본 이미지는 orderNo 오름차순으로 조회되므로 imageUrl 나열이 요청 imageUrls 순서와 그대로 대응한다.
-     */
-    private fun placesStructureChanged(
-        stored: List<CoursePlaceRow>,
-        newPlaces: List<CoursePlace>,
-    ): Boolean {
-        if (stored.size != newPlaces.size) return true
-        val storedSignature =
-            stored
-                .sortedBy { it.orderNo }
-                .map { Triple(it.placeId, it.orderNo, it.images.map(CoursePlaceImageRow::imageUrl)) }
-        val newSignature =
-            newPlaces
-                .sortedBy { it.orderNo }
-                .map { Triple(it.placeId, it.orderNo, it.imageUrls) }
-        return storedSignature != newSignature
-    }
-
-    /** 저장된 코스의 장소 구성이 요청과 다른지 판정한다 — 카테고리는 orderNo 순 placeId 나열에만 의존한다. */
-    private fun placesChanged(
+    /** 코스를 조회하고 편집·삭제 접근 정책([Course.ensureModifiable])을 통과시킨 뒤 상세 행을 반환한다. */
+    private fun requireOwnedCourse(
         courseId: Long,
-        newPlaces: List<CoursePlace>,
-    ): Boolean {
-        val existingPlaceIds =
-            coursePersistencePort.findPlaces(courseId).sortedBy { it.orderNo }.map { it.placeId }
-        val newPlaceIds = newPlaces.sortedBy { it.orderNo }.map { it.placeId }
-        return existingPlaceIds != newPlaceIds
-    }
-
-    /**
-     * 코스 상태 변화에 따른 작성자의 공개범위별 코스 개수 델타를 반영한다.
-     * [removed]/[added] 는 "카운트되는 상태(발행·활성·미삭제)"의 공개범위이고, 그 상태가 아니면 null.
-     * 크로스 도메인 경계라 공개범위 enum 대신 버킷별 원시 int 델타로 넘긴다([AuthorCourseCountPort]).
-     */
-    private fun adjustAuthorCourseCount(
         userId: Long,
-        removed: CourseVisibility?,
-        added: CourseVisibility?,
-    ) {
-        fun delta(v: CourseVisibility) = (if (added == v) 1 else 0) - (if (removed == v) 1 else 0)
-        authorCourseCountPort.applyDelta(
-            authorId = userId,
-            publicDelta = delta(CourseVisibility.PUBLIC),
-            followerDelta = delta(CourseVisibility.FOLLOWER),
-            privateDelta = delta(CourseVisibility.PRIVATE),
-        )
+    ): CourseDetailRow {
+        val existingCourse =
+            coursePersistencePort.findCourseDetail(courseId)
+                ?: throw BusinessException(CourseErrorCode.COURSE_NOT_FOUND)
+        Course.ensureModifiable(existingCourse.status, existingCourse.userId, userId)
+        return existingCourse
     }
 }

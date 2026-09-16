@@ -2,7 +2,7 @@ package com.example.backend.direction.application.service
 
 import com.example.backend.common.exception.BusinessException
 import com.example.backend.common.geo.Coordinate
-import com.example.backend.common.response.ErrorCode
+import com.example.backend.common.response.DirectionErrorCode
 import com.example.backend.direction.application.port.inbound.WalkingDurationUseCase
 import com.example.backend.direction.application.port.outbound.PedestrianRoute
 import com.example.backend.direction.application.port.outbound.PedestrianRoutePort
@@ -27,7 +27,7 @@ class DirectionService(
      * - **분(양수)**: 도보 이동 가능.
      * - **[UNWALKABLE](-1)**: 도보로 갈 수 없음 — 서비스 불가 구간(Tmap NoServiceArea) 또는 1시간 초과. 프론트가 "걸어갈 수 없는 거리"로 표시.
      *
-     * 한 구간이라도 **산출 불가(일시적 오류·타임아웃)** 면 부분 결과 대신 [ErrorCode.DIRECTION_UNAVAILABLE](503)로 실패한다
+     * 한 구간이라도 **산출 불가(일시적 오류·타임아웃)** 면 부분 결과 대신 [DirectionErrorCode.DIRECTION_UNAVAILABLE](503)로 실패한다
      * — 일시 오류를 "걸어갈 수 없음(-1)"으로 오인시키지 않기 위해서다(프론트는 재시도).
      */
     override fun walkingSegments(points: List<Coordinate>): List<Int> =
@@ -51,7 +51,7 @@ class DirectionService(
 
             // 일시적 오류 등 — 산출 불가라 -1(불가)로 속이지 않고 에러로 올린다.
             PedestrianRoute.Unknown -> {
-                throw BusinessException(ErrorCode.DIRECTION_UNAVAILABLE)
+                throw BusinessException(DirectionErrorCode.DIRECTION_UNAVAILABLE)
             }
         }
 

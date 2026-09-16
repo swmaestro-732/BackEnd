@@ -1,5 +1,8 @@
 package com.example.backend.course.adapter.outbound.persistence
 
+import com.example.backend.course.adapter.outbound.persistence.exposed.CoursePlaceTable
+import com.example.backend.course.adapter.outbound.persistence.exposed.CourseTagTable
+import com.example.backend.course.adapter.outbound.persistence.exposed.TagTable
 import com.example.backend.course.application.port.outbound.CourseTagQueryPort
 import org.jetbrains.exposed.v1.core.JoinType
 import org.jetbrains.exposed.v1.core.SortOrder

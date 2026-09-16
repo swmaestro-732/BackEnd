@@ -1,17 +1,14 @@
 package com.example.backend.course.domain.model
 
+import com.example.backend.common.domain.CourseVisibility
 import com.example.backend.common.exception.BusinessException
-import com.example.backend.common.response.ErrorCode
+import com.example.backend.common.response.CommonErrorCode
+import com.example.backend.common.response.CourseErrorCode
 import kotlinx.datetime.LocalDate
 import kotlin.time.Instant
 
 /**
- * 코스 애그리거트 루트. 코스와 그에 담긴 장소([CoursePlace])·태그를 한 일관성 경계로 묶는다.
- * 신규 생성은 [create] 팩토리로, 저장된 상태 복원(영속 계층 → 도메인)은 [reconstitute] 팩토리로만 한다.
- * 팩토리 우회는 [ConsistentCopyVisibility] 로 차단한다(copy() 도 private).
- *
- * courses 테이블의 모든 컬럼을 필드로 보유한다. 생성 시점(insert 전)에 미정인 값은 nullable·기본값으로 두고,
- * DB 가 채우는 값(id·created_at·updated_at·카운터 등)은 [reconstitute] 로 되돌려 받아 채운다.
+ * 코스 애그리거트 루트.
  */
 @ConsistentCopyVisibility // copy() 도 private 으로 — 팩토리 우회 차단
 data class Course private constructor(
@@ -38,6 +35,9 @@ data class Course private constructor(
     val tags: List<String>,
     val places: List<CoursePlace>,
 ) {
+    /** 이 코스가 작성자 개수에 기여하는 공개범위. 임시저장은 집계하지 않는다. */
+    val countedVisibility: CourseVisibility? get() = countedVisibility(isPublished, visibility)
+
     companion object {
         /** 코스가 담아야 하는 최소 장소 수 — 발행·임시저장 공통. */
         private const val MIN_PLACES = 2
@@ -59,9 +59,54 @@ data class Course private constructor(
             }
 
         /**
-         * 신규 생성. 파생 값(카테고리·지역코드·지역 이름)은 서비스가 [deriveCategory]·[deriveAreaCode] 로 도출하고
-         * 지역 이름을 area 모듈에서 조회해 넘긴다 — 도메인은 조회(포트 호출)를 하지 않으므로 결과만 받는다.
+         * 작성자 코스 개수에 "잡히는" 공개범위 — 발행·활성 코스만 카운트 대상이라 발행이면 [visibility], 임시저장이면 null.
+         * 어느 공개범위가 어느 버킷으로 가는지·델타 계산은 카운트를 소유한 user 도메인 몫이고 여기선 카운트 대상 여부만 정한다.
+         * 편집·삭제 전 읽기 모델의 상태에도 같은 규칙을 적용한다. Course 객체는 [Course.countedVisibility] 로 조회한다.
          */
+        fun countedVisibility(
+            isPublished: Boolean,
+            visibility: CourseVisibility,
+        ): CourseVisibility? = if (isPublished) visibility else null
+
+        /**
+         * 편집·삭제 접근 정책 — 소유자 본인의 아직 삭제되지 않은 코스만 쓰기(편집/삭제)할 수 있다.
+         * 접근 정책이 바뀌면(예: 발행 코스 삭제 제한, 관리자 예외) **이 함수만** 고친다 — 서비스는 조회 후 위임만 한다.
+         */
+        fun ensureModifiable(
+            status: CourseStatus,
+            ownerId: Long,
+            requesterId: Long,
+        ) {
+            if (status == CourseStatus.DELETED || ownerId != requesterId) {
+                throw BusinessException(CourseErrorCode.COURSE_NOT_FOUND)
+            }
+        }
+
+        /**
+         * 발행 코스 불변식 — 이미 발행된 코스는 장소 구성(장소·순서·사진)을 편집으로 바꿀 수 없다.
+         * 정책이 바뀌면 이 함수만 고친다. (영속 상태 비교라 호출부가 저장된 장소를 [CoursePlace] 로 투영해 넘긴다.)
+         */
+        fun ensurePublishedPlacesUnchanged(
+            wasPublished: Boolean,
+            storedPlaces: List<CoursePlace>,
+            newPlaces: List<CoursePlace>,
+        ) {
+            if (wasPublished && placesStructureChanged(storedPlaces, newPlaces)) {
+                throw BusinessException(CourseErrorCode.PUBLISHED_COURSE_PLACES_IMMUTABLE)
+            }
+        }
+
+        private fun placesStructureChanged(
+            storedPlaces: List<CoursePlace>,
+            newPlaces: List<CoursePlace>,
+        ): Boolean {
+            if (storedPlaces.size != newPlaces.size) return true
+
+            fun signature(places: List<CoursePlace>) =
+                places.sortedBy { it.orderNo }.map { Triple(it.placeId, it.orderNo, it.imageUrls) }
+            return signature(storedPlaces) != signature(newPlaces)
+        }
+
         fun create(
             userId: Long,
             title: String,
@@ -72,11 +117,12 @@ data class Course private constructor(
             forkedFromId: Long?,
             tags: List<String>,
             places: List<CoursePlace>,
-            category: CourseCategory?,
+            placeCategoryByPlaceId: Map<Long, String>,
             areaCode: String?,
             area: String?,
-        ): Course =
-            build(
+        ): Course {
+            val category = deriveCategory(isPublished, places, placeCategoryByPlaceId)
+            return build(
                 id = null,
                 userId = userId,
                 title = title,
@@ -91,13 +137,8 @@ data class Course private constructor(
                 areaCode = areaCode,
                 area = area,
             )
+        }
 
-        /**
-         * 코스 편집(전체 치환). 이미 영속화된 코스([id])의 전체 상태를 요청 값으로 덮어쓴다.
-         * 불변식은 [create] 와 동일하다. 카테고리·지역코드는 생성과 달리 **서비스가 이미 해석해** 넘긴다([category]·[areaCode]) —
-         * 기존 값이 있고 장소 구성이 그대로면 재도출 없이 유지하고, 그 외에만 [deriveCategory]·[deriveAreaCode] 결과를 넘긴다.
-         * 소유권·존재 여부는 서비스가 사전 검증한다.
-         */
         fun edit(
             id: Long,
             userId: Long,
@@ -108,11 +149,20 @@ data class Course private constructor(
             isPublished: Boolean,
             tags: List<String>,
             places: List<CoursePlace>,
-            category: CourseCategory?,
+            wasPublished: Boolean,
+            existingCategory: CourseCategory?,
+            placeCategoryByPlaceId: Map<Long, String>,
             areaCode: String?,
             area: String?,
-        ): Course =
-            build(
+        ): Course {
+            val category =
+                when {
+                    !isPublished -> null
+                    wasPublished && existingCategory != null -> existingCategory
+                    else -> deriveCategory(true, places, placeCategoryByPlaceId)
+                }
+
+            return build(
                 id = id,
                 userId = userId,
                 title = title,
@@ -128,6 +178,7 @@ data class Course private constructor(
                 areaCode = areaCode,
                 area = area,
             )
+        }
 
         /** 생성·편집 공통 — 도메인 불변식을 강제해 애그리거트를 만든다(카테고리·지역코드는 호출부가 도출·결정). */
         @Suppress("LongParameterList")
@@ -148,20 +199,20 @@ data class Course private constructor(
         ): Course {
             // 제목은 발행 코스만 필수다 — 임시저장(draft)은 제목 없이 저장할 수 있다(빌더 상단 "임시저장").
             if (isPublished && title.isBlank()) {
-                throw BusinessException(ErrorCode.INVALID_INPUT, "코스를 발행하려면 제목이 필요합니다.")
+                throw BusinessException(CommonErrorCode.INVALID_INPUT, "코스를 발행하려면 제목이 필요합니다.")
             }
             // 장소 최소 개수는 임시저장에도 적용된다 — 빌더에서 장소를 2곳 담아야 저장(임시저장 포함)할 수 있다.
             if (places.size < MIN_PLACES) {
-                throw BusinessException(ErrorCode.INVALID_INPUT, "코스에는 장소를 2곳 이상 담아야 합니다.")
+                throw BusinessException(CommonErrorCode.INVALID_INPUT, "코스에는 장소를 2곳 이상 담아야 합니다.")
             }
             if (isPublished && coverImageUrl.isNullOrBlank()) {
-                throw BusinessException(ErrorCode.INVALID_INPUT, "코스를 발행하려면 커버 이미지가 필요합니다.")
+                throw BusinessException(CommonErrorCode.INVALID_INPUT, "코스를 발행하려면 커버 이미지가 필요합니다.")
             }
             if (isPublished && places.any { it.imageUrls.isEmpty() }) {
-                throw BusinessException(ErrorCode.INVALID_INPUT, "발행 코스의 장소는 사진이 1장 이상이어야 합니다.")
+                throw BusinessException(CommonErrorCode.INVALID_INPUT, "발행 코스의 장소는 사진이 1장 이상이어야 합니다.")
             }
             if (places.map { it.orderNo }.toSet().size != places.size) {
-                throw BusinessException(ErrorCode.INVALID_INPUT, "장소 순서(orderNo)가 중복되었습니다.")
+                throw BusinessException(CommonErrorCode.INVALID_INPUT, "장소 순서(orderNo)가 중복되었습니다.")
             }
             // 생성 시점에 미정인 값은 pre-persist 기본값으로 둔다(id·타임스탬프는 DB 가, 카운터는 DB DEFAULT 가 채움).
             return Course(
@@ -249,10 +300,8 @@ data class Course private constructor(
          * 코스 카테고리 도출 규칙 — 발행 코스만 담은 장소들의 카테고리로 정한다(임시저장은 null).
          * 장소를 orderNo 순으로 정렬해 각 장소의 카테고리(placeId→PlaceCategory 이름)를 모으고,
          * [CourseCategory.fromPlaceCategoryNames] 로 최빈값을 고른다.
-         *
-         * 생성-시-발행과 draft→발행 전이가 동일 규칙을 쓰도록 도메인에 둔다(placeCategoryByPlaceId 는 place 도메인에서 조회해 주입).
          */
-        fun deriveCategory(
+        private fun deriveCategory(
             isPublished: Boolean,
             places: List<CoursePlace>,
             placeCategoryByPlaceId: Map<Long, String>,
@@ -267,10 +316,6 @@ data class Course private constructor(
          * [deriveCategory] 와 같은 최빈값 규칙을 시군구(코드 앞 5자리) 레벨에 적용한다:
          * orderNo 순으로 장소의 법정동코드를 모아 최다 빈도 시군구를 고르고(동률은 앞선 장소 우선),
          * 그 시군구 안 장소들이 모두 같은 읍면동이면 동 코드(10자리)로 세분화, 아니면 시군구 코드 + "00000" 패딩.
-         * 코드가 없는 장소(area_code 미확인)는 표본에서 빠지며, 전부 없으면 null.
-         *
-         * 최하위 공통 지역(LCA) 대신 최빈값을 쓰는 이유: 아웃라이어 장소 하나가 지역을 시도 레벨로
-         * 뭉개는 것을 막고, 시군구 필터(sigungu_code prefix)에 코스가 대표 지역으로 잡히게 하기 위함.
          */
         fun deriveAreaCode(
             isPublished: Boolean,
@@ -290,6 +335,35 @@ data class Course private constructor(
             val dongCodes = orderedCodes.filter { it.startsWith(sigungu) }.distinct()
             return dongCodes.singleOrNull() ?: sigungu.padEnd(AREA_CODE_LENGTH, '0')
         }
+
+        /**
+         * 편집 시 지역코드 결정 규칙 — 초안이면 null, 발행 상태를 유지하면 기존 코드를 보존, 그 외엔 장소들에서 재도출한다.
+         * [edit] 의 category 결정([deriveCategory])과 같은 모양의 규칙을 지역코드에 적용한다.
+         */
+        fun editAreaCode(
+            isPublished: Boolean,
+            wasPublished: Boolean,
+            existingAreaCode: String?,
+            places: List<CoursePlace>,
+            placeAreaCodeByPlaceId: Map<Long, String?>,
+        ): String? =
+            when {
+                !isPublished -> {
+                    null
+                }
+
+                wasPublished && existingAreaCode != null -> {
+                    existingAreaCode
+                }
+
+                else -> {
+                    deriveAreaCode(
+                        isPublished = true,
+                        places = places,
+                        placeAreaCodeByPlaceId = placeAreaCodeByPlaceId,
+                    )
+                }
+            }
 
         /** 법정동코드 자릿수 — 앞 5자리=시군구, 전체 10자리=읍면동(시군구 레벨은 뒤를 0 으로 패딩). */
         private const val SIGUNGU_CODE_LENGTH = 5

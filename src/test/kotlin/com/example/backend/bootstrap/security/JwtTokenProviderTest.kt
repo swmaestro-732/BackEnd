@@ -1,7 +1,7 @@
 package com.example.backend.bootstrap.security
 
 import com.example.backend.common.exception.BusinessException
-import com.example.backend.common.response.ErrorCode
+import com.example.backend.common.response.CommonErrorCode
 import com.example.backend.user.domain.model.SocialProvider
 import com.nimbusds.jose.jwk.source.ImmutableSecret
 import com.nimbusds.jose.proc.SecurityContext
@@ -54,7 +54,7 @@ class JwtTokenProviderTest {
 
         val exception = assertFailsWith<BusinessException> { provider.parseRegistrationToken(token) }
 
-        assertEquals(ErrorCode.INVALID_REGISTRATION_TOKEN, exception.errorCode)
+        assertEquals(CommonErrorCode.INVALID_REGISTRATION_TOKEN, exception.errorCode)
     }
 
     @Test
@@ -64,7 +64,7 @@ class JwtTokenProviderTest {
 
         val exception = assertFailsWith<BusinessException> { provider.parseRegistrationToken(token) }
 
-        assertEquals(ErrorCode.INVALID_REGISTRATION_TOKEN, exception.errorCode)
+        assertEquals(CommonErrorCode.INVALID_REGISTRATION_TOKEN, exception.errorCode)
     }
 
     private fun createProvider(

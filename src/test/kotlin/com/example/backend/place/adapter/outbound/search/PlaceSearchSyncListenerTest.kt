@@ -1,6 +1,6 @@
 package com.example.backend.place.adapter.outbound.search
 
-import com.example.backend.common.persistence.postgis.GeoPoint
+import com.example.backend.common.geo.Coordinate
 import com.example.backend.place.application.event.PlacesSavedEvent
 import com.example.backend.place.application.port.outbound.PlaceSearchIndexPort
 import com.example.backend.place.domain.model.Place
@@ -42,7 +42,7 @@ class PlaceSearchSyncListenerTest {
             name = "장소 $id",
             description = null,
             category = PlaceCategory.CAFE,
-            location = GeoPoint(latitude = 37.5, longitude = 127.0),
+            location = Coordinate(latitude = 37.5, longitude = 127.0),
             address = "a",
             areaCode = null,
             imageUrl = null,

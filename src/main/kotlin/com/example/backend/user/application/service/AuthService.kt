@@ -1,7 +1,8 @@
 package com.example.backend.user.application.service
 
 import com.example.backend.common.exception.BusinessException
-import com.example.backend.common.response.ErrorCode
+import com.example.backend.common.response.CommonErrorCode
+import com.example.backend.common.response.UserErrorCode
 import com.example.backend.user.application.port.inbound.AuthUseCase
 import com.example.backend.user.application.port.inbound.dto.LoginResult
 import com.example.backend.user.application.port.inbound.dto.SignupCommand
@@ -64,7 +65,7 @@ class AuthService(
     override fun signup(command: SignupCommand): SignupResult {
         val identity = authTokenPort.parseRegistrationToken(command.registrationToken)
         userPersistencePort.findBySocial(identity.provider, identity.socialId)?.let {
-            throw BusinessException(ErrorCode.SOCIAL_ACCOUNT_ALREADY_REGISTERED)
+            throw BusinessException(CommonErrorCode.SOCIAL_ACCOUNT_ALREADY_REGISTERED)
         }
         val areaCodes = userAreaResolver.normalizeAndValidate(command.areaCodes)
         val likeThemes = userLikeThemeResolver.validate(command.likeThemes)
@@ -73,20 +74,20 @@ class AuthService(
             if (withdrawn != null) {
                 val excludeId = checkNotNull(withdrawn.id) { "영속화된 User 는 id 를 가진다." }
                 if (userPersistencePort.existsByNicknameExcludingUser(command.nickname, excludeId)) {
-                    throw BusinessException(ErrorCode.NICKNAME_ALREADY_TAKEN)
+                    throw BusinessException(UserErrorCode.NICKNAME_ALREADY_TAKEN)
                 }
                 if (userPersistencePort.existsByHandleExcludingUser(command.handle, excludeId)) {
-                    throw BusinessException(ErrorCode.HANDLE_ALREADY_TAKEN)
+                    throw BusinessException(UserErrorCode.HANDLE_ALREADY_TAKEN)
                 }
                 userPersistencePort.reactivate(
                     withdrawn.reactivate(command.nickname, command.handle, command.profileImageUrl),
                 )
             } else {
                 if (userPersistencePort.existsByNickname(command.nickname)) {
-                    throw BusinessException(ErrorCode.NICKNAME_ALREADY_TAKEN)
+                    throw BusinessException(UserErrorCode.NICKNAME_ALREADY_TAKEN)
                 }
                 if (userPersistencePort.existsByHandle(command.handle)) {
-                    throw BusinessException(ErrorCode.HANDLE_ALREADY_TAKEN)
+                    throw BusinessException(UserErrorCode.HANDLE_ALREADY_TAKEN)
                 }
                 userPersistencePort.saveWithSocial(
                     User.createWithSocial(
@@ -119,17 +120,17 @@ class AuthService(
     override fun reissue(refreshToken: String): TokenPair {
         val current =
             refreshTokenPort.findValid(refreshToken)
-                ?: throw BusinessException(ErrorCode.INVALID_REFRESH_TOKEN)
+                ?: throw BusinessException(CommonErrorCode.INVALID_REFRESH_TOKEN)
 
         // 토큰 발급 이후 정지·탈퇴된 계정이 재발급으로 세션을 무한 연장하지 못하도록 계정 상태를 재확인한다
         // (socialLogin 과 동일 기준). 계정이 없으면(하드 삭제 등) 토큰 자체를 무효로 본다.
         val user =
             userPersistencePort.findById(current.userId)
-                ?: throw BusinessException(ErrorCode.INVALID_REFRESH_TOKEN)
+                ?: throw BusinessException(CommonErrorCode.INVALID_REFRESH_TOKEN)
         ensureActive(user)
 
         if (!refreshTokenPort.revoke(refreshToken)) {
-            throw BusinessException(ErrorCode.INVALID_REFRESH_TOKEN)
+            throw BusinessException(CommonErrorCode.INVALID_REFRESH_TOKEN)
         }
         return TokenPair(
             accessToken = authTokenPort.issueAccessToken(current.userId),
@@ -155,11 +156,11 @@ class AuthService(
             }
 
             UserStatus.SUSPENDED -> {
-                throw BusinessException(ErrorCode.ACCOUNT_SUSPENDED)
+                throw BusinessException(CommonErrorCode.ACCOUNT_SUSPENDED)
             }
 
             UserStatus.PENDING, UserStatus.WITHDRAWN, UserStatus.DELETED -> {
-                throw BusinessException(ErrorCode.ACCOUNT_INACTIVE)
+                throw BusinessException(CommonErrorCode.ACCOUNT_INACTIVE)
             }
         }
     }
