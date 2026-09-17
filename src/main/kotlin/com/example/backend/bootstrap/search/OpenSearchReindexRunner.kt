@@ -34,8 +34,8 @@ class OpenSearchReindexRunner(
         val client = clientProvider.ifAvailable ?: return // endpoint 미설정(로컬/CI) → no-op
 
         listOf(
-            Target("place", placeReindexUseCase::reindexAll),
-            Target("course", courseReindexUseCase::reindexAll),
+            Target(properties.withPrefix("place"), placeReindexUseCase::reindexAll),
+            Target(properties.withPrefix("course"), courseReindexUseCase::reindexAll),
         ).forEach { t ->
             try {
                 val empty = client.count { c -> c.index(t.alias) }.count() == 0L

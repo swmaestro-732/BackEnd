@@ -1,5 +1,6 @@
 package com.example.backend.bootstrap.search
 
+import com.example.backend.bootstrap.config.OpenSearchProperties
 import io.github.oshai.kotlinlogging.KotlinLogging
 import org.opensearch.client.opensearch.OpenSearchClient
 import org.opensearch.client.opensearch._types.mapping.TypeMapping
@@ -23,6 +24,7 @@ import org.springframework.stereotype.Component
 @Order(0)
 class OpenSearchIndexInitializer(
     private val clientProvider: ObjectProvider<OpenSearchClient>,
+    private val properties: OpenSearchProperties,
 ) : ApplicationRunner {
     private val log = KotlinLogging.logger {}
 
@@ -34,8 +36,16 @@ class OpenSearchIndexInitializer(
 
     private val indices =
         listOf(
-            IndexDef(alias = "place", index = "place_v1", mappingResource = "opensearch/place.json"),
-            IndexDef(alias = "course", index = "course_v1", mappingResource = "opensearch/course.json"),
+            IndexDef(
+                alias = properties.withPrefix("place"),
+                index = properties.withPrefix("place_v1"),
+                mappingResource = "opensearch/place.json",
+            ),
+            IndexDef(
+                alias = properties.withPrefix("course"),
+                index = properties.withPrefix("course_v1"),
+                mappingResource = "opensearch/course.json",
+            ),
         )
 
     override fun run(args: ApplicationArguments) {
