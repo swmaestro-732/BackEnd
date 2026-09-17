@@ -1,5 +1,6 @@
 package com.example.backend.course.adapter.outbound.search
 
+import com.example.backend.bootstrap.config.OpenSearchProperties
 import com.example.backend.common.domain.CourseVisibility
 import com.example.backend.course.domain.model.Course
 import com.example.backend.course.domain.model.CourseCategory
@@ -15,7 +16,7 @@ import org.springframework.beans.factory.ObjectProvider
 
 class OpenSearchCourseIndexAdapterTest {
     private val clientProvider = mock(ObjectProvider::class.java) as ObjectProvider<OpenSearchClient>
-    private val adapter = OpenSearchCourseIndexAdapter(clientProvider)
+    private val adapter = OpenSearchCourseIndexAdapter(clientProvider, OpenSearchProperties())
 
     private fun courseWithId(id: Long): Course =
         Course.reconstitute(

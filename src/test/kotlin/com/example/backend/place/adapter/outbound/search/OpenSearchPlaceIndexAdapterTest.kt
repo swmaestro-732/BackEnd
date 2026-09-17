@@ -1,5 +1,6 @@
 package com.example.backend.place.adapter.outbound.search
 
+import com.example.backend.bootstrap.config.OpenSearchProperties
 import com.example.backend.common.geo.Coordinate
 import com.example.backend.place.domain.model.Place
 import com.example.backend.place.domain.model.PlaceBusinessStatus
@@ -16,7 +17,7 @@ import org.springframework.beans.factory.ObjectProvider
 
 class OpenSearchPlaceIndexAdapterTest {
     private val clientProvider = mock(ObjectProvider::class.java) as ObjectProvider<OpenSearchClient>
-    private val adapter = OpenSearchPlaceIndexAdapter(clientProvider)
+    private val adapter = OpenSearchPlaceIndexAdapter(clientProvider, OpenSearchProperties())
 
     private fun placeWithId(id: Long): Place =
         Place.reconstitute(
