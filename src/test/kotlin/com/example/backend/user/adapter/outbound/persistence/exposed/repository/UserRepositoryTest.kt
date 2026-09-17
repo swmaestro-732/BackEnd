@@ -21,7 +21,7 @@ class UserRepositoryTest
     constructor(
         private val repository: UserRepository,
     ) : IntegrationTestBase() {
-        private val seq = AtomicLong(System.nanoTime())
+        private val seq = AtomicLong(System.nanoTime() % 1_000_000)
 
         private fun uniq(prefix: String) = "$prefix${seq.incrementAndGet()}"
 
