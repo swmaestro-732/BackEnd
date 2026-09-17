@@ -1,5 +1,6 @@
 package com.example.backend.course.adapter.outbound.search
 
+import com.example.backend.bootstrap.config.OpenSearchProperties
 import com.example.backend.common.domain.CourseVisibility
 import com.example.backend.course.domain.model.Course
 import com.example.backend.course.domain.model.CourseStatus
@@ -81,7 +82,7 @@ class OpenSearchCourseIndexAdapterTest {
 
     @Test
     fun `save 는 클라이언트가 없으면 no-op 한다`() {
-        val adapter = OpenSearchCourseIndexAdapter(providerOf(null))
+        val adapter = OpenSearchCourseIndexAdapter(providerOf(null), OpenSearchProperties())
 
         assertThatCode { adapter.save(course(id = 1L)) }.doesNotThrowAnyException()
     }
@@ -93,7 +94,7 @@ class OpenSearchCourseIndexAdapterTest {
             inv.getArgument<Function<IndexRequest.Builder<CourseDocument>, *>>(0).apply(IndexRequest.Builder())
             mock(IndexResponse::class.java)
         }
-        val adapter = OpenSearchCourseIndexAdapter(providerOf(client))
+        val adapter = OpenSearchCourseIndexAdapter(providerOf(client), OpenSearchProperties())
 
         adapter.save(course(id = 1L))
 
@@ -104,7 +105,7 @@ class OpenSearchCourseIndexAdapterTest {
     fun `save 는 색인 예외를 fail-soft 로 삼킨다`() {
         val client = mock(OpenSearchClient::class.java)
         `when`(client.index(anyIndexFn())).thenThrow(RuntimeException("boom"))
-        val adapter = OpenSearchCourseIndexAdapter(providerOf(client))
+        val adapter = OpenSearchCourseIndexAdapter(providerOf(client), OpenSearchProperties())
 
         assertThatCode { adapter.save(course(id = 1L)) }.doesNotThrowAnyException()
     }
@@ -112,7 +113,7 @@ class OpenSearchCourseIndexAdapterTest {
     @Test
     fun `bulk save 는 빈 리스트면 no-op 한다`() {
         val client = mock(OpenSearchClient::class.java)
-        val adapter = OpenSearchCourseIndexAdapter(providerOf(client))
+        val adapter = OpenSearchCourseIndexAdapter(providerOf(client), OpenSearchProperties())
 
         adapter.save(emptyList())
 
@@ -121,7 +122,7 @@ class OpenSearchCourseIndexAdapterTest {
 
     @Test
     fun `bulk save 는 클라이언트가 없으면 no-op 한다`() {
-        val adapter = OpenSearchCourseIndexAdapter(providerOf(null))
+        val adapter = OpenSearchCourseIndexAdapter(providerOf(null), OpenSearchProperties())
 
         assertThatCode { adapter.save(listOf(course(id = 1L))) }.doesNotThrowAnyException()
     }
@@ -135,7 +136,7 @@ class OpenSearchCourseIndexAdapterTest {
             `when`(resp.errors()).thenReturn(false)
             resp
         }
-        val adapter = OpenSearchCourseIndexAdapter(providerOf(client))
+        val adapter = OpenSearchCourseIndexAdapter(providerOf(client), OpenSearchProperties())
 
         adapter.save(listOf(course(id = 1L), course(id = 2L)))
 
@@ -154,7 +155,7 @@ class OpenSearchCourseIndexAdapterTest {
             `when`(resp.items()).thenReturn(listOf(failedItem))
             resp
         }
-        val adapter = OpenSearchCourseIndexAdapter(providerOf(client))
+        val adapter = OpenSearchCourseIndexAdapter(providerOf(client), OpenSearchProperties())
 
         assertThatCode { adapter.save(listOf(course(id = 1L))) }.doesNotThrowAnyException()
     }
@@ -163,14 +164,14 @@ class OpenSearchCourseIndexAdapterTest {
     fun `bulk save 는 예외를 fail-soft 로 삼킨다`() {
         val client = mock(OpenSearchClient::class.java)
         `when`(client.bulk(anyBulkFn())).thenThrow(RuntimeException("boom"))
-        val adapter = OpenSearchCourseIndexAdapter(providerOf(client))
+        val adapter = OpenSearchCourseIndexAdapter(providerOf(client), OpenSearchProperties())
 
         assertThatCode { adapter.save(listOf(course(id = 1L))) }.doesNotThrowAnyException()
     }
 
     @Test
     fun `delete 는 클라이언트가 없으면 no-op 한다`() {
-        val adapter = OpenSearchCourseIndexAdapter(providerOf(null))
+        val adapter = OpenSearchCourseIndexAdapter(providerOf(null), OpenSearchProperties())
 
         assertThatCode { adapter.delete(1L) }.doesNotThrowAnyException()
     }
@@ -182,7 +183,7 @@ class OpenSearchCourseIndexAdapterTest {
             inv.getArgument<Function<DeleteRequest.Builder, *>>(0).apply(DeleteRequest.Builder())
             mock(DeleteResponse::class.java)
         }
-        val adapter = OpenSearchCourseIndexAdapter(providerOf(client))
+        val adapter = OpenSearchCourseIndexAdapter(providerOf(client), OpenSearchProperties())
 
         adapter.delete(1L)
 
@@ -193,14 +194,14 @@ class OpenSearchCourseIndexAdapterTest {
     fun `delete 는 예외를 fail-soft 로 삼킨다`() {
         val client = mock(OpenSearchClient::class.java)
         `when`(client.delete(anyDeleteFn())).thenThrow(RuntimeException("boom"))
-        val adapter = OpenSearchCourseIndexAdapter(providerOf(client))
+        val adapter = OpenSearchCourseIndexAdapter(providerOf(client), OpenSearchProperties())
 
         assertThatCode { adapter.delete(1L) }.doesNotThrowAnyException()
     }
 
     @Test
     fun `deleteByAuthor 는 클라이언트가 없으면 no-op 한다`() {
-        val adapter = OpenSearchCourseIndexAdapter(providerOf(null))
+        val adapter = OpenSearchCourseIndexAdapter(providerOf(null), OpenSearchProperties())
 
         assertThatCode { adapter.deleteByAuthor(7L) }.doesNotThrowAnyException()
     }
@@ -212,7 +213,7 @@ class OpenSearchCourseIndexAdapterTest {
             inv.getArgument<Function<DeleteByQueryRequest.Builder, *>>(0).apply(DeleteByQueryRequest.Builder())
             mock(DeleteByQueryResponse::class.java)
         }
-        val adapter = OpenSearchCourseIndexAdapter(providerOf(client))
+        val adapter = OpenSearchCourseIndexAdapter(providerOf(client), OpenSearchProperties())
 
         adapter.deleteByAuthor(7L)
 
@@ -223,7 +224,7 @@ class OpenSearchCourseIndexAdapterTest {
     fun `deleteByAuthor 는 예외를 fail-soft 로 삼킨다`() {
         val client = mock(OpenSearchClient::class.java)
         `when`(client.deleteByQuery(anyDbqFn())).thenThrow(RuntimeException("boom"))
-        val adapter = OpenSearchCourseIndexAdapter(providerOf(client))
+        val adapter = OpenSearchCourseIndexAdapter(providerOf(client), OpenSearchProperties())
 
         assertThatCode { adapter.deleteByAuthor(7L) }.doesNotThrowAnyException()
     }

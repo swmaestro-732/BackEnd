@@ -1,5 +1,6 @@
 package com.example.backend.bootstrap.search
 
+import com.example.backend.bootstrap.config.OpenSearchProperties
 import org.junit.jupiter.api.Test
 import org.mockito.Mockito.mock
 import org.mockito.Mockito.never
@@ -11,7 +12,7 @@ import org.springframework.boot.DefaultApplicationArguments
 
 class OpenSearchIndexInitializerTest {
     private val clientProvider = mock(ObjectProvider::class.java) as ObjectProvider<OpenSearchClient>
-    private val initializer = OpenSearchIndexInitializer(clientProvider)
+    private val initializer = OpenSearchIndexInitializer(clientProvider, OpenSearchProperties())
     private val args = DefaultApplicationArguments()
 
     @Test
