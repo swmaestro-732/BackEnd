@@ -6,13 +6,21 @@ import com.example.backend.course.domain.model.Course
 import com.example.backend.course.domain.model.CourseCategory
 import com.example.backend.course.domain.model.CoursePlace
 import com.example.backend.course.domain.model.CourseStatus
+import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.Test
+import org.mockito.Mockito.doAnswer
 import org.mockito.Mockito.mock
 import org.mockito.Mockito.never
 import org.mockito.Mockito.verify
 import org.mockito.Mockito.`when`
 import org.opensearch.client.opensearch.OpenSearchClient
+import org.opensearch.client.opensearch.core.BulkRequest
+import org.opensearch.client.opensearch.core.DeleteByQueryRequest
+import org.opensearch.client.opensearch.core.DeleteRequest
+import org.opensearch.client.opensearch.core.IndexRequest
+import org.opensearch.client.util.ObjectBuilder
 import org.springframework.beans.factory.ObjectProvider
+import java.util.function.Function
 
 class OpenSearchCourseIndexAdapterTest {
     private val clientProvider = mock(ObjectProvider::class.java) as ObjectProvider<OpenSearchClient>
@@ -138,4 +146,116 @@ class OpenSearchCourseIndexAdapterTest {
 
         adapter.deleteByAuthor(authorId = 99L) // no exception
     }
+
+    // ── 람다 실행 + indexAlias 검증 ──
+
+    @Test
+    fun `save(Course) — index 빌더 람다가 실행돼 indexAlias 가 사용된다`() {
+        val client = mock(OpenSearchClient::class.java)
+        `when`(clientProvider.ifAvailable).thenReturn(client)
+        doAnswer { inv ->
+            @Suppress("UNCHECKED_CAST")
+            val fn = inv.arguments[0] as Function<IndexRequest.Builder<Any>, ObjectBuilder<IndexRequest<Any>>>
+            fn.apply(IndexRequest.Builder<Any>())
+            null
+        }.`when`(
+            client,
+        ).index<Any>(anyArg<java.util.function.Function<IndexRequest.Builder<Any>, ObjectBuilder<IndexRequest<Any>>>>())
+
+        adapter.save(courseWithId(1L))
+
+        verify(
+            client,
+        ).index(anyArg<java.util.function.Function<IndexRequest.Builder<Any>, ObjectBuilder<IndexRequest<Any>>>>())
+    }
+
+    @Test
+    fun `save(List) — bulk 빌더 람다가 실행돼 indexAlias 가 사용된다`() {
+        val client = mock(OpenSearchClient::class.java)
+        `when`(clientProvider.ifAvailable).thenReturn(client)
+        var capturedRequest: BulkRequest? = null
+        doAnswer { inv ->
+            @Suppress("UNCHECKED_CAST")
+            val fn = inv.arguments[0] as Function<BulkRequest.Builder, ObjectBuilder<BulkRequest>>
+            capturedRequest = fn.apply(BulkRequest.Builder()).build()
+            null
+        }.`when`(client).bulk(anyArg<java.util.function.Function<BulkRequest.Builder, ObjectBuilder<BulkRequest>>>())
+
+        adapter.save(listOf(courseWithId(1L)))
+
+        assertThat(capturedRequest).isNotNull()
+        assertThat(capturedRequest!!.operations()).isNotEmpty()
+        @Suppress("UNCHECKED_CAST")
+        assertThat(capturedRequest!!.operations()[0].index<Any>()!!.index()).isEqualTo("course")
+    }
+
+    @Test
+    fun `delete — indexAlias 로 delete 요청이 구성된다`() {
+        val client = mock(OpenSearchClient::class.java)
+        `when`(clientProvider.ifAvailable).thenReturn(client)
+        var capturedIndex: String? = null
+        doAnswer { inv ->
+            @Suppress("UNCHECKED_CAST")
+            val fn = inv.arguments[0] as Function<DeleteRequest.Builder, ObjectBuilder<DeleteRequest>>
+            capturedIndex = fn.apply(DeleteRequest.Builder()).build().index()
+            null
+        }.`when`(
+            client,
+        ).delete(anyArg<java.util.function.Function<DeleteRequest.Builder, ObjectBuilder<DeleteRequest>>>())
+
+        adapter.delete(courseId = 42L)
+
+        assertThat(capturedIndex).isEqualTo("course")
+    }
+
+    @Test
+    fun `deleteByAuthor — deleteByQuery 빌더 람다가 실행돼 indexAlias 가 사용된다`() {
+        val client = mock(OpenSearchClient::class.java)
+        `when`(clientProvider.ifAvailable).thenReturn(client)
+        doAnswer { inv ->
+            @Suppress("UNCHECKED_CAST")
+            val fn = inv.arguments[0] as Function<DeleteByQueryRequest.Builder, ObjectBuilder<DeleteByQueryRequest>>
+            fn.apply(DeleteByQueryRequest.Builder())
+            null
+        }.`when`(
+            client,
+        ).deleteByQuery(
+            anyArg<java.util.function.Function<DeleteByQueryRequest.Builder, ObjectBuilder<DeleteByQueryRequest>>>(),
+        )
+
+        adapter.deleteByAuthor(authorId = 99L)
+
+        verify(
+            client,
+        ).deleteByQuery(
+            anyArg<java.util.function.Function<DeleteByQueryRequest.Builder, ObjectBuilder<DeleteByQueryRequest>>>(),
+        )
+    }
+
+    @Test
+    fun `prefix 설정 시 delete 요청에 prefix 가 반영된다`() {
+        val prefixedAdapter =
+            OpenSearchCourseIndexAdapter(
+                clientProvider,
+                OpenSearchProperties(indexPrefix = "dev-"),
+            )
+        val client = mock(OpenSearchClient::class.java)
+        `when`(clientProvider.ifAvailable).thenReturn(client)
+        var capturedIndex: String? = null
+        doAnswer { inv ->
+            @Suppress("UNCHECKED_CAST")
+            val fn = inv.arguments[0] as Function<DeleteRequest.Builder, ObjectBuilder<DeleteRequest>>
+            capturedIndex = fn.apply(DeleteRequest.Builder()).build().index()
+            null
+        }.`when`(
+            client,
+        ).delete(anyArg<java.util.function.Function<DeleteRequest.Builder, ObjectBuilder<DeleteRequest>>>())
+
+        prefixedAdapter.delete(courseId = 1L)
+
+        assertThat(capturedIndex).isEqualTo("dev-course")
+    }
 }
+
+@Suppress("UNCHECKED_CAST")
+private fun <T> anyArg(): T = org.mockito.Mockito.any<T>() as T
