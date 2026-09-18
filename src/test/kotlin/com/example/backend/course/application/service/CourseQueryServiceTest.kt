@@ -35,7 +35,9 @@ class CourseQueryServiceTest {
         val place = CoursePlaceRow(1L, 30L, 0, "첫 장소", 5, listOf(CoursePlaceImageRow("image", 0)))
         `when`(persistence.findCourseDetails(listOf(10L))).thenReturn(listOf(row))
         `when`(persistence.findPlacesByCourseIds(listOf(10L))).thenReturn(mapOf(10L to listOf(place)))
-        `when`(interactions.getViewerStates(7L, listOf(10L))).thenReturn(listOf(ViewerCourseState(10L, true, true)))
+        `when`(
+            interactions.getViewerStates(7L, listOf(10L)),
+        ).thenReturn(listOf(ViewerCourseState(10L, true, false, true)))
         `when`(tags.findTagNamesByCourseId(10L)).thenReturn(listOf("데이트"))
 
         val result = service.getDetail(10L, 7L)

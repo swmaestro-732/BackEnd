@@ -97,6 +97,7 @@ data class CourseDetailResponse(
                         viewer =
                             CourseViewerResponse(
                                 hasSaved = false,
+                                hasLiked = false,
                                 hasStartedCourse = false,
                             ),
                     ),

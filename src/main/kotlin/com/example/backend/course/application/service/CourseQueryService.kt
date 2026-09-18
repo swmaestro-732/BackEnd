@@ -93,6 +93,7 @@ class CourseQueryService(
                 tracingsCnt = course.tracingsCnt,
                 places = places,
                 hasSaved = viewer?.hasSaved ?: false,
+                hasLiked = viewer?.hasLiked ?: false,
                 hasStartedCourse = viewer?.hasStartedCourse ?: false,
             )
         }
