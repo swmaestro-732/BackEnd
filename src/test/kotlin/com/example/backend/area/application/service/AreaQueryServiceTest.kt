@@ -14,6 +14,13 @@ class AreaQueryServiceTest {
             var areaByCode: AreaDescriptor? = null
             var searchedKeyword: String? = null
             var searchedCode: String? = null
+            var searchPrefixes: List<String> = emptyList()
+            var resolvedKeyword: String? = null
+
+            override fun resolveSearchPrefixes(keyword: String): List<String> {
+                resolvedKeyword = keyword
+                return searchPrefixes
+            }
 
             override fun search(keyword: String): List<AreaDescriptor> {
                 searchedKeyword = keyword
@@ -34,6 +41,15 @@ class AreaQueryServiceTest {
 
         assertEquals(expected, service.searchAreas("성동"))
         assertEquals("성동", fakePort.searchedKeyword)
+    }
+
+    @Test
+    fun `검색 필터용 지역 해석은 prefix를 그대로 전달한다`() {
+        fakePort.searchPrefixes = listOf("11")
+
+        assertEquals(listOf("11"), service.resolveSearchPrefixes("서울"))
+        assertEquals("서울", fakePort.resolvedKeyword)
+        assertNull(fakePort.searchedKeyword)
     }
 
     @Test

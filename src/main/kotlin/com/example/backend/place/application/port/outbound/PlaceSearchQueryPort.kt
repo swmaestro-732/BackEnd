@@ -1,5 +1,7 @@
 package com.example.backend.place.application.port.outbound
 
+import com.example.backend.common.geo.Coordinate
+import com.example.backend.common.geo.Viewport
 import com.example.backend.place.domain.model.PlaceCategory
 
 /**
@@ -17,11 +19,15 @@ data class PlaceSearchCriteria(
     val textTokens: List<String>,
     /** 카테고리 동의어 사전이 흡수한 토큰들의 카테고리(OR). */
     val categories: List<PlaceCategory>,
-    /** 지역 사전이 흡수한 토큰들의 법정동코드 prefix(5자리 시군구/10자리 읍면동, OR). */
+    /** 지역 사전이 흡수한 토큰들의 법정동코드 prefix(2자리 시도/5자리 시군구/10자리 읍면동, OR). */
     val areaCodePrefixes: List<String>,
+    /** 지도 뷰포트 하드 필터(geo_bounding_box). null 이면 전역. */
+    val viewport: Viewport?,
     /** 오프셋 페이지네이션 시작 위치. */
     val from: Int,
     val size: Int,
+    val anchor: Coordinate? = null,
+    val originalQuery: String = "",
 )
 
 /** 검색 결과 — 정렬 순서가 보존된 장소 id 목록과 전체 매칭 건수. */

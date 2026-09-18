@@ -1,7 +1,7 @@
 package com.example.backend.place.application.service
 
 import com.example.backend.common.exception.BusinessException
-import com.example.backend.common.response.ErrorCode
+import com.example.backend.common.response.CommonErrorCode
 import java.nio.charset.StandardCharsets
 import java.util.Base64
 
@@ -14,6 +14,12 @@ internal sealed interface PlaceSearchCursor {
     data class Offset(
         val offset: Int,
         val textFallback: Boolean,
+        val anchorPlaceId: Long? = null,
+    ) : PlaceSearchCursor
+
+    data class DbNearby(
+        val offset: Int,
+        val anchorPlaceId: Long,
     ) : PlaceSearchCursor
 
     /** DB LIKE keyset — 이 페이지 마지막 장소 id. */
@@ -23,15 +29,28 @@ internal sealed interface PlaceSearchCursor {
 }
 
 /**
- * [PlaceSearchCursor] 를 URL-safe Base64 불투명 커서로 변환한다([PlaceReviewCursorCodec] 과 같은 형식).
- * 페이로드는 `<mode>:<value>` — os(오프셋)/osf(오프셋·텍스트 폴백)/db(마지막 id).
+ * [PlaceSearchCursor] 를 URL-safe Base64 불투명 커서로 변환한다(리뷰·피드 커서와 같은 형식).
+ * 페이로드는 `<mode>:<value>[:<anchorPlaceId>]` — os/osf(엔진), db(id keyset), near(DB 거리순 오프셋).
  * 예전 응답이 마지막 장소 id 를 그대로 커서로 내려줬으므로, 순수 숫자 커서는 DB keyset 으로 관용 해석한다.
  */
 internal object PlaceSearchCursorCodec {
     fun encodeOffset(
         offset: Int,
         textFallback: Boolean,
-    ): String = encode("${if (textFallback) MODE_OFFSET_FALLBACK else MODE_OFFSET}:$offset")
+        anchorPlaceId: Long? = null,
+    ): String =
+        encode(
+            "${if (textFallback) MODE_OFFSET_FALLBACK else MODE_OFFSET}:$offset" + (
+                anchorPlaceId?.let {
+                    ":$it"
+                } ?: ""
+            ),
+        )
+
+    fun encodeDbNearby(
+        offset: Int,
+        anchorPlaceId: Long,
+    ): String = encode("near:$offset:$anchorPlaceId")
 
     fun encodeDbKeyset(lastId: Long): String = encode("$MODE_DB_KEYSET:$lastId")
 
@@ -51,16 +70,27 @@ internal object PlaceSearchCursorCodec {
                 throw invalidCursor()
             }
         val parts = decoded.split(':')
-        if (parts.size != CURSOR_FIELD_COUNT) throw invalidCursor()
+        if (parts.size !in 2..3) throw invalidCursor()
+        val anchor = if (parts.size == 3) parts[2].toLongOrNull()?.takeIf { it > 0 } ?: throw invalidCursor() else null
 
         return when (parts[0]) {
             MODE_OFFSET, MODE_OFFSET_FALLBACK -> {
                 val offset = parts[1].toIntOrNull() ?: throw invalidCursor()
                 if (offset < 1) throw invalidCursor()
-                PlaceSearchCursor.Offset(offset = offset, textFallback = parts[0] == MODE_OFFSET_FALLBACK)
+                PlaceSearchCursor.Offset(
+                    offset = offset,
+                    textFallback = parts[0] == MODE_OFFSET_FALLBACK,
+                    anchorPlaceId = anchor,
+                )
+            }
+
+            "near" -> {
+                val offset = parts[1].toIntOrNull()?.takeIf { it > 0 } ?: throw invalidCursor()
+                PlaceSearchCursor.DbNearby(offset, anchor ?: throw invalidCursor())
             }
 
             MODE_DB_KEYSET -> {
+                if (anchor != null) throw invalidCursor()
                 val lastId = parts[1].toLongOrNull() ?: throw invalidCursor()
                 if (lastId <= 0) throw invalidCursor()
                 PlaceSearchCursor.DbKeyset(lastId)
@@ -78,10 +108,9 @@ internal object PlaceSearchCursorCodec {
             .withoutPadding()
             .encodeToString(value.toByteArray(StandardCharsets.UTF_8))
 
-    private fun invalidCursor() = BusinessException(ErrorCode.INVALID_INPUT, "잘못된 커서입니다.")
+    private fun invalidCursor() = BusinessException(CommonErrorCode.INVALID_INPUT, "잘못된 커서입니다.")
 
     private const val MODE_OFFSET = "os"
     private const val MODE_OFFSET_FALLBACK = "osf"
     private const val MODE_DB_KEYSET = "db"
-    private const val CURSOR_FIELD_COUNT = 2
 }

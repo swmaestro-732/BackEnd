@@ -1,11 +1,15 @@
 package com.example.backend.place.adapter.outbound.persistence.exposed.repository
 
+import com.example.backend.common.geo.Coordinate
+import com.example.backend.common.persistence.postgis.makePoint
+import com.example.backend.common.persistence.postgis.stDistance
 import com.example.backend.place.adapter.outbound.persistence.exposed.PlaceEntity
 import com.example.backend.place.adapter.outbound.persistence.exposed.PlaceTable
 import com.example.backend.place.domain.model.Place
 import org.jetbrains.exposed.v1.core.Op
 import org.jetbrains.exposed.v1.core.SortOrder
 import org.jetbrains.exposed.v1.core.and
+import org.jetbrains.exposed.v1.core.eq
 import org.jetbrains.exposed.v1.core.greater
 import org.jetbrains.exposed.v1.core.inList
 import org.jetbrains.exposed.v1.core.isNull
@@ -41,11 +45,28 @@ class PlaceRepository {
             .limit(limit)
             .toList()
 
+    internal fun searchNearbyByName(
+        query: String,
+        anchor: Coordinate,
+        offset: Int,
+        limit: Int,
+    ): List<PlaceEntity> =
+        PlaceEntity
+            .find { nameMatches(query) }
+            .orderBy(
+                (PlaceTable.name eq query) to SortOrder.DESC,
+                PlaceTable.location.stDistance(makePoint(anchor.latitude, anchor.longitude)) to SortOrder.ASC,
+                PlaceTable.id to SortOrder.ASC,
+            ).offset(offset.toLong())
+            .limit(limit)
+            .toList()
+
     /** 이름 부분 일치 + deleted_at IS NULL 인 장소의 전체 개수. */
     fun countByName(query: String): Long = PlaceEntity.count(nameMatches(query))
 
     private fun nameMatches(query: String) =
-        (PlaceTable.name like "%${query.escapeLikeWildcards()}%") and PlaceTable.deletedAt.isNull()
+        (PlaceTable.name like "%${query.escapeLikeWildcards()}%") and
+            PlaceTable.deletedAt.isNull()
 
     // Postgres LIKE 의 기본 이스케이프 문자(백슬래시)를 이용해 와일드카드를 리터럴화한다. 백슬래시를 먼저 치환해야 한다.
     private fun String.escapeLikeWildcards(): String = replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")

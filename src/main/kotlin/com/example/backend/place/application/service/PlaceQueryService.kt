@@ -1,5 +1,9 @@
 package com.example.backend.place.application.service
 
+import com.example.backend.common.exception.BusinessException
+import com.example.backend.common.geo.Coordinate
+import com.example.backend.common.response.CommonErrorCode
+import com.example.backend.common.response.PlaceErrorCode
 import com.example.backend.place.application.port.inbound.PlaceQueryUseCase
 import com.example.backend.place.application.port.inbound.dto.PlaceSummary
 import com.example.backend.place.application.port.inbound.dto.PlaceSummaryPage
@@ -7,7 +11,6 @@ import com.example.backend.place.application.port.outbound.PlaceQueryPort
 import com.example.backend.place.application.port.outbound.PlaceSearchCriteria
 import com.example.backend.place.application.port.outbound.PlaceSearchQueryPort
 import com.example.backend.place.domain.model.Place
-import io.github.oshai.kotlinlogging.KotlinLogging
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
 
@@ -26,8 +29,6 @@ class PlaceQueryService(
     private val placeSearchQueryPort: PlaceSearchQueryPort,
     private val queryPlanner: PlaceSearchQueryPlanner,
 ) : PlaceQueryUseCase {
-    private val log = KotlinLogging.logger {}
-
     override fun findPlacesById(placeIds: List<Long>): List<PlaceSummary> =
         if (placeIds.isEmpty()) {
             emptyList()
@@ -39,26 +40,43 @@ class PlaceQueryService(
         query: String,
         cursor: String?,
         size: Int,
+        anchorPlaceId: Long?,
     ): PlaceSummaryPage {
+        require(size in 1..50) { "조회 개수는 1~50 범위여야 합니다." }
+        require(anchorPlaceId == null || anchorPlaceId > 0) { "기준 장소 ID는 양수여야 합니다." }
+        val anchor =
+            anchorPlaceId?.let { id ->
+                placeQueryPort.findPlacesById(listOf(id)).firstOrNull()?.location
+                    ?: throw BusinessException(PlaceErrorCode.PLACE_NOT_FOUND)
+            }
         if (query.isBlank()) return PlaceSummaryPage(items = emptyList(), totalCount = 0, hasNext = false)
-
         return when (val decoded = PlaceSearchCursorCodec.decode(cursor)) {
-            // db 커서는 검색엔진이 살아 있어도 DB 경로를 유지한다
             is PlaceSearchCursor.DbKeyset -> {
+                validateAnchor(anchor == null)
                 searchFromDb(query, decoded.lastId, size)
             }
 
+            is PlaceSearchCursor.DbNearby -> {
+                validateAnchor(decoded.anchorPlaceId == anchorPlaceId && anchor != null)
+                searchNearbyFromDb(query, anchor!!, anchorPlaceId, decoded.offset, size)
+            }
+
             is PlaceSearchCursor.Offset -> {
-                searchFromEngine(query, decoded.offset, decoded.textFallback, size)
-                    ?: searchFromDb(query, afterId = null, size = size).also {
-                        // 오프셋 커서는 keyset 으로 번역할 수 없어 처음부터 다시 시작
-                        log.warn { "장소 검색 페이지네이션 도중 검색엔진 소실 — DB 폴백으로 재시작" }
-                    }
+                validateAnchor(decoded.anchorPlaceId == anchorPlaceId)
+                require(decoded.offset < MAX_RESULT_WINDOW) { "검색 범위를 좁혀서 다시 검색해 주세요." }
+                searchFromEngine(query, decoded.offset, decoded.textFallback, size, anchor, anchorPlaceId)
+                    ?: throw BusinessException(PlaceErrorCode.PLACE_SEARCH_UNAVAILABLE)
             }
 
             null -> {
-                searchFromEngine(query, offset = 0, textFallback = false, size = size)
-                    ?: searchFromDb(query, afterId = null, size = size)
+                searchFromEngine(query, 0, false, size, anchor, anchorPlaceId)
+                    ?: if (anchor !=
+                        null
+                    ) {
+                        searchNearbyFromDb(query, anchor, anchorPlaceId, 0, size)
+                    } else {
+                        searchFromDb(query, null, size)
+                    }
             }
         }
     }
@@ -68,27 +86,41 @@ class PlaceQueryService(
         offset: Int,
         textFallback: Boolean,
         size: Int,
+        anchor: Coordinate?,
+        anchorPlaceId: Long?,
     ): PlaceSummaryPage? {
+        val pageSize = minOf(size, MAX_RESULT_WINDOW - offset)
         var usedFallback = textFallback
-        val criteria = buildCriteria(query, offset, usedFallback, size)
+        val criteria = buildCriteria(query, offset, usedFallback, pageSize, anchor)
         var hits = placeSearchQueryPort.search(criteria) ?: return null
 
+        // 0건 텍스트 재검색은 사전 필터만 풀고 기준 장소는 유지한다
         val hadFilters = criteria.categories.isNotEmpty() || criteria.areaCodePrefixes.isNotEmpty()
         if (offset == 0 && !usedFallback && hits.totalCount == 0L && hadFilters) {
             usedFallback = true
-            hits = placeSearchQueryPort.search(buildCriteria(query, offset, usedFallback, size)) ?: return null
+            hits =
+                placeSearchQueryPort.search(buildCriteria(query, offset, usedFallback, pageSize, anchor)) ?: return null
         }
 
         // hydration — 색인엔 있지만 DB 에서 삭제된 id 는 자연 탈락
         val byId = placeQueryPort.findPlacesById(hits.ids).associateBy { it.id }
         val items = hits.ids.mapNotNull { byId[it] }.map { it.toSummary() }
 
-        val hasNext = offset + size < hits.totalCount
+        val hasNext = offset + pageSize < minOf(hits.totalCount, MAX_RESULT_WINDOW.toLong())
         return PlaceSummaryPage(
             items = items,
             totalCount = hits.totalCount.toInt(),
             hasNext = hasNext,
-            nextCursor = if (hasNext) PlaceSearchCursorCodec.encodeOffset(offset + size, usedFallback) else null,
+            nextCursor =
+                if (hasNext) {
+                    PlaceSearchCursorCodec.encodeOffset(
+                        offset + pageSize,
+                        usedFallback,
+                        anchorPlaceId,
+                    )
+                } else {
+                    null
+                },
         )
     }
 
@@ -97,6 +129,7 @@ class PlaceQueryService(
         offset: Int,
         textFallback: Boolean,
         size: Int,
+        anchor: Coordinate?,
     ): PlaceSearchCriteria {
         if (textFallback) {
             // 0건 폴백 — 사전을 거치지 않고 전 토큰을 텍스트로 검색한다.
@@ -104,8 +137,11 @@ class PlaceQueryService(
                 textTokens = query.trim().split(Regex("\\s+")).filter { it.isNotBlank() },
                 categories = emptyList(),
                 areaCodePrefixes = emptyList(),
+                viewport = null,
                 from = offset,
                 size = size,
+                anchor = anchor,
+                originalQuery = query.trim(),
             )
         }
         val plan = queryPlanner.plan(query)
@@ -113,8 +149,11 @@ class PlaceQueryService(
             textTokens = plan.textTokens,
             categories = plan.categories,
             areaCodePrefixes = plan.areaCodePrefixes,
+            viewport = null,
             from = offset,
             size = size,
+            anchor = anchor,
+            originalQuery = query.trim(),
         )
     }
 
@@ -133,6 +172,33 @@ class PlaceQueryService(
             hasNext = hasNext,
             nextCursor = if (hasNext) PlaceSearchCursorCodec.encodeDbKeyset(items.last().id) else null,
         )
+    }
+
+    private fun searchNearbyFromDb(
+        query: String,
+        anchor: Coordinate,
+        anchorPlaceId: Long,
+        offset: Int,
+        size: Int,
+    ): PlaceSummaryPage {
+        require(offset < MAX_RESULT_WINDOW) { "검색 범위를 좁혀서 다시 검색해 주세요." }
+        val pageSize = minOf(size, MAX_RESULT_WINDOW - offset)
+        val rows = placeQueryPort.searchNearbyByName(query, anchor, offset, pageSize + 1)
+        val hasNext = rows.size > pageSize && offset + pageSize < MAX_RESULT_WINDOW
+        return PlaceSummaryPage(
+            items = rows.take(pageSize).map { it.toSummary() },
+            totalCount = placeQueryPort.countByName(query).toInt(),
+            hasNext = hasNext,
+            nextCursor = if (hasNext) PlaceSearchCursorCodec.encodeDbNearby(offset + pageSize, anchorPlaceId) else null,
+        )
+    }
+
+    private fun validateAnchor(valid: Boolean) {
+        if (!valid) throw BusinessException(CommonErrorCode.INVALID_INPUT, "검색 기준 장소가 변경되었습니다. 처음부터 검색해 주세요.")
+    }
+
+    private companion object {
+        const val MAX_RESULT_WINDOW = 10_000
     }
 
     private fun Place.toSummary(): PlaceSummary =

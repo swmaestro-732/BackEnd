@@ -8,7 +8,7 @@ import org.springframework.stereotype.Component
  * 검색어를 공백 토큰으로 나눠 검색 실행 계획으로 변환한다 — "성수 카페" → areaCode prefix(성수동*) + category(CAFE).
  *
  * 토큰별 분류 우선순위: (a) 카테고리 동의어 사전 → 카테고리 필터, (b) 지역 디렉터리(법정동 이름 contains 매치,
- * [AreaQueryUseCase.searchAreas]) → areaCode prefix 필터, (c) 나머지 → 텍스트 토큰(multi_match).
+ * [AreaQueryUseCase.resolveSearchPrefixes], 개수 제한 없음) → areaCode prefix 필터, (c) 나머지 → 텍스트 토큰(multi_match).
  * 사전이 지역보다 우선한다 — 같은 토큰이 둘 다 맞으면 카테고리로만 소비한다(예: "문화" → CULTURE, 문화동 아님).
  * 오분류(지역어처럼 보이는 상호 등)는 호출부의 0건 폴백(필터 없는 전체 텍스트 재검색)이 받쳐준다.
  */
@@ -49,7 +49,7 @@ class PlaceSearchQueryPlanner(
 
     private fun resolveAreaPrefixes(token: String): List<String> {
         if (token.length < MIN_AREA_TOKEN_LENGTH) return emptyList()
-        return areaQueryUseCase.searchAreas(token).map { it.prefix }
+        return areaQueryUseCase.resolveSearchPrefixes(token)
     }
 
     private fun dedupeSubsumed(prefixes: List<String>): List<String> {

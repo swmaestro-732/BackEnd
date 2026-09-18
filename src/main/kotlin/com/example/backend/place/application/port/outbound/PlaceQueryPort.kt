@@ -1,5 +1,6 @@
 package com.example.backend.place.application.port.outbound
 
+import com.example.backend.common.geo.Coordinate
 import com.example.backend.place.domain.model.Place
 
 /**
@@ -11,11 +12,19 @@ interface PlaceQueryPort {
 
     /**
      * 이름에 [query] 를 포함하는(부분 일치) 장소들을 id 오름차순으로 조회한다. 삭제된 장소는 빠진다.
-     * @param afterId 이 값보다 id 가 큰 장소부터(null 이면 처음부터). @param limit 최대 개수.
+     * @param cursor 이 값보다 id 가 큰 장소부터(null 이면 처음부터). @param limit 최대 개수.
      */
     fun searchByName(
         query: String,
         cursor: String?,
+        limit: Int,
+    ): List<Place>
+
+    /** DB 폴백의 거리 정렬: 정확한 이름 일치 우선, 거리 오름차순, id 타이브레이크. */
+    fun searchNearbyByName(
+        query: String,
+        anchor: Coordinate,
+        offset: Int,
         limit: Int,
     ): List<Place>
 

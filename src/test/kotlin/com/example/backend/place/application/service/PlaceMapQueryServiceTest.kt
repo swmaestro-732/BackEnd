@@ -1,0 +1,167 @@
+package com.example.backend.place.application.service
+
+import com.example.backend.area.application.port.inbound.AreaQueryUseCase
+import com.example.backend.common.geo.Coordinate
+import com.example.backend.common.geo.Viewport
+import com.example.backend.place.application.port.outbound.PlaceMapBucket
+import com.example.backend.place.application.port.outbound.PlaceMapHits
+import com.example.backend.place.application.port.outbound.PlaceMapQueryPort
+import com.example.backend.place.application.port.outbound.PlaceMapSearchPort
+import com.example.backend.place.application.port.outbound.PlaceQueryPort
+import com.example.backend.place.application.port.outbound.PlaceSearchCriteria
+import com.example.backend.place.domain.model.Place
+import com.example.backend.place.domain.model.PlaceBusinessStatus
+import com.example.backend.place.domain.model.PlaceCategory
+import com.example.backend.place.domain.model.PlaceStatus
+import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertTrue
+import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.assertThrows
+import org.mockito.Mockito.mock
+import org.mockito.Mockito.`when`
+
+class PlaceMapQueryServiceTest {
+    private val viewport = Viewport(Coordinate(37.0, 126.0), Coordinate(38.0, 128.0))
+    private val areas = mock(AreaQueryUseCase::class.java)
+    private val engineCriteria = mutableListOf<PlaceSearchCriteria>()
+    private val dbCriteria = mutableListOf<PlaceSearchCriteria>()
+    private val hydratedIds = mutableListOf<Long>()
+    private var engineHits: (PlaceSearchCriteria) -> PlaceMapHits? = { PlaceMapHits(0, emptyList(), emptyList()) }
+    private var dbHits = PlaceMapHits(0, emptyList(), emptyList())
+    private val engine =
+        mock(PlaceMapSearchPort::class.java) { invocation ->
+            val criteria = invocation.getArgument<PlaceSearchCriteria>(0)
+            engineCriteria += criteria
+            engineHits(criteria)
+        }
+    private val db =
+        mock(PlaceMapQueryPort::class.java) { invocation ->
+            dbCriteria += invocation.getArgument<PlaceSearchCriteria>(0)
+            dbHits
+        }
+    private val places =
+        mock(PlaceQueryPort::class.java) { invocation ->
+            val ids = invocation.getArgument<List<Long>>(0)
+            hydratedIds += ids
+            ids.map(::place)
+        }
+    private val service = PlaceMapQueryService(engine, db, places, PlaceSearchQueryPlanner(areas))
+
+    @Test
+    fun `키워드가 없어도 화면 안 전체 장소를 조회한다`() {
+        engineHits = { PlaceMapHits(3, listOf(3, 1, 2), emptyList()) }
+
+        val result = service.searchMap("", viewport, null)
+
+        assertEquals(3L, result.totalCount)
+        assertEquals(setOf(1L, 2L, 3L), result.places.map { it.id }.toSet())
+        assertTrue(result.clusters.isEmpty())
+        assertEquals(viewport, engineCriteria.single().viewport)
+        assertTrue(engineCriteria.single().textTokens.isEmpty())
+    }
+
+    @Test
+    fun `100건은 목록 기본 개수와 관계없이 모두 개별 마커로 반환한다`() {
+        engineHits = { PlaceMapHits(100, (1L..100L).toList(), emptyList()) }
+
+        val result = service.searchMap("", viewport, null)
+
+        assertEquals(100, result.places.size)
+        assertTrue(result.clusters.isEmpty())
+    }
+
+    @Test
+    fun `100건 초과는 단일 장소 셀과 클러스터로 빠짐없이 표현한다`() {
+        engineHits = {
+            PlaceMapHits(
+                101,
+                emptyList(),
+                listOf(
+                    PlaceMapBucket("one", Coordinate(37.1, 127.1), 1, 7),
+                    PlaceMapBucket("many", Coordinate(37.2, 127.2), 100, null),
+                ),
+            )
+        }
+
+        val result = service.searchMap("", viewport, null)
+
+        assertEquals(listOf(7L), result.places.map { it.id })
+        assertEquals(listOf(7L), hydratedIds)
+        assertEquals(100L, result.clusters.single().count)
+        assertEquals(37.2, result.clusters.single().latitude)
+        assertEquals(127.2, result.clusters.single().longitude)
+        assertEquals(result.totalCount, result.places.size + result.clusters.sumOf { it.count })
+    }
+
+    @Test
+    fun `명시한 카테고리가 검색어에서 추론한 카테고리보다 우선한다`() {
+        engineHits = { PlaceMapHits(1, listOf(1), emptyList()) }
+
+        service.searchMap("카페", viewport, "RESTAURANT")
+
+        assertEquals(listOf(PlaceCategory.RESTAURANT), engineCriteria.single().categories)
+    }
+
+    @Test
+    fun `0건 재검색은 추론만 풀고 명시 카테고리와 뷰포트를 유지한다`() {
+        `when`(areas.resolveSearchPrefixes("서울")).thenReturn(listOf("11"))
+        engineHits = { criteria ->
+            if (criteria.areaCodePrefixes.isEmpty()) {
+                PlaceMapHits(1, listOf(1), emptyList())
+            } else {
+                PlaceMapHits(0, emptyList(), emptyList())
+            }
+        }
+
+        val result = service.searchMap("서울 카페", viewport, "RESTAURANT")
+
+        assertEquals(1L, result.totalCount)
+        assertEquals(2, engineCriteria.size)
+        assertEquals(listOf("11"), engineCriteria.first().areaCodePrefixes)
+        assertTrue(engineCriteria.last().areaCodePrefixes.isEmpty())
+        assertEquals(listOf("서울", "카페"), engineCriteria.last().textTokens)
+        assertTrue(engineCriteria.all { it.viewport == viewport && it.categories == listOf(PlaceCategory.RESTAURANT) })
+    }
+
+    @Test
+    fun `검색엔진 장애 시 지도 조건을 그대로 DB로 전달한다`() {
+        engineHits = { null }
+        dbHits = PlaceMapHits(1, listOf(2), emptyList())
+
+        val result = service.searchMap("", viewport, "CAFE")
+
+        assertEquals(listOf(2L), result.places.map { it.id })
+        assertEquals(engineCriteria.single(), dbCriteria.single())
+        assertEquals(viewport, dbCriteria.single().viewport)
+        assertEquals(listOf(PlaceCategory.CAFE), dbCriteria.single().categories)
+    }
+
+    @Test
+    fun `넓이가 없는 뷰포트는 조회 전에 거절한다`() {
+        listOf(
+            Viewport(Coordinate(37.0, 126.0), Coordinate(37.0, 128.0)),
+            Viewport(Coordinate(37.0, 126.0), Coordinate(38.0, 126.0)),
+        ).forEach { bounds ->
+            assertThrows<IllegalArgumentException> { service.searchMap("", bounds, null) }
+        }
+        assertTrue(engineCriteria.isEmpty())
+        assertTrue(dbCriteria.isEmpty())
+    }
+
+    private fun place(id: Long): Place =
+        Place.reconstitute(
+            id = id,
+            status = PlaceStatus.ACTIVE,
+            name = "카페 $id",
+            description = null,
+            category = PlaceCategory.CAFE,
+            location = Coordinate(37.5, 127.0),
+            address = "서울",
+            imageUrl = null,
+            businessStatus = PlaceBusinessStatus.UNKNOWN,
+            kakaoPlaceId = null,
+            createdAt = null,
+            updatedAt = null,
+            deletedAt = null,
+        )
+}
