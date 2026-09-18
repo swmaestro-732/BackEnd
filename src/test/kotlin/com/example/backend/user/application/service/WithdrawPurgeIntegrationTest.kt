@@ -20,7 +20,7 @@ import org.springframework.test.context.jdbc.Sql
 @Sql(
     statements = [
         "TRUNCATE TABLE follows, saved_courses, saved_course_folders, user_like_categories, " +
-            "user_areas, courses, users RESTART IDENTITY CASCADE",
+            "user_areas, course_likes, courses, users RESTART IDENTITY CASCADE",
         // A(1) — 탈퇴 대상. 카운터를 실제 관계/코스 수와 맞춰 preset.
         "INSERT INTO users (nickname, handle, bio, profile_image_url, status, social_provider, social_id, " +
             "followers_cnt, followings_cnt, public_courses_cnt, follower_courses_cnt, private_courses_cnt) " +
@@ -35,9 +35,11 @@ import org.springframework.test.context.jdbc.Sql
             "VALUES (1, 'A코스1', true, 'PUBLIC', now())",
         "INSERT INTO courses (user_id, title, is_published, visibility, created_at) " +
             "VALUES (1, 'A코스2', true, 'PUBLIC', now())",
-        "INSERT INTO courses (user_id, title, is_published, visibility, saves_cnt, created_at) " +
-            "VALUES (3, 'C코스', true, 'PUBLIC', 1, now())",
+        "INSERT INTO courses (user_id, title, is_published, visibility, saves_cnt, likes_cnt, created_at) " +
+            "VALUES (3, 'C코스', true, 'PUBLIC', 1, 1, now())",
         "INSERT INTO saved_courses (user_id, course_id, created_at) VALUES (1, 3, now())",
+        // A 가 C 코스를 좋아요한 상태 — 탈퇴 시 좋아요가 지워지고 C 코스 likes_cnt 가 보정돼야 한다.
+        "INSERT INTO course_likes (user_id, course_id) VALUES (1, 3)",
         "INSERT INTO user_like_categories (user_id, category) VALUES (1, 'CAFETOUR'), (1, 'DATE')",
         "INSERT INTO user_areas (user_id, area_code, updated_at) VALUES (1, '1168010100', now())",
     ],
@@ -66,6 +68,10 @@ class WithdrawPurgeIntegrationTest
             // 3) 저장 코스 — A 의 저장이 사라지고 원저자(C) 코스 saves_cnt 가 보정된다.
             assertEquals(0L, count("SELECT count(*) FROM saved_courses WHERE user_id = 1"))
             assertEquals(0, intOf("SELECT saves_cnt FROM courses WHERE id = 3"))
+
+            // 3-1) 코스 좋아요 — A 의 좋아요가 사라지고 대상(C) 코스 likes_cnt 가 보정된다.
+            assertEquals(0L, count("SELECT count(*) FROM course_likes WHERE user_id = 1"))
+            assertEquals(0, intOf("SELECT likes_cnt FROM courses WHERE id = 3"))
 
             // 4) 개인화 — 관심 테마·지역이 사라진다.
             assertEquals(0L, count("SELECT count(*) FROM user_like_categories WHERE user_id = 1"))

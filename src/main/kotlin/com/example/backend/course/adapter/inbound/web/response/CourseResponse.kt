@@ -32,7 +32,7 @@ data class CourseResponse(
                 stats = CourseStatsResponse.from(result),
                 authorId = result.authorId,
                 places = result.places.map(CoursePlaceResponse::from),
-                viewer = CourseViewerResponse(result.hasSaved, result.hasStartedCourse),
+                viewer = CourseViewerResponse(result.hasSaved, result.hasLiked, result.hasStartedCourse),
             )
     }
 }

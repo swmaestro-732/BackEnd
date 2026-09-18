@@ -14,4 +14,7 @@ enum class CourseErrorCode(
 
     // 4096 은 장소 리뷰 중복(PlaceErrorCode.PLACE_REVIEW_ALREADY_EXISTS)이 선점 — 4097 로 채번했다.
     COURSE_REVIEW_ALREADY_EXISTS(409, 4097, "이미 이 코스에 리뷰를 작성했습니다."),
+
+    // 4096(장소 리뷰)·4097(코스 리뷰)이 선점 — 다음 번호 4098 로 채번했다.
+    COURSE_ALREADY_LIKED(409, 4098, "이미 좋아요한 코스입니다."),
 }

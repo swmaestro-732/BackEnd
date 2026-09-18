@@ -104,6 +104,7 @@ class GlobalExceptionHandler {
                     "nickname" in message -> UserErrorCode.NICKNAME_ALREADY_TAKEN
                     "saved_course_folders" in message -> UserErrorCode.FOLDER_NAME_ALREADY_TAKEN
                     "saved_courses" in message -> UserErrorCode.COURSE_ALREADY_SAVED
+                    "course_likes" in message -> CourseErrorCode.COURSE_ALREADY_LIKED
                     "saved_places" in message -> PlaceErrorCode.PLACE_ALREADY_SAVED
                     "uq_place_reviews_user_place" in message -> PlaceErrorCode.PLACE_REVIEW_ALREADY_EXISTS
                     "uq_course_reviews_user_course" in message -> CourseErrorCode.COURSE_REVIEW_ALREADY_EXISTS
