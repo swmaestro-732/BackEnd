@@ -48,6 +48,11 @@ class PlanService(
         planPersistencePort.softDelete(planId)
     }
 
+    override fun deleteAllByOwner(userId: Long) {
+        // 회원 탈퇴 정리 — 소유자의 살아있는 계획을 전부 소프트 삭제한다(코스 deleteAllByAuthor 와 같은 방식).
+        planPersistencePort.softDeleteAllByOwner(userId)
+    }
+
     private fun requireCourseExists(courseId: Long) {
         if (!coursePersistencePort.existsById(courseId)) {
             throw BusinessException(CourseErrorCode.COURSE_NOT_FOUND, "원본 코스를 찾을 수 없습니다: id=$courseId")

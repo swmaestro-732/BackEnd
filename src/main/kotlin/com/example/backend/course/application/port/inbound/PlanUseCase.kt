@@ -15,4 +15,7 @@ interface PlanUseCase {
         userId: Long,
         planId: Long,
     )
+
+    /** 소유자의 살아있는 계획을 전부 소프트 삭제한다 — 회원 탈퇴 정리용(user 도메인이 호출). */
+    fun deleteAllByOwner(userId: Long)
 }

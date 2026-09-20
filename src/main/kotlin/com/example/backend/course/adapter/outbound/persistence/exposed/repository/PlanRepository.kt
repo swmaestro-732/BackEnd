@@ -87,6 +87,14 @@ class PlanRepository {
         }
     }
 
+    fun softDeleteAllByOwner(userId: Long): Int {
+        val now = Clock.System.now()
+        return PlanTable.update({ (PlanTable.userId eq userId) and PlanTable.deletedAt.isNull() }) {
+            it[deletedAt] = now
+            it[updatedAt] = now
+        }
+    }
+
     /** deleted_at IS NULL 인 계획 본문 한 행. */
     internal fun findById(planId: Long): PlanRow? =
         PlanTable

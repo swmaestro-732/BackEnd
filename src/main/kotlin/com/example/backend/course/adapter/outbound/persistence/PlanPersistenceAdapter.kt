@@ -64,6 +64,8 @@ class PlanPersistenceAdapter(
 
     override fun softDelete(planId: Long): Int = planRepository.softDelete(planId)
 
+    override fun softDeleteAllByOwner(userId: Long): Int = planRepository.softDeleteAllByOwner(userId)
+
     private fun PlanRow.toDomain(places: List<PlanPlace>): Plan =
         Plan.reconstitute(
             id = id,

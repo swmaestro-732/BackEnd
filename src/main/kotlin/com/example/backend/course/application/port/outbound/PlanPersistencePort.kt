@@ -39,4 +39,7 @@ interface PlanPersistencePort {
 
     /** deleted_at·updated_at 스탬프만 찍는다. 이미 삭제된 행은 건드리지 않으며 영향받은 행 수를 반환한다. */
     fun softDelete(planId: Long): Int
+
+    /** 소유자의 살아있는 계획을 전부 소프트 삭제한다(회원 탈퇴 정리). 영향받은 행 수를 반환한다. */
+    fun softDeleteAllByOwner(userId: Long): Int
 }
