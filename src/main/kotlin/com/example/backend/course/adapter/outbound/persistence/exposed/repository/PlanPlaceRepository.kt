@@ -25,6 +25,7 @@ class PlanPlaceRepository {
             this[PlanPlaceTable.placeId] = place.placeId
             this[PlanPlaceTable.orderNo] = place.orderNo.toShort()
             this[PlanPlaceTable.memo] = place.memo
+            this[PlanPlaceTable.walkingMinutes] = place.walkingMinutes
         }
     }
 
@@ -44,6 +45,7 @@ class PlanPlaceRepository {
                     placeId = it[PlanPlaceTable.placeId],
                     orderNo = it[PlanPlaceTable.orderNo].toInt(),
                     memo = it[PlanPlaceTable.memo],
+                    walkingMinutes = it[PlanPlaceTable.walkingMinutes],
                 )
             }
 

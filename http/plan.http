@@ -8,8 +8,8 @@ Authorization: Bearer {{accessToken}}
   "memo": "3시 전엔 출발하기",
   "plannedDate": "2026-09-20",
   "places": [
-    { "placeId": 22, "orderNo": 0, "memo": "웨이팅 있으면 옆집으로" },
-    { "placeId": 23, "orderNo": 1, "memo": null }
+    { "placeId": 22, "orderNo": 0, "memo": "웨이팅 있으면 옆집으로", "walkingMinutes": 7 },
+    { "placeId": 23, "orderNo": 1, "memo": null, "walkingMinutes": null }
   ]
 }
 
@@ -23,6 +23,19 @@ Authorization: Bearer {{accessToken}}
   "sourceCourseId": 2,
   "places": [
     { "placeId": 22, "orderNo": 0, "memo": null }
+  ]
+}
+
+### 계획 생성 — 도보 불가 구간(-1 센티널). -2 이하는 400 / 4002
+POST http://localhost:8080/api/v1/plans
+Content-Type: application/json
+Authorization: Bearer {{accessToken}}
+
+{
+  "title": "걸어선 못 가는 구간",
+  "places": [
+    { "placeId": 22, "orderNo": 0, "walkingMinutes": -1 },
+    { "placeId": 23, "orderNo": 1 }
   ]
 }
 
@@ -76,8 +89,8 @@ Authorization: Bearer {{accessToken}}
   "memo": "2시 반 출발로 변경",
   "plannedDate": "2026-09-21",
   "places": [
-    { "placeId": 23, "orderNo": 0, "memo": "먼저 들르기" },
-    { "placeId": 22, "orderNo": 1, "memo": "웨이팅 있으면 옆집으로" }
+    { "placeId": 23, "orderNo": 0, "memo": "먼저 들르기", "walkingMinutes": 12 },
+    { "placeId": 22, "orderNo": 1, "memo": "웨이팅 있으면 옆집으로", "walkingMinutes": null }
   ]
 }
 

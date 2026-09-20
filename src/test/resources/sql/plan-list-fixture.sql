@@ -19,8 +19,8 @@ VALUES
     (14, 2, '타인 계획', NULL, NULL, '2026-09-04T00:00:00Z', '2026-09-04T00:00:00Z', NULL);
 
 -- 장소 수(placeCount) 검증: 10 은 2곳, 11 은 1곳, 12 는 0곳(장소 없는 행도 목록에 나와야 한다).
-INSERT INTO plan_places (plan_id, place_id, order_no, memo)
+INSERT INTO plan_places (plan_id, place_id, order_no, memo, walking_minutes)
 VALUES
-    (10, 1, 0, '첫 장소'),
-    (10, 2, 1, NULL),
-    (11, 1, 0, NULL);
+    (10, 1, 0, '첫 장소', 7),
+    (10, 2, 1, NULL, NULL),
+    (11, 1, 0, NULL, NULL);

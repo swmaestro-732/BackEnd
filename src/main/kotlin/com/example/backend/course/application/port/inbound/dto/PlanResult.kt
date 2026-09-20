@@ -20,6 +20,8 @@ data class PlanPlaceResult(
     val placeId: Long,
     val orderNo: Int,
     val memo: String?,
+    /** 다음 장소까지 도보 이동 시간(분). -1 은 도보 불가, 마지막 장소면 null. */
+    val walkingMinutesToNext: Int?,
 )
 
 /**

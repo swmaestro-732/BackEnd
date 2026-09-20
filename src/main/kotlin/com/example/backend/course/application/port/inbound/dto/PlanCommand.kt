@@ -30,10 +30,19 @@ data class PlanPlaceCommand(
     val placeId: Long,
     val orderNo: Int,
     val memo: String?,
+    /** 다음 장소까지 도보 소요(분). -1 은 도보 불가, null 은 마지막 장소. */
+    val walkingMinutes: Int?,
 )
 
 fun List<PlanPlaceCommand>.toPlanPlaces(): List<PlanPlace> =
-    map { PlanPlace(placeId = it.placeId, orderNo = it.orderNo, memo = it.memo) }
+    map {
+        PlanPlace(
+            placeId = it.placeId,
+            orderNo = it.orderNo,
+            memo = it.memo,
+            walkingMinutes = it.walkingMinutes,
+        )
+    }
 
 fun CreatePlanCommand.toPlan(): Plan =
     Plan.create(

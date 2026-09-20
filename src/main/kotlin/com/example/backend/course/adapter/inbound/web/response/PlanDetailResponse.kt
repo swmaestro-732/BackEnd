@@ -41,8 +41,13 @@ data class PlanDetailResponse(
                 updatedAt = Instant.parse("2026-09-18T08:00:00Z"),
                 places =
                     listOf(
-                        PlanPlaceResponse(placeId = 101L, orderNo = 0, memo = "웨이팅 있으면 옆집으로"),
-                        PlanPlaceResponse(placeId = 205L, orderNo = 1, memo = null),
+                        PlanPlaceResponse(
+                            placeId = 101L,
+                            orderNo = 0,
+                            memo = "웨이팅 있으면 옆집으로",
+                            walkingMinutesToNext = 6,
+                        ),
+                        PlanPlaceResponse(placeId = 205L, orderNo = 1, memo = null, walkingMinutesToNext = null),
                     ),
             )
     }
@@ -52,9 +57,16 @@ data class PlanPlaceResponse(
     val placeId: Long,
     val orderNo: Int,
     val memo: String?,
+    /** 다음 장소까지 도보 이동 시간(분). -1 은 도보 불가, 마지막 장소면 null. */
+    val walkingMinutesToNext: Int?,
 ) {
     companion object {
         fun from(place: PlanPlaceResult) =
-            PlanPlaceResponse(placeId = place.placeId, orderNo = place.orderNo, memo = place.memo)
+            PlanPlaceResponse(
+                placeId = place.placeId,
+                orderNo = place.orderNo,
+                memo = place.memo,
+                walkingMinutesToNext = place.walkingMinutesToNext,
+            )
     }
 }

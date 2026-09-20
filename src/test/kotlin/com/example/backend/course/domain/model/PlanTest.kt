@@ -94,6 +94,21 @@ class PlanTest {
     }
 
     @Test
+    fun `도보 시간은 분·도보 불가(-1)·마지막 장소(null)를 그대로 싣는다`() {
+        val plan =
+            plan(
+                places =
+                    listOf(
+                        place(placeId = 1, orderNo = 0, walkingMinutes = 7),
+                        place(placeId = 2, orderNo = 1, walkingMinutes = -1),
+                        place(placeId = 3, orderNo = 2, walkingMinutes = null),
+                    ),
+            )
+
+        assertEquals(listOf(7, -1, null), plan.places.map { it.walkingMinutes })
+    }
+
+    @Test
     fun `편집은 생성과 같은 불변식을 적용하고 id·원본 코스를 싣는다`() {
         val edited =
             Plan.edit(
@@ -155,7 +170,8 @@ class PlanTest {
         placeId: Long,
         orderNo: Int,
         memo: String? = null,
-    ) = PlanPlace(placeId = placeId, orderNo = orderNo, memo = memo)
+        walkingMinutes: Int? = null,
+    ) = PlanPlace(placeId = placeId, orderNo = orderNo, memo = memo, walkingMinutes = walkingMinutes)
 
     private companion object {
         const val USER_ID = 1L

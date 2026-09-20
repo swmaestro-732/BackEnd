@@ -82,7 +82,11 @@ class PlanServiceTest {
     @Test
     fun `같은 장소를 두 번 담아도 장소 조회는 한 번만 요청한다`() {
         `when`(placeLookupPort.findPlacesByIds(listOf(1L))).thenReturn(listOf(placeRef(1L)))
-        val places = listOf(PlanPlaceCommand(placeId = 1L, orderNo = 0, memo = null), PlanPlaceCommand(1L, 1, null))
+        val places =
+            listOf(
+                PlanPlaceCommand(placeId = 1L, orderNo = 0, memo = null, walkingMinutes = null),
+                PlanPlaceCommand(placeId = 1L, orderNo = 1, memo = null, walkingMinutes = null),
+            )
         val expected =
             Plan.create(
                 userId = USER_ID,
@@ -90,7 +94,7 @@ class PlanServiceTest {
                 memo = null,
                 plannedDate = null,
                 sourceCourseId = null,
-                places = listOf(PlanPlace(1L, 0, null), PlanPlace(1L, 1, null)),
+                places = listOf(PlanPlace(1L, 0, null, null), PlanPlace(1L, 1, null, null)),
             )
         `when`(planPersistencePort.save(expected)).thenReturn(saved(expected))
 
@@ -112,7 +116,7 @@ class PlanServiceTest {
                 memo = null,
                 plannedDate = null,
                 sourceCourseId = 901L, // 요청에 없지만 저장된 값이 유지된다
-                places = listOf(PlanPlace(1L, 0, null), PlanPlace(2L, 1, null)),
+                places = listOf(PlanPlace(1L, 0, null, 7), PlanPlace(2L, 1, null, null)),
             )
         `when`(planPersistencePort.update(expected)).thenReturn(expected)
 
@@ -206,8 +210,8 @@ class PlanServiceTest {
 
     private fun defaultPlaceCommands() =
         listOf(
-            PlanPlaceCommand(placeId = 1L, orderNo = 0, memo = null),
-            PlanPlaceCommand(placeId = 2L, orderNo = 1, memo = null),
+            PlanPlaceCommand(placeId = 1L, orderNo = 0, memo = null, walkingMinutes = 7),
+            PlanPlaceCommand(placeId = 2L, orderNo = 1, memo = null, walkingMinutes = null),
         )
 
     /** 생성 커맨드가 조립하는 것과 같은 도메인 값(스텁 인자·기대값 공용). */
@@ -220,7 +224,7 @@ class PlanServiceTest {
         memo = "3시 전엔 출발",
         plannedDate = LocalDate.parse("2026-09-20").toKotlinLocalDate(),
         sourceCourseId = sourceCourseId,
-        places = listOf(PlanPlace(1L, 0, null), PlanPlace(2L, 1, null)),
+        places = listOf(PlanPlace(1L, 0, null, 7), PlanPlace(2L, 1, null, null)),
     )
 
     /** 영속 계층이 돌려주는 모양(생성 id·타임스탬프가 채워진 상태). */

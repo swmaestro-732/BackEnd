@@ -46,6 +46,7 @@ class PlanQueryServiceTest {
         assertEquals(listOf(0, 1), detail.places.map { it.orderNo })
         assertEquals("웨이팅 있으면 옆집", detail.places[0].memo)
         assertNull(detail.places[1].memo)
+        assertEquals(listOf(7, null), detail.places.map { it.walkingMinutesToNext })
     }
 
     @Test
@@ -133,7 +134,7 @@ class PlanQueryServiceTest {
             sourceCourseId = 901L,
             createdAt = KotlinInstant.parse("2026-09-18T07:00:00Z"),
             updatedAt = KotlinInstant.parse("2026-09-18T08:00:00Z"),
-            places = listOf(PlanPlace(1L, 0, "웨이팅 있으면 옆집"), PlanPlace(2L, 1, null)),
+            places = listOf(PlanPlace(1L, 0, "웨이팅 있으면 옆집", 7), PlanPlace(2L, 1, null, null)),
         )
 
     private fun summary(id: Long) =
