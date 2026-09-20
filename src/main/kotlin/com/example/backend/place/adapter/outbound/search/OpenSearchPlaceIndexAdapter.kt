@@ -1,5 +1,6 @@
 package com.example.backend.place.adapter.outbound.search
 
+import com.example.backend.bootstrap.config.OpenSearchProperties
 import com.example.backend.place.application.port.outbound.PlaceSearchIndexPort
 import com.example.backend.place.domain.model.Place
 import io.github.oshai.kotlinlogging.KotlinLogging
@@ -16,8 +17,10 @@ import org.springframework.stereotype.Component
 @Component
 class OpenSearchPlaceIndexAdapter(
     private val clientProvider: ObjectProvider<OpenSearchClient>,
+    properties: OpenSearchProperties,
 ) : PlaceSearchIndexPort {
     private val log = KotlinLogging.logger {}
+    private val indexAlias = properties.withPrefix("place")
 
     override fun save(places: List<Place>) {
         if (places.isEmpty()) return
@@ -33,7 +36,7 @@ class OpenSearchPlaceIndexAdapter(
                             val document = place.toDocument()
                             org.opensearch.client.opensearch.core.bulk.BulkOperation
                                 .Builder()
-                                .index { op -> op.index(INDEX_ALIAS).id(place.id.toString()).document(document) }
+                                .index { op -> op.index(indexAlias).id(place.id.toString()).document(document) }
                                 .build()
                         },
                     )
@@ -58,8 +61,4 @@ class OpenSearchPlaceIndexAdapter(
             location = GeoLocation(lat = location.latitude, lon = location.longitude),
             status = status.name,
         )
-
-    private companion object {
-        const val INDEX_ALIAS = "place"
-    }
 }
