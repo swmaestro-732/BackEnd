@@ -15,12 +15,13 @@ import org.springframework.test.context.jdbc.Sql
  *
  * 시드: A(1, 탈퇴 대상)·B(2)·C(3).
  *  - A→B, B→A 상호 팔로우.  - A 가 공개 코스 2개 작성(course 1·2).  - C 가 코스 작성(course 3), A 가 이를 저장.
+ *  - A 가 계획 2개 작성(plan 1·2, 그중 하나는 장소 포함), C 도 계획 1개 작성(plan 3).
  *  - A 는 관심 테마 2개·관심 지역 1개·bio·비영(非零) 카운터를 갖는다.
  */
 @Sql(
     statements = [
         "TRUNCATE TABLE follows, saved_courses, saved_course_folders, user_like_categories, " +
-            "user_areas, courses, users RESTART IDENTITY CASCADE",
+            "user_areas, plan_places, plans, courses, places, users RESTART IDENTITY CASCADE",
         // A(1) — 탈퇴 대상. 카운터를 실제 관계/코스 수와 맞춰 preset.
         "INSERT INTO users (nickname, handle, bio, profile_image_url, status, social_provider, social_id, " +
             "followers_cnt, followings_cnt, public_courses_cnt, follower_courses_cnt, private_courses_cnt) " +
@@ -40,6 +41,13 @@ import org.springframework.test.context.jdbc.Sql
         "INSERT INTO saved_courses (user_id, course_id, created_at) VALUES (1, 3, now())",
         "INSERT INTO user_like_categories (user_id, category) VALUES (1, 'CAFETOUR'), (1, 'DATE')",
         "INSERT INTO user_areas (user_id, area_code, updated_at) VALUES (1, '1168010100', now())",
+        // 계획: A(1) 의 2건(plan 1·2)과 C(3) 의 1건(plan 3). plan 1 은 장소를 담아 자식 보존까지 본다.
+        "INSERT INTO places (name, category, location, address) " +
+            "VALUES ('카페A', 'CAFE', 'SRID=4326;POINT(127.05 37.54)'::geography, '서울 성수동 1')",
+        "INSERT INTO plans (user_id, title) VALUES (1, 'A계획1')",
+        "INSERT INTO plans (user_id, title) VALUES (1, 'A계획2')",
+        "INSERT INTO plans (user_id, title) VALUES (3, 'C계획')",
+        "INSERT INTO plan_places (plan_id, place_id, order_no) VALUES (1, 1, 0)",
     ],
     executionPhase = Sql.ExecutionPhase.BEFORE_TEST_METHOD,
 )
@@ -63,15 +71,21 @@ class WithdrawPurgeIntegrationTest
             assertEquals(0L, count("SELECT count(*) FROM courses WHERE user_id = 1 AND deleted_at IS NULL"))
             assertNull(jdbc.queryForObject("SELECT deleted_at FROM courses WHERE id = 3", Any::class.java))
 
-            // 3) 저장 코스 — A 의 저장이 사라지고 원저자(C) 코스 saves_cnt 가 보정된다.
+            // 3) 작성 계획 — A 계획은 전부 소프트 삭제되고 장소는 남는다. 남의 계획(C)은 그대로.
+            assertEquals(0L, count("SELECT count(*) FROM plans WHERE user_id = 1 AND deleted_at IS NULL"))
+            assertEquals(2L, count("SELECT count(*) FROM plans WHERE user_id = 1 AND deleted_at IS NOT NULL"))
+            assertEquals(1L, count("SELECT count(*) FROM plan_places WHERE plan_id = 1"))
+            assertNull(jdbc.queryForObject("SELECT deleted_at FROM plans WHERE id = 3", Any::class.java))
+
+            // 4) 저장 코스 — A 의 저장이 사라지고 원저자(C) 코스 saves_cnt 가 보정된다.
             assertEquals(0L, count("SELECT count(*) FROM saved_courses WHERE user_id = 1"))
             assertEquals(0, intOf("SELECT saves_cnt FROM courses WHERE id = 3"))
 
-            // 4) 개인화 — 관심 테마·지역이 사라진다.
+            // 5) 개인화 — 관심 테마·지역이 사라진다.
             assertEquals(0L, count("SELECT count(*) FROM user_like_categories WHERE user_id = 1"))
             assertEquals(0L, count("SELECT count(*) FROM user_areas WHERE user_id = 1"))
 
-            // 5) users 행 — 탈퇴 스탬프 + 핸들 해제 + bio·카운터 리셋.
+            // 6) users 행 — 탈퇴 스탬프 + 핸들 해제 + bio·카운터 리셋.
             assertEquals("WITHDRAWN", jdbc.queryForObject("SELECT status FROM users WHERE id = 1", String::class.java))
             assertEquals(1L, count("SELECT count(*) FROM users WHERE id = 1 AND deleted_at IS NOT NULL"))
             assertNull(jdbc.queryForObject("SELECT bio FROM users WHERE id = 1", String::class.java))
