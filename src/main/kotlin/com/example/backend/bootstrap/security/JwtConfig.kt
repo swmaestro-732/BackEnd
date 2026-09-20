@@ -24,6 +24,7 @@ import javax.crypto.spec.SecretKeySpec
 class JwtConfig(
     private val jwtProperties: JwtProperties,
     private val kakaoOauthProperties: KakaoOauthProperties,
+    private val googleOauthProperties: GoogleOauthProperties,
 ) {
     private val secretKey = SecretKeySpec(jwtProperties.secret.toByteArray(), "HmacSHA256")
 
@@ -62,6 +63,48 @@ class JwtConfig(
         decoder.setJwtValidator(validator)
         return decoder
     }
+
+    @Bean
+    @Qualifier("googleJwtDecoder")
+    fun googleJwtDecoder(): JwtDecoder {
+        val decoder =
+            NimbusJwtDecoder
+                .withJwkSetUri(googleOauthProperties.jwksUri)
+                .jwsAlgorithm(SignatureAlgorithm.RS256)
+                .build()
+
+        // Google 은 iss 를 "https://accounts.google.com" 또는 "accounts.google.com" 두 형태로 발급한다 — 둘 다 허용.
+        val allowedIssuers =
+            setOf(
+                googleOauthProperties.issuer,
+                googleOauthProperties.issuer.removePrefix("https://"),
+            )
+        // aud 는 플랫폼(web/android/ios)마다 다른 client-id. 설정된 값(빈 값 제외) 중 하나라도 있으면 통과.
+        val allowedAudiences =
+            listOf(
+                googleOauthProperties.clientId,
+                googleOauthProperties.androidClientId,
+                googleOauthProperties.iosClientId,
+            ).filter { it.isNotBlank() }.toSet()
+        val validator =
+            DelegatingOAuth2TokenValidator(
+                issuerValidator(allowedIssuers),
+                audienceValidator(allowedAudiences),
+            )
+        decoder.setJwtValidator(validator)
+        return decoder
+    }
+
+    private fun issuerValidator(allowedIssuers: Set<String>): OAuth2TokenValidator<Jwt> =
+        OAuth2TokenValidator { jwt ->
+            if (jwt.issuer?.toString() in allowedIssuers) {
+                OAuth2TokenValidatorResult.success()
+            } else {
+                OAuth2TokenValidatorResult.failure(
+                    OAuth2Error("invalid_token", "ID token issuer is not an allowed issuer.", null),
+                )
+            }
+        }
 
     private fun audienceValidator(allowedAudiences: Set<String>): OAuth2TokenValidator<Jwt> =
         OAuth2TokenValidator { jwt ->
