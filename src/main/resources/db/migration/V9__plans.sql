@@ -26,3 +26,8 @@ CREATE TABLE public.plan_places (
     CONSTRAINT plan_places_plan_id_fkey FOREIGN KEY (plan_id) REFERENCES public.plans(id),
     CONSTRAINT plan_places_plan_id_order_no_key UNIQUE (plan_id, order_no)
 );
+
+-- 계획 기능의 앱 최소 빌드 정책(강제 업데이트, V7 과 같은 규칙). AppFeature.PLAN 키 = 'plan'.
+-- 계획 API 가 들어가는 빌드가 5 라 그 미만은 426. 값 변경은 UPSERT, 롤백은 행 삭제.
+INSERT INTO app_version_policies (feature, platform, min_build) VALUES
+    ('plan', 'android', 5);
