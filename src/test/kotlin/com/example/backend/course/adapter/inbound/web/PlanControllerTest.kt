@@ -49,8 +49,8 @@ class PlanControllerTest
                           "memo": "  3시 전엔 출발  ",
                           "plannedDate": "2026-09-20",
                           "places": [
-                            { "placeId": 2, "orderNo": 1, "memo": "   " },
-                            { "placeId": 1, "orderNo": 0, "memo": "웨이팅 있으면 옆집" }
+                            { "placeId": 2, "orderNo": 1, "memo": "   ", "walkingMinutes": null },
+                            { "placeId": 1, "orderNo": 0, "memo": "웨이팅 있으면 옆집", "walkingMinutes": 7 }
                           ]
                         }
                         """.trimIndent(),
@@ -69,12 +69,15 @@ class PlanControllerTest
             // 장소는 orderNo 오름차순으로 저장되고, 공백뿐인 메모는 null 로 정규화된다.
             val places =
                 jdbcTemplate.queryForList(
-                    "SELECT place_id, order_no, memo FROM plan_places WHERE plan_id = 1 ORDER BY order_no",
+                    "SELECT place_id, order_no, memo, walking_minutes FROM plan_places WHERE plan_id = 1 ORDER BY order_no",
                 )
             assertEquals(listOf(1L, 2L), places.map { it["place_id"] })
             assertEquals(listOf(0, 1), places.map { it["order_no"] })
             assertEquals("웨이팅 있으면 옆집", places[0]["memo"])
             assertNull(places[1]["memo"])
+            // 도보 시간은 코스와 같은 규칙 — 클라이언트가 보낸 값 그대로, 마지막 장소는 null.
+            assertEquals(7, places[0]["walking_minutes"])
+            assertNull(places[1]["walking_minutes"])
         }
 
         @Test
@@ -167,6 +170,31 @@ class PlanControllerTest
             assertEquals(0, countPlans())
         }
 
+        /** 도보 불가 구간은 -1 센티널로 저장한다(코스와 같은 규칙). -2 이하는 의미 없는 값이라 거부. */
+        @Test
+        fun `도보 시간은 -1 까지 허용하고 그 아래는 4002 로 막는다`() {
+            mockMvc
+                .perform(
+                    createRequest(
+                        """{"places":[{"placeId":1,"orderNo":0,"walkingMinutes":-1},{"placeId":2,"orderNo":1}]}""",
+                    ),
+                ).andExpect(status().isCreated)
+
+            assertEquals(
+                -1,
+                jdbcTemplate.queryForObject(
+                    "SELECT walking_minutes FROM plan_places WHERE plan_id = 1 AND order_no = 0",
+                    Int::class.java,
+                ),
+            )
+
+            mockMvc
+                .perform(createRequest("""{"places":[{"placeId":1,"orderNo":0,"walkingMinutes":-2}]}"""))
+                .andExpect(status().isBadRequest)
+                .andExpect(jsonPath("$.code").value(4002))
+                .andExpect(jsonPath("$.fieldErrors[0].field").value("places[0].walkingMinutes"))
+        }
+
         @Test
         fun `메모가 500자를 넘으면 4002 로 막는다`() {
             val tooLong = "a".repeat(501)
@@ -237,7 +265,16 @@ class PlanControllerTest
         @Test
         fun `상세는 담은 장소를 orderNo 순으로 내려준다`() {
             createPlan(
-                """{"title":"내 계획","memo":"메모","places":[{"placeId":2,"orderNo":1},{"placeId":1,"orderNo":0,"memo":"첫 장소"}]}""",
+                """
+                {
+                  "title": "내 계획",
+                  "memo": "메모",
+                  "places": [
+                    { "placeId": 2, "orderNo": 1 },
+                    { "placeId": 1, "orderNo": 0, "memo": "첫 장소", "walkingMinutes": 7 }
+                  ]
+                }
+                """.trimIndent(),
             )
 
             mockMvc
@@ -251,8 +288,10 @@ class PlanControllerTest
                 .andExpect(jsonPath("$.data.places[0].placeId").value(1))
                 .andExpect(jsonPath("$.data.places[0].orderNo").value(0))
                 .andExpect(jsonPath("$.data.places[0].memo").value("첫 장소"))
+                .andExpect(jsonPath("$.data.places[0].walkingMinutesToNext").value(7))
                 .andExpect(jsonPath("$.data.places[1].placeId").value(2))
                 .andExpect(jsonPath("$.data.places[1].memo").doesNotExist())
+                .andExpect(jsonPath("$.data.places[1].walkingMinutesToNext").doesNotExist())
         }
 
         @Test
@@ -288,7 +327,7 @@ class PlanControllerTest
                           "title": "수정된 제목",
                           "memo": "2시 반 출발로 변경",
                           "plannedDate": "2026-09-21",
-                          "places": [ { "placeId": 3, "orderNo": 0, "memo": "먼저" } ]
+                          "places": [ { "placeId": 3, "orderNo": 0, "memo": "먼저", "walkingMinutes": 12 } ]
                         }
                         """.trimIndent(),
                     ),
@@ -304,11 +343,12 @@ class PlanControllerTest
             // 기존 장소 2곳이 사라지고 보낸 1곳만 남는다(전체 치환).
             val places =
                 jdbcTemplate.queryForList(
-                    "SELECT place_id, order_no, memo FROM plan_places WHERE plan_id = 1 ORDER BY order_no",
+                    "SELECT place_id, order_no, memo, walking_minutes FROM plan_places WHERE plan_id = 1 ORDER BY order_no",
                 )
             assertEquals(1, places.size)
             assertEquals(3L, places[0]["place_id"])
             assertEquals("먼저", places[0]["memo"])
+            assertEquals(12, places[0]["walking_minutes"])
 
             // created_at 은 그대로, updated_at 만 새로 찍힌다.
             assertEquals(createdAt, timestampText("SELECT created_at::text FROM plans WHERE id = 1"))

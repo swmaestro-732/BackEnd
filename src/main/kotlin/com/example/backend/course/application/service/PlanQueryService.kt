@@ -36,7 +36,15 @@ class PlanQueryService(
             sourceCourseId = plan.sourceCourseId,
             createdAt = requireNotNull(plan.createdAt).toJavaInstant(),
             updatedAt = requireNotNull(plan.updatedAt).toJavaInstant(),
-            places = plan.places.map { PlanPlaceResult(placeId = it.placeId, orderNo = it.orderNo, memo = it.memo) },
+            places =
+                plan.places.map {
+                    PlanPlaceResult(
+                        placeId = it.placeId,
+                        orderNo = it.orderNo,
+                        memo = it.memo,
+                        walkingMinutesToNext = it.walkingMinutes,
+                    )
+                },
         )
     }
 
