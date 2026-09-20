@@ -43,8 +43,8 @@ class PlanScreenServiceTest {
                 planDetail(
                     places =
                         listOf(
-                            PlanPlaceResult(placeId = 1L, orderNo = 0, memo = null),
-                            PlanPlaceResult(placeId = 1L, orderNo = 1, memo = null),
+                            PlanPlaceResult(placeId = 1L, orderNo = 0, memo = null, walkingMinutesToNext = 5),
+                            PlanPlaceResult(placeId = 1L, orderNo = 1, memo = null, walkingMinutesToNext = null),
                         ),
                 ),
             )
@@ -81,8 +81,8 @@ class PlanScreenServiceTest {
     private fun planDetail(
         places: List<PlanPlaceResult> =
             listOf(
-                PlanPlaceResult(placeId = 1L, orderNo = 0, memo = "첫 장소"),
-                PlanPlaceResult(placeId = 2L, orderNo = 1, memo = null),
+                PlanPlaceResult(placeId = 1L, orderNo = 0, memo = "첫 장소", walkingMinutesToNext = 5),
+                PlanPlaceResult(placeId = 2L, orderNo = 1, memo = null, walkingMinutesToNext = null),
             ),
     ) = PlanDetailResult(
         id = PLAN_ID,

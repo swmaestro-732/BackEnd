@@ -16,9 +16,10 @@ VALUES
     (1, 1, '토요일 성수 데이트', '3시 전엔 출발', '2026-09-20', NULL, '2026-09-18T07:00:00Z', '2026-09-18T08:00:00Z'),
     (2, 2, '타인 계획', NULL, NULL, NULL, '2026-09-18T07:00:00Z', '2026-09-18T08:00:00Z');
 
-INSERT INTO plan_places (plan_id, place_id, order_no, memo)
+-- 도보 시간: 1구간 6분, 2구간은 도보 불가(-1), 마지막 장소는 NULL → 화면 합계는 6분.
+INSERT INTO plan_places (plan_id, place_id, order_no, memo, walking_minutes)
 VALUES
-    (1, 1, 0, '웨이팅 있으면 옆집으로'),
-    (1, 2, 1, NULL),
-    (1, 3, 2, '삭제된 장소'),
-    (2, 1, 0, NULL);
+    (1, 1, 0, '웨이팅 있으면 옆집으로', 6),
+    (1, 2, 1, NULL, -1),
+    (1, 3, 2, '삭제된 장소', NULL),
+    (2, 1, 0, NULL, NULL);

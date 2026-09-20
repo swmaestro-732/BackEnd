@@ -50,6 +50,10 @@ class PlanScreenControllerTest
                 .andExpect(jsonPath("$.data.places[0].imageUrl").value("https://cdn/p1.jpg"))
                 .andExpect(jsonPath("$.data.places[0].location.latitude").value(37.5445))
                 .andExpect(jsonPath("$.data.places[0].location.longitude").value(127.0575))
+                .andExpect(jsonPath("$.data.places[0].walkingMinutesToNext").value(6))
+                // 도보 불가(-1) 구간은 그대로 내려주되 합계에서는 뺀다.
+                .andExpect(jsonPath("$.data.places[1].walkingMinutesToNext").value(-1))
+                .andExpect(jsonPath("$.data.walkingMinutes").value(6))
                 // 대표 이미지가 없는 장소는 imageUrl 만 빠진다
                 .andExpect(jsonPath("$.data.places[1].name").value("대림창고 갤러리"))
                 .andExpect(jsonPath("$.data.places[1].imageUrl").doesNotExist())
@@ -67,6 +71,7 @@ class PlanScreenControllerTest
                 .andExpect(jsonPath("$.data.places[2].name").doesNotExist())
                 .andExpect(jsonPath("$.data.places[2].location").doesNotExist())
                 .andExpect(jsonPath("$.data.places[2].categories.length()").value(0))
+                .andExpect(jsonPath("$.data.places[2].walkingMinutesToNext").doesNotExist())
         }
 
         @Test
@@ -97,6 +102,8 @@ class PlanScreenControllerTest
                 .andExpect(jsonPath("$.data.sourceCourseId").value(12))
                 .andExpect(jsonPath("$.data.places.length()").value(2))
                 .andExpect(jsonPath("$.data.places[0].name").value("어니언 성수"))
+                .andExpect(jsonPath("$.data.places[0].walkingMinutesToNext").value(6))
+                .andExpect(jsonPath("$.data.walkingMinutes").value(6))
         }
 
         private fun screenRequest(
