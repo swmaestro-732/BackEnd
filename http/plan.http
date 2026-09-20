@@ -1,0 +1,90 @@
+### 계획 생성 (실구현) — 인증 필수(토큰의 subject 가 소유자). 장소 1곳 이상·최대 10곳, orderNo 0부터 중복 불가
+POST http://localhost:8080/api/v1/plans
+Content-Type: application/json
+Authorization: Bearer {{accessToken}}
+
+{
+  "title": "토요일 성수 데이트",
+  "memo": "3시 전엔 출발하기",
+  "plannedDate": "2026-09-20",
+  "places": [
+    { "placeId": 22, "orderNo": 0, "memo": "웨이팅 있으면 옆집으로" },
+    { "placeId": 23, "orderNo": 1, "memo": null }
+  ]
+}
+
+### 계획 생성 — 코스에서 복제(sourceCourseId). 원본 코스 없으면 404 / 4041 COURSE_NOT_FOUND
+POST http://localhost:8080/api/v1/plans
+Content-Type: application/json
+Authorization: Bearer {{accessToken}}
+
+{
+  "title": "성수 코스 따라가 보기",
+  "sourceCourseId": 2,
+  "places": [
+    { "placeId": 22, "orderNo": 0, "memo": null }
+  ]
+}
+
+### 계획 생성 — 장소 0곳 → 400 / 4001 INVALID_INPUT
+POST http://localhost:8080/api/v1/plans
+Content-Type: application/json
+Authorization: Bearer {{accessToken}}
+
+{
+  "title": "빈 계획",
+  "places": []
+}
+
+### 계획 생성 — ?mock=true 폴백 (DB 저장 없이 planId=1)
+POST http://localhost:8080/api/v1/plans?mock=true
+Content-Type: application/json
+Authorization: Bearer {{accessToken}}
+
+{
+  "title": "mock",
+  "places": [ { "placeId": 1, "orderNo": 0 } ]
+}
+
+### 내 계획 목록 조회 (실구현) — 최근 수정순, size 1~50(기본 10)
+GET http://localhost:8080/api/v1/plans?size=10
+Authorization: Bearer {{accessToken}}
+
+### 내 계획 목록 조회 — 다음 페이지(직전 응답의 nextCursor)
+GET http://localhost:8080/api/v1/plans?cursor={{nextCursor}}&size=10
+Authorization: Bearer {{accessToken}}
+
+### 내 계획 목록 조회 — 잘못된 커서 → 400 / 4001
+GET http://localhost:8080/api/v1/plans?cursor=not-a-cursor
+Authorization: Bearer {{accessToken}}
+
+### 계획 상세 조회 (실구현) — 소유자만. 없음·삭제·타인 소유 → 404 / 4047 PLAN_NOT_FOUND
+GET http://localhost:8080/api/v1/plans/1
+Authorization: Bearer {{accessToken}}
+
+### 계획 상세 조회 — ?mock=true 폴백
+GET http://localhost:8080/api/v1/plans/1?mock=true
+Authorization: Bearer {{accessToken}}
+
+### 계획 편집 (실구현, 전체 치환) — 장소·순서·메모를 통째로 교체
+PATCH http://localhost:8080/api/v1/plans/1
+Content-Type: application/json
+Authorization: Bearer {{accessToken}}
+
+{
+  "title": "토요일 성수 데이트",
+  "memo": "2시 반 출발로 변경",
+  "plannedDate": "2026-09-21",
+  "places": [
+    { "placeId": 23, "orderNo": 0, "memo": "먼저 들르기" },
+    { "placeId": 22, "orderNo": 1, "memo": "웨이팅 있으면 옆집으로" }
+  ]
+}
+
+### 계획 삭제 (실구현, soft delete) — 성공 시 message 만
+DELETE http://localhost:8080/api/v1/plans/1
+Authorization: Bearer {{accessToken}}
+
+### 모킹 에러 주입 — 404 / 4047 계획 없음
+GET http://localhost:8080/api/v1/plans/1?mockError=4047
+Authorization: Bearer {{accessToken}}
