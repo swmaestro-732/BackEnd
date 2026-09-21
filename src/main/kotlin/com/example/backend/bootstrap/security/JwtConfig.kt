@@ -86,8 +86,11 @@ class JwtConfig(
                 googleOauthProperties.androidClientId,
                 googleOauthProperties.iosClientId,
             ).filter { it.isNotBlank() }.toSet()
+        // createDefault() 를 반드시 포함한다 — setJwtValidator 는 기본 검증기를 통째로 대체하므로
+        // 빠뜨리면 exp(만료)·nbf 검증이 사라진다(만료된 토큰 통과). issuer/aud 는 그 위에 얹는다.
         val validator =
             DelegatingOAuth2TokenValidator(
+                JwtValidators.createDefault(),
                 issuerValidator(allowedIssuers),
                 audienceValidator(allowedAudiences),
             )

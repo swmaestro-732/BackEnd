@@ -24,7 +24,7 @@ class GoogleSocialVerifierTest {
     }
 
     @Test
-    fun `client-id가 비어있으면 검증하지 않고 거부한다`() {
+    fun `web·android·ios client-id가 모두 비어있으면 검증하지 않고 거부한다`() {
         val verifier =
             verifier(
                 properties = properties(clientId = ""),
@@ -34,6 +34,20 @@ class GoogleSocialVerifierTest {
         val exception = assertFailsWith<BusinessException> { verifier.verify("any-token") }
 
         assertEquals(CommonErrorCode.SOCIAL_AUTHENTICATION_FAILED, exception.errorCode)
+    }
+
+    @Test
+    fun `웹 client-id가 없어도 android client-id만 있으면 검증을 진행한다(모바일 전용)`() {
+        val verifier =
+            verifier(
+                properties = properties(clientId = "", androidClientId = "android-client-id"),
+                decoder = JwtDecoder { jwtWithSubject("google-mobile-sub") },
+            )
+
+        val identity = verifier.verify("mobile-token")
+
+        assertEquals(SocialProvider.GOOGLE, identity.provider)
+        assertEquals("google-mobile-sub", identity.socialId)
     }
 
     @Test
@@ -59,9 +73,13 @@ class GoogleSocialVerifierTest {
         decoder: JwtDecoder,
     ): GoogleSocialVerifier = GoogleSocialVerifier(googleJwtDecoder = decoder, googleOauthProperties = properties)
 
-    private fun properties(clientId: String = "web-client-id"): GoogleOauthProperties =
+    private fun properties(
+        clientId: String = "web-client-id",
+        androidClientId: String = "",
+    ): GoogleOauthProperties =
         GoogleOauthProperties(
             clientId = clientId,
+            androidClientId = androidClientId,
             jwksUri = "https://www.googleapis.com/oauth2/v3/certs",
             issuer = "https://accounts.google.com",
         )
