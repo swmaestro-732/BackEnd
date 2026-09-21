@@ -61,6 +61,13 @@ oauth:
     native-app-key: ${KAKAO_NATIVE_APP_KEY:}
     jwks-uri: https://kauth.kakao.com/.well-known/jwks.json
     issuer: https://kauth.kakao.com
+  google:
+    # 웹 OAuth client-id(id_token aud). android/ios 는 플랫폼별 client-id(미설정 시 웹만 허용).
+    client-id: ${GOOGLE_CLIENT_ID:}
+    android-client-id: ${GOOGLE_ANDROID_CLIENT_ID:}
+    ios-client-id: ${GOOGLE_IOS_CLIENT_ID:}
+    jwks-uri: https://www.googleapis.com/oauth2/v3/certs
+    issuer: https://accounts.google.com
 
 # 외부 지도 연동(SCRUM-387). 키가 없으면 각 기능은 빈 결과/null 로 fail-soft.
 kakao:
