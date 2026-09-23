@@ -1,8 +1,8 @@
 package com.example.backend.course.application.port.inbound
 
 import com.example.backend.course.application.port.inbound.dto.CreateCourseCommand
+import com.example.backend.course.application.port.inbound.dto.DuplicateCourseCommand
 import com.example.backend.course.application.port.inbound.dto.EditCourseCommand
-import com.example.backend.course.application.port.inbound.dto.ForkCourseCommand
 import com.example.backend.course.domain.model.Course
 
 /**
@@ -13,7 +13,7 @@ interface CourseUseCase {
 
     fun edit(command: EditCourseCommand): Course
 
-    fun fork(command: ForkCourseCommand): Course
+    fun duplicate(command: DuplicateCourseCommand): Course
 
     fun delete(
         userId: Long,

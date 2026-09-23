@@ -6,12 +6,12 @@ import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 
-class ForkCourseRequestTest {
+class DuplicateCourseRequestTest {
     @Test
-    fun `toCommand — userId 와 forkedFromId 가 command 에 그대로 전달된다`() {
+    fun `toCommand — userId 와 duplicatedFromId 가 command 에 그대로 전달된다`() {
         val request =
-            ForkCourseRequest(
-                title = "포크 코스",
+            DuplicateCourseRequest(
+                title = "복제 코스",
                 description = "설명",
                 thumbnailUrl = "https://cdn.example.com/cover.jpg",
                 tags = listOf("FOOD", "CAFETOUR"),
@@ -20,16 +20,16 @@ class ForkCourseRequestTest {
                 places = emptyList(),
             )
 
-        val cmd = request.toCommand(userId = 10L, forkedFromId = 99L)
+        val cmd = request.toCommand(userId = 10L, duplicatedFromId = 99L)
 
         assertEquals(10L, cmd.userId)
-        assertEquals(99L, cmd.forkedFromId)
+        assertEquals(99L, cmd.duplicatedFromId)
     }
 
     @Test
     fun `toCommand — 제목·설명·커버·공개설정이 command 로 매핑된다`() {
         val request =
-            ForkCourseRequest(
+            DuplicateCourseRequest(
                 title = "나만의 코스",
                 description = "내 설명",
                 thumbnailUrl = "https://cdn.example.com/thumb.jpg",
@@ -39,7 +39,7 @@ class ForkCourseRequestTest {
                 places = emptyList(),
             )
 
-        val cmd = request.toCommand(userId = 1L, forkedFromId = 50L)
+        val cmd = request.toCommand(userId = 1L, duplicatedFromId = 50L)
 
         assertEquals("나만의 코스", cmd.title)
         assertEquals("내 설명", cmd.description)
@@ -51,7 +51,7 @@ class ForkCourseRequestTest {
     @Test
     fun `toCommand — nullable 필드(description, thumbnailUrl)가 null 이면 command 에도 null 이다`() {
         val request =
-            ForkCourseRequest(
+            DuplicateCourseRequest(
                 title = "",
                 description = null,
                 thumbnailUrl = null,
@@ -61,7 +61,7 @@ class ForkCourseRequestTest {
                 places = emptyList(),
             )
 
-        val cmd = request.toCommand(userId = 1L, forkedFromId = 2L)
+        val cmd = request.toCommand(userId = 1L, duplicatedFromId = 2L)
 
         assertNull(cmd.description)
         assertNull(cmd.coverImageUrl)
@@ -71,7 +71,7 @@ class ForkCourseRequestTest {
     fun `toCommand — tags 가 command 에 그대로 전달된다`() {
         val tags = listOf("FOOD", "CULTURE", "SHOPPING")
         val request =
-            ForkCourseRequest(
+            DuplicateCourseRequest(
                 title = "태그 테스트",
                 description = null,
                 thumbnailUrl = null,
@@ -81,7 +81,7 @@ class ForkCourseRequestTest {
                 places = emptyList(),
             )
 
-        val cmd = request.toCommand(userId = 1L, forkedFromId = 2L)
+        val cmd = request.toCommand(userId = 1L, duplicatedFromId = 2L)
 
         assertEquals(tags, cmd.tags)
     }
@@ -97,7 +97,7 @@ class ForkCourseRequestTest {
                 walkingMinutes = 10,
             )
         val request =
-            ForkCourseRequest(
+            DuplicateCourseRequest(
                 title = "장소 포함 코스",
                 description = null,
                 thumbnailUrl = null,
@@ -107,7 +107,7 @@ class ForkCourseRequestTest {
                 places = listOf(placeRequest),
             )
 
-        val cmd = request.toCommand(userId = 1L, forkedFromId = 5L)
+        val cmd = request.toCommand(userId = 1L, duplicatedFromId = 5L)
 
         assertEquals(1, cmd.places.size)
         val place = cmd.places.first()
@@ -121,7 +121,7 @@ class ForkCourseRequestTest {
     @Test
     fun `toCommand — places 가 비어 있으면 command 의 places 도 비어 있다`() {
         val request =
-            ForkCourseRequest(
+            DuplicateCourseRequest(
                 title = "",
                 description = null,
                 thumbnailUrl = null,
@@ -131,7 +131,7 @@ class ForkCourseRequestTest {
                 places = emptyList(),
             )
 
-        val cmd = request.toCommand(userId = 1L, forkedFromId = 2L)
+        val cmd = request.toCommand(userId = 1L, duplicatedFromId = 2L)
 
         assertTrue(cmd.places.isEmpty())
     }

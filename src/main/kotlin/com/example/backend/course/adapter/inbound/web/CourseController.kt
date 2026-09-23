@@ -6,8 +6,8 @@ import com.example.backend.bootstrap.mock.MockGuard
 import com.example.backend.bootstrap.security.CurrentUserId
 import com.example.backend.common.response.ApiResponse
 import com.example.backend.course.adapter.inbound.web.request.CreateCourseRequest
+import com.example.backend.course.adapter.inbound.web.request.DuplicateCourseRequest
 import com.example.backend.course.adapter.inbound.web.request.EditCourseRequest
-import com.example.backend.course.adapter.inbound.web.request.ForkCourseRequest
 import com.example.backend.course.adapter.inbound.web.response.CourseDetailResponse
 import com.example.backend.course.adapter.inbound.web.response.CourseIdResponse
 import com.example.backend.course.application.port.inbound.CourseQueryUseCase
@@ -95,34 +95,22 @@ class CourseController(
         return ApiResponse.success(CourseIdResponse.from(course))
     }
 
-    /**
-     * 코스 포크(노션 명세 · Course · course-fork). 인바운드 포트([CourseUseCase])로 새 코스를 저장한다.
-     *
-     * 원본 장소 규칙 : 원본이 4곳 이하면 전부, 5곳 이상이면 절반 이상을 그대로 담아야 하고, 두 경우 다 장소 추가는 자유롭다. (최대 10곳)
-     * `?mock=true` 이고 [MockGuard] 가 모킹을 허용할 때만 DB 저장 없이 고정 목([CourseIdResponse.MOCK])을
-     * 반환하고, 그 외에는 정상 유스케이스 경로를 탄다.
-     */
-    @PostMapping("/{courseId}/forks")
+    /** 코스 복제 */
+    @PostMapping("/{courseId}/duplicates")
     @ResponseStatus(HttpStatus.CREATED)
-    fun fork(
+    fun duplicate(
         @CurrentUserId userId: Long,
         @PathVariable courseId: Long,
-        @Valid @RequestBody request: ForkCourseRequest,
+        @Valid @RequestBody request: DuplicateCourseRequest,
         @RequestParam(required = false) mock: Boolean = false,
     ): ApiResponse<CourseIdResponse> {
         if (mock && mockGuard.isMockAllowed()) return ApiResponse.success(CourseIdResponse.MOCK)
 
-        val course = courseUseCase.fork(request.toCommand(userId, courseId))
+        val course = courseUseCase.duplicate(request.toCommand(userId, courseId))
         return ApiResponse.success(CourseIdResponse.from(course))
     }
 
-    /**
-     * 코스 삭제(소프트 삭제). 인바운드 포트([CourseUseCase])로 deleted_at 을 찍고 status 를 DELETED 로 전이한다.
-     * 소유자만 삭제할 수 있고(없음·비활성·타인 소유는 존재를 드러내지 않도록 404 COURSE_NOT_FOUND), 성공 시 data 없이
-     * 안내 메시지만 내려준다. 소유자 식별을 위해 `@CurrentUserId`(JWT subject)로 userId 를 받으므로 유효한 토큰이 필요하다.
-     * `?mock=true` 이고 [MockGuard] 가 모킹을 허용할 때만 삭제 없이 고정 성공 메시지를 반환하고,
-     * 그 외에는 정상 유스케이스 경로를 탄다.
-     */
+    /** 코스 삭제(소프트 삭제) */
     @DeleteMapping("/{courseId}")
     fun delete(
         @CurrentUserId userId: Long,

@@ -97,7 +97,7 @@ interface CoursePersistencePort {
         size: Int,
     ): List<CourseSummaryRow>
 
-    /** 미삭제(deleted_at IS NULL) 코스가 존재하는지 확인한다(fork 원본 검증 등). */
+    /** 미삭제(deleted_at IS NULL) 코스가 존재하는지 확인한다(duplicate 원본 검증 등). */
     fun existsById(courseId: Long): Boolean
 
     fun findPlaces(courseId: Long): List<CoursePlaceRow>

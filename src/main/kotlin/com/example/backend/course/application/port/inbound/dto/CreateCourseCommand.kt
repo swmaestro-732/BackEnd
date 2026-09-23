@@ -18,7 +18,7 @@ data class CreateCourseCommand(
     val tags: List<String>,
     val visibility: CourseVisibility,
     val isPublished: Boolean,
-    val forkedFromId: Long?,
+    val duplicatedFromId: Long?,
     val places: List<CreateCoursePlaceCommand>,
 )
 
@@ -32,15 +32,15 @@ data class CreateCoursePlaceCommand(
 )
 
 /**
- * 코스 포크 명령(애플리케이션 경계 타입). 웹 요청(ForkCourseRequest)에서 매핑된다.
+ * 코스 복제 명령(애플리케이션 경계 타입). 웹 요청(DuplicateCourseRequest)에서 매핑된다.
  *
- * 포크가 원본에서 가져오는 것은 장소 구성(어디를 어떤 순서로)뿐이고 그 위의 콘텐츠(장소별 캡션·사진,
- * 제목·설명·커버·태그·공개 설정)는 포크하는 사람이 새로 입력하므로, 필드가 코스 생성과 같고
- * 원본 코스 [forkedFromId] 만 더 받는다(생성과 달리 **필수**).
+ * 코스 복제가 원본에서 가져오는 것은 장소 구성(어디를 어떤 순서로)뿐이고 그 위의 콘텐츠(장소별 캡션·사진,
+ * 제목·설명·커버·태그·공개 설정)는 코스 복제하는 사람이 새로 입력하므로, 필드가 코스 생성과 같고
+ * 원본 코스 [duplicatedFromId] 만 더 받는다(생성과 달리 **필수**).
  */
-data class ForkCourseCommand(
+data class DuplicateCourseCommand(
     val userId: Long,
-    val forkedFromId: Long,
+    val duplicatedFromId: Long,
     val title: String,
     val description: String?,
     val coverImageUrl: String?,
@@ -49,7 +49,7 @@ data class ForkCourseCommand(
     val isPublished: Boolean,
     val places: List<CreateCoursePlaceCommand>,
 ) {
-    /** 원본 검증을 마친 뒤 실제 저장은 코스 생성 경로를 그대로 탄다(포크 표시는 forkedFromId 로 남는다). */
+    /** 원본 검증을 마친 뒤 실제 저장은 코스 생성 경로를 그대로 탄다(코스 복제 표시는 duplicatedFromId 로 남는다). */
     fun toCreateCommand(): CreateCourseCommand =
         CreateCourseCommand(
             userId = userId,
@@ -59,7 +59,7 @@ data class ForkCourseCommand(
             tags = tags,
             visibility = visibility,
             isPublished = isPublished,
-            forkedFromId = forkedFromId,
+            duplicatedFromId = duplicatedFromId,
             places = places,
         )
 }
@@ -103,6 +103,8 @@ fun CreateCourseCommand.toCourse(
     foundPlaces: List<PlaceRef>,
     areaCode: String?,
     area: String?,
+    originalPlaceCount: Int?,
+    sharedPlaceCount: Int?,
 ): Course =
     Course.create(
         userId = userId,
@@ -111,7 +113,9 @@ fun CreateCourseCommand.toCourse(
         coverImageUrl = coverImageUrl,
         visibility = visibility,
         isPublished = isPublished,
-        forkedFromId = forkedFromId,
+        duplicatedFromId = duplicatedFromId,
+        originalPlaceCount = originalPlaceCount,
+        sharedPlaceCount = sharedPlaceCount,
         tags = tags,
         places = places,
         placeCategoryByPlaceId = foundPlaces.associate { it.id to it.category },
