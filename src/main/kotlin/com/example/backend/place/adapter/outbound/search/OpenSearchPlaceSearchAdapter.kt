@@ -4,6 +4,7 @@ import com.example.backend.bootstrap.config.OpenSearchProperties
 import com.example.backend.common.exception.BusinessException
 import com.example.backend.common.geo.Coordinate
 import com.example.backend.common.response.PlaceErrorCode
+import com.example.backend.place.application.port.inbound.dto.PlaceMapSort
 import com.example.backend.place.application.port.outbound.PlaceMapBucket
 import com.example.backend.place.application.port.outbound.PlaceMapHits
 import com.example.backend.place.application.port.outbound.PlaceMapSearchPort
@@ -14,6 +15,8 @@ import io.github.oshai.kotlinlogging.KotlinLogging
 import org.opensearch.client.json.JsonData
 import org.opensearch.client.opensearch.OpenSearchClient
 import org.opensearch.client.opensearch._types.FieldValue
+import org.opensearch.client.opensearch._types.GeoDistanceType
+import org.opensearch.client.opensearch._types.SortOptions
 import org.opensearch.client.opensearch._types.SortOrder
 import org.opensearch.client.opensearch._types.query_dsl.BoolQuery
 import org.opensearch.client.opensearch._types.query_dsl.FunctionBoostMode
@@ -117,8 +120,10 @@ class OpenSearchPlaceSearchAdapter(
     override fun searchMap(
         criteria: PlaceSearchCriteria,
         precision: Int,
+        sort: PlaceMapSort,
     ): PlaceMapHits {
         val client = clientProvider.ifAvailable ?: throw unavailable()
+        val sortOptions = mapSort(sort, criteria)
         return try {
             val response =
                 client.search(
@@ -129,6 +134,7 @@ class OpenSearchPlaceSearchAdapter(
                         .source { it.fetch(false) }
                         .trackTotalHits { it.enabled(true) }
                         .query { q -> q.bool { b -> buildBool(b, criteria) } }
+                        .sort(sortOptions)
                         .aggregations("grid") { a ->
                             a
                                 .geohashGrid { g ->
@@ -139,8 +145,9 @@ class OpenSearchPlaceSearchAdapter(
                                         .shardSize(256)
                                 }.aggregations("center") { it.geoCentroid { c -> c.field("location") } }
                                 .aggregations("sample") {
+                                    // 단일 셀 마커의 정렬값(거리 m·점수)을 엔진에서 받아 셀 순서를 정한다.
                                     it.topHits { t ->
-                                        t.size(1).source { source -> source.fetch(false) }
+                                        t.size(1).sort(sortOptions).source { source -> source.fetch(false) }
                                     }
                                 }
                         }.build(),
@@ -161,27 +168,20 @@ class OpenSearchPlaceSearchAdapter(
                                 .geoCentroid()
                                 .location()!!
                                 .latlon()
+                        val sample =
+                            bucket
+                                .aggregations()["sample"]!!
+                                .topHits()
+                                .hits()
+                                .hits()
+                                .single()
                         PlaceMapBucket(
                             key = bucket.key(),
                             center = Coordinate(center.lat(), center.lon()),
                             count = bucket.docCount(),
-                            singlePlaceId =
-                                if (bucket.docCount() ==
-                                    1L
-                                ) {
-                                    bucket
-                                        .aggregations()["sample"]!!
-                                        .topHits()
-                                        .hits()
-                                        .hits()
-                                        .single()
-                                        .id()!!
-                                        .toLong()
-                                } else {
-                                    null
-                                },
-                        )
-                    }.sortedBy { it.key }
+                            singlePlaceId = if (bucket.docCount() == 1L) sample.id()!!.toLong() else null,
+                        ) to sample.sort().first().toDouble()
+                    }.let { parsed -> orderBuckets(parsed, sort) }
             // 집계가 잘리면 일부 마커만 성공으로 내려주지 않고 실패시킨다.
             check(buckets.sumOf { it.count } == total) { "지도 집계가 전체 검색 결과를 포함하지 않습니다." }
             PlaceMapHits(total, response.hits().hits().map { it.id()!!.toLong() }, buckets)
@@ -192,6 +192,47 @@ class OpenSearchPlaceSearchAdapter(
     }
 
     private fun unavailable() = BusinessException(PlaceErrorCode.PLACE_SEARCH_UNAVAILABLE)
+
+    /** 단일 셀은 엔진 정렬값 순(DISTANCE=거리 오름차순, RELEVANCE=점수 내림차순), 클러스터는 뒤에 키 순. */
+    private fun orderBuckets(
+        parsed: List<Pair<PlaceMapBucket, Double>>,
+        sort: PlaceMapSort,
+    ): List<PlaceMapBucket> {
+        val (singles, clusters) = parsed.partition { (bucket, _) -> bucket.singlePlaceId != null }
+        val orderedSingles =
+            when (sort) {
+                PlaceMapSort.DISTANCE -> singles.sortedBy { (_, value) -> value }
+                PlaceMapSort.RELEVANCE -> singles.sortedByDescending { (_, value) -> value }
+            }
+        return orderedSingles.map { it.first } + clusters.map { it.first }.sortedBy { it.key }
+    }
+
+    /** 히트 정렬 — RELEVANCE=_score, DISTANCE=기준점(anchor) 거리 오름차순. 둘 다 _doc 타이브레이크. */
+    private fun mapSort(
+        sort: PlaceMapSort,
+        criteria: PlaceSearchCriteria,
+    ): List<SortOptions> {
+        val primary =
+            when (sort) {
+                PlaceMapSort.RELEVANCE -> {
+                    SortOptions.of { s -> s.score { sc -> sc.order(SortOrder.Desc) } }
+                }
+
+                PlaceMapSort.DISTANCE -> {
+                    val origin = requireNotNull(criteria.anchor) { "거리순 정렬에는 기준점이 필요합니다." }
+                    SortOptions.of { s ->
+                        s.geoDistance { g ->
+                            g
+                                .field("location")
+                                .location { l -> l.latlon { ll -> ll.lat(origin.latitude).lon(origin.longitude) } }
+                                .order(SortOrder.Asc)
+                                .distanceType(GeoDistanceType.Arc)
+                        }
+                    }
+                }
+            }
+        return listOf(primary, SortOptions.of { s -> s.doc { d -> d.order(SortOrder.Asc) } })
+    }
 
     private fun buildBool(
         builder: BoolQuery.Builder,
@@ -205,10 +246,10 @@ class OpenSearchPlaceSearchAdapter(
                 }
             }
         }
-        if (criteria.areaCodePrefixes.isNotEmpty()) {
+        criteria.areaCodePrefixGroups.forEach { prefixes ->
             builder.filter { f ->
                 f.bool { areas ->
-                    criteria.areaCodePrefixes.forEach { prefix ->
+                    prefixes.forEach { prefix ->
                         areas.should { s -> s.prefix { p -> p.field("areaCode").value(prefix) } }
                     }
                     areas.minimumShouldMatch("1")

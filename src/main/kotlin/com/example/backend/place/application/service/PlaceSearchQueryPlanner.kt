@@ -9,6 +9,7 @@ import org.springframework.stereotype.Component
  *
  * 토큰별 분류 우선순위: (a) 카테고리 동의어 사전 → 카테고리 필터, (b) 지역 디렉터리(법정동 이름 contains 매치,
  * [AreaQueryUseCase.resolveSearchPrefixes], 개수 제한 없음) → areaCode prefix 필터, (c) 나머지 → 텍스트 토큰(multi_match).
+ * 같은 지역 토큰의 후보는 OR, 서로 다른 지역 토큰은 AND로 결합한다(서울 강남구 → 서울 안의 강남구).
  * 사전이 지역보다 우선한다 — 같은 토큰이 둘 다 맞으면 카테고리로만 소비한다(예: "문화" → CULTURE, 문화동 아님).
  * 오분류(지역어처럼 보이는 상호 등)는 호출부의 0건 폴백(필터 없는 전체 텍스트 재검색)이 받쳐준다.
  */
@@ -21,7 +22,7 @@ class PlaceSearchQueryPlanner(
 
         val textTokens = mutableListOf<String>()
         val categories = mutableListOf<PlaceCategory>()
-        val areaPrefixes = mutableListOf<String>()
+        val areaGroups = mutableListOf<List<String>>()
 
         tokens.forEach { token ->
             val category = resolveCategory(token)
@@ -31,7 +32,7 @@ class PlaceSearchQueryPlanner(
             }
             val prefixes = resolveAreaPrefixes(token)
             if (prefixes.isNotEmpty()) {
-                areaPrefixes += prefixes
+                areaGroups += dedupeSubsumed(prefixes)
                 return@forEach
             }
             textTokens += token
@@ -40,7 +41,7 @@ class PlaceSearchQueryPlanner(
         return PlaceSearchPlan(
             textTokens = textTokens,
             categories = categories.distinct(),
-            areaCodePrefixes = dedupeSubsumed(areaPrefixes),
+            areaCodePrefixGroups = areaGroups,
         )
     }
 
@@ -84,5 +85,5 @@ class PlaceSearchQueryPlanner(
 data class PlaceSearchPlan(
     val textTokens: List<String>,
     val categories: List<PlaceCategory>,
-    val areaCodePrefixes: List<String>,
+    val areaCodePrefixGroups: List<List<String>>,
 )

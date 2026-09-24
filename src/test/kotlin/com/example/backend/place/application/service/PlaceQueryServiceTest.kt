@@ -19,6 +19,7 @@ import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 import org.mockito.Mockito.mock
+import org.mockito.Mockito.`when`
 
 class PlaceQueryServiceTest {
     private val anchor = place(99)
@@ -44,7 +45,8 @@ class PlaceQueryServiceTest {
             criteria += invocation.getArgument<PlaceSearchCriteria>(0)
             engineHits()
         }
-    private val service = PlaceQueryService(db, engine, PlaceSearchQueryPlanner(mock(AreaQueryUseCase::class.java)))
+    private val areas = mock(AreaQueryUseCase::class.java)
+    private val service = PlaceQueryService(db, engine, PlaceSearchQueryPlanner(areas))
 
     @Test
     fun `첫 장소 검색에는 거리 기준과 뷰포트가 없다`() {
@@ -54,6 +56,29 @@ class PlaceQueryServiceTest {
         assertNull(criteria.single().anchor)
         assertNull(criteria.single().viewport)
         assertEquals(listOf("블루보틀"), criteria.single().textTokens)
+    }
+
+    @Test
+    fun `지역 그룹을 엔진에 전달하고 0건 재검색에서는 모두 해제한다`() {
+        `when`(areas.resolveSearchPrefixes("서울")).thenReturn(listOf("11"))
+        `when`(areas.resolveSearchPrefixes("강남구")).thenReturn(listOf("11680"))
+        engineHits = {
+            if (criteria.last().areaCodePrefixGroups.isEmpty()) {
+                PlaceSearchHits(listOf(1), 1)
+            } else {
+                PlaceSearchHits(emptyList(), 0)
+            }
+        }
+
+        val result = service.searchByName("서울 강남구 카페", null, 10, 99)
+
+        assertEquals(listOf(1L), result.items.map { it.id })
+        assertEquals(2, criteria.size)
+        assertEquals(listOf(listOf("11"), listOf("11680")), criteria.first().areaCodePrefixGroups)
+        assertTrue(criteria.last().areaCodePrefixGroups.isEmpty())
+        assertTrue(criteria.last().categories.isEmpty())
+        assertEquals(listOf("서울", "강남구", "카페"), criteria.last().textTokens)
+        assertTrue(criteria.all { it.anchor == anchor.location })
     }
 
     @Test

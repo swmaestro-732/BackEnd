@@ -10,6 +10,7 @@ import com.example.backend.place.adapter.inbound.web.response.PlaceMapResponse
 import com.example.backend.place.adapter.inbound.web.response.PlaceSearchResponse
 import com.example.backend.place.application.port.inbound.PlaceMapQueryUseCase
 import com.example.backend.place.application.port.inbound.PlaceQueryUseCase
+import com.example.backend.place.application.port.inbound.dto.PlaceMapSort
 import io.swagger.v3.oas.annotations.tags.Tag
 import jakarta.validation.constraints.Max
 import jakarta.validation.constraints.Min
@@ -48,7 +49,10 @@ class PlaceController(
         )
     }
 
-    /** 지도 검색. 필수 뷰포트 안의 마커·클러스터를 반환한다. */
+    /**
+     * 지도 검색. 필수 뷰포트 안의 마커·클러스터를 반환한다.
+     * `sort=DISTANCE` 는 `userLat/userLng`(둘 다 또는 둘 다 없음, 아니면 400) 기준, 없으면 뷰포트 중심 기준이다.
+     */
     @GetMapping("/map")
     fun searchMap(
         @RequestParam swLat: Double,
@@ -57,14 +61,22 @@ class PlaceController(
         @RequestParam neLng: Double,
         @RequestParam(required = false) q: String?,
         @RequestParam(required = false) category: PlaceMapCategory?,
-    ): ApiResponse<PlaceMapResponse> =
-        ApiResponse.success(
+        @RequestParam(required = false) sort: PlaceMapSort = PlaceMapSort.RELEVANCE,
+        @RequestParam(required = false) userLat: Double?,
+        @RequestParam(required = false) userLng: Double?,
+    ): ApiResponse<PlaceMapResponse> {
+        require((userLat == null) == (userLng == null)) { "userLat 과 userLng 는 함께 보내야 합니다." }
+        val userLocation = userLat?.let { Coordinate(it, userLng!!) }
+        return ApiResponse.success(
             PlaceMapResponse.from(
                 placeMapQueryUseCase.searchMap(
                     q.orEmpty(),
                     Viewport(Coordinate(swLat, swLng), Coordinate(neLat, neLng)),
                     category?.name,
+                    sort,
+                    userLocation,
                 ),
             ),
         )
+    }
 }

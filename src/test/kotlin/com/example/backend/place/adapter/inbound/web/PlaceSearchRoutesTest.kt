@@ -2,6 +2,7 @@ package com.example.backend.place.adapter.inbound.web
 
 import com.example.backend.common.exception.BusinessException
 import com.example.backend.common.response.PlaceErrorCode
+import com.example.backend.place.application.port.inbound.dto.PlaceMapSort
 import com.example.backend.place.application.port.outbound.PlaceMapHits
 import com.example.backend.place.application.port.outbound.PlaceMapSearchPort
 import com.example.backend.place.application.port.outbound.PlaceSearchCriteria
@@ -71,7 +72,8 @@ class PlaceSearchRoutesTest
 
         @Test
         fun `지도 검색은 줌과 키워드 없이 마커 클러스터 응답을 반환한다`() {
-            `when`(mapPort.searchMap(anyCriteria(), anyInt())).thenReturn(PlaceMapHits(0, emptyList(), emptyList()))
+            `when`(mapPort.searchMap(anyCriteria(), anyInt(), any() ?: PlaceMapSort.RELEVANCE))
+                .thenReturn(PlaceMapHits(0, emptyList(), emptyList()))
 
             mvc
                 .perform(
@@ -85,6 +87,20 @@ class PlaceSearchRoutesTest
                 .andExpect(jsonPath("$.data.places").isArray)
                 .andExpect(jsonPath("$.data.clusters").isArray)
                 .andExpect(jsonPath("$.data.hasNext").doesNotExist())
+        }
+
+        @Test
+        fun `지도 거리순은 사용자 위치 한쪽만 오면 400이다`() {
+            mvc
+                .perform(
+                    get("/api/v1/places/map")
+                        .param("swLat", "37.5")
+                        .param("swLng", "127.0")
+                        .param("neLat", "37.6")
+                        .param("neLng", "127.1")
+                        .param("sort", "DISTANCE")
+                        .param("userLat", "37.55"),
+                ).andExpect(status().isBadRequest)
         }
 
         @Test

@@ -12,3 +12,6 @@ GET {{baseUrl}}/api/v1/places/map?swLat=37.53&swLng=127.02&neLat=37.56&neLng=127
 
 ### 지도 검색: 뷰포트 + 키워드
 GET {{baseUrl}}/api/v1/places/map?swLat=37.53&swLng=127.02&neLat=37.56&neLng=127.07&q=블루보틀
+
+### 지도 검색: 거리순(사용자 위치 기준, 없으면 뷰포트 중심)
+GET {{baseUrl}}/api/v1/places/map?swLat=37.53&swLng=127.02&neLat=37.56&neLng=127.07&q=카페&sort=DISTANCE&userLat=37.544&userLng=127.056

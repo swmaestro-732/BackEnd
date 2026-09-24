@@ -2,6 +2,7 @@ package com.example.backend.place.adapter.outbound.search
 
 import com.example.backend.common.geo.Coordinate
 import com.example.backend.common.geo.Viewport
+import com.example.backend.place.application.port.inbound.dto.PlaceMapSort
 import com.example.backend.place.application.port.outbound.PlaceMapSearchPort
 import com.example.backend.place.application.port.outbound.PlaceSearchCriteria
 import com.example.backend.place.application.port.outbound.PlaceSearchQueryPort
@@ -48,7 +49,7 @@ class OpenSearchPlaceSearchIntegrationTest
                         PlaceSearchCriteria(
                             textTokens = listOf(query),
                             categories = emptyList(),
-                            areaCodePrefixes = emptyList(),
+                            areaCodePrefixGroups = emptyList(),
                             viewport = null,
                             from = 0,
                             size = 10,
@@ -85,12 +86,13 @@ class OpenSearchPlaceSearchIntegrationTest
                         PlaceSearchCriteria(
                             textTokens = listOf(query),
                             categories = listOf(PlaceCategory.CAFE),
-                            areaCodePrefixes = listOf("11"),
+                            areaCodePrefixGroups = listOf(listOf("11")),
                             viewport = Viewport(Coordinate(37.0, 126.0), Coordinate(38.0, 128.0)),
                             from = 0,
                             size = 100,
                         ),
                         precision = 5,
+                        sort = PlaceMapSort.RELEVANCE,
                     )
 
                 assertEquals(101L, hits.totalCount)
@@ -103,18 +105,100 @@ class OpenSearchPlaceSearchIntegrationTest
             }
         }
 
+        @Test
+        fun `지도 거리순은 기준점에서 가까운 히트부터 준다`() {
+            val query = "거리정렬${UUID.randomUUID()}"
+            val baseId = nextBaseId()
+            val far = baseId + 1
+            val near = baseId + 2
+            val mid = baseId + 3
+            val documents =
+                listOf(
+                    document(far, query, Coordinate(37.9, 127.9)),
+                    document(near, query, Coordinate(37.51, 127.01)),
+                    document(mid, query, Coordinate(37.7, 127.5)),
+                )
+            try {
+                index(documents)
+
+                val hits =
+                    mapPort.searchMap(
+                        PlaceSearchCriteria(
+                            textTokens = listOf(query),
+                            categories = emptyList(),
+                            areaCodePrefixGroups = emptyList(),
+                            viewport = Viewport(Coordinate(37.0, 126.0), Coordinate(38.0, 128.0)),
+                            from = 0,
+                            size = 100,
+                            anchor = Coordinate(37.5, 127.0),
+                        ),
+                        precision = 5,
+                        sort = PlaceMapSort.DISTANCE,
+                    )
+
+                assertEquals(listOf(near, mid, far), hits.ids)
+                assertEquals(listOf(near, mid, far), hits.buckets.map { it.singlePlaceId })
+            } finally {
+                delete(documents.map { it.first })
+            }
+        }
+
+        @Test
+        fun `목록과 지도는 지역 그룹을 모두 만족하는 같은 토큰의 후보만 검색한다`() {
+            val query = "지역교집합${UUID.randomUUID()}"
+            val baseId = nextBaseId()
+            val seoulJung = baseId + 1
+            val seoulJungnang = baseId + 2
+            val documents =
+                listOf(
+                    document(seoulJung, query, Coordinate(37.5, 127.0), areaCode = "1114010100"),
+                    document(seoulJungnang, query, Coordinate(37.6, 127.1), areaCode = "1126010100"),
+                    document(baseId + 3, query, Coordinate(37.5, 127.0), areaCode = "1168010100"),
+                    document(baseId + 4, query, Coordinate(37.5, 127.0), areaCode = "2611010100"),
+                )
+            try {
+                index(documents)
+                val criteria =
+                    PlaceSearchCriteria(
+                        textTokens = listOf(query),
+                        categories = listOf(PlaceCategory.CAFE),
+                        areaCodePrefixGroups = listOf(listOf("11"), listOf("11140", "11260", "26110")),
+                        viewport = null,
+                        from = 0,
+                        size = 10,
+                    )
+
+                val listHits = searchPort.search(criteria)
+                val mapHits =
+                    mapPort.searchMap(
+                        criteria.copy(viewport = Viewport(Coordinate(37.0, 126.0), Coordinate(38.0, 128.0))),
+                        precision = 5,
+                        sort = PlaceMapSort.RELEVANCE,
+                    )
+
+                assertEquals(2L, listHits.totalCount)
+                assertEquals(setOf(seoulJung, seoulJungnang), listHits.ids.toSet())
+                assertEquals(2L, mapHits.totalCount)
+                assertEquals(setOf(seoulJung, seoulJungnang), mapHits.ids.toSet())
+                assertEquals(2L, mapHits.buckets.sumOf { it.count })
+            } finally {
+                delete(documents.map { it.first })
+            }
+        }
+
         private fun document(
             id: Long,
             name: String,
             coordinate: Coordinate,
             category: String = "CAFE",
+            areaCode: String = "1168010100",
         ): Pair<Long, Map<String, Any>> =
             id to
                 mapOf(
                     "name" to name,
                     "category" to category,
                     "status" to "ACTIVE",
-                    "areaCode" to "1168010100",
+                    "areaCode" to areaCode,
                     "address" to "검색 회귀 테스트 주소",
                     "location" to mapOf("lat" to coordinate.latitude, "lon" to coordinate.longitude),
                 )

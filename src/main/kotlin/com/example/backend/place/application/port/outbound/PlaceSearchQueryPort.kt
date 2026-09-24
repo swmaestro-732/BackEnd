@@ -19,8 +19,8 @@ data class PlaceSearchCriteria(
     val textTokens: List<String>,
     /** 카테고리 동의어 사전이 흡수한 토큰들의 카테고리(OR). */
     val categories: List<PlaceCategory>,
-    /** 지역 사전이 흡수한 토큰들의 법정동코드 prefix(2자리 시도/5자리 시군구/10자리 읍면동, OR). */
-    val areaCodePrefixes: List<String>,
+    /** 지역 토큰별 법정동코드 prefix 후보(2자리 시도/5자리 시군구/10자리 읍면동). 그룹 내부 OR, 그룹 간 AND. */
+    val areaCodePrefixGroups: List<List<String>>,
     /** 지도 뷰포트 하드 필터(geo_bounding_box). null 이면 전역. */
     val viewport: Viewport?,
     /** 오프셋 페이지네이션 시작 위치. */

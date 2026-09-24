@@ -82,7 +82,7 @@ class PlaceQueryService(
         var hits = placeSearchQueryPort.search(criteria)
 
         // 0건 텍스트 재검색은 사전 필터만 풀고 기준 장소는 유지한다
-        val hadFilters = criteria.categories.isNotEmpty() || criteria.areaCodePrefixes.isNotEmpty()
+        val hadFilters = criteria.categories.isNotEmpty() || criteria.areaCodePrefixGroups.isNotEmpty()
         if (offset == 0 && !usedFallback && hits.totalCount == 0L && hadFilters) {
             usedFallback = true
             hits = placeSearchQueryPort.search(buildCriteria(query, offset, usedFallback, pageSize, anchor))
@@ -118,7 +118,7 @@ class PlaceQueryService(
             return PlaceSearchCriteria(
                 textTokens = query.trim().split(Regex("\\s+")).filter { it.isNotBlank() },
                 categories = emptyList(),
-                areaCodePrefixes = emptyList(),
+                areaCodePrefixGroups = emptyList(),
                 viewport = null,
                 from = offset,
                 size = size,
@@ -130,7 +130,7 @@ class PlaceQueryService(
         return PlaceSearchCriteria(
             textTokens = plan.textTokens,
             categories = plan.categories,
-            areaCodePrefixes = plan.areaCodePrefixes,
+            areaCodePrefixGroups = plan.areaCodePrefixGroups,
             viewport = null,
             from = offset,
             size = size,
