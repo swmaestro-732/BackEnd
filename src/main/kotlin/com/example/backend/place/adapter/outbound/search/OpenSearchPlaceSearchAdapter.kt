@@ -1,5 +1,6 @@
 package com.example.backend.place.adapter.outbound.search
 
+import com.example.backend.bootstrap.config.OpenSearchProperties
 import com.example.backend.common.exception.BusinessException
 import com.example.backend.common.geo.Coordinate
 import com.example.backend.common.response.PlaceErrorCode
@@ -27,7 +28,7 @@ import org.springframework.stereotype.Component
  * 아웃바운드 어댑터 — [PlaceSearchQueryPort] 를 OpenSearch 검색으로 구현한다.
  *
  * [OpenSearchClient] 가 없거나(=opensearch.endpoint 미주입) 검색이 실패하면 `PLACE_SEARCH_UNAVAILABLE`(503)로
- * 실패시킨다 — DB 폴백은 두지 않는다. alias `place` 를 조회하며, id 만 필요하므로 _source 는 내리지 않는다.
+ * 실패시킨다 — DB 폴백은 두지 않는다. alias `place`(환경 prefix 적용)를 조회하며, id 만 필요하므로 _source 는 내리지 않는다.
  *
  * 정렬: 텍스트 토큰이 있으면 관련도(_score) 내림차순 + _doc 타이브레이크, 필터-only 브라우즈면 _doc.
  * (_id 정렬은 fielddata 요구로 피한다. _doc 은 페이지 간 순서 결정성만 보장하는 근사 — 최신순 정렬은
@@ -36,9 +37,11 @@ import org.springframework.stereotype.Component
 @Component
 class OpenSearchPlaceSearchAdapter(
     private val clientProvider: ObjectProvider<OpenSearchClient>,
+    properties: OpenSearchProperties,
 ) : PlaceSearchQueryPort,
     PlaceMapSearchPort {
     private val log = KotlinLogging.logger {}
+    private val indexAlias = properties.withPrefix("place")
 
     override fun search(criteria: PlaceSearchCriteria): PlaceSearchHits {
         val client = clientProvider.ifAvailable ?: throw unavailable()
@@ -59,7 +62,7 @@ class OpenSearchPlaceSearchAdapter(
     private fun buildRequest(criteria: PlaceSearchCriteria): SearchRequest =
         SearchRequest
             .Builder()
-            .index(INDEX_ALIAS)
+            .index(indexAlias)
             .from(criteria.from)
             .size(criteria.size)
             // totalCount("장소 N곳")·hasNext 판정에 정확한 전체 건수가 필요해 기본 10,000 상한을 푼다.
@@ -121,7 +124,7 @@ class OpenSearchPlaceSearchAdapter(
                 client.search(
                     SearchRequest
                         .Builder()
-                        .index(INDEX_ALIAS)
+                        .index(indexAlias)
                         .size(criteria.size)
                         .source { it.fetch(false) }
                         .trackTotalHits { it.enabled(true) }
@@ -242,7 +245,6 @@ class OpenSearchPlaceSearchAdapter(
     }
 
     private companion object {
-        const val INDEX_ALIAS = "place"
         const val STATUS_ACTIVE = "ACTIVE"
     }
 }
