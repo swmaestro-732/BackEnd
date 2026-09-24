@@ -1,5 +1,6 @@
 package com.example.backend.course.application.service
 
+import com.example.backend.common.domain.CourseVisibility
 import com.example.backend.common.exception.BusinessException
 import com.example.backend.common.response.CourseErrorCode
 import com.example.backend.course.application.port.inbound.CourseQueryUseCase
@@ -15,7 +16,6 @@ import com.example.backend.course.application.port.outbound.CourseSummaryRow
 import com.example.backend.course.application.port.outbound.CourseTagQueryPort
 import com.example.backend.course.application.port.outbound.ViewerInteractionPort
 import com.example.backend.course.domain.model.CourseStatus
-import com.example.backend.course.domain.model.CourseVisibility
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
 
@@ -174,6 +174,7 @@ class CourseQueryService(
             title = row.title,
             coverImageUrl = row.coverImageUrl,
             theme = row.category?.name,
+            area = null, // 목록/피드 요약행에는 행정구역이 없다(검색 결과에서만 채워짐).
             likesCnt = row.likesCnt,
             savesCnt = row.savesCnt,
             createdAt = row.createdAt,

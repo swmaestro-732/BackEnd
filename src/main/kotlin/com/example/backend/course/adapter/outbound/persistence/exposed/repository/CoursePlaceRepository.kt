@@ -1,12 +1,12 @@
 package com.example.backend.course.adapter.outbound.persistence.exposed.repository
 
-import com.example.backend.course.adapter.outbound.persistence.exposed.CoursePlaceEntity
 import com.example.backend.course.adapter.outbound.persistence.exposed.CoursePlaceTable
 import com.example.backend.course.application.port.outbound.CoursePlaceRow
 import com.example.backend.course.domain.model.CoursePlace
 import org.jetbrains.exposed.v1.core.SortOrder
 import org.jetbrains.exposed.v1.core.eq
 import org.jetbrains.exposed.v1.core.inList
+import org.jetbrains.exposed.v1.jdbc.batchInsert
 import org.jetbrains.exposed.v1.jdbc.deleteWhere
 import org.jetbrains.exposed.v1.jdbc.select
 import org.jetbrains.exposed.v1.jdbc.selectAll
@@ -20,25 +20,28 @@ import org.springframework.stereotype.Repository
 class CoursePlaceRepository(
     private val coursePlaceImageRepository: CoursePlaceImageRepository,
 ) {
-    /** 장소 한 곳을 삽입하고, 그 장소의 이미지들을 순서대로 함께 저장한다. */
-    fun insert(
+    /** 코스의 장소들을 배치 1문으로 삽입하고, 전 장소의 이미지들을 다시 배치 1문으로 함께 저장한다. */
+    fun insertAll(
         courseId: Long,
-        place: CoursePlace,
+        places: List<CoursePlace>,
     ) {
-        val coursePlaceId =
-            CoursePlaceEntity
-                .new {
-                    this.courseId = courseId
-                    placeId = place.placeId
-                    orderNo = place.orderNo.toShort()
-                    caption = place.caption
-                    // 요청이 보낸 값을 그대로 저장한다 — -1(도보 이동 불가)·null(마지막 장소) 포함.
-                    walkingMinutes = place.walkingMinutes
-                }.id.value
+        if (places.isEmpty()) return
+        val coursePlaceIds =
+            CoursePlaceTable
+                .batchInsert(places) { place ->
+                    this[CoursePlaceTable.courseId] = courseId
+                    this[CoursePlaceTable.placeId] = place.placeId
+                    this[CoursePlaceTable.orderNo] = place.orderNo.toShort()
+                    this[CoursePlaceTable.caption] = place.caption
+                    this[CoursePlaceTable.walkingMinutes] = place.walkingMinutes
+                }.map { it[CoursePlaceTable.id].value }
 
-        place.imageUrls.forEachIndexed { index, url ->
-            coursePlaceImageRepository.insert(coursePlaceId, url, index)
-        }
+        // batchInsert 는 생성 행을 입력 순서대로 돌려준다 — zip 으로 각 장소에 생성 id 를 대응시킨다.
+        val images =
+            places.zip(coursePlaceIds).flatMap { (place, coursePlaceId) ->
+                place.imageUrls.mapIndexed { index, url -> NewCoursePlaceImage(coursePlaceId, url, index) }
+            }
+        coursePlaceImageRepository.insertAll(images)
     }
 
     /** 코스에 담긴 모든 장소와 그 이미지를 삭제한다(전체 치환 편집 전처리) — 이미지 삭제 후 장소를 지운다. */

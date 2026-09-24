@@ -1,5 +1,7 @@
 package com.example.backend.place.adapter.inbound.web
 
+import com.example.backend.bootstrap.appversion.AppFeature
+import com.example.backend.bootstrap.appversion.RequiresAppFeature
 import com.example.backend.bootstrap.mock.MockGuard
 import com.example.backend.common.geo.Coordinate
 import com.example.backend.common.geo.Viewport
@@ -18,6 +20,7 @@ import org.springframework.web.bind.annotation.RestController
 
 /** 장소 검색 — 코스 생성용 목록과 지도용 마커·클러스터 조회. */
 @Tag(name = "Place")
+@RequiresAppFeature(AppFeature.PLACE_SEARCH)
 @RestController
 @RequestMapping("/api/v1/places")
 class PlaceController(

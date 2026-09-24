@@ -1,0 +1,163 @@
+## 코스 리뷰 작성 (실구현) — Course · course-review
+# 작성은 @CurrentUserId(JWT subject)로 userId 를 뽑고 @AccessTokenRequired 로 access 토큰을 강제한다.
+# 아래 첫 요청(mock 로그인)이 accessToken 을 전역 저장 → 이후 요청은 Authorization 헤더로 재사용한다.
+# (auth.http 를 먼저 실행해 두었다면 이 요청은 건너뛰어도 된다.)
+# 태그 코드 정본은 .ai/taxonomy.md "코스 리뷰 태그" — 코드는 CourseReviewTag enum 이름의 소문자다.
+
+### 0) 사전: mock 소셜 로그인 — dev accessToken(user id=1) 발급 + 전역 저장
+POST http://localhost:8080/api/v1/auth/social-login?mock=true
+Content-Type: application/json
+
+{
+  "provider": "KAKAO",
+  "idToken": "dev"
+}
+
+> {%
+    client.global.set("accessToken", response.body.data.accessToken);
+    client.global.set("refreshToken", response.body.data.refreshToken);
+%}
+
+## 코스 리뷰 작성 (POST /api/v1/courses/{courseId}/reviews)
+
+### 1) 리뷰 작성 (별점 + 한마디 + 사진 + 태그) → 201 CREATED
+POST http://localhost:8080/api/v1/courses/1/reviews
+Content-Type: application/json
+Authorization: Bearer {{accessToken}}
+
+{
+  "rating": 5,
+  "content": "비 오는 날 딱이에요. 동선이 자연스러워서 걷기 좋았어요.",
+  "photoUrls": [
+    "https://cdn.example.com/courses/1/reviews/1-1.jpg",
+    "https://cdn.example.com/courses/1/reviews/1-2.jpg"
+  ],
+  "tagCodes": ["packed", "smooth"]
+}
+
+> {%
+    client.global.set("courseReviewId", response.body.data.reviewId);
+%}
+
+### 2) 리뷰 작성 — 별점만(한마디·사진·태그 생략) → 201 CREATED
+POST http://localhost:8080/api/v1/courses/1/reviews
+Content-Type: application/json
+Authorization: Bearer {{accessToken}}
+
+{
+  "rating": 4
+}
+
+### 3) 리뷰 작성 — 같은 코스에 또 작성 → 201 CREATED (다시 따라갈 때마다 남길 수 있어 막지 않는다)
+POST http://localhost:8080/api/v1/courses/1/reviews
+Content-Type: application/json
+Authorization: Bearer {{accessToken}}
+
+{
+  "rating": 3,
+  "content": "주말엔 사람이 너무 많아요."
+}
+
+### 4) 리뷰 작성 — 없는 코스 → 404 / 4041 COURSE_NOT_FOUND
+POST http://localhost:8080/api/v1/courses/999999/reviews
+Content-Type: application/json
+Authorization: Bearer {{accessToken}}
+
+{
+  "rating": 4
+}
+
+### 5) 리뷰 작성 — 모르는 태그 코드 → 400 / 4001 INVALID_INPUT
+POST http://localhost:8080/api/v1/courses/1/reviews
+Content-Type: application/json
+Authorization: Bearer {{accessToken}}
+
+{
+  "rating": 4,
+  "tagCodes": ["nosuchtag"]
+}
+
+### 6) 리뷰 작성 — 별점 범위 밖 → 400 / 4002 VALIDATION_FAILED (fieldErrors: rating)
+POST http://localhost:8080/api/v1/courses/1/reviews
+Content-Type: application/json
+Authorization: Bearer {{accessToken}}
+
+{
+  "rating": 6
+}
+
+### 7) 리뷰 작성 — 태그 6개(상한 5) → 400 / 4002 VALIDATION_FAILED (fieldErrors: tagCodes)
+POST http://localhost:8080/api/v1/courses/1/reviews
+Content-Type: application/json
+Authorization: Bearer {{accessToken}}
+
+{
+  "rating": 4,
+  "tagCodes": ["packed", "combo", "smooth", "efficient", "walkable", "transit"]
+}
+
+### 8) 리뷰 작성 — 토큰 없음 → 401
+POST http://localhost:8080/api/v1/courses/1/reviews
+Content-Type: application/json
+
+{
+  "rating": 4
+}
+
+### 9) 리뷰 작성 — mock 폴백(저장 없이 고정 reviewId=7) → 201 CREATED
+POST http://localhost:8080/api/v1/courses/1/reviews?mock=true
+Content-Type: application/json
+Authorization: Bearer {{accessToken}}
+
+{
+  "rating": 4
+}
+
+### 10) 리뷰 작성 — 모킹 에러 주입(?mockError=4040) → 404
+POST http://localhost:8080/api/v1/courses/1/reviews?mockError=4040
+Content-Type: application/json
+Authorization: Bearer {{accessToken}}
+
+{
+  "rating": 4
+}
+
+## 코스 리뷰 삭제 (DELETE /api/v1/courses/{courseId}/reviews/{reviewId}) — **실구현**(소프트 삭제, `?mock=true` 폴백 있음)
+
+### 11) 리뷰 삭제 (1에서 저장한 courseReviewId) → 200 (deleted_at 스탬프 + status=DELETED)
+DELETE http://localhost:8080/api/v1/courses/1/reviews/{{courseReviewId}}
+Authorization: Bearer {{accessToken}}
+
+### 12) 리뷰 삭제 — 없는·타인·이미 삭제된 리뷰 → 404 / 4046 COURSE_REVIEW_NOT_FOUND (사유 구분 없이 은닉)
+DELETE http://localhost:8080/api/v1/courses/1/reviews/999999
+Authorization: Bearer {{accessToken}}
+
+### 13) 리뷰 삭제 — 토큰 없음 → 401
+DELETE http://localhost:8080/api/v1/courses/1/reviews/{{courseReviewId}}
+
+### 14) 리뷰 삭제 — mock 폴백(삭제 없이 고정 성공 메시지) → 200
+DELETE http://localhost:8080/api/v1/courses/1/reviews/{{courseReviewId}}?mock=true
+Authorization: Bearer {{accessToken}}
+
+## 코스 후기 전체보기 BFF (GET /service/v1/courses/{courseId}/reviews) — **실구현**(`?mock=true` 폴백 있음)
+
+### 15) 후기 목록 — 기본(최신순 내림차순, size=10) → 200 (집계는 코스 전체 기준, 분포는 5~1점 항상 5개)
+GET http://localhost:8080/service/v1/courses/1/reviews
+
+### 16) 후기 목록 — 높은 평점순 → 200 (동점은 최신순, 커서는 (rating, created_at, id) 키셋)
+GET http://localhost:8080/service/v1/courses/1/reviews?sort=RATING&order=DESC
+
+### 17) 후기 목록 — 페이지 크기 2 → 200 (hasNext=true 면 nextCursor 로 다음 페이지)
+GET http://localhost:8080/service/v1/courses/1/reviews?size=2
+
+### 18) 후기 목록 — 다음 페이지(17의 nextCursor 를 붙여넣기)
+GET http://localhost:8080/service/v1/courses/1/reviews?size=2&cursor=REPLACE_WITH_NEXT_CURSOR
+
+### 19) 후기 목록 — 잘못된 커서 → 400 / 4001 INVALID_INPUT ("잘못된 커서입니다.")
+GET http://localhost:8080/service/v1/courses/1/reviews?cursor=broken
+
+### 20) 후기 목록 — 없는 코스 → 200 (404 아님 — 빈 목록 + 집계 0, 존재 판정은 상세 화면 몫)
+GET http://localhost:8080/service/v1/courses/999999/reviews
+
+### 21) 후기 목록 — mock 폴백(고정 6건) → 200
+GET http://localhost:8080/service/v1/courses/1/reviews?mock=true

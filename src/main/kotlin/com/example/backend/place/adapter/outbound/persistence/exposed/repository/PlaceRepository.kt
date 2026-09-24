@@ -23,6 +23,12 @@ import org.springframework.stereotype.Repository
  */
 @Repository
 class PlaceRepository {
+    /** deleted_at IS NULL 인 장소 한 건을 id 로 읽어 엔티티로 반환한다. 없거나 삭제됐으면 null. */
+    internal fun findById(placeId: Long): PlaceEntity? =
+        PlaceEntity
+            .find { (PlaceTable.id eq placeId) and PlaceTable.deletedAt.isNull() }
+            .firstOrNull()
+
     /** deleted_at IS NULL 인 장소들을 id 목록으로 읽어 엔티티로 반환한다. */
     internal fun findByIds(placeIds: List<Long>): List<PlaceEntity> =
         PlaceEntity
