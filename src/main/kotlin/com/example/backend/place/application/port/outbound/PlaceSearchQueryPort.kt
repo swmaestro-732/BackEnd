@@ -7,10 +7,10 @@ import com.example.backend.place.domain.model.PlaceCategory
 /**
  * 아웃바운드 포트 — 검색엔진 기반 장소 검색. 정렬된 장소 id 와 전체 매칭 건수만 돌려주고,
  * 본문 조회(hydration)는 호출부가 DB 로 한다(색인 문서에 id·imageUrl 등이 없기도 하다).
- * 검색엔진 미가용·호출 실패 시 null(fail-soft) — 호출부는 null 이면 DB LIKE 폴백으로 전환한다.
+ * 검색엔진 미가용·호출 실패는 `PLACE_SEARCH_UNAVAILABLE`(503) — DB 폴백 없이 실패시킨다.
  */
 interface PlaceSearchQueryPort {
-    fun search(criteria: PlaceSearchCriteria): PlaceSearchHits?
+    fun search(criteria: PlaceSearchCriteria): PlaceSearchHits
 }
 
 /** 검색 조건 — 어댑터가 쿼리 DSL 로 번역한다(검색엔진 타입은 여기 드러나지 않는다). */

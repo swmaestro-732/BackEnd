@@ -1,6 +1,5 @@
 package com.example.backend.place.adapter.outbound.persistence
 
-import com.example.backend.common.geo.Coordinate
 import com.example.backend.place.adapter.outbound.persistence.exposed.repository.PlaceRepository
 import com.example.backend.place.application.port.outbound.PlaceQueryPort
 import com.example.backend.place.domain.model.Place
@@ -19,26 +18,5 @@ class PlaceQueryAdapter(
     override fun findPlacesById(placeIds: List<Long>): List<Place> {
         if (placeIds.isEmpty()) return emptyList()
         return placeRepository.findByIds(placeIds).map { it.toDomain() }
-    }
-
-    override fun searchByName(
-        query: String,
-        cursor: String?,
-        limit: Int,
-    ): List<Place> {
-        if (query.isBlank()) return emptyList()
-        return placeRepository.searchByName(query.trim(), cursor?.toLong(), limit).map { it.toDomain() }
-    }
-
-    override fun searchNearbyByName(
-        query: String,
-        anchor: Coordinate,
-        offset: Int,
-        limit: Int,
-    ): List<Place> = placeRepository.searchNearbyByName(query.trim(), anchor, offset, limit).map { it.toDomain() }
-
-    override fun countByName(query: String): Long {
-        if (query.isBlank()) return 0
-        return placeRepository.countByName(query.trim())
     }
 }

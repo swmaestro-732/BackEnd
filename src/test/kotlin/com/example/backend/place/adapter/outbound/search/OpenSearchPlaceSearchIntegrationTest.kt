@@ -44,20 +44,18 @@ class OpenSearchPlaceSearchIntegrationTest
                 index(documents)
 
                 val hits =
-                    requireNotNull(
-                        searchPort.search(
-                            PlaceSearchCriteria(
-                                textTokens = listOf(query),
-                                categories = emptyList(),
-                                areaCodePrefixes = emptyList(),
-                                viewport = null,
-                                from = 0,
-                                size = 10,
-                                anchor = Coordinate(37.5, 127.0),
-                                originalQuery = query,
-                            ),
+                    searchPort.search(
+                        PlaceSearchCriteria(
+                            textTokens = listOf(query),
+                            categories = emptyList(),
+                            areaCodePrefixes = emptyList(),
+                            viewport = null,
+                            from = 0,
+                            size = 10,
+                            anchor = Coordinate(37.5, 127.0),
+                            originalQuery = query,
                         ),
-                    ) { "실제 검색이 실패해 null 폴백을 반환했습니다." }
+                    )
 
                 assertEquals(3L, hits.totalCount)
                 assertEquals(listOf(nearExact, farExact, nearPartial), hits.ids)
@@ -83,19 +81,17 @@ class OpenSearchPlaceSearchIntegrationTest
                 index(documents)
 
                 val hits =
-                    requireNotNull(
-                        mapPort.searchMap(
-                            PlaceSearchCriteria(
-                                textTokens = listOf(query),
-                                categories = listOf(PlaceCategory.CAFE),
-                                areaCodePrefixes = listOf("11"),
-                                viewport = Viewport(Coordinate(37.0, 126.0), Coordinate(38.0, 128.0)),
-                                from = 0,
-                                size = 100,
-                            ),
-                            precision = 5,
+                    mapPort.searchMap(
+                        PlaceSearchCriteria(
+                            textTokens = listOf(query),
+                            categories = listOf(PlaceCategory.CAFE),
+                            areaCodePrefixes = listOf("11"),
+                            viewport = Viewport(Coordinate(37.0, 126.0), Coordinate(38.0, 128.0)),
+                            from = 0,
+                            size = 100,
                         ),
-                    ) { "실제 geo 집계가 실패해 null 폴백을 반환했습니다." }
+                        precision = 5,
+                    )
 
                 assertEquals(101L, hits.totalCount)
                 assertEquals(101L, hits.buckets.sumOf { it.count })

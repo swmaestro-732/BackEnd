@@ -23,10 +23,8 @@ import org.mockito.Mockito.mock
 class PlaceQueryServiceTest {
     private val anchor = place(99)
     private val criteria = mutableListOf<PlaceSearchCriteria>()
-    private val dbSearches = mutableListOf<Pair<String, List<Any?>>>()
     private var anchorExists = true
-    private var engineHits: PlaceSearchHits? = PlaceSearchHits(listOf(1), 1)
-    private var dbRows = listOf(place(1))
+    private var engineHits: () -> PlaceSearchHits = { PlaceSearchHits(listOf(1), 1) }
     private val db =
         mock(PlaceQueryPort::class.java) { invocation ->
             when (invocation.method.name) {
@@ -34,15 +32,6 @@ class PlaceQueryServiceTest {
                     invocation.getArgument<List<Long>>(0).mapNotNull { id ->
                         if (id == 99L) anchor.takeIf { anchorExists } else place(id)
                     }
-                }
-
-                "countByName" -> {
-                    3L
-                }
-
-                "searchByName", "searchNearbyByName" -> {
-                    dbSearches += invocation.method.name to invocation.arguments.toList()
-                    dbRows
                 }
 
                 else -> {
@@ -53,7 +42,7 @@ class PlaceQueryServiceTest {
     private val engine =
         mock(PlaceSearchQueryPort::class.java) { invocation ->
             criteria += invocation.getArgument<PlaceSearchCriteria>(0)
-            engineHits
+            engineHits()
         }
     private val service = PlaceQueryService(db, engine, PlaceSearchQueryPlanner(mock(AreaQueryUseCase::class.java)))
 
@@ -69,7 +58,7 @@ class PlaceQueryServiceTest {
 
     @Test
     fun `기준 장소의 DB 좌표를 정렬 조건으로 전달하고 결과 순서를 보존한다`() {
-        engineHits = PlaceSearchHits(listOf(3, 1, 2), 3)
+        engineHits = { PlaceSearchHits(listOf(3, 1, 2), 3) }
 
         val result = service.searchByName("블루보틀", null, 10, 99)
 
@@ -86,53 +75,46 @@ class PlaceQueryServiceTest {
 
         assertEquals(PlaceErrorCode.PLACE_NOT_FOUND, exception.errorCode)
         assertTrue(criteria.isEmpty())
-        assertTrue(dbSearches.isEmpty())
     }
 
     @Test
-    fun `엔진 첫 페이지 장애는 DB 검색으로 폴백한다`() {
-        engineHits = null
+    fun `엔진 장애는 DB 폴백 없이 503 으로 전파한다`() {
+        engineHits = { throw BusinessException(PlaceErrorCode.PLACE_SEARCH_UNAVAILABLE) }
 
-        val result = service.searchByName("블루보틀", null, 10, null)
+        val exception = assertThrows<BusinessException> { service.searchByName("블루보틀", null, 10, null) }
 
-        assertEquals(listOf(1L), result.items.map { it.id })
-        assertEquals("searchByName", dbSearches.single().first)
-        assertFalse(result.hasNext)
+        assertEquals(PlaceErrorCode.PLACE_SEARCH_UNAVAILABLE, exception.errorCode)
     }
 
     @Test
-    fun `엔진 후속 페이지 장애는 DB 첫 페이지를 섞지 않고 503을 반환한다`() {
-        engineHits = PlaceSearchHits(listOf(1), 3)
+    fun `엔진 후속 페이지 장애도 같은 커서로 재시도할 수 있게 503 을 반환한다`() {
+        engineHits = { PlaceSearchHits(listOf(1), 3) }
         val first = service.searchByName("블루보틀", null, 1, null)
-        engineHits = null
+        engineHits = { throw BusinessException(PlaceErrorCode.PLACE_SEARCH_UNAVAILABLE) }
 
         val exception = assertThrows<BusinessException> { service.searchByName("블루보틀", first.nextCursor, 1, null) }
 
         assertEquals(503, exception.errorCode.status)
-        assertTrue(dbSearches.isEmpty())
     }
 
     @Test
-    fun `기준 장소가 있는 DB 폴백은 거리 정렬과 오프셋으로 다음 페이지를 이어간다`() {
-        engineHits = null
-        dbRows = listOf(place(3), place(1))
+    fun `다음 페이지는 커서의 오프셋과 기준 장소를 이어간다`() {
+        engineHits = { PlaceSearchHits(listOf(3), 3) }
         val first = service.searchByName("블루보틀", null, 1, 99)
-        engineHits = PlaceSearchHits(listOf(8), 8)
-        dbRows = listOf(place(1), place(2))
+        engineHits = { PlaceSearchHits(listOf(1), 3) }
 
         val second = service.searchByName("블루보틀", first.nextCursor, 1, 99)
 
         assertEquals(listOf(3L), first.items.map { it.id })
         assertEquals(listOf(1L), second.items.map { it.id })
-        assertEquals(1, criteria.size)
-        assertEquals(listOf("searchNearbyByName", "searchNearbyByName"), dbSearches.map { it.first })
-        assertEquals(listOf("블루보틀", anchor.location, 0, 2), dbSearches.first().second)
-        assertEquals(listOf("블루보틀", anchor.location, 1, 2), dbSearches.last().second)
+        assertEquals(listOf(0, 1), criteria.map { it.from })
+        assertTrue(criteria.all { it.anchor == anchor.location })
+        assertTrue(second.hasNext)
     }
 
     @Test
     fun `다음 페이지에 기준 장소를 바꾸면 잘못된 커서로 거절한다`() {
-        engineHits = PlaceSearchHits(listOf(1), 3)
+        engineHits = { PlaceSearchHits(listOf(1), 3) }
         val first = service.searchByName("블루보틀", null, 1, 99)
 
         val exception = assertThrows<BusinessException> { service.searchByName("블루보틀", first.nextCursor, 1, 98) }
@@ -143,8 +125,8 @@ class PlaceQueryServiceTest {
 
     @Test
     fun `검색 윈도 마지막 불완전 페이지도 빠짐없이 조회한다`() {
-        engineHits = PlaceSearchHits(listOf(1), 10050)
-        val beforeLast = service.searchByName("블루보틀", PlaceSearchCursorCodec.encodeOffset(9980, false), 17, null)
+        engineHits = { PlaceSearchHits(listOf(1), 10050) }
+        val beforeLast = service.searchByName("블루보틀", PlaceSearchCursorCodec.encode(9980, false), 17, null)
         assertTrue(beforeLast.hasNext)
         val last = service.searchByName("블루보틀", beforeLast.nextCursor, 17, null)
         assertEquals(9997, criteria.last().from)

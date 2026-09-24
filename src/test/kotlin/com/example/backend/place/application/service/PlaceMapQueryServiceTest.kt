@@ -1,11 +1,12 @@
 package com.example.backend.place.application.service
 
 import com.example.backend.area.application.port.inbound.AreaQueryUseCase
+import com.example.backend.common.exception.BusinessException
 import com.example.backend.common.geo.Coordinate
 import com.example.backend.common.geo.Viewport
+import com.example.backend.common.response.PlaceErrorCode
 import com.example.backend.place.application.port.outbound.PlaceMapBucket
 import com.example.backend.place.application.port.outbound.PlaceMapHits
-import com.example.backend.place.application.port.outbound.PlaceMapQueryPort
 import com.example.backend.place.application.port.outbound.PlaceMapSearchPort
 import com.example.backend.place.application.port.outbound.PlaceQueryPort
 import com.example.backend.place.application.port.outbound.PlaceSearchCriteria
@@ -24,20 +25,13 @@ class PlaceMapQueryServiceTest {
     private val viewport = Viewport(Coordinate(37.0, 126.0), Coordinate(38.0, 128.0))
     private val areas = mock(AreaQueryUseCase::class.java)
     private val engineCriteria = mutableListOf<PlaceSearchCriteria>()
-    private val dbCriteria = mutableListOf<PlaceSearchCriteria>()
     private val hydratedIds = mutableListOf<Long>()
-    private var engineHits: (PlaceSearchCriteria) -> PlaceMapHits? = { PlaceMapHits(0, emptyList(), emptyList()) }
-    private var dbHits = PlaceMapHits(0, emptyList(), emptyList())
+    private var engineHits: (PlaceSearchCriteria) -> PlaceMapHits = { PlaceMapHits(0, emptyList(), emptyList()) }
     private val engine =
         mock(PlaceMapSearchPort::class.java) { invocation ->
             val criteria = invocation.getArgument<PlaceSearchCriteria>(0)
             engineCriteria += criteria
             engineHits(criteria)
-        }
-    private val db =
-        mock(PlaceMapQueryPort::class.java) { invocation ->
-            dbCriteria += invocation.getArgument<PlaceSearchCriteria>(0)
-            dbHits
         }
     private val places =
         mock(PlaceQueryPort::class.java) { invocation ->
@@ -45,7 +39,7 @@ class PlaceMapQueryServiceTest {
             hydratedIds += ids
             ids.map(::place)
         }
-    private val service = PlaceMapQueryService(engine, db, places, PlaceSearchQueryPlanner(areas))
+    private val service = PlaceMapQueryService(engine, places, PlaceSearchQueryPlanner(areas))
 
     @Test
     fun `키워드가 없어도 화면 안 전체 장소를 조회한다`() {
@@ -124,16 +118,13 @@ class PlaceMapQueryServiceTest {
     }
 
     @Test
-    fun `검색엔진 장애 시 지도 조건을 그대로 DB로 전달한다`() {
-        engineHits = { null }
-        dbHits = PlaceMapHits(1, listOf(2), emptyList())
+    fun `검색엔진 장애는 DB 폴백 없이 503 으로 전파한다`() {
+        engineHits = { throw BusinessException(PlaceErrorCode.PLACE_SEARCH_UNAVAILABLE) }
 
-        val result = service.searchMap("", viewport, "CAFE")
+        val exception = assertThrows<BusinessException> { service.searchMap("", viewport, "CAFE") }
 
-        assertEquals(listOf(2L), result.places.map { it.id })
-        assertEquals(engineCriteria.single(), dbCriteria.single())
-        assertEquals(viewport, dbCriteria.single().viewport)
-        assertEquals(listOf(PlaceCategory.CAFE), dbCriteria.single().categories)
+        assertEquals(PlaceErrorCode.PLACE_SEARCH_UNAVAILABLE, exception.errorCode)
+        assertTrue(hydratedIds.isEmpty())
     }
 
     @Test
@@ -145,7 +136,6 @@ class PlaceMapQueryServiceTest {
             assertThrows<IllegalArgumentException> { service.searchMap("", bounds, null) }
         }
         assertTrue(engineCriteria.isEmpty())
-        assertTrue(dbCriteria.isEmpty())
     }
 
     private fun place(id: Long): Place =

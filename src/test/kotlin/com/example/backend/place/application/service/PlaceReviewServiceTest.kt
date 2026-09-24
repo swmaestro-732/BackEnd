@@ -33,21 +33,6 @@ class PlaceReviewServiceTest {
 
             override fun findPlacesById(placeIds: List<Long>): List<Place> =
                 placeIds.filter { it in existingPlaceIds }.map { place() }
-
-            override fun searchByName(
-                query: String,
-                cursor: String?,
-                limit: Int,
-            ): List<Place> = emptyList()
-
-            override fun searchNearbyByName(
-                query: String,
-                anchor: Coordinate,
-                offset: Int,
-                limit: Int,
-            ): List<Place> = emptyList()
-
-            override fun countByName(query: String): Long = 0
         }
 
     private val fakePersistencePort =

@@ -2,15 +2,8 @@ package com.example.backend.place.application.port.outbound
 
 import com.example.backend.common.geo.Coordinate
 
-/** 엔진 미가용 시 null. 지도 검색에는 목록용 from/size 제한을 적용하지 않는다. */
+/** 지도 검색 — 목록용 from/size 제한 없이 뷰포트 안 전체를 격자 집계한다. 미가용·실패는 `PLACE_SEARCH_UNAVAILABLE`(503). */
 interface PlaceMapSearchPort {
-    fun searchMap(
-        criteria: PlaceSearchCriteria,
-        precision: Int,
-    ): PlaceMapHits?
-}
-
-interface PlaceMapQueryPort {
     fun searchMap(
         criteria: PlaceSearchCriteria,
         precision: Int,

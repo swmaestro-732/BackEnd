@@ -1,6 +1,8 @@
 package com.example.backend.place.adapter.outbound.search
 
+import com.example.backend.common.exception.BusinessException
 import com.example.backend.common.geo.Coordinate
+import com.example.backend.common.response.PlaceErrorCode
 import com.example.backend.place.application.port.outbound.PlaceMapBucket
 import com.example.backend.place.application.port.outbound.PlaceMapHits
 import com.example.backend.place.application.port.outbound.PlaceMapSearchPort
@@ -24,8 +26,8 @@ import org.springframework.stereotype.Component
 /**
  * 아웃바운드 어댑터 — [PlaceSearchQueryPort] 를 OpenSearch 검색으로 구현한다.
  *
- * [OpenSearchClient] 가 없거나(=opensearch.endpoint 미주입, 로컬·CI) 검색이 실패하면 null 을 돌려
- * 호출부가 DB LIKE 로 폴백하게 한다(fail-soft). alias `place` 를 조회하며, id 만 필요하므로 _source 는 내리지 않는다.
+ * [OpenSearchClient] 가 없거나(=opensearch.endpoint 미주입) 검색이 실패하면 `PLACE_SEARCH_UNAVAILABLE`(503)로
+ * 실패시킨다 — DB 폴백은 두지 않는다. alias `place` 를 조회하며, id 만 필요하므로 _source 는 내리지 않는다.
  *
  * 정렬: 텍스트 토큰이 있으면 관련도(_score) 내림차순 + _doc 타이브레이크, 필터-only 브라우즈면 _doc.
  * (_id 정렬은 fielddata 요구로 피한다. _doc 은 페이지 간 순서 결정성만 보장하는 근사 — 최신순 정렬은
@@ -38,8 +40,8 @@ class OpenSearchPlaceSearchAdapter(
     PlaceMapSearchPort {
     private val log = KotlinLogging.logger {}
 
-    override fun search(criteria: PlaceSearchCriteria): PlaceSearchHits? {
-        val client = clientProvider.ifAvailable ?: return null // endpoint 미설정 → DB 폴백
+    override fun search(criteria: PlaceSearchCriteria): PlaceSearchHits {
+        val client = clientProvider.ifAvailable ?: throw unavailable()
 
         return try {
             val response = client.search(buildRequest(criteria), Void::class.java)
@@ -49,8 +51,8 @@ class OpenSearchPlaceSearchAdapter(
                 totalCount = response.hits().total()?.value() ?: 0L,
             )
         } catch (e: Exception) {
-            log.warn { "place 검색 실패(DB 폴백): ${e.message}" }
-            null
+            log.warn { "place 검색 실패: ${e.message}" }
+            throw unavailable()
         }
     }
 
@@ -112,8 +114,8 @@ class OpenSearchPlaceSearchAdapter(
     override fun searchMap(
         criteria: PlaceSearchCriteria,
         precision: Int,
-    ): PlaceMapHits? {
-        val client = clientProvider.ifAvailable ?: return null
+    ): PlaceMapHits {
+        val client = clientProvider.ifAvailable ?: throw unavailable()
         return try {
             val response =
                 client.search(
@@ -177,14 +179,16 @@ class OpenSearchPlaceSearchAdapter(
                                 },
                         )
                     }.sortedBy { it.key }
-            // 집계가 잘리면 일부 마커만 성공으로 반환하지 않고 DB에서 전체를 다시 집계한다.
+            // 집계가 잘리면 일부 마커만 성공으로 내려주지 않고 실패시킨다.
             check(buckets.sumOf { it.count } == total) { "지도 집계가 전체 검색 결과를 포함하지 않습니다." }
             PlaceMapHits(total, response.hits().hits().map { it.id()!!.toLong() }, buckets)
         } catch (e: Exception) {
-            log.warn { "지도 장소 검색 실패(DB 폴백): ${e.message}" }
-            null
+            log.warn { "지도 장소 검색 실패: ${e.message}" }
+            throw unavailable()
         }
     }
+
+    private fun unavailable() = BusinessException(PlaceErrorCode.PLACE_SEARCH_UNAVAILABLE)
 
     private fun buildBool(
         builder: BoolQuery.Builder,

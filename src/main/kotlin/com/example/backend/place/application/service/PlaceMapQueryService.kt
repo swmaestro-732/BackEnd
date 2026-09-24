@@ -5,7 +5,6 @@ import com.example.backend.place.application.port.inbound.PlaceMapQueryUseCase
 import com.example.backend.place.application.port.inbound.dto.PlaceMapCluster
 import com.example.backend.place.application.port.inbound.dto.PlaceMapResult
 import com.example.backend.place.application.port.inbound.dto.PlaceSummary
-import com.example.backend.place.application.port.outbound.PlaceMapQueryPort
 import com.example.backend.place.application.port.outbound.PlaceMapSearchPort
 import com.example.backend.place.application.port.outbound.PlaceQueryPort
 import com.example.backend.place.application.port.outbound.PlaceSearchCriteria
@@ -13,11 +12,11 @@ import com.example.backend.place.domain.model.PlaceCategory
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
 
+/** 지도 검색 — 뷰포트 안 장소를 개별 마커(100건 이하) 또는 격자 클러스터로 내려준다. 엔진 미가용·실패는 503(DB 폴백 없음). */
 @Service
 @Transactional(readOnly = true)
 class PlaceMapQueryService(
     private val searchPort: PlaceMapSearchPort,
-    private val mapQueryPort: PlaceMapQueryPort,
     private val placeQueryPort: PlaceQueryPort,
     private val queryPlanner: PlaceSearchQueryPlanner,
 ) : PlaceMapQueryUseCase {
@@ -44,16 +43,16 @@ class PlaceMapQueryService(
             )
         val precision = PlaceMapGrid.precision(viewport)
 
-        fun search(c: PlaceSearchCriteria) = searchPort.searchMap(c, precision) ?: mapQueryPort.searchMap(c, precision)
-        var hits = search(criteria)
+        var hits = searchPort.searchMap(criteria, precision)
         if (hits.totalCount == 0L && (plan.categories.isNotEmpty() || plan.areaCodePrefixes.isNotEmpty())) {
             hits =
-                search(
+                searchPort.searchMap(
                     criteria.copy(
                         textTokens = query.trim().split(Regex("\\s+")).filter { it.isNotBlank() },
                         categories = explicitCategory?.let { listOf(it) }.orEmpty(),
                         areaCodePrefixes = emptyList(),
                     ),
+                    precision,
                 )
         }
         val ids =
