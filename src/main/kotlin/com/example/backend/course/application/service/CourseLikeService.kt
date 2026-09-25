@@ -5,6 +5,7 @@ import com.example.backend.common.response.CourseErrorCode
 import com.example.backend.course.application.port.inbound.CourseLikeUseCase
 import com.example.backend.course.application.port.outbound.CourseLikePersistencePort
 import com.example.backend.course.application.port.outbound.CoursePersistencePort
+import com.example.backend.course.domain.model.CourseStatus
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
 
@@ -19,12 +20,23 @@ import org.springframework.transaction.annotation.Transactional
 class CourseLikeService(
     private val courseLikePersistencePort: CourseLikePersistencePort,
     private val coursePersistencePort: CoursePersistencePort,
+    private val courseViewPolicy: CourseViewPolicy,
 ) : CourseLikeUseCase {
     @Transactional
     override fun like(
         userId: Long,
         courseId: Long,
     ): Int {
+        // 좋아요는 열람 권한이 있는 코스에만 허용한다 — 조회와 같은 공개범위·팔로우 규칙([CourseViewPolicy]).
+        // 볼 수 없는(비공개·미팔로우) 코스는 존재를 숨기려 404 로 응답한다(CourseQueryService 상세 조회와 동일).
+        val course = coursePersistencePort.findCourseDetail(courseId)
+        if (course == null ||
+            course.status != CourseStatus.ACTIVE ||
+            !courseViewPolicy.isViewable(course.visibility, course.userId, userId)
+        ) {
+            throw BusinessException(CourseErrorCode.COURSE_NOT_FOUND, "좋아요할 코스를 찾을 수 없습니다: courseId=$courseId")
+        }
+
         // 유니크 제약이 최종 방어선 — 사전검사로 중복은 409 로 빠르게 걸러낸다(잠금 없이).
         if (courseLikePersistencePort.existsLike(userId, courseId)) {
             throw BusinessException(CourseErrorCode.COURSE_ALREADY_LIKED, "이미 좋아요한 코스입니다: courseId=$courseId")

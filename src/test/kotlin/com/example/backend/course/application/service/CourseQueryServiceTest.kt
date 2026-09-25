@@ -27,7 +27,7 @@ class CourseQueryServiceTest {
     private val persistence = mock(CoursePersistencePort::class.java)
     private val tags = mock(CourseTagQueryPort::class.java)
     private val interactions = mock(ViewerInteractionPort::class.java)
-    private val service = CourseQueryService(persistence, tags, interactions)
+    private val service = CourseQueryService(persistence, tags, interactions, CourseViewPolicy(interactions))
 
     @Test
     fun `단건 상세는 장소 조회자 상태 태그를 조립한다`() {
