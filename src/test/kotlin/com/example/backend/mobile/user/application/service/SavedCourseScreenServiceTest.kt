@@ -129,6 +129,7 @@ class SavedCourseScreenServiceTest {
         },
         false,
         false,
+        false,
     )
 
     private fun profile(id: Long) = UserProfileResult(id, "작성자", null, null, null, false, false, 0, 0, 0, 0, 0)

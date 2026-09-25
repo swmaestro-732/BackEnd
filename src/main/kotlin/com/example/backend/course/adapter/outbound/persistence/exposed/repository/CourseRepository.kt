@@ -25,6 +25,7 @@ import org.jetbrains.exposed.v1.core.plus
 import org.jetbrains.exposed.v1.jdbc.select
 import org.jetbrains.exposed.v1.jdbc.selectAll
 import org.jetbrains.exposed.v1.jdbc.update
+import org.jetbrains.exposed.v1.jdbc.updateReturning
 import org.springframework.stereotype.Repository
 import kotlin.time.Clock
 import kotlin.time.toJavaInstant
@@ -118,6 +119,50 @@ class CourseRepository {
         CourseTable.update({ (CourseTable.id eq courseId) and CourseTable.deletedAt.isNull() }) {
             it[savesCnt] = savesCnt - 1
         }
+
+    /**
+     * 좋아요 원자적 증가 — deleted_at IS NULL 인 행의 likes_cnt 를 UPDATE … RETURNING 으로 1 증가시키고
+     * 증가된 새 likes_cnt 를 반환한다. 활성 코스가 없어 0행이면 null(비관락 없이 유니크+원자연산으로 정합성 확보).
+     */
+    fun incrementLikesCntReturning(courseId: Long): Int? =
+        CourseTable
+            .updateReturning(
+                returning = listOf(CourseTable.likesCnt),
+                where = { (CourseTable.id eq courseId) and CourseTable.deletedAt.isNull() },
+            ) {
+                it[likesCnt] = likesCnt + 1
+            }.singleOrNull()
+            ?.get(CourseTable.likesCnt)
+
+    /**
+     * 좋아요 v2 원자적 감소 — deleted_at IS NULL 인 행의 likes_cnt 를 UPDATE … RETURNING 으로 1 감소시키고
+     * 감소된 새 likes_cnt 를 반환한다. 활성 코스가 없어 0행이면 null.
+     */
+    fun decrementLikesCntReturning(courseId: Long): Int? =
+        CourseTable
+            .updateReturning(
+                returning = listOf(CourseTable.likesCnt),
+                where = { (CourseTable.id eq courseId) and CourseTable.deletedAt.isNull() },
+            ) {
+                it[likesCnt] = likesCnt - 1
+            }.singleOrNull()
+            ?.get(CourseTable.likesCnt)
+
+    /** deleted_at IS NULL 인 코스의 현재 likes_cnt 만 읽는다(v2 멱등 취소 no-op 경로). 활성 코스가 없으면 null. */
+    fun readLikesCnt(courseId: Long): Int? =
+        CourseTable
+            .select(CourseTable.likesCnt)
+            .where { (CourseTable.id eq courseId) and CourseTable.deletedAt.isNull() }
+            .singleOrNull()
+            ?.get(CourseTable.likesCnt)
+
+    /** 여러 코스의 likes_cnt 를 한 번의 UPDATE 로 1씩 감소시킨다(탈퇴 정리 배치). deleted_at IS NULL 행만. */
+    fun decrementLikesCntBatch(courseIds: List<Long>) {
+        if (courseIds.isEmpty()) return
+        CourseTable.update({ (CourseTable.id inList courseIds) and CourseTable.deletedAt.isNull() }) {
+            it[likesCnt] = likesCnt - 1
+        }
+    }
 
     /** deleted_at IS NULL 인 코스가 존재하는지만 확인한다(fork 원본 검증 등, 본문 미적재). */
     fun existsById(courseId: Long): Boolean =

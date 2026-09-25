@@ -11,4 +11,7 @@ interface CourseCleanupPort {
 
     /** 주어진 코스들의 저장 수(saves_cnt)를 1씩 감소시킨다(탈퇴자 저장 취소 반영). */
     fun decreaseSavesCounts(courseIds: List<Long>)
+
+    /** 탈퇴자의 코스 좋아요를 전부 삭제하고 대상 코스의 likes_cnt 를 보정한다. */
+    fun purgeLikesByUser(userId: Long)
 }

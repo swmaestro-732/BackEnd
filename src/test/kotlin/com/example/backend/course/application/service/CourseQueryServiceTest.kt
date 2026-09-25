@@ -27,7 +27,7 @@ class CourseQueryServiceTest {
     private val persistence = mock(CoursePersistencePort::class.java)
     private val tags = mock(CourseTagQueryPort::class.java)
     private val interactions = mock(ViewerInteractionPort::class.java)
-    private val service = CourseQueryService(persistence, tags, interactions)
+    private val service = CourseQueryService(persistence, tags, interactions, CourseViewPolicy(interactions))
 
     @Test
     fun `단건 상세는 장소 조회자 상태 태그를 조립한다`() {
@@ -35,7 +35,9 @@ class CourseQueryServiceTest {
         val place = CoursePlaceRow(1L, 30L, 0, "첫 장소", 5, listOf(CoursePlaceImageRow("image", 0)))
         `when`(persistence.findCourseDetails(listOf(10L))).thenReturn(listOf(row))
         `when`(persistence.findPlacesByCourseIds(listOf(10L))).thenReturn(mapOf(10L to listOf(place)))
-        `when`(interactions.getViewerStates(7L, listOf(10L))).thenReturn(listOf(ViewerCourseState(10L, true, true)))
+        `when`(
+            interactions.getViewerStates(7L, listOf(10L)),
+        ).thenReturn(listOf(ViewerCourseState(10L, true, false, true)))
         `when`(tags.findTagNamesByCourseId(10L)).thenReturn(listOf("데이트"))
 
         val result = service.getDetail(10L, 7L)

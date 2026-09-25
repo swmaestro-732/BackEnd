@@ -71,6 +71,7 @@ class CourseMobileServiceTest {
                     CoursePlaceResult(index.toLong(), id, index, null, null, emptyList())
                 },
             hasSaved = false,
+            hasLiked = false,
             hasStartedCourse = false,
         )
 }
