@@ -32,6 +32,7 @@ class CourseQueryService(
     private val coursePersistencePort: CoursePersistencePort,
     private val courseTagQueryPort: CourseTagQueryPort,
     private val viewerInteractionPort: ViewerInteractionPort,
+    private val courseViewPolicy: CourseViewPolicy,
 ) : CourseQueryUseCase {
     override fun getDetail(
         courseId: Long,
@@ -53,8 +54,10 @@ class CourseQueryService(
         val viewableById =
             coursePersistencePort
                 .findCourseDetails(courseIds)
-                .filter { it.status == CourseStatus.ACTIVE && isViewable(it.visibility, it.userId, viewerId) }
-                .associateBy { it.id }
+                .filter {
+                    it.status == CourseStatus.ACTIVE &&
+                        courseViewPolicy.isViewable(it.visibility, it.userId, viewerId)
+                }.associateBy { it.id }
         if (viewableById.isEmpty()) return emptyList()
 
         val viewableIds = viewableById.keys.toList()
@@ -180,24 +183,4 @@ class CourseQueryService(
             savesCnt = row.savesCnt,
             createdAt = row.createdAt,
         )
-
-    private fun isViewable(
-        visibility: CourseVisibility,
-        ownerId: Long,
-        viewerId: Long?,
-    ): Boolean =
-        when (visibility) {
-            CourseVisibility.PUBLIC -> {
-                true
-            }
-
-            CourseVisibility.FOLLOWER -> {
-                viewerId == ownerId ||
-                    (viewerId != null && viewerInteractionPort.isFollowing(viewerId, ownerId))
-            }
-
-            CourseVisibility.PRIVATE -> {
-                viewerId == ownerId
-            }
-        }
 }
