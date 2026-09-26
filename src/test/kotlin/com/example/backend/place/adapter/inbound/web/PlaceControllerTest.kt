@@ -36,7 +36,12 @@ class PlaceControllerTest : IntegrationTestBase() {
     fun `GET places - 검색어로 실구현 검색하면 200을 반환한다`() {
         val emptyPage = PlaceSummaryPage(items = emptyList(), totalCount = 0, hasNext = false)
         `when`(
-            placeQueryUseCase.searchByName(anyString(), nullable(String::class.java), anyInt()),
+            placeQueryUseCase.searchByName(
+                anyString(),
+                nullable(String::class.java),
+                anyInt(),
+                nullable(Long::class.java),
+            ),
         ).thenReturn(emptyPage)
 
         mockMvc
@@ -50,7 +55,12 @@ class PlaceControllerTest : IntegrationTestBase() {
     fun `GET places - 파라미터 없이 호출하면 기본값으로 실구현 검색한다`() {
         val emptyPage = PlaceSummaryPage(items = emptyList(), totalCount = 0, hasNext = false)
         `when`(
-            placeQueryUseCase.searchByName(anyString(), nullable(String::class.java), anyInt()),
+            placeQueryUseCase.searchByName(
+                anyString(),
+                nullable(String::class.java),
+                anyInt(),
+                nullable(Long::class.java),
+            ),
         ).thenReturn(emptyPage)
 
         mockMvc

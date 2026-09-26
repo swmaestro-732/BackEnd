@@ -20,6 +20,11 @@ class AreaPersistenceAdapter(
 ) : AreaDirectoryPort {
     private val activeAreas: List<Area> by lazy { areaRepository.findAllActive() }
 
+    /** 시도는 읍면동 코드 앞 2자리로 파생한다(자동완성 응답에는 추가하지 않는다). */
+    private val sidoNames: Map<String, String> by lazy {
+        activeAreas.associate { it.code.sidoCode to it.sidoName }
+    }
+
     /** 5자리 → 시/군/구(읍면동에서 파생). 세종처럼 sigunguName 이 null 인 그룹은 제외한다. */
     private val sigunguMap: Map<String, AreaDescriptor> by lazy {
         activeAreas
@@ -54,6 +59,24 @@ class AreaPersistenceAdapter(
             .sortedBy { it.prefix }
             .take(SEARCH_LIMIT)
             .toList()
+    }
+
+    override fun resolveSearchPrefixes(keyword: String): List<String> {
+        val trimmed = keyword.trim()
+        if (trimmed.isEmpty()) return emptyList()
+
+        // 자동완성의 상위 20건 제한을 적용하면 서울 등 넓은 지역의 일부 장소가 누락된다.
+        val prefixes =
+            sidoNames.asSequence().filter { (_, name) -> name.contains(trimmed) }.map { it.key } +
+                (sigunguMap.values.asSequence() + dongMap.values.asSequence())
+                    .filter { it.shortName.contains(trimmed) || it.fullName.contains(trimmed) }
+                    .map { it.prefix }
+
+        return buildList {
+            prefixes.distinct().sortedWith(compareBy<String> { it.length }.thenBy { it }).forEach { prefix ->
+                if (none { prefix.startsWith(it) }) add(prefix)
+            }
+        }
     }
 
     /** 읍면동 [Area] → 읍면동 레벨 [AreaDescriptor]. fullName 은 null(세종 시군구)을 건너뛰어 조합한다. */

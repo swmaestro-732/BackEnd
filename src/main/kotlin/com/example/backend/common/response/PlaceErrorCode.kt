@@ -15,4 +15,6 @@ enum class PlaceErrorCode(
 
     // 4090~4095 는 이미 선점 — 리뷰 1인 1개 제한은 4096 으로 채번했다(코스 리뷰는 4097).
     PLACE_REVIEW_ALREADY_EXISTS(409, 4096, "이미 이 장소에 리뷰를 작성했습니다."),
+
+    PLACE_SEARCH_UNAVAILABLE(503, 5031, "장소 검색을 일시적으로 사용할 수 없습니다. 잠시 후 다시 시도해 주세요."),
 }
