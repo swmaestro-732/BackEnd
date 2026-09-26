@@ -119,8 +119,9 @@ class UserService(
         // 3) 관심 지역·테마: 빈 목록으로 전체 치환(=전부 삭제).
         userAreaPersistencePort.replaceAreas(userId, emptyList())
         userLikeThemePort.replaceLikeThemes(userId, emptyList())
-        // 4) 작성 코스: 전부 소프트 삭제(피드·프로필에서 사라짐).
+        // 4) 작성 코스·계획: 전부 소프트 삭제(피드·프로필·내 계획 목록에서 사라짐).
         courseCleanupPort.softDeleteCoursesByAuthor(userId)
+        courseCleanupPort.softDeletePlansByOwner(userId)
         // 5) users 행: 탈퇴 스탬프 + 핸들 해제 + bio·프로필이미지·카운터 리셋.
         userPersistencePort.softDelete(user.withdraw())
         // 6) 리프레시 토큰 폐기.

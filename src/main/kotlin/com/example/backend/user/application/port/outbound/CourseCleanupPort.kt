@@ -9,6 +9,9 @@ interface CourseCleanupPort {
     /** 작성자의 살아있는 코스를 전부 소프트 삭제한다(탈퇴 정리). */
     fun softDeleteCoursesByAuthor(authorId: Long)
 
+    /** 소유자의 살아있는 계획을 전부 소프트 삭제한다(탈퇴 정리). */
+    fun softDeletePlansByOwner(userId: Long)
+
     /** 주어진 코스들의 저장 수(saves_cnt)를 1씩 감소시킨다(탈퇴자 저장 취소 반영). */
     fun decreaseSavesCounts(courseIds: List<Long>)
 }
