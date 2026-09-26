@@ -3,11 +3,13 @@ package com.example.backend.user.adapter.outbound.social
 import com.example.backend.bootstrap.security.KakaoOauthProperties
 import com.example.backend.common.exception.BusinessException
 import com.example.backend.common.response.CommonErrorCode
+import com.example.backend.user.application.port.outbound.SocialIdentity
 import com.example.backend.user.domain.model.SocialProvider
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 import org.mockito.Mockito.mock
+import org.mockito.Mockito.verifyNoInteractions
 import org.mockito.Mockito.`when`
 import org.springframework.security.oauth2.jwt.Jwt
 import org.springframework.security.oauth2.jwt.JwtDecoder
@@ -21,7 +23,8 @@ class SocialVerificationAdapterTest {
             jwksUri = "https://kauth.kakao.com/.well-known/jwks.json",
             issuer = "https://kauth.kakao.com",
         )
-    private val adapter = SocialVerificationAdapter(decoder, props)
+    private val naverClient = mock(NaverProfileClient::class.java)
+    private val adapter = SocialVerificationAdapter(decoder, props, naverClient)
 
     private fun validJwt(subject: String): Jwt =
         Jwt
@@ -29,6 +32,15 @@ class SocialVerificationAdapterTest {
             .header("alg", "RS256")
             .subject(subject)
             .build()
+
+    @Test
+    fun `NAVER accessToken 은 네이버 클라이언트로 검증한다`() {
+        val expected = SocialIdentity(SocialProvider.NAVER, "naver-user-123")
+        `when`(naverClient.verify("naver-access-token")).thenReturn(expected)
+
+        assertEquals(expected, adapter.verify(SocialProvider.NAVER, "naver-access-token"))
+        verifyNoInteractions(decoder)
+    }
 
     @Test
     fun `유효한 KAKAO idToken 이면 SocialIdentity 를 반환한다`() {
@@ -50,6 +62,7 @@ class SocialVerificationAdapterTest {
                     jwksUri = "https://kauth.kakao.com/.well-known/jwks.json",
                     issuer = "https://kauth.kakao.com",
                 ),
+                naverClient,
             )
 
         val ex = assertThrows<BusinessException> { noClientAdapter.verify(SocialProvider.KAKAO, "token") }
@@ -57,7 +70,7 @@ class SocialVerificationAdapterTest {
     }
 
     @Test
-    fun `KAKAO 외 provider 는 SOCIAL_AUTHENTICATION_FAILED 예외를 던진다`() {
+    fun `지원하지 않는 APPLE provider 는 SOCIAL_AUTHENTICATION_FAILED 예외를 던진다`() {
         val ex = assertThrows<BusinessException> { adapter.verify(SocialProvider.APPLE, "token") }
         assertEquals(CommonErrorCode.SOCIAL_AUTHENTICATION_FAILED, ex.errorCode)
     }

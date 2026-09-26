@@ -20,4 +20,5 @@ enum class CommonErrorCode(
     PAYLOAD_TOO_LARGE(413, 4130, "업로드 가능한 파일 크기를 초과했습니다."),
     APP_UPDATE_REQUIRED(426, 4260, "앱 업데이트가 필요합니다."),
     INTERNAL_ERROR(500, 5000, "서버 오류가 발생했습니다."),
+    SOCIAL_AUTHENTICATION_UNAVAILABLE(503, 5032, "소셜 로그인 서비스를 일시적으로 이용할 수 없습니다. 잠시 후 다시 시도해 주세요."),
 }

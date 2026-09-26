@@ -26,6 +26,8 @@ import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
+import org.junit.jupiter.params.ParameterizedTest
+import org.junit.jupiter.params.provider.EnumSource
 import java.time.Instant
 
 /**
@@ -33,13 +35,13 @@ import java.time.Instant
  * (통합 테스트로는 Kakao 검증을 구동할 수 없어 서비스 계층에서 검증한다.)
  */
 class AuthServiceTest {
-    private val identity = SocialIdentity(provider = SocialProvider.KAKAO, socialId = "kakao-123")
+    private var identity = SocialIdentity(provider = SocialProvider.KAKAO, socialId = "kakao-123")
 
     private val socialVerificationPort =
         object : SocialVerificationPort {
             override fun verify(
                 provider: SocialProvider,
-                idToken: String,
+                token: String,
             ): SocialIdentity = identity
         }
 
@@ -184,8 +186,10 @@ class AuthServiceTest {
             userLikeThemeResolver = UserLikeThemeResolver(likeThemePort),
         )
 
-    @Test
-    fun `정지된 계정은 소셜 로그인 시 ACCOUNT_SUSPENDED 로 거부하고 토큰을 발급하지 않는다`() {
+    @ParameterizedTest
+    @EnumSource(value = SocialProvider::class, names = ["KAKAO", "NAVER"])
+    fun `정지된 계정은 소셜 로그인 시 ACCOUNT_SUSPENDED 로 거부하고 토큰을 발급하지 않는다`(provider: SocialProvider) {
+        identity = SocialIdentity(provider, "social-123")
         userPersistencePort.bySocial =
             User.reconstitute(
                 id = 42L,
@@ -198,7 +202,7 @@ class AuthServiceTest {
 
         val ex =
             assertThrows<BusinessException> {
-                service.socialLogin(SocialProvider.KAKAO, "kakao-token")
+                service.socialLogin(identity.provider, "social-token")
             }
 
         assertEquals(CommonErrorCode.ACCOUNT_SUSPENDED, ex.errorCode)
@@ -206,8 +210,10 @@ class AuthServiceTest {
         assertFalse(refreshTokenPort.refreshTokenIssued)
     }
 
-    @Test
-    fun `정지가 아닌 비활성(PENDING) 계정은 소셜 로그인 시 ACCOUNT_INACTIVE 로 거부한다`() {
+    @ParameterizedTest
+    @EnumSource(value = SocialProvider::class, names = ["KAKAO", "NAVER"])
+    fun `정지가 아닌 비활성(PENDING) 계정은 소셜 로그인 시 ACCOUNT_INACTIVE 로 거부한다`(provider: SocialProvider) {
+        identity = SocialIdentity(provider, "social-123")
         userPersistencePort.bySocial =
             User.reconstitute(
                 id = 43L,
@@ -220,7 +226,7 @@ class AuthServiceTest {
 
         val ex =
             assertThrows<BusinessException> {
-                service.socialLogin(SocialProvider.KAKAO, "kakao-token")
+                service.socialLogin(identity.provider, "social-token")
             }
 
         assertEquals(CommonErrorCode.ACCOUNT_INACTIVE, ex.errorCode)
@@ -256,10 +262,12 @@ class AuthServiceTest {
         assertFalse(refreshTokenPort.refreshTokenIssued)
     }
 
-    @Test
-    fun `신규 소셜 유저(미가입)는 로그인 시 registrationToken 과 isNewUser=true 를 받는다`() {
+    @ParameterizedTest
+    @EnumSource(value = SocialProvider::class, names = ["KAKAO", "NAVER"])
+    fun `신규 소셜 유저(미가입)는 로그인 시 registrationToken 과 isNewUser=true 를 받는다`(provider: SocialProvider) {
+        identity = SocialIdentity(provider, "social-123")
         // bySocial defaults to null → new user branch
-        val result = service.socialLogin(SocialProvider.KAKAO, "kakao-token")
+        val result = service.socialLogin(identity.provider, "social-token")
 
         assertTrue(result.isNewUser)
         assertEquals("registration-token", result.registrationToken)
@@ -267,8 +275,10 @@ class AuthServiceTest {
         assertNull(result.refreshToken)
     }
 
-    @Test
-    fun `기존 활성 유저는 소셜 로그인 시 accessToken 과 refreshToken 을 받는다`() {
+    @ParameterizedTest
+    @EnumSource(value = SocialProvider::class, names = ["KAKAO", "NAVER"])
+    fun `기존 활성 유저는 소셜 로그인 시 accessToken 과 refreshToken 을 받는다`(provider: SocialProvider) {
+        identity = SocialIdentity(provider, "social-123")
         userPersistencePort.bySocial =
             User.reconstitute(
                 id = 1L,
@@ -279,7 +289,7 @@ class AuthServiceTest {
                 status = UserStatus.ACTIVE,
             )
 
-        val result = service.socialLogin(SocialProvider.KAKAO, "kakao-token")
+        val result = service.socialLogin(identity.provider, "social-token")
 
         assertFalse(result.isNewUser)
         assertEquals("access-token", result.accessToken)

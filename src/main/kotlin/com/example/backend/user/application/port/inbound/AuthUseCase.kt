@@ -11,7 +11,7 @@ interface AuthUseCase {
     // 파라미터가 4개 이하면 커맨드로 감싸지 않고 그대로 받는다(팀 컨벤션).
     fun socialLogin(
         provider: SocialProvider,
-        idToken: String,
+        token: String,
     ): LoginResult
 
     fun signup(command: SignupCommand): SignupResult
