@@ -36,7 +36,9 @@ class PlanService(
     override fun edit(command: EditPlanCommand): Plan {
         val existingPlan = requireOwnedPlan(command.planId, command.userId)
         requirePlacesExist(command.places)
+        // 사전 검증을 통과했어도 갱신이 0행이면 동시 소프트 삭제가 이긴 경우 — 없는 계획과 같이 404.
         return planPersistencePort.update(command.toPlan(existingPlan))
+            ?: throw BusinessException(CourseErrorCode.PLAN_NOT_FOUND)
     }
 
     override fun delete(

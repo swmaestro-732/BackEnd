@@ -34,8 +34,8 @@ interface PlanPersistencePort {
     /** 계획·장소를 저장하고 생성값(id·타임스탬프)까지 채운 계획을 반환한다. */
     fun save(plan: Plan): Plan
 
-    /** 영속화된 계획([Plan.id] 필수)을 전체 치환한다 — 본문 갱신 후 장소를 지우고 다시 심는다. */
-    fun update(plan: Plan): Plan
+    /** 영속화된 계획([Plan.id] 필수)을 전체 치환한다 — 본문 갱신 후 장소를 지우고 다시 심는다. 살아있는 행이 없으면 null. */
+    fun update(plan: Plan): Plan?
 
     /** deleted_at·updated_at 스탬프만 찍는다. 이미 삭제된 행은 건드리지 않으며 영향받은 행 수를 반환한다. */
     fun softDelete(planId: Long): Int
