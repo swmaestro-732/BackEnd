@@ -11,9 +11,11 @@ interface PlaceQueryUseCase {
     /** placeIds 에 해당하는 장소 요약들. 존재하지 않거나 삭제된 장소는 결과에서 빠진다. */
     fun findPlacesById(placeIds: List<Long>): List<PlaceSummary>
 
+    /** 코스 생성 목록 검색. 기준 장소가 있으면 거리 가산점을 적용한다. 매 페이지 같은 검색어·기준 장소를 보낸다. */
     fun searchByName(
         query: String,
         cursor: String?,
         size: Int,
+        anchorPlaceId: Long? = null,
     ): PlaceSummaryPage
 }

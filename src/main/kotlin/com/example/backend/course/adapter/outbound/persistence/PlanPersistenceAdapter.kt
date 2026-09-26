@@ -1,7 +1,5 @@
 package com.example.backend.course.adapter.outbound.persistence
 
-import com.example.backend.common.exception.BusinessException
-import com.example.backend.common.response.CourseErrorCode
 import com.example.backend.course.adapter.outbound.persistence.exposed.repository.PlanPlaceRepository
 import com.example.backend.course.adapter.outbound.persistence.exposed.repository.PlanRepository
 import com.example.backend.course.adapter.outbound.persistence.exposed.repository.PlanRow
@@ -51,12 +49,10 @@ class PlanPersistenceAdapter(
         return row.toDomain(plan.places)
     }
 
-    override fun update(plan: Plan): Plan {
+    override fun update(plan: Plan): Plan? {
         val planId = checkNotNull(plan.id) { "영속화된 Plan 은 id 를 가진다." }
-        // 서비스가 존재·소유권을 사전 검증하므로 0행은 동시 소프트 삭제가 이긴 경우 — 500 대신 404 로 드러낸다.
-        val row =
-            planRepository.update(plan)
-                ?: throw BusinessException(CourseErrorCode.PLAN_NOT_FOUND, "갱신할 계획을 찾을 수 없습니다: id=$planId")
+        // 0행(동시 소프트 삭제가 이긴 경우)은 null 로 돌려주고 404 판단은 서비스에 맡긴다.
+        val row = planRepository.update(plan) ?: return null
         planPlaceRepository.deleteByPlanId(planId)
         planPlaceRepository.insertAll(planId, plan.places)
         return row.toDomain(plan.places)

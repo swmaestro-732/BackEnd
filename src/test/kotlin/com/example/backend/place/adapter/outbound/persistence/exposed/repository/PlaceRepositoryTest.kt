@@ -16,8 +16,7 @@ import kotlin.time.Clock
 /**
  * [PlaceRepository] 영속성 통합 테스트(실제 PostgreSQL, [IntegrationTestBase]).
  *
- * insert(ignore)→재조회 왕복, id/kakaoId 조회, 이름 LIKE 검색(와일드카드 이스케이프·커서 seek),
- * 재색인 페이징, 소프트 삭제 제외를 검증한다. 각 테스트는 transaction { ... rollback() } 로 격리한다.
+ * insert(ignore)→재조회 왕복, id/kakaoId 조회, 재색인 페이징, 소프트 삭제 제외를 검증한다. 각 테스트는 transaction { ... rollback() } 로 격리한다.
  */
 class PlaceRepositoryTest
     @Autowired
@@ -72,48 +71,6 @@ class PlaceRepositoryTest
 
                 val found = repository.findByIds(listOf(aliveId, deletedId))
                 assertThat(found.map { it.id.value }).containsExactly(aliveId)
-                rollback()
-            }
-        }
-
-        @Test
-        fun `searchByName 은 부분일치를 id 오름차순 limit 개로 주고 커서 이후부터 이어준다`() {
-            transaction {
-                repository.insertIgnoringConflicts(
-                    listOf(
-                        place("한강공원 반포", "s-1"),
-                        place("한강공원 뚝섬", "s-2"),
-                        place("한강공원 여의도", "s-3"),
-                        place("남산타워", "s-4"), // 매치 안 됨
-                    ),
-                )
-
-                val firstPage = repository.searchByName("한강공원", cursor = null, limit = 2)
-                assertThat(firstPage.map { it.name }).containsExactly("한강공원 반포", "한강공원 뚝섬")
-                assertThat(firstPage.map { it.id.value }).isSorted
-
-                val secondPage = repository.searchByName("한강공원", cursor = firstPage.last().id.value, limit = 2)
-                assertThat(secondPage.map { it.name }).containsExactly("한강공원 여의도")
-
-                assertThat(repository.countByName("한강공원")).isEqualTo(3L)
-                rollback()
-            }
-        }
-
-        @Test
-        fun `searchByName 은 LIKE 와일드카드를 리터럴로 취급한다`() {
-            transaction {
-                repository.insertIgnoringConflicts(
-                    listOf(
-                        place("50% 할인마트", "w-1"), // 리터럴 '%' 포함
-                        place("아무카페", "w-2"), // '%' 없음
-                    ),
-                )
-
-                // '%' 를 이스케이프하지 않으면 LIKE '%%%' 로 전부 매칭될 것 — 리터럴이면 '50%' 만 매칭
-                val hits = repository.searchByName("50%", cursor = null, limit = 10)
-                assertThat(hits.map { it.name }).containsExactly("50% 할인마트")
-                assertThat(repository.countByName("50%")).isEqualTo(1L)
                 rollback()
             }
         }

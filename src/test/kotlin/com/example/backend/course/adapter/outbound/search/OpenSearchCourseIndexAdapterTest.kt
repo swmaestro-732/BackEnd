@@ -1,11 +1,14 @@
 package com.example.backend.course.adapter.outbound.search
 
+import com.example.backend.bootstrap.config.OpenSearchProperties
 import com.example.backend.common.domain.CourseVisibility
 import com.example.backend.course.domain.model.Course
 import com.example.backend.course.domain.model.CourseStatus
+import org.assertj.core.api.Assertions.assertThat
 import org.assertj.core.api.Assertions.assertThatCode
 import org.junit.jupiter.api.Test
 import org.mockito.ArgumentMatchers.any
+import org.mockito.Mockito.doAnswer
 import org.mockito.Mockito.mock
 import org.mockito.Mockito.never
 import org.mockito.Mockito.verify
@@ -33,6 +36,10 @@ private typealias IndexFn = Function<IndexRequest.Builder<CourseDocument>, Objec
  * 목 client 는 넘겨진 빌더 람다를 실제로 적용(thenAnswer)해 요청 구성 코드가 실행되게 한다.
  */
 class OpenSearchCourseIndexAdapterTest {
+    @Suppress("UNCHECKED_CAST")
+    private val clientProvider = mock(ObjectProvider::class.java) as ObjectProvider<OpenSearchClient>
+    private val adapter = OpenSearchCourseIndexAdapter(clientProvider, OpenSearchProperties())
+
     // any() 의 T 를 각 메서드의 정확한 Function 시그니처로 고정하는 매처 헬퍼(복합 제네릭이라 추론 불가).
     // 반환 타입은 nullable — any() 는 null 을 돌려주므로 non-null 이면 코틀린 인트린식 null 체크가 NPE 를 낸다.
     private fun anyIndexFn(): IndexFn? = any()
@@ -81,7 +88,7 @@ class OpenSearchCourseIndexAdapterTest {
 
     @Test
     fun `save 는 클라이언트가 없으면 no-op 한다`() {
-        val adapter = OpenSearchCourseIndexAdapter(providerOf(null))
+        val adapter = OpenSearchCourseIndexAdapter(providerOf(null), OpenSearchProperties())
 
         assertThatCode { adapter.save(course(id = 1L)) }.doesNotThrowAnyException()
     }
@@ -93,7 +100,7 @@ class OpenSearchCourseIndexAdapterTest {
             inv.getArgument<Function<IndexRequest.Builder<CourseDocument>, *>>(0).apply(IndexRequest.Builder())
             mock(IndexResponse::class.java)
         }
-        val adapter = OpenSearchCourseIndexAdapter(providerOf(client))
+        val adapter = OpenSearchCourseIndexAdapter(providerOf(client), OpenSearchProperties())
 
         adapter.save(course(id = 1L))
 
@@ -104,7 +111,7 @@ class OpenSearchCourseIndexAdapterTest {
     fun `save 는 색인 예외를 fail-soft 로 삼킨다`() {
         val client = mock(OpenSearchClient::class.java)
         `when`(client.index(anyIndexFn())).thenThrow(RuntimeException("boom"))
-        val adapter = OpenSearchCourseIndexAdapter(providerOf(client))
+        val adapter = OpenSearchCourseIndexAdapter(providerOf(client), OpenSearchProperties())
 
         assertThatCode { adapter.save(course(id = 1L)) }.doesNotThrowAnyException()
     }
@@ -112,7 +119,7 @@ class OpenSearchCourseIndexAdapterTest {
     @Test
     fun `bulk save 는 빈 리스트면 no-op 한다`() {
         val client = mock(OpenSearchClient::class.java)
-        val adapter = OpenSearchCourseIndexAdapter(providerOf(client))
+        val adapter = OpenSearchCourseIndexAdapter(providerOf(client), OpenSearchProperties())
 
         adapter.save(emptyList())
 
@@ -121,7 +128,7 @@ class OpenSearchCourseIndexAdapterTest {
 
     @Test
     fun `bulk save 는 클라이언트가 없으면 no-op 한다`() {
-        val adapter = OpenSearchCourseIndexAdapter(providerOf(null))
+        val adapter = OpenSearchCourseIndexAdapter(providerOf(null), OpenSearchProperties())
 
         assertThatCode { adapter.save(listOf(course(id = 1L))) }.doesNotThrowAnyException()
     }
@@ -135,7 +142,7 @@ class OpenSearchCourseIndexAdapterTest {
             `when`(resp.errors()).thenReturn(false)
             resp
         }
-        val adapter = OpenSearchCourseIndexAdapter(providerOf(client))
+        val adapter = OpenSearchCourseIndexAdapter(providerOf(client), OpenSearchProperties())
 
         adapter.save(listOf(course(id = 1L), course(id = 2L)))
 
@@ -154,7 +161,7 @@ class OpenSearchCourseIndexAdapterTest {
             `when`(resp.items()).thenReturn(listOf(failedItem))
             resp
         }
-        val adapter = OpenSearchCourseIndexAdapter(providerOf(client))
+        val adapter = OpenSearchCourseIndexAdapter(providerOf(client), OpenSearchProperties())
 
         assertThatCode { adapter.save(listOf(course(id = 1L))) }.doesNotThrowAnyException()
     }
@@ -163,14 +170,14 @@ class OpenSearchCourseIndexAdapterTest {
     fun `bulk save 는 예외를 fail-soft 로 삼킨다`() {
         val client = mock(OpenSearchClient::class.java)
         `when`(client.bulk(anyBulkFn())).thenThrow(RuntimeException("boom"))
-        val adapter = OpenSearchCourseIndexAdapter(providerOf(client))
+        val adapter = OpenSearchCourseIndexAdapter(providerOf(client), OpenSearchProperties())
 
         assertThatCode { adapter.save(listOf(course(id = 1L))) }.doesNotThrowAnyException()
     }
 
     @Test
     fun `delete 는 클라이언트가 없으면 no-op 한다`() {
-        val adapter = OpenSearchCourseIndexAdapter(providerOf(null))
+        val adapter = OpenSearchCourseIndexAdapter(providerOf(null), OpenSearchProperties())
 
         assertThatCode { adapter.delete(1L) }.doesNotThrowAnyException()
     }
@@ -182,7 +189,7 @@ class OpenSearchCourseIndexAdapterTest {
             inv.getArgument<Function<DeleteRequest.Builder, *>>(0).apply(DeleteRequest.Builder())
             mock(DeleteResponse::class.java)
         }
-        val adapter = OpenSearchCourseIndexAdapter(providerOf(client))
+        val adapter = OpenSearchCourseIndexAdapter(providerOf(client), OpenSearchProperties())
 
         adapter.delete(1L)
 
@@ -193,14 +200,14 @@ class OpenSearchCourseIndexAdapterTest {
     fun `delete 는 예외를 fail-soft 로 삼킨다`() {
         val client = mock(OpenSearchClient::class.java)
         `when`(client.delete(anyDeleteFn())).thenThrow(RuntimeException("boom"))
-        val adapter = OpenSearchCourseIndexAdapter(providerOf(client))
+        val adapter = OpenSearchCourseIndexAdapter(providerOf(client), OpenSearchProperties())
 
         assertThatCode { adapter.delete(1L) }.doesNotThrowAnyException()
     }
 
     @Test
     fun `deleteByAuthor 는 클라이언트가 없으면 no-op 한다`() {
-        val adapter = OpenSearchCourseIndexAdapter(providerOf(null))
+        val adapter = OpenSearchCourseIndexAdapter(providerOf(null), OpenSearchProperties())
 
         assertThatCode { adapter.deleteByAuthor(7L) }.doesNotThrowAnyException()
     }
@@ -212,7 +219,7 @@ class OpenSearchCourseIndexAdapterTest {
             inv.getArgument<Function<DeleteByQueryRequest.Builder, *>>(0).apply(DeleteByQueryRequest.Builder())
             mock(DeleteByQueryResponse::class.java)
         }
-        val adapter = OpenSearchCourseIndexAdapter(providerOf(client))
+        val adapter = OpenSearchCourseIndexAdapter(providerOf(client), OpenSearchProperties())
 
         adapter.deleteByAuthor(7L)
 
@@ -223,8 +230,120 @@ class OpenSearchCourseIndexAdapterTest {
     fun `deleteByAuthor 는 예외를 fail-soft 로 삼킨다`() {
         val client = mock(OpenSearchClient::class.java)
         `when`(client.deleteByQuery(anyDbqFn())).thenThrow(RuntimeException("boom"))
-        val adapter = OpenSearchCourseIndexAdapter(providerOf(client))
+        val adapter = OpenSearchCourseIndexAdapter(providerOf(client), OpenSearchProperties())
 
         assertThatCode { adapter.deleteByAuthor(7L) }.doesNotThrowAnyException()
     }
+
+    // ── 람다 실행 + indexAlias 검증 ──
+
+    @Test
+    fun `save(Course) — index 빌더 람다가 실행돼 indexAlias 가 사용된다`() {
+        val client = mock(OpenSearchClient::class.java)
+        `when`(clientProvider.ifAvailable).thenReturn(client)
+        doAnswer { inv ->
+            @Suppress("UNCHECKED_CAST")
+            val fn = inv.arguments[0] as Function<IndexRequest.Builder<Any>, ObjectBuilder<IndexRequest<Any>>>
+            fn.apply(IndexRequest.Builder<Any>())
+            null
+        }.`when`(
+            client,
+        ).index<Any>(anyArg<java.util.function.Function<IndexRequest.Builder<Any>, ObjectBuilder<IndexRequest<Any>>>>())
+
+        adapter.save(course(id = 1L))
+
+        verify(
+            client,
+        ).index(anyArg<java.util.function.Function<IndexRequest.Builder<Any>, ObjectBuilder<IndexRequest<Any>>>>())
+    }
+
+    @Test
+    fun `save(List) — bulk 빌더 람다가 실행돼 indexAlias 가 사용된다`() {
+        val client = mock(OpenSearchClient::class.java)
+        `when`(clientProvider.ifAvailable).thenReturn(client)
+        var capturedRequest: BulkRequest? = null
+        doAnswer { inv ->
+            @Suppress("UNCHECKED_CAST")
+            val fn = inv.arguments[0] as Function<BulkRequest.Builder, ObjectBuilder<BulkRequest>>
+            capturedRequest = fn.apply(BulkRequest.Builder()).build()
+            null
+        }.`when`(client).bulk(anyArg<java.util.function.Function<BulkRequest.Builder, ObjectBuilder<BulkRequest>>>())
+
+        adapter.save(listOf(course(id = 1L)))
+
+        assertThat(capturedRequest).isNotNull()
+        assertThat(capturedRequest!!.operations()).isNotEmpty()
+        @Suppress("UNCHECKED_CAST")
+        assertThat(capturedRequest!!.operations()[0].index<Any>()!!.index()).isEqualTo("course")
+    }
+
+    @Test
+    fun `delete — indexAlias 로 delete 요청이 구성된다`() {
+        val client = mock(OpenSearchClient::class.java)
+        `when`(clientProvider.ifAvailable).thenReturn(client)
+        var capturedIndex: String? = null
+        doAnswer { inv ->
+            @Suppress("UNCHECKED_CAST")
+            val fn = inv.arguments[0] as Function<DeleteRequest.Builder, ObjectBuilder<DeleteRequest>>
+            capturedIndex = fn.apply(DeleteRequest.Builder()).build().index()
+            null
+        }.`when`(
+            client,
+        ).delete(anyArg<java.util.function.Function<DeleteRequest.Builder, ObjectBuilder<DeleteRequest>>>())
+
+        adapter.delete(courseId = 42L)
+
+        assertThat(capturedIndex).isEqualTo("course")
+    }
+
+    @Test
+    fun `deleteByAuthor — deleteByQuery 빌더 람다가 실행돼 indexAlias 가 사용된다`() {
+        val client = mock(OpenSearchClient::class.java)
+        `when`(clientProvider.ifAvailable).thenReturn(client)
+        doAnswer { inv ->
+            @Suppress("UNCHECKED_CAST")
+            val fn = inv.arguments[0] as Function<DeleteByQueryRequest.Builder, ObjectBuilder<DeleteByQueryRequest>>
+            fn.apply(DeleteByQueryRequest.Builder())
+            null
+        }.`when`(
+            client,
+        ).deleteByQuery(
+            anyArg<java.util.function.Function<DeleteByQueryRequest.Builder, ObjectBuilder<DeleteByQueryRequest>>>(),
+        )
+
+        adapter.deleteByAuthor(authorId = 99L)
+
+        verify(
+            client,
+        ).deleteByQuery(
+            anyArg<java.util.function.Function<DeleteByQueryRequest.Builder, ObjectBuilder<DeleteByQueryRequest>>>(),
+        )
+    }
+
+    @Test
+    fun `prefix 설정 시 delete 요청에 prefix 가 반영된다`() {
+        val prefixedAdapter =
+            OpenSearchCourseIndexAdapter(
+                clientProvider,
+                OpenSearchProperties(indexPrefix = "dev-"),
+            )
+        val client = mock(OpenSearchClient::class.java)
+        `when`(clientProvider.ifAvailable).thenReturn(client)
+        var capturedIndex: String? = null
+        doAnswer { inv ->
+            @Suppress("UNCHECKED_CAST")
+            val fn = inv.arguments[0] as Function<DeleteRequest.Builder, ObjectBuilder<DeleteRequest>>
+            capturedIndex = fn.apply(DeleteRequest.Builder()).build().index()
+            null
+        }.`when`(
+            client,
+        ).delete(anyArg<java.util.function.Function<DeleteRequest.Builder, ObjectBuilder<DeleteRequest>>>())
+
+        prefixedAdapter.delete(courseId = 1L)
+
+        assertThat(capturedIndex).isEqualTo("dev-course")
+    }
 }
+
+@Suppress("UNCHECKED_CAST")
+private fun <T> anyArg(): T = org.mockito.Mockito.any<T>() as T

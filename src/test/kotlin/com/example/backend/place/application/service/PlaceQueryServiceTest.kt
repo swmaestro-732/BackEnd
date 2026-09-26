@@ -1,137 +1,174 @@
 package com.example.backend.place.application.service
 
+import com.example.backend.area.application.port.inbound.AreaQueryUseCase
+import com.example.backend.common.exception.BusinessException
 import com.example.backend.common.geo.Coordinate
+import com.example.backend.common.response.PlaceErrorCode
 import com.example.backend.place.application.port.outbound.PlaceQueryPort
+import com.example.backend.place.application.port.outbound.PlaceSearchCriteria
+import com.example.backend.place.application.port.outbound.PlaceSearchHits
+import com.example.backend.place.application.port.outbound.PlaceSearchQueryPort
 import com.example.backend.place.domain.model.Place
 import com.example.backend.place.domain.model.PlaceBusinessStatus
 import com.example.backend.place.domain.model.PlaceCategory
 import com.example.backend.place.domain.model.PlaceStatus
-import org.assertj.core.api.Assertions.assertThat
+import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertFalse
+import org.junit.jupiter.api.Assertions.assertNull
+import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.assertThrows
+import org.mockito.Mockito.mock
+import org.mockito.Mockito.`when`
 
 class PlaceQueryServiceTest {
-    private var portSearchResult: List<Place> = emptyList()
-    private var portFindResult: List<Place> = emptyList()
-    private var portCount: Long = 0L
-    private var capturedSearchLimit: Int? = null
+    private val anchor = place(99)
+    private val criteria = mutableListOf<PlaceSearchCriteria>()
+    private var anchorExists = true
+    private var engineHits: () -> PlaceSearchHits = { PlaceSearchHits(listOf(1), 1) }
+    private val db =
+        mock(PlaceQueryPort::class.java) { invocation ->
+            when (invocation.method.name) {
+                "findPlacesById" -> {
+                    invocation.getArgument<List<Long>>(0).mapNotNull { id ->
+                        if (id == 99L) anchor.takeIf { anchorExists } else place(id)
+                    }
+                }
 
-    private val port =
-        object : PlaceQueryPort {
-            override fun findPlaceById(placeId: Long): Place? = portFindResult.firstOrNull { it.id == placeId }
-
-            override fun findPlacesById(placeIds: List<Long>): List<Place> = portFindResult
-
-            override fun searchByName(
-                query: String,
-                cursor: String?,
-                limit: Int,
-            ): List<Place> {
-                capturedSearchLimit = limit
-                return portSearchResult
+                else -> {
+                    error("예상하지 못한 조회: ${invocation.method.name}")
+                }
             }
+        }
+    private val engine =
+        mock(PlaceSearchQueryPort::class.java) { invocation ->
+            criteria += invocation.getArgument<PlaceSearchCriteria>(0)
+            engineHits()
+        }
+    private val areas = mock(AreaQueryUseCase::class.java)
+    private val service = PlaceQueryService(db, engine, PlaceSearchQueryPlanner(areas))
 
-            override fun countByName(query: String): Long = portCount
+    @Test
+    fun `첫 장소 검색에는 거리 기준과 뷰포트가 없다`() {
+        val result = service.searchByName("블루보틀", null, 10, null)
+
+        assertEquals(listOf(1L), result.items.map { it.id })
+        assertNull(criteria.single().anchor)
+        assertNull(criteria.single().viewport)
+        assertEquals(listOf("블루보틀"), criteria.single().textTokens)
+    }
+
+    @Test
+    fun `지역 그룹을 엔진에 전달하고 0건 재검색에서는 모두 해제한다`() {
+        `when`(areas.resolveSearchPrefixes("서울")).thenReturn(listOf("11"))
+        `when`(areas.resolveSearchPrefixes("강남구")).thenReturn(listOf("11680"))
+        engineHits = {
+            if (criteria.last().areaCodePrefixGroups.isEmpty()) {
+                PlaceSearchHits(listOf(1), 1)
+            } else {
+                PlaceSearchHits(emptyList(), 0)
+            }
         }
 
-    private val service = PlaceQueryService(port)
+        val result = service.searchByName("서울 강남구 카페", null, 10, 99)
 
-    @Test
-    fun `searchByName - 빈 검색어는 포트를 호출하지 않고 빈 페이지를 반환한다`() {
-        portSearchResult = listOf(makePlace(1L)) // 포트가 호출되면 이 값이 반환되겠지만 호출 안 됨
-
-        val page = service.searchByName("", null, 10)
-
-        assertThat(page.items).isEmpty()
-        assertThat(page.totalCount).isEqualTo(0)
-        assertThat(page.hasNext).isFalse
+        assertEquals(listOf(1L), result.items.map { it.id })
+        assertEquals(2, criteria.size)
+        assertEquals(listOf(listOf("11"), listOf("11680")), criteria.first().areaCodePrefixGroups)
+        assertTrue(criteria.last().areaCodePrefixGroups.isEmpty())
+        assertTrue(criteria.last().categories.isEmpty())
+        assertEquals(listOf("서울", "강남구", "카페"), criteria.last().textTokens)
+        assertTrue(criteria.all { it.anchor == anchor.location })
     }
 
     @Test
-    fun `searchByName - 공백만 있는 검색어는 빈 페이지를 반환한다`() {
-        val page = service.searchByName("   ", null, 10)
+    fun `기준 장소의 DB 좌표를 정렬 조건으로 전달하고 결과 순서를 보존한다`() {
+        engineHits = { PlaceSearchHits(listOf(3, 1, 2), 3) }
 
-        assertThat(page.items).isEmpty()
+        val result = service.searchByName("블루보틀", null, 10, 99)
+
+        assertEquals(anchor.location, criteria.single().anchor)
+        assertNull(criteria.single().viewport)
+        assertEquals(listOf(3L, 1L, 2L), result.items.map { it.id })
     }
 
     @Test
-    fun `searchByName - 결과가 size 이하이면 hasNext=false 이다`() {
-        portSearchResult = List(3) { makePlace(it.toLong() + 1) }
-        portCount = 3L
+    fun `존재하지 않는 기준 장소는 검색 전에 404로 거절한다`() {
+        anchorExists = false
 
-        val page = service.searchByName("카페", null, 10)
+        val exception = assertThrows<BusinessException> { service.searchByName("카페", null, 10, 99) }
 
-        assertThat(capturedSearchLimit).isEqualTo(11) // service passes size+1
-        assertThat(page.hasNext).isFalse
-        assertThat(page.items).hasSize(3)
-        assertThat(page.totalCount).isEqualTo(3)
+        assertEquals(PlaceErrorCode.PLACE_NOT_FOUND, exception.errorCode)
+        assertTrue(criteria.isEmpty())
     }
 
     @Test
-    fun `searchByName - 결과가 size+1 개이면 hasNext=true 이고 items 는 size 개다`() {
-        portSearchResult = List(11) { makePlace(it.toLong() + 1) }
-        portCount = 15L
+    fun `엔진 장애는 DB 폴백 없이 503 으로 전파한다`() {
+        engineHits = { throw BusinessException(PlaceErrorCode.PLACE_SEARCH_UNAVAILABLE) }
 
-        val page = service.searchByName("카페", null, 10)
+        val exception = assertThrows<BusinessException> { service.searchByName("블루보틀", null, 10, null) }
 
-        assertThat(page.hasNext).isTrue
-        assertThat(page.items).hasSize(10)
-        assertThat(page.totalCount).isEqualTo(15)
+        assertEquals(PlaceErrorCode.PLACE_SEARCH_UNAVAILABLE, exception.errorCode)
     }
 
     @Test
-    fun `searchByName - PlaceSummary 매핑 — id·name·category·imageUrl·좌표가 옮겨진다`() {
-        portSearchResult = listOf(makePlace(42L, "어니언 성수", "CAFE", "https://img.example.com/1.jpg"))
-        portCount = 1L
+    fun `엔진 후속 페이지 장애도 같은 커서로 재시도할 수 있게 503 을 반환한다`() {
+        engineHits = { PlaceSearchHits(listOf(1), 3) }
+        val first = service.searchByName("블루보틀", null, 1, null)
+        engineHits = { throw BusinessException(PlaceErrorCode.PLACE_SEARCH_UNAVAILABLE) }
 
-        val page = service.searchByName("어니언", null, 10)
+        val exception = assertThrows<BusinessException> { service.searchByName("블루보틀", first.nextCursor, 1, null) }
 
-        assertThat(page.items).hasSize(1)
-        val item = page.items[0]
-        assertThat(item.id).isEqualTo(42L)
-        assertThat(item.name).isEqualTo("어니언 성수")
-        assertThat(item.category).isEqualTo("CAFE")
-        assertThat(item.imageUrl).isEqualTo("https://img.example.com/1.jpg")
-        assertThat(item.latitude).isEqualTo(37.5)
-        assertThat(item.longitude).isEqualTo(127.0)
+        assertEquals(503, exception.errorCode.status)
     }
 
     @Test
-    fun `findPlacesById - 빈 목록은 포트 호출 없이 빈 리스트를 반환한다`() {
-        portFindResult = listOf(makePlace(99L)) // 호출되면 반환될 값
+    fun `다음 페이지는 커서의 오프셋과 기준 장소를 이어간다`() {
+        engineHits = { PlaceSearchHits(listOf(3), 3) }
+        val first = service.searchByName("블루보틀", null, 1, 99)
+        engineHits = { PlaceSearchHits(listOf(1), 3) }
 
-        val result = service.findPlacesById(emptyList())
+        val second = service.searchByName("블루보틀", first.nextCursor, 1, 99)
 
-        assertThat(result).isEmpty()
+        assertEquals(listOf(3L), first.items.map { it.id })
+        assertEquals(listOf(1L), second.items.map { it.id })
+        assertEquals(listOf(0, 1), criteria.map { it.from })
+        assertTrue(criteria.all { it.anchor == anchor.location })
+        assertTrue(second.hasNext)
     }
 
     @Test
-    fun `findPlacesById - 비어 있지 않은 목록은 PlaceSummary 로 매핑된다`() {
-        portFindResult = listOf(makePlace(7L, "대림창고", "CULTURE"))
+    fun `다음 페이지에 기준 장소를 바꾸면 잘못된 커서로 거절한다`() {
+        engineHits = { PlaceSearchHits(listOf(1), 3) }
+        val first = service.searchByName("블루보틀", null, 1, 99)
 
-        val result = service.findPlacesById(listOf(7L))
+        val exception = assertThrows<BusinessException> { service.searchByName("블루보틀", first.nextCursor, 1, 98) }
 
-        assertThat(result).hasSize(1)
-        assertThat(result[0].id).isEqualTo(7L)
-        assertThat(result[0].name).isEqualTo("대림창고")
-        assertThat(result[0].category).isEqualTo("CULTURE")
+        assertEquals(400, exception.errorCode.status)
+        assertEquals(1, criteria.size)
     }
 
-    private fun makePlace(
-        id: Long,
-        name: String = "장소$id",
-        category: String = "CAFE",
-        imageUrl: String? = null,
-    ): Place =
+    @Test
+    fun `검색 윈도 마지막 불완전 페이지도 빠짐없이 조회한다`() {
+        engineHits = { PlaceSearchHits(listOf(1), 10050) }
+        val beforeLast = service.searchByName("블루보틀", PlaceSearchCursorCodec.encode(9980, false), 17, null)
+        assertTrue(beforeLast.hasNext)
+        val last = service.searchByName("블루보틀", beforeLast.nextCursor, 17, null)
+        assertEquals(9997, criteria.last().from)
+        assertEquals(3, criteria.last().size)
+        assertFalse(last.hasNext)
+    }
+
+    private fun place(id: Long): Place =
         Place.reconstitute(
             id = id,
             status = PlaceStatus.ACTIVE,
-            name = name,
+            name = "블루보틀 $id",
             description = null,
-            category = PlaceCategory.valueOf(category),
+            category = PlaceCategory.CAFE,
             location = Coordinate(37.5, 127.0),
-            address = "서울시 성동구",
-            areaCode = null,
-            imageUrl = imageUrl,
+            address = "서울",
+            imageUrl = null,
             businessStatus = PlaceBusinessStatus.UNKNOWN,
             kakaoPlaceId = null,
             createdAt = null,
