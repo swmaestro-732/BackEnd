@@ -101,3 +101,15 @@ Authorization: Bearer {{accessToken}}
 ### 모킹 에러 주입 — 404 / 4047 계획 없음
 GET http://localhost:8080/api/v1/plans/1?mockError=4047
 Authorization: Bearer {{accessToken}}
+
+### 계획 상세 화면 조합 (BFF, 실구현) — 장소 이름·카테고리·주소·좌표·대표 이미지까지 붙어서 옴
+GET http://localhost:8080/service/v1/my/plans/1
+Authorization: Bearer {{accessToken}}
+
+### 계획 상세 화면 조합 — ?mock=true 폴백 (시드 없이 고정 화면 목)
+GET http://localhost:8080/service/v1/my/plans/1?mock=true
+Authorization: Bearer {{accessToken}}
+
+### 계획 상세 화면 조합 — 없음·타인 소유 → 404 / 4047 PLAN_NOT_FOUND
+GET http://localhost:8080/service/v1/my/plans/99999
+Authorization: Bearer {{accessToken}}
