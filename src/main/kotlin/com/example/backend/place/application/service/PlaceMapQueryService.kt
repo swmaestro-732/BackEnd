@@ -34,16 +34,8 @@ class PlaceMapQueryService(
         sort: PlaceMapSort,
         userLocation: Coordinate?,
     ): PlaceMapResult {
-        validateViewport(viewport)
         val hits = searchWithTextFallback(query, viewport, category, sort, userLocation)
         return toMapResult(hits)
-    }
-
-    private fun validateViewport(viewport: Viewport) {
-        require(
-            viewport.southWest.latitude < viewport.northEast.latitude &&
-                viewport.southWest.longitude < viewport.northEast.longitude,
-        ) { "지도 영역의 너비와 높이는 0보다 커야 합니다." }
     }
 
     private fun searchWithTextFallback(

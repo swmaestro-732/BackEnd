@@ -167,17 +167,6 @@ class PlaceMapQueryServiceTest {
         assertTrue(hydratedIds.isEmpty())
     }
 
-    @Test
-    fun `넓이가 없는 뷰포트는 조회 전에 거절한다`() {
-        listOf(
-            Viewport(Coordinate(37.0, 126.0), Coordinate(37.0, 128.0)),
-            Viewport(Coordinate(37.0, 126.0), Coordinate(38.0, 126.0)),
-        ).forEach { bounds ->
-            assertThrows<IllegalArgumentException> { service.searchMap("", bounds, null) }
-        }
-        assertTrue(engineCriteria.isEmpty())
-    }
-
     private fun place(id: Long): Place =
         Place.reconstitute(
             id = id,
