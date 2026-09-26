@@ -15,8 +15,8 @@ import com.example.backend.course.application.port.inbound.dto.CourseDetailResul
 import com.example.backend.course.application.port.inbound.dto.CoursePlaceResult
 import com.example.backend.course.application.port.inbound.dto.CreateCourseCommand
 import com.example.backend.course.application.port.inbound.dto.CreateCoursePlaceCommand
+import com.example.backend.course.application.port.inbound.dto.DuplicateCourseCommand
 import com.example.backend.course.application.port.inbound.dto.EditCourseCommand
-import com.example.backend.course.application.port.inbound.dto.ForkCourseCommand
 import com.example.backend.course.application.port.outbound.CourseDetailRow
 import com.example.backend.course.application.port.outbound.CoursePersistencePort
 import com.example.backend.course.application.port.outbound.CoursePlaceImageRow
@@ -28,10 +28,11 @@ import com.example.backend.course.domain.model.CourseCategory
 import com.example.backend.course.domain.model.CoursePlace
 import com.example.backend.course.domain.model.CourseStatus
 import org.junit.jupiter.api.Assertions.assertEquals
-import org.junit.jupiter.api.Assertions.assertNotNull
 import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Assertions.assertThrows
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.params.ParameterizedTest
+import org.junit.jupiter.params.provider.ValueSource
 import org.mockito.Mockito.any
 import org.mockito.Mockito.anyLong
 import org.mockito.Mockito.mock
@@ -63,6 +64,9 @@ class CourseServiceTest {
         assertEquals(CourseCategory.CAFETOUR, result.category)
         assertEquals(AREA_CODE, result.areaCode)
         assertEquals("성수동1가", result.area)
+        assertNull(result.duplicatedFromId)
+        assertNull(result.originalPlaceCount)
+        assertNull(result.sharedPlaceCount)
         val saved = publishedEvents.filterIsInstance<CourseSavedEvent>().single()
         assertEquals(1L, saved.authorId)
         assertNull(saved.oldVisibility)
@@ -96,7 +100,7 @@ class CourseServiceTest {
                 coverImageUrl = "cover",
                 visibility = CourseVisibility.PRIVATE,
                 isPublished = true,
-                forkedFromId = null,
+                duplicatedFromId = null,
                 tags = emptyList(),
                 places = listOf(CoursePlace(1L, 0, null, listOf("a")), CoursePlace(2L, 1, null, listOf("b"))),
                 placeCategoryByPlaceId = emptyMap(),
@@ -230,13 +234,13 @@ class CourseServiceTest {
     }
 
     @Test
-    fun `포크 원본이 존재하지 않으면 예외를 던진다`() {
-        `when`(persistence.existsById(99L)).thenReturn(false)
+    fun `복제 원본이 존재하지 않으면 예외를 던진다`() {
+        `when`(query.getDetails(listOf(99L), 1L)).thenReturn(emptyList())
         stubPlaces()
 
         val exception =
             assertThrows(BusinessException::class.java) {
-                service.create(createCommand(isPublished = true, forkedFromId = 99L))
+                service.create(createCommand(isPublished = true, duplicatedFromId = 99L))
             }
 
         assertEquals(CourseErrorCode.COURSE_NOT_FOUND, exception.errorCode)
@@ -244,43 +248,106 @@ class CourseServiceTest {
     }
 
     @Test
-    fun `포크 시 원본 코스가 없으면 예외를 던진다`() {
+    fun `복제 시 원본 코스가 없으면 예외를 던진다`() {
         `when`(query.getDetails(listOf(50L), 1L)).thenReturn(emptyList())
 
         val exception =
             assertThrows(BusinessException::class.java) {
-                service.fork(forkCommand())
+                service.duplicate(duplicateCommand())
             }
 
         assertEquals(CourseErrorCode.COURSE_NOT_FOUND, exception.errorCode)
     }
 
     @Test
-    fun `포크 시 원본 장소를 충분히 유지하지 않으면 예외를 던진다`() {
+    fun `복제 시 원본 장소를 충분히 유지하지 않으면 예외를 던진다`() {
         `when`(query.getDetails(listOf(50L), 1L)).thenReturn(listOf(originDetail(listOf(1L, 2L))))
-        // 원본 2곳 → 전부 유지해야 함, 1곳만 제공
-        val fewPlaces = listOf(CreateCoursePlaceCommand(1L, 0, null, listOf("a"), null))
+        // 전체 장소 수는 충족하지만 원본과 겹치는 장소는 1곳뿐이다.
+        val fewPlaces =
+            listOf(
+                CreateCoursePlaceCommand(1L, 0, null, listOf("a"), null),
+                CreateCoursePlaceCommand(3L, 1, null, listOf("b"), null),
+            )
 
         val exception =
             assertThrows(BusinessException::class.java) {
-                service.fork(forkCommand(places = fewPlaces))
+                service.duplicate(duplicateCommand(places = fewPlaces))
             }
 
-        assertEquals(CourseErrorCode.FORK_PLACES_NOT_KEPT, exception.errorCode)
+        assertEquals(CourseErrorCode.DUPLICATE_PLACES_NOT_KEPT, exception.errorCode)
     }
 
     @Test
-    fun `포크 성공 시 CourseSavedEvent 를 발행한다`() {
+    fun `복제 성공 시 CourseSavedEvent 를 발행한다`() {
         `when`(query.getDetails(listOf(50L), 1L)).thenReturn(listOf(originDetail(listOf(1L, 2L))))
-        `when`(persistence.existsById(50L)).thenReturn(true) // toCreateCommand 의 requireForkOriginExists
         stubPlaces()
         `when`(areas.findAreaByCode(AREA_CODE)).thenReturn(area("성수동1가"))
         `when`(persistence.save(anyValue())).thenAnswer { it.arguments[0] as Course }
 
-        service.fork(forkCommand())
+        service.duplicate(duplicateCommand())
 
         val saved = publishedEvents.filterIsInstance<CourseSavedEvent>().single()
         assertEquals(CourseVisibility.PUBLIC, saved.newVisibility)
+    }
+
+    @ParameterizedTest
+    @ValueSource(ints = [4, 10])
+    fun `원본 장소 수와 무관하게 두 곳을 유지하면 복제하고 개수를 저장한다`(originalCount: Int) {
+        `when`(query.getDetails(listOf(50L), 1L))
+            .thenReturn(listOf(originDetail((1L..originalCount.toLong()).toList())))
+        stubPlaces()
+        `when`(areas.findAreaByCode(AREA_CODE)).thenReturn(area("성수동1가"))
+        `when`(persistence.save(anyValue())).thenAnswer { it.arguments[0] as Course }
+
+        val result = service.duplicate(duplicateCommand())
+
+        assertEquals(50L, result.duplicatedFromId)
+        assertEquals(originalCount, result.originalPlaceCount)
+        assertEquals(2, result.sharedPlaceCount)
+        val stored = publishedEvents.filterIsInstance<CourseSavedEvent>().single().newCourse
+        assertEquals(originalCount, stored.originalPlaceCount)
+        assertEquals(2, stored.sharedPlaceCount)
+    }
+
+    @Test
+    fun `같은 원본 장소를 두 번 넣어도 두 곳 유지로 계산하지 않는다`() {
+        `when`(query.getDetails(listOf(50L), 1L)).thenReturn(listOf(originDetail(listOf(1L, 2L, 3L, 4L))))
+        val repeatedPlaces = commandPlaces().map { it.copy(placeId = 1L) }
+
+        val exception =
+            assertThrows(BusinessException::class.java) {
+                service.duplicate(duplicateCommand(places = repeatedPlaces))
+            }
+
+        assertEquals(CourseErrorCode.DUPLICATE_PLACES_NOT_KEPT, exception.errorCode)
+        verify(persistence, never()).save(anyValue())
+    }
+
+    @Test
+    fun `일반 생성의 원본 참조도 임시저장 여부와 무관하게 두 곳 유지를 검사한다`() {
+        `when`(query.getDetails(listOf(50L), 1L)).thenReturn(listOf(originDetail(listOf(1L, 3L, 4L, 5L))))
+
+        val exception =
+            assertThrows(BusinessException::class.java) {
+                service.create(createCommand(isPublished = false, duplicatedFromId = 50L))
+            }
+
+        assertEquals(CourseErrorCode.DUPLICATE_PLACES_NOT_KEPT, exception.errorCode)
+        verify(persistence, never()).save(anyValue())
+    }
+
+    @Test
+    fun `일반 생성의 원본 참조도 중복을 제거한 개수를 저장한다`() {
+        `when`(query.getDetails(listOf(50L), 1L)).thenReturn(listOf(originDetail(listOf(1L, 1L, 2L, 3L))))
+        stubPlaces()
+        `when`(persistence.save(anyValue())).thenAnswer { it.arguments[0] as Course }
+
+        val result = service.create(createCommand(isPublished = false, duplicatedFromId = 50L))
+
+        assertEquals(50L, result.duplicatedFromId)
+        assertEquals(3, result.originalPlaceCount)
+        assertEquals(2, result.sharedPlaceCount)
+        verify(query).getDetails(listOf(50L), 1L)
     }
 
     @Test
@@ -293,11 +360,11 @@ class CourseServiceTest {
         verify(persistence, never()).softDelete(anyLong())
     }
 
-    private fun forkCommand(places: List<CreateCoursePlaceCommand> = commandPlaces()) =
-        ForkCourseCommand(
+    private fun duplicateCommand(places: List<CreateCoursePlaceCommand> = commandPlaces()) =
+        DuplicateCourseCommand(
             userId = 1L,
-            forkedFromId = 50L,
-            title = "포크 코스",
+            duplicatedFromId = 50L,
+            title = "복제 코스",
             description = null,
             coverImageUrl = "cover",
             tags = emptyList(),
@@ -338,7 +405,7 @@ class CourseServiceTest {
 
     private fun createCommand(
         isPublished: Boolean,
-        forkedFromId: Long? = null,
+        duplicatedFromId: Long? = null,
     ) = CreateCourseCommand(
         1L,
         "성수 코스",
@@ -347,7 +414,7 @@ class CourseServiceTest {
         emptyList(),
         CourseVisibility.PUBLIC,
         isPublished,
-        forkedFromId,
+        duplicatedFromId,
         commandPlaces(),
     )
 

@@ -12,9 +12,8 @@ import com.example.backend.course.application.port.inbound.CourseQueryUseCase
 import com.example.backend.course.application.port.inbound.CourseUseCase
 import com.example.backend.course.application.port.inbound.dto.CoursePlaceResult
 import com.example.backend.course.application.port.inbound.dto.CreateCourseCommand
-import com.example.backend.course.application.port.inbound.dto.CreateCoursePlaceCommand
+import com.example.backend.course.application.port.inbound.dto.DuplicateCourseCommand
 import com.example.backend.course.application.port.inbound.dto.EditCourseCommand
-import com.example.backend.course.application.port.inbound.dto.ForkCourseCommand
 import com.example.backend.course.application.port.inbound.dto.toCourse
 import com.example.backend.course.application.port.inbound.dto.toCoursePlaces
 import com.example.backend.course.application.port.outbound.CourseDetailRow
@@ -48,7 +47,7 @@ class CourseService(
 ) : CourseUseCase {
     /** 코스 생성(발행·임시저장 공통) — 장소 검증·지역코드 도출 후 저장하고 [CourseSavedEvent] 를 발행한다. */
     override fun create(command: CreateCourseCommand): Course {
-        command.requireForkOriginExists()
+        val duplication = command.resolveDuplicationSnapshot()
         val foundPlaces = requirePlacesExist(command.places.map { it.placeId })
         val places = command.places.toCoursePlaces()
         val areaCode =
@@ -59,7 +58,14 @@ class CourseService(
             )
         val savedCourse =
             coursePersistencePort.save(
-                command.toCourse(places, foundPlaces, areaCode, resolveAreaName(areaCode)),
+                command.toCourse(
+                    places,
+                    foundPlaces,
+                    areaCode,
+                    resolveAreaName(areaCode),
+                    originalPlaceCount = duplication?.originalPlaceCount,
+                    sharedPlaceCount = duplication?.sharedPlaceCount,
+                ),
             )
 
         // 커밋 후(AFTER_COMMIT) 검색 색인 + 작성자 코스 개수 반영. 발행 코스만 개수에 잡힌다(임시저장 제외 → new=null).
@@ -107,21 +113,8 @@ class CourseService(
         )
     }
 
-    override fun fork(command: ForkCourseCommand): Course {
-        // 상세와 같은 배치 조회 경로를 쓴다(해시태그를 읽지 않아 단건 조회보다 쿼리가 하나 적다).
-        // 원본 장소는 이 결과에 함께 실려 오므로 유지 검증을 위해 따로 조회하지 않는다.
-        val originCourse =
-            courseQueryUseCase
-                .getDetails(listOf(command.forkedFromId), command.userId)
-                .firstOrNull()
-                ?: throw BusinessException(
-                    CourseErrorCode.COURSE_NOT_FOUND,
-                    "원본 코스를 찾을 수 없습니다: id=${command.forkedFromId}",
-                )
-
-        requireOriginPlacesKept(originCourse.places.map(CoursePlaceResult::placeId), command.places)
-        return create(command.toCreateCommand())
-    }
+    /** 일반 생성의 원본 참조 경로와 동일한 접근·장소 검증 및 스냅샷 저장을 적용한다. */
+    override fun duplicate(command: DuplicateCourseCommand): Course = create(command.toCreateCommand())
 
     /** 코스 소프트 삭제. */
     override fun delete(
@@ -162,30 +155,33 @@ class CourseService(
         return updatedCourse
     }
 
-    /** 포크가 원본 장소를 최소 유지 개수([Course.requiredKeptPlaceCount]) 이상 담았는지 검증한다(미달이면 예외). */
-    private fun requireOriginPlacesKept(
-        originPlaceIds: List<Long>,
-        forkedPlaces: List<CreateCoursePlaceCommand>,
-    ) {
-        val originIds = originPlaceIds.distinct()
-        val requiredKeptCount = Course.requiredKeptPlaceCount(originIds.size)
-        val forkedIds = forkedPlaces.map { it.placeId }.toSet()
-        val keptCount = originIds.count { it in forkedIds }
-        if (keptCount < requiredKeptCount) {
+    /** 원본과 겹치는 서로 다른 장소 수를 검증하고 복제 당시 개수를 계산한다. */
+    private fun CreateCourseCommand.resolveDuplicationSnapshot(): DuplicationSnapshot? {
+        val originCourseId = duplicatedFromId ?: return null
+        val originCourse =
+            courseQueryUseCase
+                .getDetails(listOf(originCourseId), userId)
+                .firstOrNull()
+                ?: throw BusinessException(
+                    CourseErrorCode.COURSE_NOT_FOUND,
+                    "원본 코스를 찾을 수 없습니다: id=$originCourseId",
+                )
+        val originIds = originCourse.places.map(CoursePlaceResult::placeId).toSet()
+        val duplicatedIds = places.map { it.placeId }.toSet()
+        val sharedCount = originIds.count { it in duplicatedIds }
+        if (sharedCount < Course.MIN_SHARED_PLACES) {
             throw BusinessException(
-                CourseErrorCode.FORK_PLACES_NOT_KEPT,
-                "원본 장소 ${originIds.size}곳 중 ${requiredKeptCount}곳 이상을 그대로 담아야 합니다(현재 ${keptCount}곳).",
+                CourseErrorCode.DUPLICATE_PLACES_NOT_KEPT,
+                "원본 장소 ${originIds.size}곳 중 ${Course.MIN_SHARED_PLACES}곳 이상을 그대로 담아야 합니다(현재 ${sharedCount}곳).",
             )
         }
+        return DuplicationSnapshot(originIds.size, sharedCount)
     }
 
-    /** 포크 원본([forkedFromId])이 지정됐으면 실제 존재하는 코스인지 검증한다(없으면 예외). */
-    private fun CreateCourseCommand.requireForkOriginExists() {
-        val originCourseId = forkedFromId ?: return
-        if (!coursePersistencePort.existsById(originCourseId)) {
-            throw BusinessException(CourseErrorCode.COURSE_NOT_FOUND)
-        }
-    }
+    private data class DuplicationSnapshot(
+        val originalPlaceCount: Int,
+        val sharedPlaceCount: Int,
+    )
 
     override fun deleteAllByAuthor(authorId: Long) {
         // 회원 탈퇴 정리 — 작성자의 살아있는 코스를 전부 소프트 삭제한다.
