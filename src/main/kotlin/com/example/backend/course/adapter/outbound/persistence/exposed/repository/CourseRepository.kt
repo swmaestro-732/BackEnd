@@ -119,6 +119,18 @@ class CourseRepository {
             it[savesCnt] = savesCnt - 1
         }
 
+    /** deleted_at IS NULL 인 행의 comments_cnt 를 1 증가시킨다. 반환은 영향받은 행 수(0 또는 1). */
+    fun increaseCommentsCount(courseId: Long): Int =
+        CourseTable.update({ (CourseTable.id eq courseId) and CourseTable.deletedAt.isNull() }) {
+            it[commentsCnt] = commentsCnt + 1
+        }
+
+    /** deleted_at IS NULL 인 행의 comments_cnt 를 1 감소시킨다. 반환은 영향받은 행 수(0 또는 1). */
+    fun decreaseCommentsCount(courseId: Long): Int =
+        CourseTable.update({ (CourseTable.id eq courseId) and CourseTable.deletedAt.isNull() }) {
+            it[commentsCnt] = commentsCnt - 1
+        }
+
     /** deleted_at IS NULL 인 코스가 존재하는지만 확인한다(fork 원본 검증 등, 본문 미적재). */
     fun existsById(courseId: Long): Boolean =
         !CourseTable

@@ -13,6 +13,9 @@ enum class CourseErrorCode(
     COURSE_REVIEW_NOT_FOUND(404, 4046, "리뷰를 찾을 수 없습니다."),
     PLAN_NOT_FOUND(404, 4047, "계획을 찾을 수 없습니다."),
 
+    // 4046(COURSE_REVIEW)까지 선점 — 댓글은 다음 번호 4047 로 채번했다.
+    COURSE_COMMENT_NOT_FOUND(404, 4047, "댓글을 찾을 수 없습니다."),
+
     // 4096 은 장소 리뷰 중복(PlaceErrorCode.PLACE_REVIEW_ALREADY_EXISTS)이 선점 — 4097 로 채번했다.
     COURSE_REVIEW_ALREADY_EXISTS(409, 4097, "이미 이 코스에 리뷰를 작성했습니다."),
 }

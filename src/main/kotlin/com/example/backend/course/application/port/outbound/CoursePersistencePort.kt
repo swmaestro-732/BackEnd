@@ -139,6 +139,12 @@ interface CoursePersistencePort {
      */
     fun decreaseSavesCount(courseId: Long): Int
 
+    /** 미삭제 코스의 댓글 수(comments_cnt)를 원자적으로 1 증가시키고 영향받은 행 수를 반환한다. */
+    fun increaseCommentsCount(courseId: Long): Int
+
+    /** 미삭제 코스의 댓글 수(comments_cnt)를 원자적으로 1 감소시키고 영향받은 행 수를 반환한다. */
+    fun decreaseCommentsCount(courseId: Long): Int
+
     /** 재색인용 — 활성(deleted_at IS NULL) 코스를 id 오름차순으로 afterId 다음부터 limit개. */
     fun findForIndex(
         afterId: Long?,
