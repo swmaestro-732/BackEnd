@@ -1,40 +1,27 @@
 package com.example.backend.user.adapter.outbound.social
 
-import com.example.backend.bootstrap.security.KakaoOauthProperties
 import com.example.backend.common.exception.BusinessException
 import com.example.backend.common.response.CommonErrorCode
 import com.example.backend.user.application.port.outbound.SocialIdentity
 import com.example.backend.user.application.port.outbound.SocialVerificationPort
 import com.example.backend.user.domain.model.SocialProvider
-import org.springframework.beans.factory.annotation.Qualifier
-import org.springframework.security.oauth2.jwt.JwtDecoder
-import org.springframework.security.oauth2.jwt.JwtException
 import org.springframework.stereotype.Component
 
-/** Kakao ID 토큰을 Stage 1의 JWK 기반 decoder 로 검증한다. */
+/** provider 로 provider별 검증기(SocialTokenVerifier)에 위임하는 디스패처. */
 @Component
 class SocialVerificationAdapter(
-    @param:Qualifier("kakaoJwtDecoder")
-    private val kakaoJwtDecoder: JwtDecoder,
-    private val kakaoOauthProperties: KakaoOauthProperties,
+    verifiers: List<SocialTokenVerifier>,
 ) : SocialVerificationPort {
+    private val byProvider: Map<SocialProvider, SocialTokenVerifier> =
+        verifiers.associateBy { it.provider }
+
     override fun verify(
         provider: SocialProvider,
         idToken: String,
     ): SocialIdentity {
-        if (provider != SocialProvider.KAKAO || kakaoOauthProperties.clientId.isBlank()) {
-            throw BusinessException(CommonErrorCode.SOCIAL_AUTHENTICATION_FAILED)
-        }
-        val jwt =
-            try {
-                kakaoJwtDecoder.decode(idToken)
-            } catch (exception: JwtException) {
-                throw BusinessException(CommonErrorCode.SOCIAL_AUTHENTICATION_FAILED)
-            }
-        val socialId =
-            jwt.subject?.takeIf(String::isNotBlank)
+        val verifier =
+            byProvider[provider]
                 ?: throw BusinessException(CommonErrorCode.SOCIAL_AUTHENTICATION_FAILED)
-
-        return SocialIdentity(provider = SocialProvider.KAKAO, socialId = socialId)
+        return verifier.verify(idToken)
     }
 }
