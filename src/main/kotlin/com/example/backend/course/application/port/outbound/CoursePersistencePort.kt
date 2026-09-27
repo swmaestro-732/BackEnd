@@ -139,6 +139,24 @@ interface CoursePersistencePort {
      */
     fun decreaseSavesCount(courseId: Long): Int
 
+    /**
+     * 좋아요 원자적 증가 — 미삭제 행의 likes_cnt 를 UPDATE … RETURNING 으로 1 증가시키고 증가된 값을 반환한다.
+     * 활성 코스가 없으면 null(비관락 없이 유니크 제약+원자연산으로 정합성 확보).
+     */
+    fun increaseLikesCountReturning(courseId: Long): Int?
+
+    /**
+     * 좋아요 v2 원자적 감소 — 미삭제 행의 likes_cnt 를 UPDATE … RETURNING 으로 1 감소시키고 감소된 값을 반환한다.
+     * 활성 코스가 없으면 null.
+     */
+    fun decreaseLikesCountReturning(courseId: Long): Int?
+
+    /** 미삭제 코스의 현재 likes_cnt 만 읽는다(v2 멱등 취소 no-op 경로). 활성 코스가 없으면 null. */
+    fun readLikesCount(courseId: Long): Int?
+
+    /** 여러 코스의 좋아요 수(likes_cnt)를 한 번에 1씩 감소시킨다(탈퇴 정리 배치). */
+    fun decreaseLikesCounts(courseIds: List<Long>)
+
     /** 재색인용 — 활성(deleted_at IS NULL) 코스를 id 오름차순으로 afterId 다음부터 limit개. */
     fun findForIndex(
         afterId: Long?,

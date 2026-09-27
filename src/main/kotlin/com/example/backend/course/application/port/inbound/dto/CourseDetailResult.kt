@@ -28,6 +28,7 @@ data class CourseDetailResult(
     val tracingsCnt: Int,
     val places: List<CoursePlaceResult>,
     val hasSaved: Boolean,
+    val hasLiked: Boolean,
     val hasStartedCourse: Boolean,
 )
 
