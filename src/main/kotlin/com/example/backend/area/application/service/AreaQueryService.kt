@@ -19,5 +19,7 @@ class AreaQueryService(
 ) : AreaQueryUseCase {
     override fun searchAreas(keyword: String): List<AreaDescriptor> = areaDirectoryPort.search(keyword)
 
+    override fun resolveSearchPrefixes(keyword: String): List<String> = areaDirectoryPort.resolveSearchPrefixes(keyword)
+
     override fun findAreaByCode(code: String): AreaDescriptor? = areaDirectoryPort.findByCode(code)
 }

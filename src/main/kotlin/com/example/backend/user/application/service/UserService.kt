@@ -114,13 +114,16 @@ class UserService(
         // 1) 저장 코스: 원저자 saves_cnt 를 먼저 보정한 뒤 저장 레코드·폴더를 지운다.
         courseCleanupPort.decreaseSavesCounts(savedCoursePersistencePort.findAliveSavedCourseIds(userId))
         savedCoursePersistencePort.deleteAllByUser(userId)
+        // 1-1) 코스 좋아요: 좋아요 레코드를 지우고 대상 코스 likes_cnt 를 보정한다.
+        courseCleanupPort.purgeLikesByUser(userId)
         // 2) 팔로우: 양방향 삭제 + 상대 카운터 보정.
         followPersistencePort.purgeFollowsOf(userId)
         // 3) 관심 지역·테마: 빈 목록으로 전체 치환(=전부 삭제).
         userAreaPersistencePort.replaceAreas(userId, emptyList())
         userLikeThemePort.replaceLikeThemes(userId, emptyList())
-        // 4) 작성 코스: 전부 소프트 삭제(피드·프로필에서 사라짐).
+        // 4) 작성 코스·계획: 전부 소프트 삭제(피드·프로필·내 계획 목록에서 사라짐).
         courseCleanupPort.softDeleteCoursesByAuthor(userId)
+        courseCleanupPort.softDeletePlansByOwner(userId)
         // 5) users 행: 탈퇴 스탬프 + 핸들 해제 + bio·프로필이미지·카운터 리셋.
         userPersistencePort.softDelete(user.withdraw())
         // 6) 리프레시 토큰 폐기.

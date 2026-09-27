@@ -85,6 +85,16 @@ class CoursePersistenceAdapter(
 
     override fun decreaseCommentsCount(courseId: Long): Int = courseRepository.decreaseCommentsCount(courseId)
 
+    override fun increaseLikesCountReturning(courseId: Long): Int? =
+        courseRepository.incrementLikesCntReturning(courseId)
+
+    override fun decreaseLikesCountReturning(courseId: Long): Int? =
+        courseRepository.decrementLikesCntReturning(courseId)
+
+    override fun readLikesCount(courseId: Long): Int? = courseRepository.readLikesCnt(courseId)
+
+    override fun decreaseLikesCounts(courseIds: List<Long>) = courseRepository.decrementLikesCntBatch(courseIds)
+
     override fun findForIndex(
         afterId: Long?,
         limit: Int,

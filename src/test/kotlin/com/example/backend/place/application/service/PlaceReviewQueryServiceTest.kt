@@ -66,14 +66,6 @@ class PlaceReviewQueryServiceTest {
             override fun findPlaceById(placeId: Long): Place? = place
 
             override fun findPlacesById(placeIds: List<Long>): List<Place> = listOfNotNull(place)
-
-            override fun searchByName(
-                query: String,
-                cursor: String?,
-                limit: Int,
-            ): List<Place> = emptyList()
-
-            override fun countByName(query: String): Long = 0
         }
 
     private val service = PlaceReviewQueryService(fakeReviewQueryPort, fakePlaceQueryPort)

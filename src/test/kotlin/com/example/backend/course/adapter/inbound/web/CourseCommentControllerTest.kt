@@ -157,7 +157,7 @@ class CourseCommentControllerTest
         }
 
         @Test
-        fun `타인 댓글 수정은 4047이고 내용을 유지한다`() {
+        fun `타인 댓글 수정은 4048이고 내용을 유지한다`() {
             mockMvc
                 .perform(
                     patch("$BASE_PATH/3")
@@ -165,7 +165,7 @@ class CourseCommentControllerTest
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""{"content":"타인의 수정"}"""),
                 ).andExpect(status().isNotFound)
-                .andExpect(jsonPath("$.code").value(4047))
+                .andExpect(jsonPath("$.code").value(4048))
             assertEquals("최신 댓글", commentRow(3L)["content"])
             assertCount(COURSE_ID, 3)
         }
@@ -179,13 +179,13 @@ class CourseCommentControllerTest
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""{"content":"잘못된 경로"}"""),
                 ).andExpect(status().isNotFound)
-                .andExpect(jsonPath("$.code").value(4047))
+                .andExpect(jsonPath("$.code").value(4048))
             mockMvc
                 .perform(
                     delete("/api/v1/courses/2/comments/3")
                         .header(HttpHeaders.AUTHORIZATION, "Bearer ${tokenFor(OWNER_ID)}"),
                 ).andExpect(status().isNotFound)
-                .andExpect(jsonPath("$.code").value(4047))
+                .andExpect(jsonPath("$.code").value(4048))
             assertEquals("최신 댓글", commentRow(3L)["content"])
             assertEquals("ACTIVE", commentRow(3L)["status"])
             assertCount(COURSE_ID, 3)
@@ -193,7 +193,7 @@ class CourseCommentControllerTest
         }
 
         @Test
-        fun `없는 댓글이나 이미 삭제된 댓글의 수정과 삭제는 4047이다`() {
+        fun `없는 댓글이나 이미 삭제된 댓글의 수정과 삭제는 4048이다`() {
             for (commentId in listOf(4L, 99999L)) {
                 mockMvc
                     .perform(
@@ -202,13 +202,13 @@ class CourseCommentControllerTest
                             .contentType(MediaType.APPLICATION_JSON)
                             .content("""{"content":"수정 시도"}"""),
                     ).andExpect(status().isNotFound)
-                    .andExpect(jsonPath("$.code").value(4047))
+                    .andExpect(jsonPath("$.code").value(4048))
                 mockMvc
                     .perform(
                         delete("$BASE_PATH/$commentId")
                             .header(HttpHeaders.AUTHORIZATION, "Bearer ${tokenFor(OWNER_ID)}"),
                     ).andExpect(status().isNotFound)
-                    .andExpect(jsonPath("$.code").value(4047))
+                    .andExpect(jsonPath("$.code").value(4048))
             }
             assertEquals("이미 삭제된 댓글", commentRow(4L)["content"])
             assertCount(COURSE_ID, 3)
@@ -240,18 +240,18 @@ class CourseCommentControllerTest
                     delete("$BASE_PATH/3")
                         .header(HttpHeaders.AUTHORIZATION, "Bearer ${tokenFor(OWNER_ID)}"),
                 ).andExpect(status().isNotFound)
-                .andExpect(jsonPath("$.code").value(4047))
+                .andExpect(jsonPath("$.code").value(4048))
             assertCount(COURSE_ID, 2)
         }
 
         @Test
-        fun `타인 댓글 삭제는 4047이고 카운터를 유지한다`() {
+        fun `타인 댓글 삭제는 4048이고 카운터를 유지한다`() {
             mockMvc
                 .perform(
                     delete("$BASE_PATH/3")
                         .header(HttpHeaders.AUTHORIZATION, "Bearer ${tokenFor(OTHER_ID)}"),
                 ).andExpect(status().isNotFound)
-                .andExpect(jsonPath("$.code").value(4047))
+                .andExpect(jsonPath("$.code").value(4048))
             assertEquals("ACTIVE", commentRow(3L)["status"])
             assertCount(COURSE_ID, 3)
         }
