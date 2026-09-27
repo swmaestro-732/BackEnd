@@ -33,12 +33,7 @@ class CourseCommentServiceTest {
 
         val result = service.create(CreateCourseCommentCommand(10L, 7L, "요청 댓글"))
 
-        assertEquals(30L, result.id)
-        assertEquals(7L, result.authorId)
-        assertEquals("저장된 댓글", result.content)
-        assertEquals(CREATED_AT, result.createdAt)
-        assertEquals(UPDATED_AT, result.updatedAt)
-        assertTrue(result.isMine)
+        assertEquals(30L, result)
         val order = inOrder(courses, comments)
         order.verify(courses).existsById(10L)
         order.verify(comments).save(10L, 7L, "요청 댓글")

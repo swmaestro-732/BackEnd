@@ -1,11 +1,10 @@
 package com.example.backend.course.application.port.inbound
 
-import com.example.backend.course.application.port.inbound.dto.CourseCommentResult
 import com.example.backend.course.application.port.inbound.dto.CreateCourseCommentCommand
 import com.example.backend.course.application.port.inbound.dto.EditCourseCommentCommand
 
 interface CourseCommentUseCase {
-    fun create(command: CreateCourseCommentCommand): CourseCommentResult
+    fun create(command: CreateCourseCommentCommand): Long
 
     fun edit(command: EditCourseCommentCommand)
 

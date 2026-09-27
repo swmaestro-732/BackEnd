@@ -36,8 +36,8 @@ class CourseCommentController(
         @CurrentUserId userId: Long,
         @Valid @RequestBody request: CreateCourseCommentRequest,
     ): ApiResponse<CourseCommentIdResponse> {
-        val result = courseCommentUseCase.create(request.toCommand(userId, courseId))
-        return ApiResponse.success(CourseCommentIdResponse(result.id))
+        val commentId = courseCommentUseCase.create(request.toCommand(userId, courseId))
+        return ApiResponse.success(CourseCommentIdResponse(commentId))
     }
 
     @GetMapping

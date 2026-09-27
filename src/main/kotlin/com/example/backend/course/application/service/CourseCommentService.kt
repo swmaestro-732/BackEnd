@@ -3,7 +3,6 @@ package com.example.backend.course.application.service
 import com.example.backend.common.exception.BusinessException
 import com.example.backend.common.response.CourseErrorCode
 import com.example.backend.course.application.port.inbound.CourseCommentUseCase
-import com.example.backend.course.application.port.inbound.dto.CourseCommentResult
 import com.example.backend.course.application.port.inbound.dto.CreateCourseCommentCommand
 import com.example.backend.course.application.port.inbound.dto.EditCourseCommentCommand
 import com.example.backend.course.application.port.outbound.CourseCommentPersistencePort
@@ -17,7 +16,7 @@ class CourseCommentService(
     private val coursePersistencePort: CoursePersistencePort,
     private val commentPersistencePort: CourseCommentPersistencePort,
 ) : CourseCommentUseCase {
-    override fun create(command: CreateCourseCommentCommand): CourseCommentResult {
+    override fun create(command: CreateCourseCommentCommand): Long {
         if (!coursePersistencePort.existsById(command.courseId)) {
             throw BusinessException(CourseErrorCode.COURSE_NOT_FOUND)
         }
@@ -26,14 +25,7 @@ class CourseCommentService(
         if (coursePersistencePort.increaseCommentsCount(command.courseId) == 0) {
             throw BusinessException(CourseErrorCode.COURSE_NOT_FOUND)
         }
-        return CourseCommentResult(
-            id = saved.id,
-            authorId = saved.authorId,
-            content = saved.content,
-            createdAt = saved.createdAt,
-            updatedAt = saved.updatedAt,
-            isMine = command.userId == saved.authorId,
-        )
+        return saved.id
     }
 
     override fun edit(command: EditCourseCommentCommand) {
