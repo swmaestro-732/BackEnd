@@ -10,6 +10,7 @@ import com.example.backend.course.application.port.inbound.dto.FeedCursor
 import com.example.backend.course.application.port.outbound.CourseDetailRow
 import com.example.backend.course.application.port.outbound.CoursePersistencePort
 import com.example.backend.course.application.port.outbound.CoursePlaceRow
+import com.example.backend.course.application.port.outbound.CoursePlaceStats
 import com.example.backend.course.application.port.outbound.CourseSummaryRow
 import com.example.backend.course.domain.model.Course
 import org.springframework.stereotype.Component
@@ -54,6 +55,9 @@ class CoursePersistenceAdapter(
 
     override fun findPlacesByCourseIds(courseIds: List<Long>): Map<Long, List<CoursePlaceRow>> =
         coursePlaceRepository.findByCourseIds(courseIds)
+
+    override fun findPlaceStats(courseIds: List<Long>): Map<Long, CoursePlaceStats> =
+        coursePlaceRepository.findStatsByCourseIds(courseIds)
 
     override fun save(course: Course): Course {
         val courseEntity = courseRepository.insert(course)

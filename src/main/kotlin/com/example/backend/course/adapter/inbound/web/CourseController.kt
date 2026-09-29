@@ -147,6 +147,8 @@ class CourseController(
                     likesCnt = 0,
                     savesCnt = 0,
                     createdAt = Instant.parse("2026-07-20T02:30:00Z"),
+                    placeCount = null,
+                    walkingMinutes = null,
                 ),
             )
     }

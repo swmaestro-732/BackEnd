@@ -314,6 +314,7 @@ class CourseRepository {
             title = it[CourseTable.title],
             coverImageUrl = it[CourseTable.coverImageUrl],
             category = it[CourseTable.category],
+            area = it[CourseTable.area],
             visibility = it[CourseTable.visibility],
             isPublished = it[CourseTable.isPublished],
             likesCnt = it[CourseTable.likesCnt],

@@ -2,10 +2,13 @@ package com.example.backend.course.adapter.outbound.persistence.exposed.reposito
 
 import com.example.backend.course.adapter.outbound.persistence.exposed.CoursePlaceTable
 import com.example.backend.course.application.port.outbound.CoursePlaceRow
+import com.example.backend.course.application.port.outbound.CoursePlaceStats
 import com.example.backend.course.domain.model.CoursePlace
 import org.jetbrains.exposed.v1.core.SortOrder
+import org.jetbrains.exposed.v1.core.count
 import org.jetbrains.exposed.v1.core.eq
 import org.jetbrains.exposed.v1.core.inList
+import org.jetbrains.exposed.v1.core.sum
 import org.jetbrains.exposed.v1.jdbc.batchInsert
 import org.jetbrains.exposed.v1.jdbc.deleteWhere
 import org.jetbrains.exposed.v1.jdbc.select
@@ -90,6 +93,22 @@ class CoursePlaceRepository(
                         images = imagesByPlace[coursePlaceId].orEmpty(),
                     )
                 }
+            }
+    }
+
+    /** 코스별 장소 수와 구간 도보 시간 합을 group by 한 번으로 집계한다(코스마다 쿼리하는 N+1 회피). */
+    fun findStatsByCourseIds(courseIds: List<Long>): Map<Long, CoursePlaceStats> {
+        if (courseIds.isEmpty()) return emptyMap()
+        val placeCount = CoursePlaceTable.id.count()
+        // SUM 은 NULL 구간(마지막 장소 등)을 건너뛰고, 전부 NULL 이면 NULL 이라 0 으로 본다.
+        val walkingMinutes = CoursePlaceTable.walkingMinutes.sum()
+        return CoursePlaceTable
+            .select(CoursePlaceTable.courseId, placeCount, walkingMinutes)
+            .where { CoursePlaceTable.courseId inList courseIds }
+            .groupBy(CoursePlaceTable.courseId)
+            .associate {
+                it[CoursePlaceTable.courseId] to
+                    CoursePlaceStats(placeCount = it[placeCount].toInt(), walkingMinutes = it[walkingMinutes] ?: 0)
             }
     }
 }

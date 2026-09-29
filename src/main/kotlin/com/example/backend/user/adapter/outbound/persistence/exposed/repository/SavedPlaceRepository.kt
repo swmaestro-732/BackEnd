@@ -1,6 +1,7 @@
 package com.example.backend.user.adapter.outbound.persistence.exposed.repository
 
 import com.example.backend.user.adapter.outbound.persistence.exposed.SavedPlaceTable
+import com.example.backend.user.application.port.inbound.dto.SavedPlaceRef
 import com.example.backend.user.application.port.outbound.SavedPlaceCategoryCountRow
 import com.example.backend.user.application.port.outbound.SavedPlaceRow
 import com.example.backend.user.domain.model.SavedPlace
@@ -151,6 +152,12 @@ class SavedPlaceRepository {
                 )
             }
     }
+
+    fun findAllRefs(userId: Long): List<SavedPlaceRef> =
+        SavedPlaceTable
+            .select(SavedPlaceTable.placeId, SavedPlaceTable.visited)
+            .where { alive(userId) }
+            .map { SavedPlaceRef(placeId = it[SavedPlaceTable.placeId], visited = it[SavedPlaceTable.visited]) }
 
     /** 소유자의 살아있는(소프트 삭제 제외) 저장 레코드 필터. */
     private fun alive(userId: Long): Op<Boolean> =

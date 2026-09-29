@@ -11,7 +11,23 @@ import com.example.backend.place.domain.model.PlaceCategory
  */
 interface PlaceSearchQueryPort {
     fun search(criteria: PlaceSearchCriteria): PlaceSearchHits
+
+    /**
+     * [placeIds] 안에서만 [origin] 과 가까운 순으로 최대 [size] 개를 고른다(홈 근처 저장 장소).
+     * 거리는 엔진이 정렬에 쓴 geo_distance 값(미터)을 그대로 돌려준다.
+     */
+    fun nearestAmong(
+        placeIds: List<Long>,
+        origin: Coordinate,
+        size: Int,
+    ): List<PlaceDistanceHit>
 }
+
+/** 거리순 결과 한 건 — 장소 id 와 기준점까지의 직선 거리(미터). */
+data class PlaceDistanceHit(
+    val id: Long,
+    val distanceMeters: Double,
+)
 
 /** 검색 조건 — 어댑터가 쿼리 DSL 로 번역한다(검색엔진 타입은 여기 드러나지 않는다). */
 data class PlaceSearchCriteria(
