@@ -1,19 +1,39 @@
 {
-  "properties": {
-    "name": {
-      "type": "text",
-      "analyzer": "nori",
-      "fields": { "keyword": { "type": "keyword" } }
-    },
-    "description": { "type": "text", "analyzer": "nori" },
-    "category": { "type": "keyword" },
-    "address": {
-      "type": "text",
-      "analyzer": "nori",
-      "fields": { "keyword": { "type": "keyword" } }
-    },
-    "areaCode": { "type": "keyword" },
-    "location": { "type": "geo_point" },
-    "status": { "type": "keyword" }
+  "settings": {
+    "analysis": {
+      "tokenizer": {
+        "korean_nori": {
+          "type": "nori_tokenizer",
+          "decompound_mode": "mixed",
+          "user_dictionary_rules": ["성수동", "을지로", "샤로수길", "서울대공원 서울 대공원"]
+        }
+      },
+      "analyzer": {
+        "korean": {
+          "type": "custom",
+          "tokenizer": "korean_nori",
+          "filter": ["nori_part_of_speech", "lowercase"]
+        }
+      }
+    }
+  },
+  "mappings": {
+    "properties": {
+      "name": {
+        "type": "text",
+        "analyzer": "korean",
+        "fields": { "keyword": { "type": "keyword" } }
+      },
+      "description": { "type": "text", "analyzer": "korean" },
+      "category": { "type": "keyword" },
+      "address": {
+        "type": "text",
+        "analyzer": "korean",
+        "fields": { "keyword": { "type": "keyword" } }
+      },
+      "areaCode": { "type": "keyword" },
+      "location": { "type": "geo_point" },
+      "status": { "type": "keyword" }
+    }
   }
 }

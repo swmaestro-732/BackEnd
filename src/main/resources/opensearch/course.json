@@ -1,21 +1,41 @@
 {
-  "properties": {
-    "id": { "type": "long" },
-    "title": {
-      "type": "text",
-      "analyzer": "nori",
-      "fields": { "keyword": { "type": "keyword" } }
-    },
-    "description": { "type": "text", "analyzer": "nori" },
-    "area": { "type": "keyword" },
-    "category": { "type": "keyword" },
-    "tags": { "type": "keyword" },
-    "coverImageUrl": { "type": "keyword", "index": false },
-    "visibility": { "type": "keyword" },
-    "isPublished": { "type": "boolean" },
-    "userId": { "type": "keyword" },
-    "likesCnt": { "type": "integer" },
-    "savesCnt": { "type": "integer" },
-    "createdAt": { "type": "date" }
+  "settings": {
+    "analysis": {
+      "tokenizer": {
+        "korean_nori": {
+          "type": "nori_tokenizer",
+          "decompound_mode": "mixed",
+          "user_dictionary_rules": ["성수동", "을지로", "샤로수길", "서울대공원 서울 대공원"]
+        }
+      },
+      "analyzer": {
+        "korean": {
+          "type": "custom",
+          "tokenizer": "korean_nori",
+          "filter": ["nori_part_of_speech", "lowercase"]
+        }
+      }
+    }
+  },
+  "mappings": {
+    "properties": {
+      "id": { "type": "long" },
+      "title": {
+        "type": "text",
+        "analyzer": "korean",
+        "fields": { "keyword": { "type": "keyword" } }
+      },
+      "description": { "type": "text", "analyzer": "korean" },
+      "area": { "type": "keyword" },
+      "category": { "type": "keyword" },
+      "tags": { "type": "keyword" },
+      "coverImageUrl": { "type": "keyword", "index": false },
+      "visibility": { "type": "keyword" },
+      "isPublished": { "type": "boolean" },
+      "userId": { "type": "keyword" },
+      "likesCnt": { "type": "integer" },
+      "savesCnt": { "type": "integer" },
+      "createdAt": { "type": "date" }
+    }
   }
 }
