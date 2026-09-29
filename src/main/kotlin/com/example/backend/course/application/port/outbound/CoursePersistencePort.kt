@@ -26,6 +26,8 @@ data class CourseDetailRow(
     val visibility: CourseVisibility,
     /** 발행 여부(true=게시, false=임시저장). 게시 코스 편집 시 장소 구성 변경 금지 판정에 쓰인다. */
     val isPublished: Boolean,
+    /** 복제 원본 코스 id. 일반 코스는 null. 복제 초안 편집 시 원본 장소 유지 재검사에 쓰인다. */
+    val duplicatedFromId: Long?,
 )
 
 /**
@@ -97,7 +99,7 @@ interface CoursePersistencePort {
         size: Int,
     ): List<CourseSummaryRow>
 
-    /** 미삭제(deleted_at IS NULL) 코스가 존재하는지 확인한다(fork 원본 검증 등). */
+    /** 미삭제(deleted_at IS NULL) 코스가 존재하는지 확인한다(duplicate 원본 검증 등). */
     fun existsById(courseId: Long): Boolean
 
     fun findPlaces(courseId: Long): List<CoursePlaceRow>

@@ -41,7 +41,7 @@ internal object CourseTable : LongIdTable("courses") {
     // 별점 비정규화 카운터(V6) — 리뷰 작성 +rating/+1, 소프트 삭제 -rating/-1 상대 갱신. 평균 = rating_sum / rating_cnt.
     val ratingSum = long("rating_sum").default(0)
     val ratingCnt = integer("rating_cnt").default(0)
-    val forkedFromId = long("forked_from_id").nullable() // 포크 원본 course (같은 도메인)
+    val duplicatedFromId = long("duplicated_from_id").nullable() // 코스 복제 원본 course (같은 도메인)
 }
 
 /**
@@ -72,7 +72,7 @@ internal class CourseEntity(
     var commentsCnt by CourseTable.commentsCnt
     var savesCnt by CourseTable.savesCnt
     var tracingsCnt by CourseTable.tracingsCnt
-    var forkedFromId by CourseTable.forkedFromId
+    var duplicatedFromId by CourseTable.duplicatedFromId
 
     /**
      * DAO 엔티티를 도메인 [Course] 로 변환한다. courses 컬럼(생성된 id·DB 생성값 포함)은 엔티티가,
@@ -100,7 +100,7 @@ internal class CourseEntity(
             commentsCnt = commentsCnt,
             savesCnt = savesCnt,
             tracingsCnt = tracingsCnt,
-            forkedFromId = forkedFromId,
+            duplicatedFromId = duplicatedFromId,
             createdAt = createdAt,
             updatedAt = updatedAt,
             deletedAt = deletedAt,
