@@ -1,12 +1,17 @@
 # 칠삼이 BackEnd
 
-Spring Boot 기반 API 서버.
+코스/장소 기반 로컬 큐레이션 서비스 **Courmy(칠삼이)** 의 API 서버. DDD + 헥사고날 모듈러 모놀리스로 구성한다.
+
+![아키텍처](docs/architecture.png)
 
 ## 1. 스택
 
 - Kotlin 2.3.21 / JDK 21
 - Spring Boot 4.1.0 (WebMVC, Security, Actuator, Validation)
-- Exposed 1.3.0 (ORM) + Flyway (마이그레이션) + PostgreSQL / HikariCP
+- Exposed 1.3.0 (ORM) + Flyway (마이그레이션) + PostgreSQL + PostGIS / HikariCP
+- OpenSearch (한국어 검색 색인 · nori 형태소 분석)
+- Amazon SQS (코스 카운트 이벤트 비동기 집계)
+- 모니터링: Micrometer + OTLP → LGTM stack · Prometheus · Grafana Alloy
 - springdoc-openapi (Swagger UI, JWT Bearer)
 
 ## 2. 로컬 개발
@@ -52,7 +57,7 @@ feat/* ─▶ develop ─▶ main
 - 제목: `SCRUM-<번호> <type>: 내용` — 앞에 Jira 키를 붙여 자동 연결.
 - 템플릿(변경 요약 / 변경 유형 / 체크리스트)을 채운다.
 - **CodeRabbit 리뷰를 확인·반영한 뒤 머지한다.**
-- CI 필수 체크(ktlint · build & test · docker & trivy · code security) 통과 필수.
+- CI 필수 체크(§4-1) 통과 필수.
 
 ### 3-4. 릴리스 (SemVer)
 
@@ -73,8 +78,12 @@ feat/* ─▶ develop ─▶ main
 |---|---|
 | ktlint | 포맷 검사 (ktlint 1.8.0) |
 | build & test | 빌드 + 테스트 + JaCoCo 커버리지 |
+| diff coverage | 변경분(diff) 라인 커버리지 게이트 (임계 90%) |
+| architecture | ArchUnit 아키텍처 경계 규칙 (DB 불필요) |
+| opensearch integration test | OpenSearch 실연결 통합테스트 (Testcontainers) |
 | docker & trivy | 이미지 빌드 + 이미지 취약점 스캔 |
 | code security | Trivy fs (secret·misconfig) + Semgrep(SAST) |
+| CodeRabbit | AI 코드 리뷰 |
 
 ### 4-2. CD (`cd.yml`) — `main` push
 
@@ -103,16 +112,22 @@ com.example.backend
 │  └─ adapter/
 │     ├─ inbound/web/         # 컨트롤러 + request/·response/ DTO
 │     └─ outbound/persistence/ # Exposed 테이블 + 포트 구현체(도메인↔행 매핑)
-├─ place/                     # 도메인 (스켈레톤 — user 템플릿으로 확장). 장소 리뷰 테이블도 이 도메인 persistence 에.
-├─ course/                    # 도메인 (스켈레톤). 코스 리뷰 테이블도 이 도메인 persistence 에.
+├─ place/                     # 도메인. 장소 검색(OpenSearch)·리뷰. 장소 리뷰 테이블도 이 도메인 persistence 에.
+├─ course/                    # 도메인. 코스 생성·검색·리뷰·좋아요·플랜. 코스 리뷰 테이블도 이 도메인 persistence 에.
 └─ bff/                       # 화면 조합(BFF): 여러 도메인의 inbound 포트를 조합하는 화면(홈/저장/마이 등)만 모음
 ```
+
+각 도메인 내부는 헥사고날(ports & adapters)로 구성한다 — 컨트롤러(inbound 어댑터)가 inbound 포트(UseCase)를 호출하고, 서비스가 이를 구현하며, 도메인 모델과 outbound 포트(PersistencePort·AccessPort)를 통해 어댑터·다른 도메인과 소통한다.
+
+![헥사고날 구조](docs/hexagonal.png)
 
 도메인은 user/place/course 3개이며 각 도메인 내부는 헥사고날로 구성한다.
 리뷰는 별도 도메인이 아니라 대상 도메인에 속한다 — 장소 리뷰(place_reviews 등)는 `place`, 코스 리뷰(course_reviews 등)는 `course` 의 `adapter/outbound/persistence/` 에 둔다.
 **BFF는 화면별로 쪼개지 않고 단일 `bff` 패키지 하나**로 모은다 — 여러 도메인을 조합해야 하는 화면(홈·저장·마이 등)의 컨트롤러+조합서비스만 두고, 도메인의 `application.port.inbound`만 호출한다(테이블·도메인 로직 없음). 단일 도메인으로 끝나는 화면(지도=place 등)은 BFF가 아니라 해당 도메인에 둔다.
-`user` 가 동작하는 레퍼런스 구현이고, place/course + bff 는 user 템플릿으로 채워갈 스켈레톤이다.
+user/place/course 세 도메인과 bff 모두 실제 기능이 구현돼 있으며, 같은 헥사고날 구조를 공유한다.
 `area`(지역)는 팀 결정에 따라 특정 도메인이 아니라 `common/area` 에 두고 여러 도메인이 공유 참조한다.
+
+도메인 간 연동 예: 코스 변경은 **SQS** 로 작성자 공개범위별 코스 수 집계를 비동기 처리하고, 코스·장소 변경은 **OpenSearch** 색인을 이벤트로 갱신한다. 좋아요/저장 등 카운터는 course 도메인이 소유하고 다른 도메인은 inbound Port(ACL)로만 갱신한다.
 
 **의존 규칙** (adapter → application → domain 한 방향):
 - 도메인·애플리케이션은 어댑터(웹·DB)를 모르고 포트(인터페이스)로만 소통 → 도메인은 프레임워크 없이 단위 테스트 가능(`UserTest`).

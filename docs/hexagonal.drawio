@@ -1,0 +1,61 @@
+<mxfile host="drawio-jsapi" modified="2026-09-29T04:31:24.519Z" agent="DrawioJSAPI/1.0.0" version="1.0.0">
+  <diagram id="diagram-1" name="Hexagonal">
+  <mxGraphModel dx="1426" dy="798" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1100" pageHeight="850">
+    <root>
+      <mxCell id="0" />
+      <mxCell id="1" parent="0" />
+      <mxCell id="title" value="도메인 내부 = 헥사고날 (ports &amp; adapters) — course 예시" style="text;html=1;fontStyle=1;fontSize=15;align=center;fontColor=#263238;" vertex="1" parent="1">
+        <mxGeometry x="300" y="26" width="470" height="30" as="geometry" />
+      </mxCell>
+      <mxCell id="b1" value="&lt;b&gt;adapter/inbound/web&lt;/b&gt;&lt;br&gt;&lt;font color=&quot;#1565C0&quot;&gt;CourseController (+ request/response DTO)&lt;/font&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#BBDEFB;strokeColor=#1E88E5;fontColor=#0D47A1;shadow=1;arcSize=8;" vertex="1" parent="1">
+        <mxGeometry x="300" y="78" width="470" height="56" as="geometry" />
+      </mxCell>
+      <mxCell id="b2" value="&lt;b&gt;application/port/inbound&lt;/b&gt;  «인바운드 포트»&lt;br&gt;&lt;font color=&quot;#F57F17&quot;&gt;«interface» CourseUseCase (공개 API)&lt;/font&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFF9C4;strokeColor=#FBC02D;fontColor=#F57F17;dashed=1;shadow=1;arcSize=8;" vertex="1" parent="1">
+        <mxGeometry x="300" y="156" width="470" height="56" as="geometry" />
+      </mxCell>
+      <mxCell id="b3" value="&lt;b&gt;application/service&lt;/b&gt;&lt;br&gt;&lt;font color=&quot;#558B2F&quot;&gt;CourseService · 유스케이스 구현 (@Transactional 경계)&lt;/font&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#DCEDC8;strokeColor=#7CB342;fontColor=#33691E;shadow=1;arcSize=8;" vertex="1" parent="1">
+        <mxGeometry x="300" y="234" width="470" height="56" as="geometry" />
+      </mxCell>
+      <mxCell id="b4" value="&lt;b&gt;domain/model&lt;/b&gt;&lt;br&gt;&lt;font color=&quot;#33691E&quot;&gt;순수 도메인 (애그리거트·불변식, 프레임워크 X)&lt;/font&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#C5E1A5;strokeColor=#689F38;fontColor=#33691E;shadow=1;arcSize=8;" vertex="1" parent="1">
+        <mxGeometry x="360" y="312" width="350" height="52" as="geometry" />
+      </mxCell>
+      <mxCell id="b5" value="&lt;b&gt;application/port/outbound&lt;/b&gt;  «아웃바운드 포트»&lt;br&gt;&lt;font color=&quot;#F57F17&quot;&gt;«interface» CoursePersistencePort · CourseAccessPort&lt;/font&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFF9C4;strokeColor=#FBC02D;fontColor=#F57F17;dashed=1;shadow=1;arcSize=8;" vertex="1" parent="1">
+        <mxGeometry x="300" y="392" width="470" height="56" as="geometry" />
+      </mxCell>
+      <mxCell id="b6" value="&lt;b&gt;adapter/outbound&lt;/b&gt;&lt;br&gt;&lt;font color=&quot;#E65100&quot;&gt;CoursePersistenceAdapter (Exposed Table) · CourseAccessAdapter (ACL)&lt;/font&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFE0B2;strokeColor=#FB8C00;fontColor=#E65100;shadow=1;arcSize=8;" vertex="1" parent="1">
+        <mxGeometry x="300" y="470" width="470" height="56" as="geometry" />
+      </mxCell>
+      <mxCell id="other" value="다른 도메인(user 등)의&lt;br&gt;&lt;b&gt;inbound Port&lt;/b&gt; (UseCase)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#DCEDC8;strokeColor=#7CB342;fontColor=#33691E;shadow=1;arcSize=8;" vertex="1" parent="1">
+        <mxGeometry x="820" y="392" width="190" height="56" as="geometry" />
+      </mxCell>
+      <mxCell id="db" value="PostgreSQL + PostGIS" style="shape=cylinder3;whiteSpace=wrap;html=1;boundedLbl=1;backgroundOutline=1;size=12;fillColor=#BBDEFB;strokeColor=#1E88E5;fontColor=#0D47A1;shadow=1;" vertex="1" parent="1">
+        <mxGeometry x="828" y="470" width="160" height="62" as="geometry" />
+      </mxCell>
+      <mxCell id="note" value="의존 방향: &lt;b&gt;adapter → application → domain&lt;/b&gt; (한 방향)&lt;br&gt;&lt;br&gt;domain·application은 어댑터(웹·DB)를 모르고&lt;br&gt;&lt;b&gt;포트(interface)로만&lt;/b&gt; 소통한다.&lt;br&gt;→ 도메인은 프레임워크 없이 단위 테스트 가능.&lt;br&gt;경계는 &lt;b&gt;ArchUnit&lt;/b&gt;로 강제." style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ECEFF1;strokeColor=#B0BEC5;fontColor=#455A64;fontSize=11;align=left;spacingLeft=10;spacingTop=8;shadow=1;arcSize=6;" vertex="1" parent="1">
+        <mxGeometry x="24" y="214" width="250" height="180" as="geometry" />
+      </mxCell>
+      <mxCell id="2" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=open;strokeColor=#546E7A;" edge="1" parent="1" source="b1" target="b2">
+        <mxGeometry relative="1" as="geometry" />
+      </mxCell>
+      <mxCell id="3" value="구현" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=open;strokeColor=#546E7A;fontSize=9;fontColor=#37474F;" edge="1" parent="1" source="b2" target="b3">
+        <mxGeometry relative="1" as="geometry" />
+      </mxCell>
+      <mxCell id="4" value="도메인 사용" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=open;strokeColor=#546E7A;fontSize=9;fontColor=#37474F;exitX=0.3;exitY=1;entryX=0.5;entryY=0;" edge="1" parent="1" source="b3" target="b4">
+        <mxGeometry relative="1" as="geometry" />
+      </mxCell>
+      <mxCell id="5" value="포트 호출" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=open;strokeColor=#546E7A;fontSize=9;fontColor=#37474F;exitX=0.92;exitY=1;entryX=0.92;entryY=0;" edge="1" parent="1" source="b3" target="b5">
+        <mxGeometry relative="1" as="geometry" />
+      </mxCell>
+      <mxCell id="6" value="구현체" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=open;strokeColor=#546E7A;fontSize=9;fontColor=#37474F;exitX=0.5;exitY=1;entryX=0.5;entryY=0;" edge="1" parent="1" source="b5" target="b6">
+        <mxGeometry relative="1" as="geometry" />
+      </mxCell>
+      <mxCell id="7" value="Exposed" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;strokeColor=#546E7A;fontSize=9;fontColor=#37474F;exitX=1;exitY=0.5;entryX=0;entryY=0.5;" edge="1" parent="1" source="b6" target="db">
+        <mxGeometry relative="1" as="geometry" />
+      </mxCell>
+      <mxCell id="8" value="Port ACL (크로스도메인)" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;dashed=1;strokeColor=#90A4AE;fontSize=9;fontColor=#607D8B;exitX=1;exitY=0.2;entryX=0;entryY=0.7;" edge="1" parent="1" source="b6" target="other">
+        <mxGeometry relative="1" as="geometry" />
+      </mxCell>
+    </root>
+  </mxGraphModel>
+  </diagram>
+</mxfile>
