@@ -1,9 +1,10 @@
 package com.example.backend.course.application.port.outbound
 
-/** 조회자의 코스 관점 상태 — 저장 여부·완주(따라가기) 여부. user 도메인 상태를 course 경계 안으로 복사한 DTO. */
+/** 조회자의 코스 관점 상태 — 저장·좋아요·완주(따라가기) 여부. user 도메인 상태를 course 경계 안으로 복사한 DTO. */
 data class ViewerCourseState(
     val courseId: Long,
     val hasSaved: Boolean,
+    val hasLiked: Boolean,
     val hasStartedCourse: Boolean,
 )
 

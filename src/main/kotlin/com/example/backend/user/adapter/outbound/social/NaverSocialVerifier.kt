@@ -11,15 +11,17 @@ import org.springframework.stereotype.Component
 import org.springframework.web.client.RestClient
 import org.springframework.web.client.RestClientException
 
-/** 네이버 프로필 API가 검증한 id만 사용한다. 토큰·프로필 원문은 저장하거나 로그에 남기지 않는다. */
+/** 네이버 액세스 토큰으로 프로필 API를 호출해 검증한 id만 사용한다. 토큰·프로필 원문은 저장하거나 로그에 남기지 않는다. */
 @Component
-class NaverProfileClient(
+class NaverSocialVerifier(
     @param:Qualifier("naverRestClient")
     private val naverRestClient: RestClient,
-) {
+) : SocialTokenVerifier {
     private val log = KotlinLogging.logger {}
 
-    fun verify(token: String): SocialIdentity {
+    override val provider: SocialProvider = SocialProvider.NAVER
+
+    override fun verify(token: String): SocialIdentity {
         if (token.isBlank() || token.any { it.isISOControl() }) {
             throw BusinessException(CommonErrorCode.SOCIAL_AUTHENTICATION_FAILED)
         }

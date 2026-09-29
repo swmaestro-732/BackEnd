@@ -49,7 +49,7 @@ class PlaceSearchResponseMockTest {
     }
 
     @Test
-    fun `from() - hasNext=true 이면 nextCursor 가 마지막 장소의 id 이다`() {
+    fun `from() - 서비스가 발급한 nextCursor 를 그대로 내려준다`() {
         val items =
             listOf(
                 PlaceSummary(
@@ -73,12 +73,12 @@ class PlaceSearchResponseMockTest {
                     areaCode = "1120011400",
                 ),
             )
-        val page = PlaceSummaryPage(items = items, totalCount = 20, hasNext = true)
+        val page = PlaceSummaryPage(items = items, totalCount = 20, hasNext = true, nextCursor = "b3M6Mg")
 
         val response = PlaceSearchResponse.from(page)
 
         assertThat(response.hasNext).isTrue
-        assertThat(response.nextCursor).isEqualTo("5")
+        assertThat(response.nextCursor).isEqualTo("b3M6Mg")
         assertThat(response.totalCount).isEqualTo(20)
         assertThat(response.places).hasSize(2)
         assertThat(response.places[0].id).isEqualTo(1L)

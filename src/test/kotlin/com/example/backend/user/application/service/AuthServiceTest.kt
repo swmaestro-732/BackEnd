@@ -153,6 +153,8 @@ class AuthServiceTest {
         object : AreaQueryUseCase {
             override fun searchAreas(keyword: String): List<AreaDescriptor> = emptyList()
 
+            override fun resolveSearchPrefixes(keyword: String): List<String> = emptyList()
+
             override fun findAreaByCode(code: String): AreaDescriptor? = null
         }
 

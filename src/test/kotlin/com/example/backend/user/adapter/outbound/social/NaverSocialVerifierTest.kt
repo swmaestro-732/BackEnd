@@ -21,10 +21,10 @@ import org.springframework.test.web.client.response.MockRestResponseCreators.wit
 import org.springframework.web.client.RestClient
 import java.net.SocketTimeoutException
 
-class NaverProfileClientTest {
+class NaverSocialVerifierTest {
     private val builder = RestClient.builder().baseUrl("https://openapi.naver.com")
     private val server = MockRestServiceServer.bindTo(builder).build()
-    private val client = NaverProfileClient(builder.build())
+    private val client = NaverSocialVerifier(builder.build())
 
     @ParameterizedTest
     @ValueSource(strings = ["", " ", "token\rvalue", "token\nvalue", "token\u0000value"])

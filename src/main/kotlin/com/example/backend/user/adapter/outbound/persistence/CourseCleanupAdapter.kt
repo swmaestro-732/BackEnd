@@ -1,7 +1,9 @@
 package com.example.backend.user.adapter.outbound.persistence
 
 import com.example.backend.course.application.port.inbound.CourseCounterUseCase
+import com.example.backend.course.application.port.inbound.CourseLikeUseCase
 import com.example.backend.course.application.port.inbound.CourseUseCase
+import com.example.backend.course.application.port.inbound.PlanUseCase
 import com.example.backend.user.application.port.outbound.CourseCleanupPort
 import org.springframework.stereotype.Component
 
@@ -13,9 +15,15 @@ import org.springframework.stereotype.Component
 class CourseCleanupAdapter(
     private val courseUseCase: CourseUseCase,
     private val courseCounterUseCase: CourseCounterUseCase,
+    private val planUseCase: PlanUseCase,
+    private val courseLikeUseCase: CourseLikeUseCase,
 ) : CourseCleanupPort {
     override fun softDeleteCoursesByAuthor(authorId: Long) = courseUseCase.deleteAllByAuthor(authorId)
 
+    override fun softDeletePlansByOwner(userId: Long) = planUseCase.deleteAllByOwner(userId)
+
     override fun decreaseSavesCounts(courseIds: List<Long>) =
         courseIds.forEach(courseCounterUseCase::decreaseSavesCount)
+
+    override fun purgeLikesByUser(userId: Long) = courseLikeUseCase.purgeByUser(userId)
 }
