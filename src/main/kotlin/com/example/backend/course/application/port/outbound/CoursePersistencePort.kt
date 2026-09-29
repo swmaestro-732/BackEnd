@@ -26,6 +26,8 @@ data class CourseDetailRow(
     val visibility: CourseVisibility,
     /** 발행 여부(true=게시, false=임시저장). 게시 코스 편집 시 장소 구성 변경 금지 판정에 쓰인다. */
     val isPublished: Boolean,
+    /** 복제 원본 코스 id. 일반 코스는 null. 복제 초안 편집 시 원본 장소 유지 재검사에 쓰인다. */
+    val duplicatedFromId: Long?,
 )
 
 /**

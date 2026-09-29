@@ -1,7 +1,6 @@
 package com.example.backend.course.application.port.inbound
 
 import com.example.backend.course.application.port.inbound.dto.CreateCourseCommand
-import com.example.backend.course.application.port.inbound.dto.DuplicateCourseCommand
 import com.example.backend.course.application.port.inbound.dto.EditCourseCommand
 import com.example.backend.course.domain.model.Course
 
@@ -12,8 +11,6 @@ interface CourseUseCase {
     fun create(command: CreateCourseCommand): Course
 
     fun edit(command: EditCourseCommand): Course
-
-    fun duplicate(command: DuplicateCourseCommand): Course
 
     fun delete(
         userId: Long,

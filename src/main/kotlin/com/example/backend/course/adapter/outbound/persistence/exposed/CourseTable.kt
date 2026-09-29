@@ -42,10 +42,6 @@ internal object CourseTable : LongIdTable("courses") {
     val ratingSum = long("rating_sum").default(0)
     val ratingCnt = integer("rating_cnt").default(0)
     val duplicatedFromId = long("duplicated_from_id").nullable() // 코스 복제 원본 course (같은 도메인)
-
-    // 복제 당시 스냅샷. 일반 코스와 과거 복제 기록은 null, 편집 시 보존한다.
-    val originalPlaceCount = integer("original_place_count").nullable()
-    val sharedPlaceCount = integer("shared_place_count").nullable()
 }
 
 /**
@@ -77,8 +73,6 @@ internal class CourseEntity(
     var savesCnt by CourseTable.savesCnt
     var tracingsCnt by CourseTable.tracingsCnt
     var duplicatedFromId by CourseTable.duplicatedFromId
-    var originalPlaceCount by CourseTable.originalPlaceCount
-    var sharedPlaceCount by CourseTable.sharedPlaceCount
 
     /**
      * DAO 엔티티를 도메인 [Course] 로 변환한다. courses 컬럼(생성된 id·DB 생성값 포함)은 엔티티가,
@@ -107,8 +101,6 @@ internal class CourseEntity(
             savesCnt = savesCnt,
             tracingsCnt = tracingsCnt,
             duplicatedFromId = duplicatedFromId,
-            originalPlaceCount = originalPlaceCount,
-            sharedPlaceCount = sharedPlaceCount,
             createdAt = createdAt,
             updatedAt = updatedAt,
             deletedAt = deletedAt,

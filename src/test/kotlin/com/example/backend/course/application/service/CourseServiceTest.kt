@@ -15,7 +15,6 @@ import com.example.backend.course.application.port.inbound.dto.CourseDetailResul
 import com.example.backend.course.application.port.inbound.dto.CoursePlaceResult
 import com.example.backend.course.application.port.inbound.dto.CreateCourseCommand
 import com.example.backend.course.application.port.inbound.dto.CreateCoursePlaceCommand
-import com.example.backend.course.application.port.inbound.dto.DuplicateCourseCommand
 import com.example.backend.course.application.port.inbound.dto.EditCourseCommand
 import com.example.backend.course.application.port.outbound.CourseDetailRow
 import com.example.backend.course.application.port.outbound.CoursePersistencePort
@@ -65,8 +64,6 @@ class CourseServiceTest {
         assertEquals(AREA_CODE, result.areaCode)
         assertEquals("성수동1가", result.area)
         assertNull(result.duplicatedFromId)
-        assertNull(result.originalPlaceCount)
-        assertNull(result.sharedPlaceCount)
         val saved = publishedEvents.filterIsInstance<CourseSavedEvent>().single()
         assertEquals(1L, saved.authorId)
         assertNull(saved.oldVisibility)
@@ -248,18 +245,6 @@ class CourseServiceTest {
     }
 
     @Test
-    fun `복제 시 원본 코스가 없으면 예외를 던진다`() {
-        `when`(query.getDetails(listOf(50L), 1L)).thenReturn(emptyList())
-
-        val exception =
-            assertThrows(BusinessException::class.java) {
-                service.duplicate(duplicateCommand())
-            }
-
-        assertEquals(CourseErrorCode.COURSE_NOT_FOUND, exception.errorCode)
-    }
-
-    @Test
     fun `복제 시 원본 장소를 충분히 유지하지 않으면 예외를 던진다`() {
         `when`(query.getDetails(listOf(50L), 1L)).thenReturn(listOf(originDetail(listOf(1L, 2L))))
         // 전체 장소 수는 충족하지만 원본과 겹치는 장소는 1곳뿐이다.
@@ -271,7 +256,7 @@ class CourseServiceTest {
 
         val exception =
             assertThrows(BusinessException::class.java) {
-                service.duplicate(duplicateCommand(places = fewPlaces))
+                service.create(createCommand(isPublished = true, duplicatedFromId = 50L, places = fewPlaces))
             }
 
         assertEquals(CourseErrorCode.DUPLICATE_PLACES_NOT_KEPT, exception.errorCode)
@@ -284,7 +269,7 @@ class CourseServiceTest {
         `when`(areas.findAreaByCode(AREA_CODE)).thenReturn(area("성수동1가"))
         `when`(persistence.save(anyValue())).thenAnswer { it.arguments[0] as Course }
 
-        service.duplicate(duplicateCommand())
+        service.create(createCommand(isPublished = true, duplicatedFromId = 50L))
 
         val saved = publishedEvents.filterIsInstance<CourseSavedEvent>().single()
         assertEquals(CourseVisibility.PUBLIC, saved.newVisibility)
@@ -292,21 +277,23 @@ class CourseServiceTest {
 
     @ParameterizedTest
     @ValueSource(ints = [4, 10])
-    fun `원본 장소 수와 무관하게 두 곳을 유지하면 복제하고 개수를 저장한다`(originalCount: Int) {
+    fun `원본 장소 수와 무관하게 두 곳을 유지하면 복제한다`(originalCount: Int) {
         `when`(query.getDetails(listOf(50L), 1L))
             .thenReturn(listOf(originDetail((1L..originalCount.toLong()).toList())))
         stubPlaces()
         `when`(areas.findAreaByCode(AREA_CODE)).thenReturn(area("성수동1가"))
         `when`(persistence.save(anyValue())).thenAnswer { it.arguments[0] as Course }
 
-        val result = service.duplicate(duplicateCommand())
+        val result = service.create(createCommand(isPublished = true, duplicatedFromId = 50L))
 
         assertEquals(50L, result.duplicatedFromId)
-        assertEquals(originalCount, result.originalPlaceCount)
-        assertEquals(2, result.sharedPlaceCount)
-        val stored = publishedEvents.filterIsInstance<CourseSavedEvent>().single().newCourse
-        assertEquals(originalCount, stored.originalPlaceCount)
-        assertEquals(2, stored.sharedPlaceCount)
+        assertEquals(
+            50L,
+            publishedEvents
+                .filterIsInstance<CourseSavedEvent>()
+                .single()
+                .newCourse.duplicatedFromId,
+        )
     }
 
     @Test
@@ -316,7 +303,7 @@ class CourseServiceTest {
 
         val exception =
             assertThrows(BusinessException::class.java) {
-                service.duplicate(duplicateCommand(places = repeatedPlaces))
+                service.create(createCommand(isPublished = true, duplicatedFromId = 50L, places = repeatedPlaces))
             }
 
         assertEquals(CourseErrorCode.DUPLICATE_PLACES_NOT_KEPT, exception.errorCode)
@@ -337,7 +324,7 @@ class CourseServiceTest {
     }
 
     @Test
-    fun `일반 생성의 원본 참조도 중복을 제거한 개수를 저장한다`() {
+    fun `같은 원본 장소가 중복 조회돼도 두 곳 유지로 계산해 복제한다`() {
         `when`(query.getDetails(listOf(50L), 1L)).thenReturn(listOf(originDetail(listOf(1L, 1L, 2L, 3L))))
         stubPlaces()
         `when`(persistence.save(anyValue())).thenAnswer { it.arguments[0] as Course }
@@ -345,9 +332,30 @@ class CourseServiceTest {
         val result = service.create(createCommand(isPublished = false, duplicatedFromId = 50L))
 
         assertEquals(50L, result.duplicatedFromId)
-        assertEquals(3, result.originalPlaceCount)
-        assertEquals(2, result.sharedPlaceCount)
         verify(query).getDetails(listOf(50L), 1L)
+    }
+
+    @Test
+    fun `복제 초안 편집에서 원본 장소를 두 곳 미만으로 줄이면 수정하지 않는다`() {
+        stubEdit(detail(isPublished = false, areaCode = null, category = null, duplicatedFromId = 50L))
+        `when`(query.getDetails(listOf(50L), 1L)).thenReturn(listOf(originDetail(listOf(1L, 3L, 4L))))
+
+        val exception = assertThrows(BusinessException::class.java) { service.edit(editCommand(isPublished = true)) }
+
+        assertEquals(CourseErrorCode.DUPLICATE_PLACES_NOT_KEPT, exception.errorCode)
+        verify(persistence, never()).update(anyValue())
+    }
+
+    @Test
+    fun `복제 초안 편집 시 원본을 볼 수 없으면 검사 없이 수정한다`() {
+        stubEdit(detail(isPublished = false, areaCode = null, category = null, duplicatedFromId = 50L))
+        `when`(query.getDetails(listOf(50L), 1L)).thenReturn(emptyList())
+        stubPlaces()
+        `when`(persistence.update(anyValue())).thenAnswer { it.arguments[0] as Course }
+
+        service.edit(editCommand(isPublished = false))
+
+        verify(persistence).update(anyValue())
     }
 
     @Test
@@ -359,19 +367,6 @@ class CourseServiceTest {
         assertEquals(CourseErrorCode.COURSE_NOT_FOUND, exception.errorCode)
         verify(persistence, never()).softDelete(anyLong())
     }
-
-    private fun duplicateCommand(places: List<CreateCoursePlaceCommand> = commandPlaces()) =
-        DuplicateCourseCommand(
-            userId = 1L,
-            duplicatedFromId = 50L,
-            title = "복제 코스",
-            description = null,
-            coverImageUrl = "cover",
-            tags = emptyList(),
-            visibility = CourseVisibility.PUBLIC,
-            isPublished = true,
-            places = places,
-        )
 
     private fun originDetail(placeIds: List<Long>) =
         CourseDetailResult(
@@ -406,6 +401,7 @@ class CourseServiceTest {
     private fun createCommand(
         isPublished: Boolean,
         duplicatedFromId: Long? = null,
+        places: List<CreateCoursePlaceCommand> = commandPlaces(),
     ) = CreateCourseCommand(
         1L,
         "성수 코스",
@@ -415,7 +411,7 @@ class CourseServiceTest {
         CourseVisibility.PUBLIC,
         isPublished,
         duplicatedFromId,
-        commandPlaces(),
+        places,
     )
 
     private fun editCommand(isPublished: Boolean) =
@@ -447,6 +443,7 @@ class CourseServiceTest {
         isPublished: Boolean,
         areaCode: String? = AREA_CODE,
         category: CourseCategory? = CourseCategory.CAFETOUR,
+        duplicatedFromId: Long? = null,
     ) = CourseDetailRow(
         10L,
         1L,
@@ -460,6 +457,7 @@ class CourseServiceTest {
         CourseStatus.ACTIVE,
         CourseVisibility.PUBLIC,
         isPublished,
+        duplicatedFromId,
     )
 
     private fun placeRef(

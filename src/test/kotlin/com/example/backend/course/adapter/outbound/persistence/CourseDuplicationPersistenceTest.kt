@@ -11,7 +11,6 @@ import com.example.backend.support.IntegrationTestBase
 import org.jetbrains.exposed.v1.jdbc.insertAndGetId
 import org.jetbrains.exposed.v1.jdbc.transactions.transaction
 import org.junit.jupiter.api.Assertions.assertEquals
-import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import org.springframework.beans.factory.annotation.Autowired
@@ -24,7 +23,7 @@ class CourseDuplicationPersistenceTest
         private val dataSource: DataSource,
     ) : IntegrationTestBase() {
         @Test
-        fun `복제 원본과 개수는 저장 재조회 및 장소 편집 후에도 유지된다`() {
+        fun `복제 원본 참조는 저장 재조회 및 장소 편집 후에도 유지된다`() {
             transaction {
                 val originId =
                     CourseTable
@@ -45,8 +44,6 @@ class CourseDuplicationPersistenceTest
                             visibility = CourseVisibility.PRIVATE,
                             isPublished = false,
                             duplicatedFromId = originId,
-                            originalPlaceCount = 10,
-                            sharedPlaceCount = 2,
                             tags = emptyList(),
                             places = coursePlaces(1L, 2L),
                             placeCategoryByPlaceId = emptyMap(),
@@ -55,9 +52,8 @@ class CourseDuplicationPersistenceTest
                         ),
                     )
                 val savedId = requireNotNull(saved.id)
-                assertSnapshot(saved, originId)
-                val reloaded = CourseEntity[savedId].apply { refresh(flush = true) }.toDomain(emptyList(), saved.places)
-                assertSnapshot(reloaded, originId)
+                assertEquals(originId, saved.duplicatedFromId)
+                assertEquals(originId, port.findCourseDetail(savedId)?.duplicatedFromId)
 
                 val edited =
                     port.update(
@@ -79,7 +75,7 @@ class CourseDuplicationPersistenceTest
                         ),
                     )
 
-                assertSnapshot(edited, originId)
+                assertEquals(originId, edited.duplicatedFromId)
                 val afterEdit =
                     CourseEntity[savedId]
                         .apply {
@@ -87,7 +83,7 @@ class CourseDuplicationPersistenceTest
                                 flush = true,
                             )
                         }.toDomain(emptyList(), edited.places)
-                assertSnapshot(afterEdit, originId)
+                assertEquals(originId, afterEdit.duplicatedFromId)
                 assertEquals("장소를 바꾼 복제 초안", afterEdit.title)
                 assertEquals(listOf(3L, 4L), port.findPlaces(savedId).map { it.placeId })
                 rollback()
@@ -95,11 +91,11 @@ class CourseDuplicationPersistenceTest
         }
 
         @Test
-        fun `V9는 기존 원본 참조와 FK를 보존하고 과거 개수는 null로 남긴다`() {
-            // V8의 변경 대상 컬럼과 FK를 세션 전용 임시 테이블로 재현한다.
+        fun `V10은 기존 원본 참조와 FK를 보존한 채 컬럼과 제약 이름만 바꾼다`() {
+            // 변경 대상 컬럼과 FK를 세션 전용 임시 테이블로 재현한다.
             // pg_temp가 우선하므로 실제 courses 및 Flyway 이력은 변경하지 않는다.
             val migration =
-                requireNotNull(javaClass.getResource("/db/migration/V9__course_duplication_snapshot.sql"))
+                requireNotNull(javaClass.getResource("/db/migration/V10__course_duplicated_from_rename.sql"))
                     .readText()
             dataSource.connection.use { connection ->
                 connection.autoCommit = false
@@ -115,13 +111,10 @@ class CourseDuplicationPersistenceTest
                         statement.execute("INSERT INTO pg_temp.courses VALUES (1, NULL), (2, 1)")
                         statement.execute(migration)
                         statement
-                            .executeQuery(
-                                "SELECT duplicated_from_id, original_place_count, shared_place_count FROM pg_temp.courses WHERE id = 2",
-                            ).use { rows ->
+                            .executeQuery("SELECT duplicated_from_id FROM pg_temp.courses WHERE id = 2")
+                            .use { rows ->
                                 assertTrue(rows.next())
                                 assertEquals(1L, rows.getLong("duplicated_from_id"))
-                                assertNull(rows.getObject("original_place_count"))
-                                assertNull(rows.getObject("shared_place_count"))
                             }
                         statement
                             .executeQuery(
@@ -135,15 +128,6 @@ class CourseDuplicationPersistenceTest
                     connection.rollback()
                 }
             }
-        }
-
-        private fun assertSnapshot(
-            course: Course,
-            originId: Long,
-        ) {
-            assertEquals(originId, course.duplicatedFromId)
-            assertEquals(10, course.originalPlaceCount)
-            assertEquals(2, course.sharedPlaceCount)
         }
 
         private fun coursePlaces(

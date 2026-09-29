@@ -9,6 +9,7 @@ import com.example.backend.course.domain.model.CoursePlace
 /**
  * 코스 생성 명령(애플리케이션 경계 타입). 웹 요청(CreateCourseRequest)에서 매핑된다.
  * coverImageUrl 은 요청의 thumbnailUrl(코스 커버). category 는 담은 장소들의 카테고리로 서비스가 도출한다.
+ * [duplicatedFromId] 가 있으면 코스 복제 — 원본에서 가져오는 건 장소 구성뿐이라 필드는 일반 생성과 같다.
  */
 data class CreateCourseCommand(
     val userId: Long,
@@ -30,39 +31,6 @@ data class CreateCoursePlaceCommand(
     /** 다음 장소까지 도보 소요 시간(분). -1 은 도보 이동 불가, null 은 마지막 장소. */
     val walkingMinutes: Int?,
 )
-
-/**
- * 코스 복제 명령(애플리케이션 경계 타입). 웹 요청(DuplicateCourseRequest)에서 매핑된다.
- *
- * 코스 복제가 원본에서 가져오는 것은 장소 구성(어디를 어떤 순서로)뿐이고 그 위의 콘텐츠(장소별 캡션·사진,
- * 제목·설명·커버·태그·공개 설정)는 코스 복제하는 사람이 새로 입력하므로, 필드가 코스 생성과 같고
- * 원본 코스 [duplicatedFromId] 만 더 받는다(생성과 달리 **필수**).
- */
-data class DuplicateCourseCommand(
-    val userId: Long,
-    val duplicatedFromId: Long,
-    val title: String,
-    val description: String?,
-    val coverImageUrl: String?,
-    val tags: List<String>,
-    val visibility: CourseVisibility,
-    val isPublished: Boolean,
-    val places: List<CreateCoursePlaceCommand>,
-) {
-    /** 원본 검증을 마친 뒤 실제 저장은 코스 생성 경로를 그대로 탄다(코스 복제 표시는 duplicatedFromId 로 남는다). */
-    fun toCreateCommand(): CreateCourseCommand =
-        CreateCourseCommand(
-            userId = userId,
-            title = title,
-            description = description,
-            coverImageUrl = coverImageUrl,
-            tags = tags,
-            visibility = visibility,
-            isPublished = isPublished,
-            duplicatedFromId = duplicatedFromId,
-            places = places,
-        )
-}
 
 /**
  * 코스 편집 명령(애플리케이션 경계 타입). 웹 요청(EditCourseRequest)에서 매핑된다.
@@ -103,8 +71,6 @@ fun CreateCourseCommand.toCourse(
     foundPlaces: List<PlaceRef>,
     areaCode: String?,
     area: String?,
-    originalPlaceCount: Int?,
-    sharedPlaceCount: Int?,
 ): Course =
     Course.create(
         userId = userId,
@@ -114,8 +80,6 @@ fun CreateCourseCommand.toCourse(
         visibility = visibility,
         isPublished = isPublished,
         duplicatedFromId = duplicatedFromId,
-        originalPlaceCount = originalPlaceCount,
-        sharedPlaceCount = sharedPlaceCount,
         tags = tags,
         places = places,
         placeCategoryByPlaceId = foundPlaces.associate { it.id to it.category },

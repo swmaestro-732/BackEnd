@@ -29,8 +29,6 @@ data class Course private constructor(
     val savesCnt: Int,
     val tracingsCnt: Int,
     val duplicatedFromId: Long?,
-    val originalPlaceCount: Int?,
-    val sharedPlaceCount: Int?,
     val createdAt: Instant?,
     val updatedAt: Instant?,
     val deletedAt: Instant?,
@@ -46,6 +44,24 @@ data class Course private constructor(
 
         /** 코스 복제 시 원본에서 유지해야 하는 서로 다른 장소의 최소 개수. */
         const val MIN_SHARED_PLACES = 2
+
+        /**
+         * 복제 코스 불변식 — 원본과 서로 다른 장소가 [MIN_SHARED_PLACES] 곳 이상 겹쳐야 한다(생성·초안 편집 공통).
+         * placeId 집합 기준이라 순서 변경·장소 추가는 자유고, 같은 장소를 여러 번 담아도 한 곳으로 센다.
+         */
+        fun ensureDuplicatePlacesKept(
+            originPlaceIds: Collection<Long>,
+            places: List<CoursePlace>,
+        ) {
+            val originIds = originPlaceIds.toSet()
+            val sharedCount = places.map { it.placeId }.toSet().count { it in originIds }
+            if (sharedCount < MIN_SHARED_PLACES) {
+                throw BusinessException(
+                    CourseErrorCode.DUPLICATE_PLACES_NOT_KEPT,
+                    "원본 장소 ${originIds.size}곳 중 ${MIN_SHARED_PLACES}곳 이상을 그대로 담아야 합니다(현재 ${sharedCount}곳).",
+                )
+            }
+        }
 
         /**
          * 작성자 코스 개수에 "잡히는" 공개범위 — 발행·활성 코스만 카운트 대상이라 발행이면 [visibility], 임시저장이면 null.
@@ -104,8 +120,6 @@ data class Course private constructor(
             visibility: CourseVisibility,
             isPublished: Boolean,
             duplicatedFromId: Long?,
-            originalPlaceCount: Int? = null,
-            sharedPlaceCount: Int? = null,
             tags: List<String>,
             places: List<CoursePlace>,
             placeCategoryByPlaceId: Map<Long, String>,
@@ -122,8 +136,6 @@ data class Course private constructor(
                 visibility = visibility,
                 isPublished = isPublished,
                 duplicatedFromId = duplicatedFromId,
-                originalPlaceCount = originalPlaceCount,
-                sharedPlaceCount = sharedPlaceCount,
                 tags = tags,
                 places = places,
                 category = category,
@@ -184,8 +196,6 @@ data class Course private constructor(
             visibility: CourseVisibility,
             isPublished: Boolean,
             duplicatedFromId: Long?,
-            originalPlaceCount: Int? = null,
-            sharedPlaceCount: Int? = null,
             tags: List<String>,
             places: List<CoursePlace>,
             category: CourseCategory?,
@@ -228,8 +238,6 @@ data class Course private constructor(
                 savesCnt = 0,
                 tracingsCnt = 0,
                 duplicatedFromId = duplicatedFromId,
-                originalPlaceCount = originalPlaceCount,
-                sharedPlaceCount = sharedPlaceCount,
                 createdAt = null,
                 updatedAt = null,
                 deletedAt = null,
@@ -262,8 +270,6 @@ data class Course private constructor(
             savesCnt: Int,
             tracingsCnt: Int,
             duplicatedFromId: Long?,
-            originalPlaceCount: Int? = null,
-            sharedPlaceCount: Int? = null,
             createdAt: Instant?,
             updatedAt: Instant?,
             deletedAt: Instant?,
@@ -288,8 +294,6 @@ data class Course private constructor(
                 savesCnt = savesCnt,
                 tracingsCnt = tracingsCnt,
                 duplicatedFromId = duplicatedFromId,
-                originalPlaceCount = originalPlaceCount,
-                sharedPlaceCount = sharedPlaceCount,
                 createdAt = createdAt,
                 updatedAt = updatedAt,
                 deletedAt = deletedAt,

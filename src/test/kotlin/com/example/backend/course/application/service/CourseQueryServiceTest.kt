@@ -128,6 +128,7 @@ class CourseQueryServiceTest {
         status = status,
         visibility = visibility,
         isPublished = true,
+        duplicatedFromId = null,
     )
 
     private fun summary(id: Long) =

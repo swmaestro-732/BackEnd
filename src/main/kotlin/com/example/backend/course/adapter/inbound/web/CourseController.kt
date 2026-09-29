@@ -6,7 +6,6 @@ import com.example.backend.bootstrap.mock.MockGuard
 import com.example.backend.bootstrap.security.CurrentUserId
 import com.example.backend.common.response.ApiResponse
 import com.example.backend.course.adapter.inbound.web.request.CreateCourseRequest
-import com.example.backend.course.adapter.inbound.web.request.DuplicateCourseRequest
 import com.example.backend.course.adapter.inbound.web.request.EditCourseRequest
 import com.example.backend.course.adapter.inbound.web.response.CourseDetailResponse
 import com.example.backend.course.adapter.inbound.web.response.CourseIdResponse
@@ -68,7 +67,7 @@ class CourseController(
         return ApiResponse.success(CourseDetailResponse.from(courseQueryUseCase.getDetail(courseId, viewerId)))
     }
 
-    /** 코스 생성. 발행(isPublished=true)과 임시저장(false)을 함께 처리한다. */
+    /** 코스 생성. 발행(isPublished=true)과 임시저장(false)을 함께 처리하고, duplicatedFromId 가 있으면 코스 복제다. */
     @RequiresAppFeature(AppFeature.COURSE_CREATE)
     @PostMapping("")
     @ResponseStatus(HttpStatus.CREATED)
@@ -92,21 +91,6 @@ class CourseController(
     ): ApiResponse<CourseIdResponse> {
         if (mock && mockGuard.isMockAllowed()) return ApiResponse.success(CourseIdResponse.MOCK)
         val course = courseUseCase.edit(request.toCommand(userId, courseId))
-        return ApiResponse.success(CourseIdResponse.from(course))
-    }
-
-    /** 코스 복제 */
-    @PostMapping("/{courseId}/duplicates")
-    @ResponseStatus(HttpStatus.CREATED)
-    fun duplicate(
-        @CurrentUserId userId: Long,
-        @PathVariable courseId: Long,
-        @Valid @RequestBody request: DuplicateCourseRequest,
-        @RequestParam(required = false) mock: Boolean = false,
-    ): ApiResponse<CourseIdResponse> {
-        if (mock && mockGuard.isMockAllowed()) return ApiResponse.success(CourseIdResponse.MOCK)
-
-        val course = courseUseCase.duplicate(request.toCommand(userId, courseId))
         return ApiResponse.success(CourseIdResponse.from(course))
     }
 

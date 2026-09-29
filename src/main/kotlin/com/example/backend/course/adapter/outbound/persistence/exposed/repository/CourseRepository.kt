@@ -52,8 +52,6 @@ class CourseRepository {
                 isPublished = course.isPublished
                 visibility = course.visibility
                 duplicatedFromId = course.duplicatedFromId
-                originalPlaceCount = course.originalPlaceCount
-                sharedPlaceCount = course.sharedPlaceCount
             }.also { it.refresh(flush = true) }
 
     /**
@@ -160,6 +158,7 @@ class CourseRepository {
             status = it[CourseTable.status],
             visibility = it[CourseTable.visibility],
             isPublished = it[CourseTable.isPublished],
+            duplicatedFromId = it[CourseTable.duplicatedFromId],
         )
 
     /**
