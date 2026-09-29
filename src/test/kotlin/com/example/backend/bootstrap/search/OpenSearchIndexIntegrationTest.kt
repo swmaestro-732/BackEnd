@@ -74,8 +74,8 @@ class OpenSearchIndexIntegrationTest
 
         @Test
         fun `korean 분석기가 복합어를 원형과 분해형으로 함께 색인한다(mixed + 사용자 사전)`() {
-            // 사용자 사전 규칙 "서울대공원 서울 대공원" + decompound_mode=mixed →
-            // 원형(서울대공원) + 분해형(서울, 대공원)이 모두 토큰으로 나와야 부분어 검색이 잡힌다(SCRUM-552).
+            // 사용자 사전 규칙 "서울대공원 서울 대공원" 과 decompound_mode=mixed 조합으로
+            // 원형(서울대공원)과 분해형(서울, 대공원)이 모두 토큰으로 나와야 부분어 검색이 잡힌다(SCRUM-552).
             val tokens =
                 client
                     .indices()
@@ -83,7 +83,50 @@ class OpenSearchIndexIntegrationTest
                     .tokens()
                     .map { it.token() }
             assertTrue(tokens.containsAll(listOf("서울대공원", "서울", "대공원"))) {
-                "복합어 원형·분해형 토큰 누락(mixed/사용자 사전 미적용): $tokens"
+                "복합어 원형, 분해형 토큰 누락(mixed/사용자 사전 미적용): $tokens"
+            }
+        }
+
+        @Test
+        fun `korean 분석기가 사용자 사전 단어를 한 토큰으로 유지한다`() {
+            // user_dictionary_rules 에 넣은 "샤로수길"(mecab 기본 사전에 없는 상권명)이 통째로 토큰이 돼야
+            // 지명 검색이 깨지지 않는다. 사용자 사전 로딩 여부를 확정적으로 검증한다(SCRUM-552).
+            val tokens =
+                client
+                    .indices()
+                    .analyze { a -> a.index("course_v2").analyzer("korean").text("샤로수길 맛집") }
+                    .tokens()
+                    .map { it.token() }
+            assertTrue(tokens.contains("샤로수길")) { "사용자 사전 단어가 분해됨(미적용): $tokens" }
+        }
+
+        @Test
+        fun `korean 분석기가 mecab 기본 사전으로 복합어를 분해하고 조사를 제거한다`() {
+            // 사용자 사전에 없는 "카페에서"도 내장 mecab 사전이 카페와 조사 에서로 나누고,
+            // nori_part_of_speech 필터가 조사를 걷어낸다. 즉 단어를 추가로 안 넣어도 대부분 동작함을 검증한다.
+            val tokens =
+                client
+                    .indices()
+                    .analyze { a -> a.index("course_v2").analyzer("korean").text("카페에서") }
+                    .tokens()
+                    .map { it.token() }
+            assertTrue(tokens.contains("카페")) { "명사 토큰 누락: $tokens" }
+            assertTrue(!tokens.contains("에서")) { "조사(에서)가 제거되지 않음: $tokens" }
+        }
+
+        @Test
+        fun `course 텍스트 필드도 korean 분석기로 매핑된다`() {
+            val props =
+                client
+                    .indices()
+                    .getMapping { it.index("course_v2") }
+                    .result()["course_v2"]!!
+                    .mappings()
+                    .properties()
+            listOf("title", "description").forEach { field ->
+                assertTrue(props.getValue(field).text().analyzer() == "korean") {
+                    "course.$field analyzer 가 korean 이 아님: ${props.getValue(field).text().analyzer()}"
+                }
             }
         }
 
@@ -119,6 +162,44 @@ class OpenSearchIndexIntegrationTest
                     Map::class.java,
                 )
             assertTrue(result.hits().hits().isNotEmpty()) { "색인한 place 를 '카페'로 찾지 못함" }
+        }
+
+        @Test
+        fun `복합어 부분어로 색인한 place 를 검색해 찾는다`() {
+            // 엔드투엔드: 복합 지명이 든 이름을 색인하고 부분어(대공원)로 검색하면 매칭돼야 한다.
+            // 이것이 SCRUM-552 가 노리는 실사용 효과다(mixed 분해형 색인 + 질의 분석 일치).
+            val place =
+                Place.reconstitute(
+                    id = 1002L,
+                    status = PlaceStatus.ACTIVE,
+                    name = "서울대공원 나들이 코스",
+                    description = null,
+                    category = PlaceCategory.CAFE,
+                    location = Coordinate(latitude = 37.427, longitude = 127.019),
+                    address = "경기 과천시",
+                    areaCode = null,
+                    imageUrl = null,
+                    businessStatus = PlaceBusinessStatus.UNKNOWN,
+                    kakaoPlaceId = null,
+                    createdAt = null,
+                    updatedAt = null,
+                    deletedAt = null,
+                )
+            placeSearchIndexPort.save(listOf(place))
+            client.indices().refresh { it.index("place") }
+
+            val result =
+                client.search(
+                    { s ->
+                        s.index("place").query { q ->
+                            q.match { m -> m.field("name").query { v -> v.stringValue("대공원") } }
+                        }
+                    },
+                    Map::class.java,
+                )
+            assertTrue(result.hits().hits().any { (it.source() as Map<*, *>)["name"] == "서울대공원 나들이 코스" }) {
+                "복합어 부분어 '대공원'으로 색인 place 를 찾지 못함"
+            }
         }
 
         companion object {
