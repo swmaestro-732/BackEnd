@@ -91,11 +91,11 @@ class CourseDuplicationPersistenceTest
         }
 
         @Test
-        fun `V10은 기존 원본 참조와 FK를 보존한 채 컬럼과 제약 이름만 바꾼다`() {
+        fun `V11은 기존 원본 참조와 FK를 보존한 채 컬럼과 제약 이름만 바꾼다`() {
             // 변경 대상 컬럼과 FK를 세션 전용 임시 테이블로 재현한다.
             // pg_temp가 우선하므로 실제 courses 및 Flyway 이력은 변경하지 않는다.
             val migration =
-                requireNotNull(javaClass.getResource("/db/migration/V10__course_duplicated_from_rename.sql"))
+                requireNotNull(javaClass.getResource("/db/migration/V11__course_duplicated_from_rename.sql"))
                     .readText()
             dataSource.connection.use { connection ->
                 connection.autoCommit = false

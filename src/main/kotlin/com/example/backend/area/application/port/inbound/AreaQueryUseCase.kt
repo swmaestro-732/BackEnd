@@ -14,6 +14,9 @@ interface AreaQueryUseCase {
     /** 시군구+읍면동 이름 통합 검색(상위 20건). */
     fun searchAreas(keyword: String): List<AreaDescriptor>
 
+    /** 장소 검색 필터용 지역 prefix 전체 조회. 시도 2자리·시군구 5자리·읍면동 10자리, 개수 제한 없음. */
+    fun resolveSearchPrefixes(keyword: String): List<String>
+
     /**
      * 법정동코드(10자리)로 단건 조회한다 — 읍면동 코드는 읍면동 항목, 시군구 레벨 코드(뒤 5자리 0 패딩)는
      * 시군구 항목을 돌려준다. 코드 표시 이름(코스 area 등)이 필요한 다른 애그리거트가 쓴다. 미존재·비활성이면 null.

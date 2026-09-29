@@ -385,6 +385,7 @@ class CourseServiceTest {
                     CoursePlaceResult(idx.toLong(), pid, idx, null, null, emptyList())
                 },
             hasSaved = false,
+            hasLiked = false,
             hasStartedCourse = false,
         )
 
