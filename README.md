@@ -101,7 +101,7 @@ feat/* ─▶ develop ─▶ main
 ```text
 com.example.backend
 ├─ bootstrap/                 # 조립 루트: 앱 진입점, config(Security/OpenAPI), 전역 예외핸들러
-├─ common/                    # 도메인 무관 기술 공통(response/util 등) + area(지역 공통 참조 타입). 도메인 개념 금지.
+├─ common/                    # 도메인 무관 기술 공통(response/exception/geo 등). 도메인 개념 금지.
 ├─ user/                      # 도메인(= bounded context). 각 도메인 내부를 헥사고날로 구성.
 │  ├─ domain/model/           # 순수 도메인 (Spring·Exposed 의존 X). 애그리거트·불변식.
 │  ├─ application/
@@ -114,7 +114,10 @@ com.example.backend
 │     └─ outbound/persistence/ # Exposed 테이블 + 포트 구현체(도메인↔행 매핑)
 ├─ place/                     # 도메인. 장소 검색(OpenSearch)·리뷰. 장소 리뷰 테이블도 이 도메인 persistence 에.
 ├─ course/                    # 도메인. 코스 생성·검색·리뷰·좋아요·플랜. 코스 리뷰 테이블도 이 도메인 persistence 에.
-└─ bff/                       # 화면 조합(BFF): 여러 도메인의 inbound 포트를 조합하는 화면(홈/저장/마이 등)만 모음
+├─ area/                      # 지역 참조(여러 도메인이 공유)
+├─ direction/                 # 도보 경로·시간 (TMAP 보행자 API)
+├─ media/                     # 이미지 업로드용 S3 프리사인 URL 발급
+└─ mobile/                    # 화면 조합(BFF): 여러 도메인의 inbound 포트를 조합하는 화면(홈/저장/마이/상세 등)만 모음
 ```
 
 각 도메인 내부는 헥사고날(ports & adapters)로 구성한다 — 컨트롤러(inbound 어댑터)가 inbound 포트(UseCase)를 호출하고, 서비스가 이를 구현하며, 도메인 모델과 outbound 포트(PersistencePort·AccessPort)를 통해 어댑터·다른 도메인과 소통한다.
@@ -123,16 +126,17 @@ com.example.backend
 
 도메인은 user/place/course 3개이며 각 도메인 내부는 헥사고날로 구성한다.
 리뷰는 별도 도메인이 아니라 대상 도메인에 속한다 — 장소 리뷰(place_reviews 등)는 `place`, 코스 리뷰(course_reviews 등)는 `course` 의 `adapter/outbound/persistence/` 에 둔다.
-**BFF는 화면별로 쪼개지 않고 단일 `bff` 패키지 하나**로 모은다 — 여러 도메인을 조합해야 하는 화면(홈·저장·마이 등)의 컨트롤러+조합서비스만 두고, 도메인의 `application.port.inbound`만 호출한다(테이블·도메인 로직 없음). 단일 도메인으로 끝나는 화면(지도=place 등)은 BFF가 아니라 해당 도메인에 둔다.
-user/place/course 세 도메인과 bff 모두 실제 기능이 구현돼 있으며, 같은 헥사고날 구조를 공유한다.
-`area`(지역)는 팀 결정에 따라 특정 도메인이 아니라 `common/area` 에 두고 여러 도메인이 공유 참조한다.
+**BFF는 `mobile` 패키지 하나**에 모은다(하위는 `mobile/home`, `mobile/course` 등 화면 묶음) — 여러 도메인을 조합해야 하는 화면(홈·저장·마이 등)의 컨트롤러+조합서비스만 두고, 도메인의 `application.port.inbound`만 호출한다(테이블·도메인 로직 없음). 단일 도메인으로 끝나는 화면(지도=place 등)은 BFF가 아니라 해당 도메인에 둔다.
+user/place/course 세 도메인과 mobile 모두 실제 기능이 구현돼 있으며, 같은 헥사고날 구조를 공유한다.
+API 요청은 BFF를 거치지 않고 각 모듈의 컨트롤러로 바로 들어온다. `mobile`은 여러 도메인을 묶어야 하는 화면 API만 맡는다.
+`area`(지역), `direction`(도보 경로), `media`(업로드)는 특정 도메인에 속하지 않는 보조 모듈로 따로 둔다.
 
 도메인 간 연동 예: 코스 변경은 **SQS** 로 작성자 공개범위별 코스 수 집계를 비동기 처리하고, 코스·장소 변경은 **OpenSearch** 색인을 이벤트로 갱신한다. 좋아요/저장 등 카운터는 course 도메인이 소유하고 다른 도메인은 inbound Port(ACL)로만 갱신한다.
 
 **의존 규칙** (adapter → application → domain 한 방향):
 - 도메인·애플리케이션은 어댑터(웹·DB)를 모르고 포트(인터페이스)로만 소통 → 도메인은 프레임워크 없이 단위 테스트 가능(`UserTest`).
 - **도메인 간 호출은 Port로만**: 한 도메인은 상대 도메인의 `application.port.inbound`(공개 API)만 참조하고, 조회는 `adapter/outbound/<도메인>`의 내부 어댑터가 상대 inbound 포트를 호출한다. 알림은 도메인 이벤트. MSA 확장 시 이 어댑터만 원격 호출로 교체.
-- **BFF 예외**: `bff`(홈·저장·마이 등 화면 조합)는 화면단위 조합을 위해 도메인의 inbound 포트에 의존할 수 있다.
+- **BFF 예외**: `mobile`(홈·저장·마이 등 화면 조합)은 화면단위 조합을 위해 도메인의 inbound 포트에 의존할 수 있다.
 - **DB 규율**: 크로스 도메인 FK·JOIN 금지, 트랜잭션 경계는 도메인 안에서만.
 
 **경계 강제**: 위 규칙을 **ArchUnit 테스트**(`HexagonalArchitectureTest`)로 검증한다 — 위반 시 CI 실패. 크로스 도메인 격리·common→도메인 비참조 규칙 포함.

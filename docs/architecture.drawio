@@ -8,31 +8,25 @@
         <mxGeometry x="40" y="8" width="620" height="28" as="geometry" />
       </mxCell>
       <mxCell id="app" value="Spring Boot 앱  ·  DDD + 헥사고날 + 모듈러 모놀리스" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FAFAFA;strokeColor=#B0BEC5;verticalAlign=top;fontStyle=1;fontSize=13;fontColor=#37474F;spacingLeft=40;spacingTop=10;shadow=1;arcSize=4;" vertex="1" parent="1">
-        <mxGeometry x="40" y="190" width="640" height="380" as="geometry" />
-      </mxCell>
-      <mxCell id="bff" value="bff — 화면 조합(홈·저장·마이): 각 도메인 inbound Port 조합" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFE0B2;strokeColor=#FB8C00;fontColor=#5D4037;shadow=1;arcSize=8;" vertex="1" parent="1">
-        <mxGeometry x="70" y="248" width="580" height="46" as="geometry" />
+        <mxGeometry x="40" y="190" width="640" height="500" as="geometry" />
       </mxCell>
       <mxCell id="user" value="&lt;b&gt;user&lt;/b&gt;&lt;br&gt;&lt;font color=&quot;#558B2F&quot;&gt;인증·프로필·팔로우·저장&lt;/font&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#DCEDC8;strokeColor=#7CB342;fontColor=#33691E;fontSize=13;shadow=1;arcSize=8;" vertex="1" parent="1">
-        <mxGeometry x="72" y="318" width="180" height="150" as="geometry" />
+        <mxGeometry x="60" y="245" width="140" height="170" as="geometry" />
       </mxCell>
       <mxCell id="course" value="&lt;b&gt;course&lt;/b&gt;&lt;br&gt;&lt;font color=&quot;#558B2F&quot;&gt;생성·검색·리뷰·좋아요·플랜&lt;/font&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#DCEDC8;strokeColor=#7CB342;fontColor=#33691E;fontSize=13;shadow=1;arcSize=8;" vertex="1" parent="1">
-        <mxGeometry x="268" y="318" width="190" height="150" as="geometry" />
+        <mxGeometry x="210" y="245" width="150" height="170" as="geometry" />
       </mxCell>
       <mxCell id="place" value="&lt;b&gt;place&lt;/b&gt;&lt;br&gt;&lt;font color=&quot;#558B2F&quot;&gt;검색·리뷰&lt;/font&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#DCEDC8;strokeColor=#7CB342;fontColor=#33691E;fontSize=13;shadow=1;arcSize=8;" vertex="1" parent="1">
-        <mxGeometry x="474" y="318" width="176" height="150" as="geometry" />
-      </mxCell>
-      <mxCell id="common" value="common · area (지역 공통 참조)  —  도메인 개념 없음" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#E1BEE7;strokeColor=#8E24AA;fontColor=#4A148C;shadow=1;arcSize=10;" vertex="1" parent="1">
-        <mxGeometry x="72" y="490" width="578" height="38" as="geometry" />
+        <mxGeometry x="370" y="245" width="130" height="170" as="geometry" />
       </mxCell>
       <mxCell id="archnote" value="도메인 간 호출은 inbound Port로만  ·  ArchUnit(HexagonalArchitectureTest)로 경계 강제 (위반 시 CI 실패)" style="text;whiteSpace=wrap;html=1;fontSize=10;fontColor=#C62828;align=center;" vertex="1" parent="1">
-        <mxGeometry x="40" y="582" width="640" height="24" as="geometry" />
+        <mxGeometry x="50" y="625" width="620" height="36" as="geometry" />
       </mxCell>
       <mxCell id="monitor" value="Grafana LGTM&lt;br&gt;&lt;font style=&quot;font-size:10px&quot; color=&quot;#546E7A&quot;&gt;Prometheus · Alloy (OTLP)&lt;/font&gt;" style="shape=image;html=1;verticalLabelPosition=bottom;labelBackgroundColor=default;verticalAlign=top;aspect=fixed;imageAspect=0;image=data:image/svg+xml,%3Csvg%20fill%3D%22%23F46800%22%20role%3D%22img%22%20viewBox%3D%220%200%2024%2024%22%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%3E%3Ctitle%3EGrafana%3C%2Ftitle%3E%3Cpath%20d%3D%22M23.02%2010.59a8.578%208.578%200%200%200-.862-3.034%208.911%208.911%200%200%200-1.789-2.445c.337-1.342-.413-2.505-.413-2.505-1.292-.08-2.113.4-2.416.62-.052-.02-.102-.044-.154-.064-.22-.089-.446-.172-.677-.247-.231-.073-.47-.14-.711-.197a9.867%209.867%200%200%200-.875-.161C14.557.753%2012.94%200%2012.94%200c-1.804%201.145-2.147%202.744-2.147%202.744l-.018.093c-.098.029-.2.057-.298.088-.138.042-.275.094-.413.143-.138.055-.275.107-.41.166a8.869%208.869%200%200%200-1.557.87l-.063-.029c-2.497-.955-4.716.195-4.716.195-.203%202.658.996%204.33%201.235%204.636a11.608%2011.608%200%200%200-.607%202.635C1.636%2012.677.953%2015.014.953%2015.014c1.926%202.214%204.171%202.351%204.171%202.351.003-.002.006-.002.006-.005.285.509.615.994.986%201.446.156.19.32.371.488.548-.704%202.009.099%203.68.099%203.68%202.144.08%203.553-.937%203.849-1.173a9.784%209.784%200%200%200%203.164.501h.08l.055-.003.107-.002.103-.005.003.002c1.01%201.44%202.788%201.646%202.788%201.646%201.264-1.332%201.337-2.653%201.337-2.94v-.058c0-.02-.003-.039-.003-.06.265-.187.52-.387.758-.6a7.875%207.875%200%200%200%201.415-1.7c1.43.083%202.437-.885%202.437-.885-.236-1.49-1.085-2.216-1.264-2.354l-.018-.013-.016-.013a.217.217%200%200%201-.031-.02c.008-.092.016-.18.02-.27.011-.162.016-.323.016-.48v-.253l-.005-.098-.008-.135a1.891%201.891%200%200%200-.01-.13c-.003-.042-.008-.083-.013-.125l-.016-.124-.018-.122a6.215%206.215%200%200%200-2.032-3.73%206.015%206.015%200%200%200-3.222-1.46%206.292%206.292%200%200%200-.85-.048l-.107.002h-.063l-.044.003-.104.008a4.777%204.777%200%200%200-3.335%201.695c-.332.4-.592.84-.768%201.297a4.594%204.594%200%200%200-.312%201.817l.003.091c.005.055.007.11.013.164a3.615%203.615%200%200%200%20.698%201.82%203.53%203.53%200%200%200%201.827%201.282c.33.098.66.14.971.137.039%200%20.078%200%20.114-.002l.063-.003c.02%200%20.041-.003.062-.003.034-.002.065-.007.099-.01.007%200%20.018-.003.028-.003l.031-.005.06-.008a1.18%201.18%200%200%200%20.112-.02c.036-.008.072-.013.109-.024a2.634%202.634%200%200%200%20.914-.415c.028-.02.056-.041.085-.065a.248.248%200%200%200%20.039-.35.244.244%200%200%200-.309-.06l-.078.042c-.09.044-.184.083-.283.116a2.476%202.476%200%200%201-.475.096c-.028.003-.054.006-.083.006l-.083.002c-.026%200-.054%200-.08-.002l-.102-.006h-.012l-.024.006c-.016-.003-.031-.003-.044-.006-.031-.002-.06-.007-.091-.01a2.59%202.59%200%200%201-.724-.213%202.557%202.557%200%200%201-.667-.438%202.52%202.52%200%200%201-.805-1.475%202.306%202.306%200%200%201-.029-.444l.006-.122v-.023l.002-.031c.003-.021.003-.04.005-.06a3.163%203.163%200%200%201%201.352-2.29%203.12%203.12%200%200%201%20.937-.43%202.946%202.946%200%200%201%20.776-.101h.06l.07.002.045.003h.026l.07.005a4.041%204.041%200%200%201%201.635.49%203.94%203.94%200%200%201%201.602%201.662%203.77%203.77%200%200%201%20.397%201.414l.005.076.003.075c.002.026.002.05.002.075%200%20.024.003.052%200%20.07v.065l-.002.073-.008.174a6.195%206.195%200%200%201-.08.639%205.1%205.1%200%200%201-.267.927%205.31%205.31%200%200%201-.624%201.13%205.052%205.052%200%200%201-3.237%202.014%204.82%204.82%200%200%201-.649.066l-.039.003h-.287a6.607%206.607%200%200%201-1.716-.265%206.776%206.776%200%200%201-3.4-2.274%206.75%206.75%200%200%201-.746-1.15%206.616%206.616%200%200%201-.714-2.596l-.005-.083-.002-.02v-.056l-.003-.073v-.096l-.003-.104v-.07l.003-.163c.008-.22.026-.45.054-.678a8.707%208.707%200%200%201%20.28-1.355c.128-.444.286-.872.473-1.277a7.04%207.04%200%200%201%201.456-2.1%205.925%205.925%200%200%201%20.953-.763c.169-.111.343-.213.524-.306.089-.05.182-.091.273-.135.047-.02.093-.042.138-.062a7.177%207.177%200%200%201%20.714-.267l.145-.045c.049-.015.098-.026.148-.041.098-.029.197-.052.296-.076.049-.013.1-.02.15-.033l.15-.032.151-.028.076-.013.075-.01.153-.024c.057-.01.114-.013.171-.023l.169-.021c.036-.003.073-.008.106-.01l.073-.008.036-.003.042-.002c.057-.003.114-.008.171-.01l.086-.006h.023l.037-.003.145-.007a7.999%207.999%200%200%201%201.708.125%207.917%207.917%200%200%201%202.048.68%208.253%208.253%200%200%201%201.672%201.09l.09.077.089.078c.06.052.114.107.171.159.057.052.112.106.166.16.052.055.107.107.159.164a8.671%208.671%200%200%201%201.41%201.978c.012.026.028.052.04.078l.04.078.075.156c.023.051.05.1.07.153l.065.15a8.848%208.848%200%200%201%20.45%201.34.19.19%200%200%200%20.201.142.186.186%200%200%200%20.172-.184c.01-.246.002-.532-.024-.856z%22%2F%3E%3C%2Fsvg%3E" vertex="1" parent="1">
-        <mxGeometry x="830" y="190" width="60" height="60" as="geometry" />
+        <mxGeometry x="830" y="172" width="60" height="60" as="geometry" />
       </mxCell>
       <mxCell id="legend" value="실선 — 호출·데이터 흐름      점선 — 이벤트·포트 의존" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ECEFF1;strokeColor=#B0BEC5;fontColor=#455A64;fontSize=10;align=center;" vertex="1" parent="1">
-        <mxGeometry x="740" y="612" width="270" height="30" as="geometry" />
+        <mxGeometry x="740" y="705" width="270" height="30" as="geometry" />
       </mxCell>
       <mxCell id="cf" value="CloudFront" style="sketch=0;points=[[0,0,0],[0.25,0,0],[0.5,0,0],[0.75,0,0],[1,0,0],[0,1,0],[0.25,1,0],[0.5,1,0],[0.75,1,0],[1,1,0],[0,0.25,0],[0,0.5,0],[0,0.75,0],[1,0.25,0],[1,0.5,0],[1,0.75,0]];outlineConnect=0;fontColor=#232F3E;strokeColor=#ffffff;dashed=0;verticalLabelPosition=bottom;verticalAlign=top;align=center;html=1;fontSize=12;fontStyle=0;aspect=fixed;shape=mxgraph.aws4.resourceIcon;resIcon=mxgraph.aws4.cloudfront;fillColor=#8C4FFF" vertex="1" parent="1">
         <mxGeometry x="180" y="56" width="60" height="60" as="geometry" />
@@ -44,16 +38,16 @@
         <mxGeometry x="460" y="56" width="60" height="60" as="geometry" />
       </mxCell>
       <mxCell id="rds" value="RDS · PostgreSQL+PostGIS" style="sketch=0;points=[[0,0,0],[0.25,0,0],[0.5,0,0],[0.75,0,0],[1,0,0],[0,1,0],[0.25,1,0],[0.5,1,0],[0.75,1,0],[1,1,0],[0,0.25,0],[0,0.5,0],[0,0.75,0],[1,0.25,0],[1,0.5,0],[1,0.75,0]];outlineConnect=0;fontColor=#232F3E;strokeColor=#ffffff;dashed=0;verticalLabelPosition=bottom;verticalAlign=top;align=center;html=1;fontSize=12;fontStyle=0;aspect=fixed;shape=mxgraph.aws4.resourceIcon;resIcon=mxgraph.aws4.rds;fillColor=#3B48CC" vertex="1" parent="1">
-        <mxGeometry x="828" y="292" width="64" height="64" as="geometry" />
+        <mxGeometry x="828" y="282" width="64" height="64" as="geometry" />
       </mxCell>
       <mxCell id="sqs" value="Amazon SQS" style="sketch=0;points=[[0,0,0],[0.25,0,0],[0.5,0,0],[0.75,0,0],[1,0,0],[0,1,0],[0.25,1,0],[0.5,1,0],[0.75,1,0],[1,1,0],[0,0.25,0],[0,0.5,0],[0,0.75,0],[1,0.25,0],[1,0.5,0],[1,0.75,0]];outlineConnect=0;fontColor=#232F3E;strokeColor=#ffffff;dashed=0;verticalLabelPosition=bottom;verticalAlign=top;align=center;html=1;fontSize=12;fontStyle=0;aspect=fixed;shape=mxgraph.aws4.resourceIcon;resIcon=mxgraph.aws4.sqs;fillColor=#E7157B" vertex="1" parent="1">
-        <mxGeometry x="828" y="484" width="64" height="64" as="geometry" />
+        <mxGeometry x="828" y="465" width="64" height="64" as="geometry" />
       </mxCell>
       <mxCell id="client" value="Android" style="shape=image;verticalLabelPosition=bottom;labelBackgroundColor=default;verticalAlign=top;aspect=fixed;imageAspect=0;image=data:image/svg+xml,%3Csvg%20fill%3D%22%233DDC84%22%20role%3D%22img%22%20viewBox%3D%220%200%2024%2024%22%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%3E%3Ctitle%3EAndroid%3C%2Ftitle%3E%3Cpath%20d%3D%22M18.4395%205.5586c-.675%201.1664-1.352%202.3318-2.0274%203.498-.0366-.0155-.0742-.0286-.1113-.043-1.8249-.6957-3.484-.8-4.42-.787-1.8551.0185-3.3544.4643-4.2597.8203-.084-.1494-1.7526-3.021-2.0215-3.4864a1.1451%201.1451%200%200%200-.1406-.1914c-.3312-.364-.9054-.4859-1.379-.203-.475.282-.7136.9361-.3886%201.5019%201.9466%203.3696-.0966-.2158%201.9473%203.3593.0172.031-.4946.2642-1.3926%201.0177C2.8987%2012.176.452%2014.772%200%2018.9902h24c-.119-1.1108-.3686-2.099-.7461-3.0683-.7438-1.9118-1.8435-3.2928-2.7402-4.1836a12.1048%2012.1048%200%200%200-2.1309-1.6875c.6594-1.122%201.312-2.2559%201.9649-3.3848.2077-.3615.1886-.7956-.0079-1.1191a1.1001%201.1001%200%200%200-.8515-.5332c-.5225-.0536-.9392.3128-1.0488.5449zm-.0391%208.461c.3944.5926.324%201.3306-.1563%201.6503-.4799.3197-1.188.0985-1.582-.4941-.3944-.5927-.324-1.3307.1563-1.6504.4727-.315%201.1812-.1086%201.582.4941zM7.207%2013.5273c.4803.3197.5506%201.0577.1563%201.6504-.394.5926-1.1038.8138-1.584.4941-.48-.3197-.5503-1.0577-.1563-1.6504.4008-.6021%201.1087-.8106%201.584-.4941z%22%2F%3E%3C%2Fsvg%3E" vertex="1" parent="1">
         <mxGeometry x="40" y="56" width="60" height="60" as="geometry" />
       </mxCell>
       <mxCell id="os" value="OpenSearch (nori)" style="shape=image;verticalLabelPosition=bottom;labelBackgroundColor=default;verticalAlign=top;aspect=fixed;imageAspect=0;image=data:image/svg+xml,%3Csvg%20fill%3D%22%23005EB8%22%20role%3D%22img%22%20viewBox%3D%220%200%2024%2024%22%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%3E%3Ctitle%3EOpenSearch%3C%2Ftitle%3E%3Cpath%20d%3D%22M23.1515%208.8125a.8484.8484%200%200%200-.8484.8485c0%206.982-5.6601%2012.6421-12.6421%2012.6421a.8485.8485%200%200%200%200%201.6969C17.5802%2024%2024%2017.5802%2024%209.661a.8485.8485%200%200%200-.8485-.8485Zm-5.121%205.4375c.816-1.3311%201.6051-3.1058%201.4498-5.5905-.3216-5.1468-4.9832-9.0512-9.3851-8.6281C8.372.1971%206.6025%201.6017%206.7598%204.1177c.0683%201.0934.6034%201.7386%201.473%202.2348.8279.4722%201.8914.7713%203.097%201.1104%201.4563.4096%203.1455.8697%204.4438%201.8265%201.5561%201.1467%202.6198%202.4759%202.2569%204.9606Zm-16.561-9C.6535%206.581-.1355%208.3558.0197%2010.8405c.3216%205.1468%204.9832%209.0512%209.385%208.6281%201.7233-.1657%203.4927-1.5703%203.3355-4.0863-.0683-1.0934-.6034-1.7386-1.4731-2.2348-.8278-.4722-1.8913-.7713-3.0969-1.1104-1.4563-.4096-3.1455-.8697-4.4438-1.8265-1.5561-1.1467-2.6198-2.476-2.257-4.9606Z%22%2F%3E%3C%2Fsvg%3E" vertex="1" parent="1">
-        <mxGeometry x="830" y="388" width="60" height="60" as="geometry" />
+        <mxGeometry x="830" y="375" width="60" height="60" as="geometry" />
       </mxCell>
       <mxCell id="springlogo" value="" style="shape=image;verticalLabelPosition=bottom;labelBackgroundColor=default;verticalAlign=top;aspect=fixed;imageAspect=0;image=data:image/svg+xml,%3Csvg%20fill%3D%22%236DB33F%22%20role%3D%22img%22%20viewBox%3D%220%200%2024%2024%22%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%3E%3Ctitle%3ESpring%20Boot%3C%2Ftitle%3E%3Cpath%20d%3D%22m23.693%2010.7058-4.73-8.1844c-.4094-.7106-1.4166-1.2942-2.2402-1.2942H7.2725c-.819%200-1.8308.5836-2.2402%201.2942L.307%2010.7058c-.4095.7106-.4095%201.873%200%202.5837l4.7252%208.189c.4094.7107%201.4166%201.2943%202.2402%201.2943h9.455c.819%200%201.826-.5836%202.2402-1.2942l4.7252-8.189c.4095-.7107.4095-1.8732%200-2.5838zM10.9763%205.7547c0-.5365.4377-.9742.9742-.9742s.9742.4377.9742.9742v5.8217c0%20.5366-.4377.9742-.9742.9742s-.9742-.4376-.9742-.9742zm.9742%2012.4294c-3.6427%200-6.6077-2.965-6.6077-6.6077.0047-2.0896.993-4.0521%202.6685-5.304a.8657.8657%200%200%201%201.2142.1788.8657.8657%200%200%201-.1788%201.2143c-2.1602%201.6048-2.612%204.6592-1.0072%206.8194%201.6049%202.1603%204.6593%202.612%206.8195%201.0072%201.2378-.9177%201.9673-2.372%201.9673-3.9157a4.8972%204.8972%200%200%200-1.9861-3.925c-.386-.2824-.466-.8284-.1836-1.2143.2824-.386.8283-.466%201.2143-.1835%201.6895%201.2471%202.6826%203.2238%202.6873%205.3228%200%203.6474-2.965%206.6077-6.6077%206.6077z%22%2F%3E%3C%2Fsvg%3E" vertex="1" parent="1">
         <mxGeometry x="52" y="196" width="28" height="28" as="geometry" />
@@ -67,31 +61,52 @@
       <mxCell id="4" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;strokeColor=#546E7A;" edge="1" parent="1" source="alb" target="ec2">
         <mxGeometry relative="1" as="geometry" />
       </mxCell>
-      <mxCell id="5" value="배포/실행" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;strokeColor=#546E7A;fontSize=9;fontColor=#37474F;exitX=0.5;exitY=1;entryX=0.4;entryY=0;" edge="1" parent="1" source="ec2" target="app">
+      <mxCell id="5" value="HTTP → 각 모듈 컨트롤러" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;strokeColor=#546E7A;fontSize=9;fontColor=#37474F;exitX=0.5;exitY=1;entryY=0;entryX=0.4;" edge="1" parent="1" source="ec2" target="app">
         <mxGeometry relative="1" as="geometry" />
       </mxCell>
-      <mxCell id="6" value="Port" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;dashed=1;strokeColor=#90A4AE;endArrow=open;fontSize=9;fontColor=#607D8B;exitX=0.25;exitY=1;entryX=0.5;entryY=0;" edge="1" parent="1" source="bff" target="user">
+      <mxCell id="9" value="Port ACL" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;dashed=1;strokeColor=#90A4AE;endArrow=open;fontSize=9;fontColor=#607D8B;exitX=0;exitY=0.85;entryX=1;entryY=0.85;" edge="1" parent="1" source="course" target="user">
         <mxGeometry relative="1" as="geometry" />
       </mxCell>
-      <mxCell id="7" value="Port" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;dashed=1;strokeColor=#90A4AE;endArrow=open;fontSize=9;fontColor=#607D8B;exitX=0.5;exitY=1;entryX=0.5;entryY=0;" edge="1" parent="1" source="bff" target="course">
+      <mxCell id="10" value="OTLP" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;dashed=1;strokeColor=#90A4AE;fontSize=9;fontColor=#607D8B;exitX=1;entryX=0;entryY=0.5;exitY=0.024;" edge="1" parent="1" source="app" target="monitor">
         <mxGeometry relative="1" as="geometry" />
       </mxCell>
-      <mxCell id="8" value="Port" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;dashed=1;strokeColor=#90A4AE;endArrow=open;fontSize=9;fontColor=#607D8B;exitX=0.8;exitY=1;entryX=0.5;entryY=0;" edge="1" parent="1" source="bff" target="place">
+      <mxCell id="11" value="Exposed · Flyway" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;strokeColor=#546E7A;fontSize=9;fontColor=#37474F;exitX=1;entryX=0;entryY=0.5;exitY=0.248;" edge="1" parent="1" source="app" target="rds">
         <mxGeometry relative="1" as="geometry" />
       </mxCell>
-      <mxCell id="9" value="Port ACL" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;dashed=1;strokeColor=#90A4AE;endArrow=open;fontSize=9;fontColor=#607D8B;exitX=0;exitY=0.5;entryX=1;entryY=0.5;" edge="1" parent="1" source="course" target="user">
+      <mxCell id="12" value="검색·색인 (course·place)" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;strokeColor=#546E7A;fontSize=9;fontColor=#37474F;exitX=1;entryX=0;entryY=0.5;exitY=0.43;" edge="1" parent="1" source="app" target="os">
         <mxGeometry relative="1" as="geometry" />
       </mxCell>
-      <mxCell id="10" value="OTLP" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;dashed=1;strokeColor=#90A4AE;fontSize=9;fontColor=#607D8B;exitX=1;exitY=0.08;entryX=0;entryY=0.5;" edge="1" parent="1" source="app" target="monitor">
+      <mxCell id="13" value="코스 카운트 이벤트 (발행·비동기 소비)" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;strokeColor=#546E7A;fontSize=9;fontColor=#37474F;exitX=1;entryX=0;entryY=0.5;exitY=0.614;" edge="1" parent="1" source="app" target="sqs">
         <mxGeometry relative="1" as="geometry" />
       </mxCell>
-      <mxCell id="11" value="Exposed · Flyway" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;strokeColor=#546E7A;fontSize=9;fontColor=#37474F;exitX=1;exitY=0.33;entryX=0;entryY=0.5;" edge="1" parent="1" source="app" target="rds">
+      <mxCell id="mobile" value="&lt;b&gt;mobile (BFF)&lt;/b&gt;&lt;br&gt;&lt;font style=&quot;font-size:11px&quot;&gt;여러 도메인을 묶는&lt;br&gt;화면 조합 전용&lt;br&gt;(홈·저장·마이·상세)&lt;/font&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFF3E0;strokeColor=#FB8C00;fontColor=#5D4037;fontSize=13;dashed=1;shadow=1;arcSize=8;" vertex="1" parent="1">
+        <mxGeometry x="530" y="245" width="130" height="170" as="geometry" />
+      </mxCell>
+      <mxCell id="area" value="&lt;b&gt;area&lt;/b&gt;&lt;br&gt;지역 참조" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F1F8E9;strokeColor=#AED581;fontColor=#33691E;fontSize=12;shadow=1;arcSize=8;" vertex="1" parent="1">
+        <mxGeometry x="60" y="435" width="180" height="100" as="geometry" />
+      </mxCell>
+      <mxCell id="direction" value="&lt;b&gt;direction&lt;/b&gt;&lt;br&gt;도보 경로·시간" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F1F8E9;strokeColor=#AED581;fontColor=#33691E;fontSize=12;shadow=1;arcSize=8;" vertex="1" parent="1">
+        <mxGeometry x="250" y="435" width="200" height="100" as="geometry" />
+      </mxCell>
+      <mxCell id="media" value="&lt;b&gt;media&lt;/b&gt;&lt;br&gt;이미지 업로드(프리사인 URL)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F1F8E9;strokeColor=#AED581;fontColor=#33691E;fontSize=12;shadow=1;arcSize=8;" vertex="1" parent="1">
+        <mxGeometry x="460" y="435" width="200" height="100" as="geometry" />
+      </mxCell>
+      <mxCell id="common" value="common · bootstrap  —  응답·예외·보안 등 공통 (도메인 개념 없음)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ECEFF1;strokeColor=#B0BEC5;fontColor=#455A64;arcSize=10;" vertex="1" parent="1">
+        <mxGeometry x="60" y="555" width="600" height="40" as="geometry" />
+      </mxCell>
+      <mxCell id="s3" value="Amazon S3" style="sketch=0;points=[[0,0,0],[0.25,0,0],[0.5,0,0],[0.75,0,0],[1,0,0],[0,1,0],[0.25,1,0],[0.5,1,0],[0.75,1,0],[1,1,0],[0,0.25,0],[0,0.5,0],[0,0.75,0],[1,0.25,0],[1,0.5,0],[1,0.75,0]];outlineConnect=0;fontColor=#232F3E;strokeColor=#ffffff;dashed=0;verticalLabelPosition=bottom;verticalAlign=top;align=center;html=1;fontSize=12;fontStyle=0;aspect=fixed;shape=mxgraph.aws4.resourceIcon;resIcon=mxgraph.aws4.s3;fillColor=#7AA116" vertex="1" parent="1">
+        <mxGeometry x="828" y="555" width="64" height="64" as="geometry" />
+      </mxCell>
+      <mxCell id="tmap" value="TMAP 보행자 경로 API" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#90A4AE;fontColor=#37474F;fontSize=11;" vertex="1" parent="1">
+        <mxGeometry x="790" y="645" width="140" height="40" as="geometry" />
+      </mxCell>
+      <mxCell id="e-bff" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;dashed=1;strokeColor=#90A4AE;endArrow=open;exitX=0;exitY=0.5;entryX=1;entryY=0.5;" edge="1" parent="1" source="mobile" target="place">
         <mxGeometry relative="1" as="geometry" />
       </mxCell>
-      <mxCell id="12" value="검색·색인 (course·place)" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;strokeColor=#546E7A;fontSize=9;fontColor=#37474F;exitX=1;exitY=0.58;entryX=0;entryY=0.5;" edge="1" parent="1" source="app" target="os">
+      <mxCell id="e-s3" value="프리사인 URL" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;strokeColor=#546E7A;fontSize=9;fontColor=#37474F;exitX=1;exitY=0.794;entryX=0;entryY=0.5;" edge="1" parent="1" source="app" target="s3">
         <mxGeometry relative="1" as="geometry" />
       </mxCell>
-      <mxCell id="13" value="코스 카운트 이벤트 (발행·비동기 소비)" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;strokeColor=#546E7A;fontSize=9;fontColor=#37474F;exitX=1;exitY=0.85;entryX=0;entryY=0.5;" edge="1" parent="1" source="app" target="sqs">
+      <mxCell id="e-tmap" value="도보 시간" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;strokeColor=#546E7A;fontSize=9;fontColor=#37474F;exitX=1;exitY=0.95;entryX=0;entryY=0.5;" edge="1" parent="1" source="app" target="tmap">
         <mxGeometry relative="1" as="geometry" />
       </mxCell>
     </root>
