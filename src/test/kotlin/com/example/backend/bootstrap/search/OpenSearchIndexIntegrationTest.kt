@@ -89,15 +89,15 @@ class OpenSearchIndexIntegrationTest
 
         @Test
         fun `korean 분석기가 사용자 사전 단어를 한 토큰으로 유지한다`() {
-            // user_dictionary_rules 에 넣은 "샤로수길"(mecab 기본 사전에 없는 상권명)이 통째로 토큰이 돼야
-            // 지명 검색이 깨지지 않는다. 사용자 사전 로딩 여부를 확정적으로 검증한다(SCRUM-552).
+            // user_dictionary_rules 에 분해형 없이 단일어로 넣은 "샤로수길"(mecab 기본 사전에 없는 상권명)은
+            // mixed 모드에서도 통째로 유지돼야 한다(추가 분해 없이 정확히 1개 토큰). 사용자 사전 로딩과 통째 유지를 함께 검증(SCRUM-552).
             val tokens =
                 client
                     .indices()
-                    .analyze { a -> a.index("course_v2").analyzer("korean").text("샤로수길 맛집") }
+                    .analyze { a -> a.index("course_v2").analyzer("korean").text("샤로수길") }
                     .tokens()
                     .map { it.token() }
-            assertTrue(tokens.contains("샤로수길")) { "사용자 사전 단어가 분해됨(미적용): $tokens" }
+            assertTrue(tokens == listOf("샤로수길")) { "사용자 사전 단어가 통째로 유지되지 않음(분해됨): $tokens" }
         }
 
         @Test

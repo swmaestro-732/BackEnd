@@ -5,7 +5,7 @@
         "korean_nori": {
           "type": "nori_tokenizer",
           "decompound_mode": "mixed",
-          "user_dictionary_rules": ["성수동", "을지로", "샤로수길", "서울대공원 서울 대공원"]
+          "user_dictionary_rules": ["샤로수길", "서울대공원 서울 대공원"]
         }
       },
       "analyzer": {
