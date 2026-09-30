@@ -57,12 +57,11 @@ class NaverSocialVerifierTest {
         server.verify()
     }
 
-    @ParameterizedTest
-    @ValueSource(ints = [401, 403])
-    fun `인증 거절은 소셜 인증 실패로 변환한다`(status: Int) {
+    @Test
+    fun `인증 거절은 소셜 인증 실패로 변환한다`() {
         server
             .expect(requestTo("https://openapi.naver.com/v1/nid/me"))
-            .andRespond(withStatus(HttpStatus.valueOf(status)))
+            .andRespond(withStatus(HttpStatus.UNAUTHORIZED))
 
         val exception = assertThrows<BusinessException> { client.verify("invalid-token") }
 
@@ -71,8 +70,8 @@ class NaverSocialVerifierTest {
     }
 
     @ParameterizedTest
-    @ValueSource(ints = [429, 500, 502, 503])
-    fun `제공자 장애와 호출 제한은 재시도 가능한 오류로 변환한다`(status: Int) {
+    @ValueSource(ints = [403, 429, 500, 502, 503])
+    fun `호출 권한 없음과 제공자 장애·호출 제한은 재시도 가능한 오류로 변환한다`(status: Int) {
         server
             .expect(requestTo("https://openapi.naver.com/v1/nid/me"))
             .andRespond(withStatus(HttpStatus.valueOf(status)))
@@ -81,7 +80,7 @@ class NaverSocialVerifierTest {
     }
 
     @ParameterizedTest
-    @ValueSource(strings = ["024", "028", "403"])
+    @ValueSource(strings = ["024", "028"])
     fun `프로필 응답의 인증 오류는 로그인 실패로 변환한다`(code: String) {
         server
             .expect(requestTo("https://openapi.naver.com/v1/nid/me"))
@@ -106,6 +105,7 @@ class NaverSocialVerifierTest {
             "{\"resultcode\":\"00\",\"response\":{\"id\":\" \"}}",
             "{\"resultcode\":\"00\",\"response\":{\"id\":null}}",
             "{\"resultcode\":\"999\",\"response\":{\"id\":\"naver-123\"}}",
+            "{\"resultcode\":\"403\",\"message\":\"forbidden\"}",
         ],
     )
     fun `잘못된 성공 응답으로는 인증하지 않는다`(body: String) {

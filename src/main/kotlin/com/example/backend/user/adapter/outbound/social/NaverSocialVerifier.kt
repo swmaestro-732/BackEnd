@@ -57,8 +57,9 @@ class NaverSocialVerifier(
     }
 
     private companion object {
-        val AUTH_FAILURE_STATUSES = setOf(401, 403)
-        val AUTH_FAILURE_CODES = setOf("024", "028", "403")
+        // 403(호출 권한 없음)은 사용자 토큰이 아니라 앱 API 권한 설정 문제라 인증 실패로 분류하지 않는다.
+        val AUTH_FAILURE_STATUSES = setOf(401)
+        val AUTH_FAILURE_CODES = setOf("024", "028")
         const val MAX_SOCIAL_ID_LENGTH = 255
     }
 }
