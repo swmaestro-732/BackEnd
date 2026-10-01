@@ -1,7 +1,6 @@
 package com.example.backend.bootstrap.mock.adapter.inbound.web
 
-import com.example.backend.bootstrap.mock.MockErrorAspect
-import com.example.backend.bootstrap.mock.MockGuardAspect
+import com.example.backend.bootstrap.mock.MockAspect
 import com.example.backend.common.exception.BusinessException
 import org.assertj.core.api.Assertions.assertThat
 import org.assertj.core.api.Assertions.assertThatThrownBy
@@ -18,7 +17,7 @@ import org.springframework.web.context.request.ServletRequestAttributes
  * 목 아스펙트의 운영 차단 — 포인트컷(`..adapter.inbound.web..` 의 `@RestController`)에 걸리도록
  * 테스트 컨트롤러를 이 패키지에 두고 프록시로 호출한다.
  */
-class MockAspectsTest {
+class MockAspectTest {
     @RestController
     open class SampleController {
         open fun get(
@@ -35,8 +34,7 @@ class MockAspectsTest {
         return AspectJProxyFactory(SampleController())
             .apply {
                 isProxyTargetClass = true
-                addAspect(MockGuardAspect(environment))
-                addAspect(MockErrorAspect(environment))
+                addAspect(MockAspect(environment))
             }.getProxy()
     }
 

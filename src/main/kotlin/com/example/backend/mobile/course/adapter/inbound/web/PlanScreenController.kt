@@ -18,7 +18,7 @@ import org.springframework.web.bind.annotation.RestController
  * 도메인 API(`GET /api/v1/plans/{planId}`)는 장소를 placeId·순서·메모로만 주므로, 지도 핀·장소 카드를 그리려면
  * 이 API 를 쓴다. 경로가 `/service/v1/my` 하위라 SecurityConfig 경로 매처가 JWT 를 강제한다(소유자 식별은 JWT subject).
  * 시드/DB 없이 프론트가 붙어볼 수 있도록 `?mock=true` 면 조회 없이 고정 목([PlanDetailScreenResponse.MOCK])을 반환한다.
- * 모킹 에러(`?mockError=<code>`)는 전역 아스펙트([com.example.backend.bootstrap.mock.MockErrorAspect])가 주입한다.
+ * 모킹 에러(`?mockError=<code>`)는 전역 아스펙트([com.example.backend.bootstrap.mock.MockAspect])가 주입한다.
  */
 @RequiresAppFeature(AppFeature.PLAN)
 @RestController

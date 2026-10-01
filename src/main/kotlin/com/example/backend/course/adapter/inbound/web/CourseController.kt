@@ -28,7 +28,7 @@ import java.time.Instant
 
 /**
  * 인바운드 어댑터 — 코스(노션 명세 · Course).
- * 모킹 에러(`?mockError=<code>`)는 전역 아스펙트([com.example.backend.bootstrap.mock.MockErrorAspect])가 주입한다.
+ * 모킹 에러(`?mockError=<code>`)는 전역 아스펙트([com.example.backend.bootstrap.mock.MockAspect])가 주입한다.
  */
 @RequiresAppFeature(AppFeature.COURSE_DETAIL)
 @RestController

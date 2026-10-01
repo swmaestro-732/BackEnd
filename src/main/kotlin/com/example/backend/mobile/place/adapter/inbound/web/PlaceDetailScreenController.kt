@@ -24,7 +24,7 @@ import org.springframework.web.bind.annotation.RestController
  *
  * 시드/DB 없이 프론트가 붙어볼 수 있도록 `?mock=true` 면
  * 조회 없이 고정 목([PlaceDetailScreenResponse.MOCK])을 반환한다.
- * 모킹 에러(`?mockError=<code>`)는 전역 아스펙트([com.example.backend.bootstrap.mock.MockErrorAspect])가 주입한다.
+ * 모킹 에러(`?mockError=<code>`)는 전역 아스펙트([com.example.backend.bootstrap.mock.MockAspect])가 주입한다.
  */
 @Tag(name = "Place")
 @RequiresAppFeature(AppFeature.PLACE_DETAIL)
