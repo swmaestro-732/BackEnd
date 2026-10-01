@@ -2,7 +2,6 @@ package com.example.backend.mobile.user.adapter.inbound.web
 
 import com.example.backend.bootstrap.appversion.AppFeature
 import com.example.backend.bootstrap.appversion.RequiresAppFeature
-import com.example.backend.bootstrap.mock.MockGuard
 import com.example.backend.bootstrap.security.CurrentUserId
 import com.example.backend.common.response.ApiResponse
 import com.example.backend.mobile.user.adapter.inbound.web.response.SavedCourseScreenResponse
@@ -26,7 +25,6 @@ import org.springframework.web.bind.annotation.RestController
 @RequestMapping("/service/v1")
 class SavedCourseScreenController(
     private val savedCourseScreenUseCase: SavedCourseScreenUseCase,
-    private val mockGuard: MockGuard,
 ) {
     @GetMapping("/my/saved-courses")
     fun getScreen(
@@ -37,7 +35,7 @@ class SavedCourseScreenController(
         @RequestParam(required = false) @Min(1) @Max(50) size: Int = 10,
         @RequestParam(required = false) mock: Boolean = false,
     ): ApiResponse<SavedCourseScreenResponse> {
-        if (mock && mockGuard.isMockAllowed()) return ApiResponse.success(SavedCourseScreenResponse.mock())
+        if (mock) return ApiResponse.success(SavedCourseScreenResponse.mock())
 
         return ApiResponse.success(
             SavedCourseScreenResponse.from(

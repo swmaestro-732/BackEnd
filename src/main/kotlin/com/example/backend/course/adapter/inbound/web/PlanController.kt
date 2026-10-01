@@ -2,7 +2,6 @@ package com.example.backend.course.adapter.inbound.web
 
 import com.example.backend.bootstrap.appversion.AppFeature
 import com.example.backend.bootstrap.appversion.RequiresAppFeature
-import com.example.backend.bootstrap.mock.MockGuard
 import com.example.backend.bootstrap.security.AccessTokenRequired
 import com.example.backend.bootstrap.security.CurrentUserId
 import com.example.backend.common.response.ApiResponse
@@ -37,7 +36,6 @@ import org.springframework.web.bind.annotation.RestController
 class PlanController(
     private val planUseCase: PlanUseCase,
     private val planQueryUseCase: PlanQueryUseCase,
-    private val mockGuard: MockGuard,
 ) {
     /** 계획 생성 */
     @PostMapping("")
@@ -47,7 +45,7 @@ class PlanController(
         @Valid @RequestBody request: CreatePlanRequest,
         @RequestParam(required = false) mock: Boolean = false,
     ): ApiResponse<PlanIdResponse> {
-        if (mock && mockGuard.isMockAllowed()) return ApiResponse.success(PlanIdResponse.MOCK)
+        if (mock) return ApiResponse.success(PlanIdResponse.MOCK)
         return ApiResponse.success(PlanIdResponse.from(planUseCase.create(request.toCommand(userId))))
     }
 
@@ -59,7 +57,7 @@ class PlanController(
         @RequestParam(required = false) @Min(1) @Max(50) size: Int = 10,
         @RequestParam(required = false) mock: Boolean = false,
     ): ApiResponse<PlanListResponse> {
-        if (mock && mockGuard.isMockAllowed()) return ApiResponse.success(PlanListResponse.MOCK)
+        if (mock) return ApiResponse.success(PlanListResponse.MOCK)
         val result = planQueryUseCase.list(PlansQuery(userId = userId, cursor = cursor, size = size))
         return ApiResponse.success(PlanListResponse.from(result))
     }
@@ -71,7 +69,7 @@ class PlanController(
         @PathVariable planId: Long,
         @RequestParam(required = false) mock: Boolean = false,
     ): ApiResponse<PlanDetailResponse> {
-        if (mock && mockGuard.isMockAllowed()) return ApiResponse.success(PlanDetailResponse.MOCK)
+        if (mock) return ApiResponse.success(PlanDetailResponse.MOCK)
         return ApiResponse.success(PlanDetailResponse.from(planQueryUseCase.getDetail(planId, userId)))
     }
 
@@ -83,7 +81,7 @@ class PlanController(
         @Valid @RequestBody request: EditPlanRequest,
         @RequestParam(required = false) mock: Boolean = false,
     ): ApiResponse<PlanIdResponse> {
-        if (mock && mockGuard.isMockAllowed()) return ApiResponse.success(PlanIdResponse.MOCK)
+        if (mock) return ApiResponse.success(PlanIdResponse.MOCK)
         return ApiResponse.success(PlanIdResponse.from(planUseCase.edit(request.toCommand(userId, planId))))
     }
 
@@ -94,7 +92,7 @@ class PlanController(
         @PathVariable planId: Long,
         @RequestParam(required = false) mock: Boolean = false,
     ): ApiResponse<Nothing?> {
-        if (mock && mockGuard.isMockAllowed()) return ApiResponse.ok("계획이 삭제되었습니다.")
+        if (mock) return ApiResponse.ok("계획이 삭제되었습니다.")
         planUseCase.delete(userId = userId, planId = planId)
         return ApiResponse.ok("계획이 삭제되었습니다.")
     }

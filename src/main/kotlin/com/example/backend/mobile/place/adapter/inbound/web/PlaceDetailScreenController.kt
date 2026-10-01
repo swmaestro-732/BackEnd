@@ -2,7 +2,6 @@ package com.example.backend.mobile.place.adapter.inbound.web
 
 import com.example.backend.bootstrap.appversion.AppFeature
 import com.example.backend.bootstrap.appversion.RequiresAppFeature
-import com.example.backend.bootstrap.mock.MockGuard
 import com.example.backend.common.response.ApiResponse
 import com.example.backend.mobile.place.adapter.inbound.web.response.PlaceDetailScreenResponse
 import com.example.backend.mobile.place.application.port.inbound.PlaceDetailScreenUseCase
@@ -23,7 +22,7 @@ import org.springframework.web.bind.annotation.RestController
  * 리뷰·이 근처 코스·저장 여부는 아직 백엔드가 없어 빈/false 스텁으로 내려간다(MVP 범위).
  * 존재하지 않는 장소는 404(PLACE_NOT_FOUND).
  *
- * 시드/DB 없이 프론트가 붙어볼 수 있도록 `?mock=true` 이고 [MockGuard] 가 모킹을 허용하면
+ * 시드/DB 없이 프론트가 붙어볼 수 있도록 `?mock=true` 면
  * 조회 없이 고정 목([PlaceDetailScreenResponse.MOCK])을 반환한다.
  * 모킹 에러(`?mockError=<code>`)는 전역 아스펙트([com.example.backend.bootstrap.mock.MockErrorAspect])가 주입한다.
  */
@@ -33,14 +32,13 @@ import org.springframework.web.bind.annotation.RestController
 @RequestMapping("/service/v1")
 class PlaceDetailScreenController(
     private val placeDetailScreenUseCase: PlaceDetailScreenUseCase,
-    private val mockGuard: MockGuard,
 ) {
     @GetMapping("/places/{placeId}")
     fun getScreen(
         @PathVariable placeId: Long,
         @RequestParam(required = false) mock: Boolean = false,
     ): ApiResponse<PlaceDetailScreenResponse> {
-        if (mock && mockGuard.isMockAllowed()) return ApiResponse.success(PlaceDetailScreenResponse.MOCK)
+        if (mock) return ApiResponse.success(PlaceDetailScreenResponse.MOCK)
         return ApiResponse.success(PlaceDetailScreenResponse.from(placeDetailScreenUseCase.getScreen(placeId)))
     }
 }

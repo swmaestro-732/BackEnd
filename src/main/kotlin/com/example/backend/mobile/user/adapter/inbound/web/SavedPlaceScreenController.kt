@@ -2,7 +2,6 @@ package com.example.backend.mobile.user.adapter.inbound.web
 
 import com.example.backend.bootstrap.appversion.AppFeature
 import com.example.backend.bootstrap.appversion.RequiresAppFeature
-import com.example.backend.bootstrap.mock.MockGuard
 import com.example.backend.bootstrap.security.CurrentUserId
 import com.example.backend.common.response.ApiResponse
 import com.example.backend.mobile.user.adapter.inbound.web.response.SavedPlaceScreenResponse
@@ -28,7 +27,6 @@ import org.springframework.web.bind.annotation.RestController
 @RequestMapping("/service/v1")
 class SavedPlaceScreenController(
     private val savedPlaceScreenUseCase: SavedPlaceScreenUseCase,
-    private val mockGuard: MockGuard,
 ) {
     @GetMapping("/my/saved-places")
     fun getScreen(
@@ -41,7 +39,7 @@ class SavedPlaceScreenController(
         @RequestParam(required = false) @Min(1) @Max(50) size: Int = 10,
         @RequestParam(required = false) mock: Boolean = false,
     ): ApiResponse<SavedPlaceScreenResponse> {
-        if (mock && mockGuard.isMockAllowed()) return ApiResponse.success(SavedPlaceScreenResponse.mock())
+        if (mock) return ApiResponse.success(SavedPlaceScreenResponse.mock())
 
         return ApiResponse.success(
             SavedPlaceScreenResponse.from(

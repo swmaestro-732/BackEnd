@@ -2,7 +2,6 @@ package com.example.backend.mobile.course.adapter.inbound.web
 
 import com.example.backend.bootstrap.appversion.AppFeature
 import com.example.backend.bootstrap.appversion.RequiresAppFeature
-import com.example.backend.bootstrap.mock.MockGuard
 import com.example.backend.bootstrap.security.CurrentUserId
 import com.example.backend.common.response.ApiResponse
 import com.example.backend.mobile.course.adapter.inbound.web.response.PlanDetailScreenResponse
@@ -26,7 +25,6 @@ import org.springframework.web.bind.annotation.RestController
 @RequestMapping("/service/v1")
 class PlanScreenController(
     private val planScreenUseCase: PlanScreenUseCase,
-    private val mockGuard: MockGuard,
 ) {
     @GetMapping("/my/plans/{planId}")
     fun getScreen(
@@ -34,7 +32,7 @@ class PlanScreenController(
         @CurrentUserId userId: Long,
         @RequestParam(required = false) mock: Boolean = false,
     ): ApiResponse<PlanDetailScreenResponse> {
-        if (mock && mockGuard.isMockAllowed()) return ApiResponse.success(PlanDetailScreenResponse.MOCK)
+        if (mock) return ApiResponse.success(PlanDetailScreenResponse.MOCK)
 
         return ApiResponse.success(PlanDetailScreenResponse.from(planScreenUseCase.getScreen(planId, userId)))
     }
