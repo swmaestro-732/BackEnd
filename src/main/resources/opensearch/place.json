@@ -5,7 +5,7 @@
         "korean_nori": {
           "type": "nori_tokenizer",
           "decompound_mode": "mixed",
-          "user_dictionary_rules": ["샤로수길", "서울대공원 서울 대공원"]
+          "user_dictionary_rules": ["샤로수길", "경리단길", "송리단길", "망리단길", "용리단길", "세로수길", "연트럴파크", "오마카세", "스타필드", "서울대공원 서울 대공원", "더현대서울 더현대 서울"]
         }
       },
       "analyzer": {

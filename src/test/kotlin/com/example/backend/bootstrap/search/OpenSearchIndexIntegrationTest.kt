@@ -101,6 +101,24 @@ class OpenSearchIndexIntegrationTest
         }
 
         @Test
+        fun `서비스 상권, 브랜드 복합어가 사용자 사전으로 보강된다`() {
+            // 기본 사전이 망가뜨리던(경리단길 to 경리/길, 오마카세 to 카세) 서비스 핵심 복합어를 통째로 유지한다(SCRUM-552 보강).
+            fun analyze(text: String) =
+                client
+                    .indices()
+                    .analyze { a -> a.index("course_v2").analyzer("korean").text(text) }
+                    .tokens()
+                    .map { it.token() }
+            assertTrue(analyze("경리단길").contains("경리단길")) { "경리단길 미보강: ${analyze("경리단길")}" }
+            assertTrue(analyze("오마카세").contains("오마카세")) { "오마카세 미보강: ${analyze("오마카세")}" }
+            assertTrue(analyze("연트럴파크").contains("연트럴파크")) { "연트럴파크 미보강: ${analyze("연트럴파크")}" }
+            // 분해형을 명시한 항목은 원형과 부분어를 함께 낸다(더현대 로도 검색되게).
+            assertTrue(analyze("더현대서울").containsAll(listOf("더현대서울", "더현대"))) {
+                "더현대서울 분해 미적용: ${analyze("더현대서울")}"
+            }
+        }
+
+        @Test
         fun `korean 분석기가 mecab 기본 사전으로 복합어를 분해하고 조사를 제거한다`() {
             // 사용자 사전에 없는 "카페에서"도 내장 mecab 사전이 카페와 조사 에서로 나누고,
             // nori_part_of_speech 필터가 조사를 걷어낸다. 즉 단어를 추가로 안 넣어도 대부분 동작함을 검증한다.
