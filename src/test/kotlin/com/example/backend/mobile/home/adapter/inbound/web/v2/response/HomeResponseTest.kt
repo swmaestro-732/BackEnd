@@ -1,4 +1,4 @@
-package com.example.backend.mobile.home.adapter.inbound.web.response
+package com.example.backend.mobile.home.adapter.inbound.web.v2.response
 
 import com.example.backend.mobile.home.application.port.inbound.dto.HomeResult
 import com.example.backend.mobile.home.application.port.outbound.dto.HomeNearbyPlace

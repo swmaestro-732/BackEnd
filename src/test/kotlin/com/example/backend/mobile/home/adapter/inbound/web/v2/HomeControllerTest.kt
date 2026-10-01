@@ -1,4 +1,4 @@
-package com.example.backend.mobile.home.adapter.inbound.web
+package com.example.backend.mobile.home.adapter.inbound.web.v2
 
 import com.example.backend.bootstrap.security.JwtTokenProvider
 import com.example.backend.support.IntegrationTestBase

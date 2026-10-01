@@ -1,4 +1,4 @@
-package com.example.backend.mobile.home.adapter.inbound.web
+package com.example.backend.mobile.home.adapter.inbound.web.v2
 
 import com.example.backend.bootstrap.appversion.AppFeature
 import com.example.backend.bootstrap.appversion.RequiresAppFeature
@@ -6,8 +6,8 @@ import com.example.backend.bootstrap.mock.MockGuard
 import com.example.backend.bootstrap.security.CurrentUserId
 import com.example.backend.common.geo.Coordinate
 import com.example.backend.common.response.ApiResponse
-import com.example.backend.mobile.home.adapter.inbound.web.response.HomeResponse
-import com.example.backend.mobile.home.adapter.inbound.web.response.RecommendedCoursesResponse
+import com.example.backend.mobile.home.adapter.inbound.web.v2.response.HomeResponse
+import com.example.backend.mobile.home.adapter.inbound.web.v2.response.RecommendedCoursesResponse
 import com.example.backend.mobile.home.application.port.inbound.HomeFeedUseCase
 import jakarta.validation.constraints.Max
 import jakarta.validation.constraints.Min
