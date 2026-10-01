@@ -31,17 +31,23 @@ class MockAspect(
             "execution(* com.example.backend..adapter.inbound.web..*(..))",
     )
     fun handleMock(joinPoint: ProceedingJoinPoint): Any? {
+        // 개발 환경: mockError 가 있으면 여기서 예외로 끝나고, 없으면 인자 그대로 컨트롤러를 실행한다
         if (PROD_PROFILE !in environment.activeProfiles) {
             injectMockError()
             return joinPoint.proceed()
         }
+        // 컨트롤러 메서드의 파라미터 이름 목록 (args 와 같은 순서)
         val names = (joinPoint.signature as MethodSignature).parameterNames
+        // 이름이 mock 이고 값이 true 인 인자만 false 로 바꾼다 (null 이나 Boolean 이 아닌 값은 그대로)
         val args = joinPoint.args.mapIndexed { i, arg -> if (names[i] == MOCK_PARAM && arg == true) false else arg }
+        // 바꾼 인자로 실행하면 컨트롤러의 if (mock) 분기를 지나 실제 로직을 탄다
         return joinPoint.proceed(args.toTypedArray())
     }
 
     private fun injectMockError() {
+        // 현재 HTTP 요청을 꺼낸다 (요청 밖에서 호출되면 건너뛴다)
         val attributes = RequestContextHolder.getRequestAttributes() as? ServletRequestAttributes ?: return
+        // ?mockError=<code> 가 없거나 숫자가 아니면 건너뛴다
         val mockError = attributes.request.getParameter("mockError")?.toIntOrNull() ?: return
         MockErrors.throwIfRequested(mockError)
     }
