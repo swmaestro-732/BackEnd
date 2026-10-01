@@ -1,6 +1,8 @@
 package com.example.backend.bootstrap.mock
 
+import com.example.backend.common.exception.BusinessException
 import com.example.backend.common.mock.MockErrors
+import com.example.backend.common.response.CommonErrorCode
 import org.aspectj.lang.ProceedingJoinPoint
 import org.aspectj.lang.annotation.Around
 import org.aspectj.lang.annotation.Aspect
@@ -14,7 +16,8 @@ import org.springframework.web.context.request.ServletRequestAttributes
  * 모든 웹 컨트롤러의 모킹 동작을 한곳에서 다룬다.
  *
  * - 개발 환경: `?mockError=<code>` 쿼리를 읽어 해당 에러를 던진다(컨트롤러마다 반복하던 [MockErrors.throwIfRequested] 를 추출).
- * - 운영(prod 프로파일): `mockError` 를 무시하고, 컨트롤러의 `mock` 인자를 false 로 바꿔 호출한다 — `?mock=true` 가 와도 실제 로직을 탄다.
+ * - 운영(prod 프로파일): `mockError` 는 무시하고, `?mock=true` 요청은 400([CommonErrorCode.INVALID_INPUT])으로 거절한다.
+ *   목 응답이 운영에서 나가지 않게 하고, 목을 켠 채 배포된 클라이언트를 조용히 넘기지 않고 바로 드러낸다.
  *
  * 목 응답은 엔드포인트마다 타입이 달라 컨트롤러의 `if (mock)` 분기에 그대로 두고, 운영 차단만 여기로 모았다.
  * 컨트롤러마다 가드를 호출하던 방식은 새 분기에서 가드를 빠뜨리기 쉬웠다(auth 목이 운영에서 개발 토큰을 발급하던 문제).
@@ -38,10 +41,11 @@ class MockAspect(
         }
         // 컨트롤러 메서드의 파라미터 이름 목록 (args 와 같은 순서)
         val names = (joinPoint.signature as MethodSignature).parameterNames
-        // 이름이 mock 이고 값이 true 인 인자만 false 로 바꾼다 (null 이나 Boolean 이 아닌 값은 그대로)
-        val args = joinPoint.args.mapIndexed { i, arg -> if (names[i] == MOCK_PARAM && arg == true) false else arg }
-        // 바꾼 인자로 실행하면 컨트롤러의 if (mock) 분기를 지나 실제 로직을 탄다
-        return joinPoint.proceed(args.toTypedArray())
+        // 이름이 mock 인 인자에 true 가 들어왔으면 컨트롤러를 실행하지 않고 400 으로 거절한다
+        if (joinPoint.args.indices.any { names[it] == MOCK_PARAM && joinPoint.args[it] == true }) {
+            throw BusinessException(CommonErrorCode.INVALID_INPUT, PROD_MOCK_REJECTED)
+        }
+        return joinPoint.proceed()
     }
 
     private fun injectMockError() {
@@ -55,5 +59,6 @@ class MockAspect(
     private companion object {
         const val MOCK_PARAM = "mock"
         const val PROD_PROFILE = "prod"
+        const val PROD_MOCK_REJECTED = "운영 환경에서는 mock 요청을 사용할 수 없습니다."
     }
 }
