@@ -2,7 +2,6 @@ package com.example.backend.mobile.course.adapter.inbound.web
 
 import com.example.backend.bootstrap.appversion.AppFeature
 import com.example.backend.bootstrap.appversion.RequiresAppFeature
-import com.example.backend.bootstrap.mock.MockGuard
 import com.example.backend.bootstrap.security.CurrentUserId
 import com.example.backend.common.response.ApiResponse
 import com.example.backend.common.web.SortDirection
@@ -24,7 +23,6 @@ import org.springframework.web.bind.annotation.RestController
 @RequestMapping("/service/v1")
 class CourseReviewScreenController(
     private val courseReviewScreenUseCase: CourseReviewScreenUseCase,
-    private val mockGuard: MockGuard,
 ) {
     @GetMapping("/courses/{courseId}/reviews")
     fun getScreen(
@@ -36,7 +34,7 @@ class CourseReviewScreenController(
         @RequestParam(required = false) @Min(1) @Max(50) size: Int = 10,
         @RequestParam(required = false) mock: Boolean = false,
     ): ApiResponse<CourseReviewListResponse> {
-        if (mock && mockGuard.isMockAllowed()) return ApiResponse.success(CourseReviewListResponse.mock())
+        if (mock) return ApiResponse.success(CourseReviewListResponse.mock())
 
         return ApiResponse.success(
             CourseReviewListResponse.from(

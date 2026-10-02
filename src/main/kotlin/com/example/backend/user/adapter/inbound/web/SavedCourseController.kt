@@ -2,7 +2,6 @@ package com.example.backend.user.adapter.inbound.web
 
 import com.example.backend.bootstrap.appversion.AppFeature
 import com.example.backend.bootstrap.appversion.RequiresAppFeature
-import com.example.backend.bootstrap.mock.MockGuard
 import com.example.backend.bootstrap.security.AccessTokenRequired
 import com.example.backend.bootstrap.security.CurrentUserId
 import com.example.backend.common.response.ApiResponse
@@ -31,7 +30,6 @@ import org.springframework.web.bind.annotation.RestController
 @RestController
 class SavedCourseController(
     private val savedCourseUseCase: SavedCourseUseCase,
-    private val mockGuard: MockGuard,
 ) {
     @PostMapping("/api/v1/saved-courses", "/api/v1/courses/save") // 구 경로: 호출량 0 확인 후 제거
     @ResponseStatus(HttpStatus.CREATED)
@@ -41,7 +39,7 @@ class SavedCourseController(
         @Valid @RequestBody request: SaveCourseRequest,
         @RequestParam(required = false) mock: Boolean = false,
     ): ApiResponse<Nothing?> {
-        if (mock && mockGuard.isMockAllowed()) return ApiResponse.ok("코스가 저장되었습니다.")
+        if (mock) return ApiResponse.ok("코스가 저장되었습니다.")
 
         savedCourseUseCase.save(userId, request.courseId, request.folderId)
         return ApiResponse.ok("코스가 저장되었습니다.")
@@ -54,7 +52,7 @@ class SavedCourseController(
         @PathVariable courseId: Long,
         @RequestParam(required = false) mock: Boolean = false,
     ): ApiResponse<Nothing?> {
-        if (mock && mockGuard.isMockAllowed()) return ApiResponse.ok("코스 저장을 취소했습니다.")
+        if (mock) return ApiResponse.ok("코스 저장을 취소했습니다.")
 
         savedCourseUseCase.unsave(userId, courseId)
         return ApiResponse.ok("코스 저장을 취소했습니다.")
@@ -68,7 +66,7 @@ class SavedCourseController(
         @RequestParam(required = false) @Min(1) @Max(50) size: Int = 10,
         @RequestParam(required = false) mock: Boolean = false,
     ): ApiResponse<SavedCourseListResponse> {
-        if (mock && mockGuard.isMockAllowed()) return ApiResponse.success(SavedCourseListResponse.mock())
+        if (mock) return ApiResponse.success(SavedCourseListResponse.mock())
 
         return ApiResponse.success(
             SavedCourseListResponse.from(
@@ -87,7 +85,7 @@ class SavedCourseController(
         @Valid @RequestBody request: CreateCourseFolderRequest,
         @RequestParam(required = false) mock: Boolean = false,
     ): ApiResponse<CreateCourseFolderResponse> {
-        if (mock && mockGuard.isMockAllowed()) {
+        if (mock) {
             return ApiResponse.success(CreateCourseFolderResponse.mock(), "폴더가 생성되었습니다.")
         }
 
@@ -101,7 +99,7 @@ class SavedCourseController(
         @CurrentUserId userId: Long,
         @RequestParam(required = false) mock: Boolean = false,
     ): ApiResponse<CourseFolderListResponse> {
-        if (mock && mockGuard.isMockAllowed()) return ApiResponse.success(CourseFolderListResponse.mock())
+        if (mock) return ApiResponse.success(CourseFolderListResponse.mock())
 
         return ApiResponse.success(CourseFolderListResponse.from(savedCourseUseCase.getFolders(userId)))
     }

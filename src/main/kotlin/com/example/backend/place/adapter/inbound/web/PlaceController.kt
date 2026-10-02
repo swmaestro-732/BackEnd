@@ -2,7 +2,6 @@ package com.example.backend.place.adapter.inbound.web
 
 import com.example.backend.bootstrap.appversion.AppFeature
 import com.example.backend.bootstrap.appversion.RequiresAppFeature
-import com.example.backend.bootstrap.mock.MockGuard
 import com.example.backend.common.geo.Coordinate
 import com.example.backend.common.geo.Viewport
 import com.example.backend.common.response.ApiResponse
@@ -27,7 +26,6 @@ import org.springframework.web.bind.annotation.RestController
 class PlaceController(
     private val placeQueryUseCase: PlaceQueryUseCase,
     private val placeMapQueryUseCase: PlaceMapQueryUseCase,
-    private val mockGuard: MockGuard,
 ) {
     /** 코스 생성용 목록. 기준 위치는 정렬 가산점으로만 사용한다. */
     @GetMapping
@@ -38,7 +36,7 @@ class PlaceController(
         @RequestParam(required = false) @Min(1) @Max(50) size: Int = 10,
         @RequestParam(required = false) mock: Boolean = false,
     ): ApiResponse<PlaceSearchResponse> {
-        if (mock && mockGuard.isMockAllowed()) {
+        if (mock) {
             return ApiResponse.success(PlaceSearchResponse.mock())
         }
 
