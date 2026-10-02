@@ -2,7 +2,6 @@ package com.example.backend.course.adapter.inbound.web
 
 import com.example.backend.bootstrap.appversion.AppFeature
 import com.example.backend.bootstrap.appversion.RequiresAppFeature
-import com.example.backend.bootstrap.mock.MockGuard
 import com.example.backend.bootstrap.security.AccessTokenRequired
 import com.example.backend.bootstrap.security.CurrentUserId
 import com.example.backend.common.response.ApiResponse
@@ -26,7 +25,6 @@ import org.springframework.web.bind.annotation.RestController
 @RequestMapping("/api/v1/courses/{courseId}/reviews")
 class CourseReviewController(
     private val courseReviewUseCase: CourseReviewUseCase,
-    private val mockGuard: MockGuard,
 ) {
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
@@ -37,7 +35,7 @@ class CourseReviewController(
         @Valid @RequestBody request: CreateCourseReviewRequest,
         @RequestParam(required = false) mock: Boolean = false,
     ): ApiResponse<CreateCourseReviewResponse> {
-        if (mock && mockGuard.isMockAllowed()) {
+        if (mock) {
             return ApiResponse.success(CreateCourseReviewResponse.MOCK, "리뷰가 등록되었습니다.")
         }
 
@@ -53,7 +51,7 @@ class CourseReviewController(
         @CurrentUserId userId: Long,
         @RequestParam(required = false) mock: Boolean = false,
     ): ApiResponse<Nothing?> {
-        if (mock && mockGuard.isMockAllowed()) return ApiResponse.ok("리뷰가 삭제되었습니다.")
+        if (mock) return ApiResponse.ok("리뷰가 삭제되었습니다.")
 
         courseReviewUseCase.delete(userId = userId, courseId = courseId, reviewId = reviewId)
         return ApiResponse.ok("리뷰가 삭제되었습니다.")

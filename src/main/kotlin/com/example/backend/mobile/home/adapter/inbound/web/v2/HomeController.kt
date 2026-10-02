@@ -2,7 +2,6 @@ package com.example.backend.mobile.home.adapter.inbound.web.v2
 
 import com.example.backend.bootstrap.appversion.AppFeature
 import com.example.backend.bootstrap.appversion.RequiresAppFeature
-import com.example.backend.bootstrap.mock.MockGuard
 import com.example.backend.bootstrap.security.CurrentUserId
 import com.example.backend.common.geo.Coordinate
 import com.example.backend.common.response.ApiResponse
@@ -22,14 +21,13 @@ import org.springframework.web.bind.annotation.RestController
  * - `GET /service/v2/home/recommended-courses`: 추천 코스 전체보기(저장수 내림차순, 최신순 커서 페이지).
  * 조합은 인바운드 포트([HomeFeedUseCase])가 담당하고, 컨트롤러는 Request → 포트 호출 → Response 매핑만 한다.
  *
- * 시드/DB 없이 프론트가 붙어볼 수 있도록 홈은 `?mock=true` 면 조회 없이 고정 목([HomeResponse.MOCK])을 반환한다(prod 프로파일에서는 [MockGuard]가 무시).
+ * 시드/DB 없이 프론트가 붙어볼 수 있도록 홈은 `?mock=true` 면 조회 없이 고정 목([HomeResponse.MOCK])을 반환한다(prod 프로파일에서는 MockAspect 가 400 으로 거절).
  */
 @RequiresAppFeature(AppFeature.COURSE_DETAIL)
 @RestController
 @RequestMapping("/service/v2/home")
 class HomeController(
     private val homeFeedUseCase: HomeFeedUseCase,
-    private val mockGuard: MockGuard,
 ) {
     /** 홈 한 화면. 좌표는 둘 다 보내거나 둘 다 생략한다(한쪽만 오면 400). */
     @GetMapping
@@ -39,7 +37,7 @@ class HomeController(
         @RequestParam(required = false) userLng: Double?,
         @RequestParam(required = false) mock: Boolean = false,
     ): ApiResponse<HomeResponse> {
-        if (mock && mockGuard.isMockAllowed()) return ApiResponse.success(HomeResponse.MOCK)
+        if (mock) return ApiResponse.success(HomeResponse.MOCK)
 
         require((userLat == null) == (userLng == null)) { "userLat 과 userLng 는 함께 보내야 합니다." }
         val userLocation = userLat?.let { Coordinate(it, userLng!!) }
