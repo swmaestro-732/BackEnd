@@ -19,7 +19,7 @@ class GoogleSocialVerifier(
 ) : SocialTokenVerifier {
     override val provider: SocialProvider = SocialProvider.GOOGLE
 
-    override fun verify(idToken: String): SocialIdentity {
+    override fun verify(token: String): SocialIdentity {
         // web/android/ios client-id 중 하나라도 설정돼 있으면 진행(모바일 전용 배포 지원). 전부 비면 Google 로그인 미설정.
         val configured =
             listOf(
@@ -32,7 +32,7 @@ class GoogleSocialVerifier(
         }
         val jwt =
             try {
-                googleJwtDecoder.decode(idToken)
+                googleJwtDecoder.decode(token)
             } catch (exception: JwtException) {
                 throw BusinessException(CommonErrorCode.SOCIAL_AUTHENTICATION_FAILED)
             }

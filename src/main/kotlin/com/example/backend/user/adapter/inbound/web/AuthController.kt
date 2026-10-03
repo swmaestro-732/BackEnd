@@ -2,6 +2,7 @@ package com.example.backend.user.adapter.inbound.web
 
 import com.example.backend.bootstrap.appversion.AppFeature
 import com.example.backend.bootstrap.appversion.RequiresAppFeature
+import com.example.backend.bootstrap.mock.MockGuard
 import com.example.backend.common.exception.BusinessException
 import com.example.backend.common.response.ApiResponse
 import com.example.backend.common.response.CommonErrorCode
@@ -34,6 +35,7 @@ import org.springframework.web.bind.annotation.RestController
 @RequestMapping("/api/v1/auth")
 class AuthController(
     private val authUseCase: AuthUseCase,
+    private val mockGuard: MockGuard,
 ) {
     /** 소셜 로그인. isNewUser 면 클라이언트가 registrationToken 으로 회원가입을 진행한다. */
     @PostMapping("/social-login")
@@ -41,8 +43,11 @@ class AuthController(
         @Valid @RequestBody request: SocialLoginRequest,
         @RequestParam(required = false) mock: Boolean = false,
     ): ApiResponse<SocialLoginResponse> {
-        if (mock) return ApiResponse.success(SocialLoginResponse.mock(authUseCase.issueDevAccessToken()))
-        val result = authUseCase.socialLogin(request.provider.toDomain(), request.idToken)
+        val token = request.resolveToken()
+        if (mock && mockGuard.isMockAllowed()) {
+            return ApiResponse.success(SocialLoginResponse.mock(authUseCase.issueDevAccessToken()))
+        }
+        val result = authUseCase.socialLogin(request.provider.toDomain(), token)
         return ApiResponse.success(SocialLoginResponse.from(result))
     }
 
@@ -52,7 +57,7 @@ class AuthController(
         @Valid @RequestBody request: SignupRequest,
         @RequestParam(required = false) mock: Boolean = false,
     ): ApiResponse<SignupResponse> {
-        if (mock) {
+        if (mock && mockGuard.isMockAllowed()) {
             return ApiResponse.success(
                 SignupResponse.mock(
                     authUseCase.issueDevAccessToken(),
@@ -86,7 +91,11 @@ class AuthController(
         @Valid @RequestBody request: TokenReissueRequest,
         @RequestParam(required = false) mock: Boolean = false,
     ): ApiResponse<TokenResponse> {
-        if (mock) return ApiResponse.success(TokenResponse.mock(authUseCase.issueDevAccessToken()))
+        if (mock &&
+            mockGuard.isMockAllowed()
+        ) {
+            return ApiResponse.success(TokenResponse.mock(authUseCase.issueDevAccessToken()))
+        }
         val result = authUseCase.reissue(request.refreshToken)
         return ApiResponse.success(TokenResponse(result.accessToken, result.refreshToken))
     }
@@ -97,7 +106,7 @@ class AuthController(
         @Valid @RequestBody(required = false) request: LogoutRequest?,
         @RequestParam(required = false) mock: Boolean = false,
     ): ApiResponse<Nothing?> {
-        if (mock) return ApiResponse.ok()
+        if (mock && mockGuard.isMockAllowed()) return ApiResponse.ok()
         val refreshToken = request?.refreshToken ?: throw BusinessException(CommonErrorCode.INVALID_INPUT)
         authUseCase.logout(refreshToken)
         return ApiResponse.ok()

@@ -2,9 +2,13 @@ package com.example.backend.user.adapter.inbound.web
 
 import com.example.backend.bootstrap.security.JwtTokenProvider
 import com.example.backend.support.IntegrationTestBase
+import com.example.backend.user.application.port.outbound.UserPersistencePort
 import com.example.backend.user.domain.model.SocialProvider
+import com.example.backend.user.domain.model.UserStatus
 import com.jayway.jsonpath.JsonPath
 import org.hamcrest.Matchers.not
+import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertNotNull
 import org.junit.jupiter.api.Test
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc
@@ -17,6 +21,8 @@ import org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get
 import org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post
 import org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath
 import org.springframework.test.web.servlet.result.MockMvcResultMatchers.status
+import org.springframework.transaction.PlatformTransactionManager
+import org.springframework.transaction.support.TransactionTemplate
 
 @AutoConfigureMockMvc
 @Sql(
@@ -35,7 +41,43 @@ class AuthTokenFlowTest
     constructor(
         private val mockMvc: MockMvc,
         private val jwtTokenProvider: JwtTokenProvider,
+        private val userPersistencePort: UserPersistencePort,
+        private val transactionManager: PlatformTransactionManager,
     ) : IntegrationTestBase() {
+        @Test
+        fun `네이버 등록 토큰으로 가입하면 제공자와 식별자를 저장하고 서비스 토큰을 발급한다`() {
+            val socialId = "naver-new-social-id"
+            val body =
+                mockMvc
+                    .perform(signupRequest("네이버신규유저", "naver_handle", socialId, SocialProvider.NAVER))
+                    .andExpect(status().isOk)
+                    .andExpect(jsonPath("$.code").value(2000))
+                    .andExpect(jsonPath("$.data.accessToken").isNotEmpty)
+                    .andExpect(jsonPath("$.data.refreshToken").isNotEmpty)
+                    .andReturn()
+                    .response.contentAsString
+            val userId = JsonPath.read<Number>(body, "$.data.user.id").toLong()
+            val saved =
+                TransactionTemplate(transactionManager).execute {
+                    userPersistencePort.findBySocial(SocialProvider.NAVER, socialId)
+                }
+
+            assertNotNull(saved)
+            assertEquals(userId, saved!!.id)
+            assertEquals(SocialProvider.NAVER, saved.socialProvider)
+            assertEquals(socialId, saved.socialId)
+            assertEquals(UserStatus.ACTIVE, saved.status)
+
+            val accessToken: String = JsonPath.read(body, "$.data.accessToken")
+            mockMvc
+                .perform(get("/service/v1/mypage").header(HttpHeaders.AUTHORIZATION, "Bearer $accessToken"))
+                .andExpect(status().isOk)
+                .andExpect(jsonPath("$.data.profile.id").value(userId))
+
+            val refreshToken: String = JsonPath.read(body, "$.data.refreshToken")
+            mockMvc.perform(reissueRequestWith(refreshToken)).andExpect(status().isOk)
+        }
+
         @Test
         fun `회원가입 닉네임이 이미 존재하면 4091을 내려준다`() {
             mockMvc
@@ -126,8 +168,9 @@ class AuthTokenFlowTest
             nickname: String,
             handle: String,
             socialId: String,
+            provider: SocialProvider = SocialProvider.KAKAO,
         ): MockHttpServletRequestBuilder {
-            val registrationToken = jwtTokenProvider.issueRegistrationToken(SocialProvider.KAKAO, socialId)
+            val registrationToken = jwtTokenProvider.issueRegistrationToken(provider, socialId)
             return post("/api/v1/auth/signup")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("""{"registrationToken":"$registrationToken","nickname":"$nickname","handle":"$handle"}""")

@@ -35,7 +35,7 @@ class SocialVerificationAdapterTest {
         object : SocialTokenVerifier {
             override val provider: SocialProvider = forProvider
 
-            override fun verify(idToken: String): SocialIdentity =
-                SocialIdentity(provider = forProvider, socialId = "${forProvider.name}-$idToken")
+            override fun verify(token: String): SocialIdentity =
+                SocialIdentity(provider = forProvider, socialId = "${forProvider.name}-$token")
         }
 }

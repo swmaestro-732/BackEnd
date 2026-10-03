@@ -8,6 +8,7 @@ import com.example.backend.user.domain.model.SocialProvider as DomainSocialProvi
 /** 소셜 로그인 제공자. 요청은 Enum 으로 받는다(api-design 데이터 타입 정책). */
 enum class SocialProvider {
     KAKAO,
+    NAVER,
     APPLE,
     GOOGLE,
     ;
@@ -18,9 +19,27 @@ enum class SocialProvider {
 /** 소셜 로그인 요청 DTO. */
 data class SocialLoginRequest(
     val provider: SocialProvider,
-    @field:NotBlank
-    val idToken: String,
-)
+    val idToken: String? = null,
+    val accessToken: String? = null,
+) {
+    /** 기존 ID 토큰 계약을 유지하면서 네이버만 액세스 토큰으로 인증한다. */
+    fun resolveToken(): String =
+        when (provider) {
+            SocialProvider.NAVER -> {
+                require(idToken == null && !accessToken.isNullOrBlank()) {
+                    "네이버 로그인은 accessToken만 입력해야 합니다."
+                }
+                accessToken
+            }
+
+            else -> {
+                require(accessToken == null && !idToken.isNullOrBlank()) {
+                    "해당 소셜 로그인은 idToken만 입력해야 합니다."
+                }
+                idToken
+            }
+        }
+}
 
 /** 회원가입(프로필 설정) 요청 DTO. areaCodes 는 법정동코드(10자리), likeThemes 는 관심 테마(코스 카테고리 이름) 목록이다. */
 data class SignupRequest(
