@@ -2,7 +2,6 @@ package com.example.backend.user.adapter.inbound.web
 
 import com.example.backend.bootstrap.appversion.AppFeature
 import com.example.backend.bootstrap.appversion.RequiresAppFeature
-import com.example.backend.bootstrap.mock.MockGuard
 import com.example.backend.bootstrap.security.AccessTokenRequired
 import com.example.backend.bootstrap.security.CurrentUserId
 import com.example.backend.common.response.ApiResponse
@@ -30,7 +29,6 @@ import org.springframework.web.bind.annotation.RestController
 @RestController
 class SavedPlaceController(
     private val savedPlaceUseCase: SavedPlaceUseCase,
-    private val mockGuard: MockGuard,
 ) {
     @PostMapping("/api/v1/saved-places")
     @ResponseStatus(HttpStatus.CREATED)
@@ -40,7 +38,7 @@ class SavedPlaceController(
         @Valid @RequestBody request: SavePlaceRequest,
         @RequestParam(required = false) mock: Boolean = false,
     ): ApiResponse<Nothing?> {
-        if (mock && mockGuard.isMockAllowed()) return ApiResponse.ok("장소가 저장되었습니다.")
+        if (mock) return ApiResponse.ok("장소가 저장되었습니다.")
 
         savedPlaceUseCase.save(userId, request.placeId)
         return ApiResponse.ok("장소가 저장되었습니다.")
@@ -53,7 +51,7 @@ class SavedPlaceController(
         @PathVariable placeId: Long,
         @RequestParam(required = false) mock: Boolean = false,
     ): ApiResponse<Nothing?> {
-        if (mock && mockGuard.isMockAllowed()) return ApiResponse.ok("장소 저장을 취소했습니다.")
+        if (mock) return ApiResponse.ok("장소 저장을 취소했습니다.")
 
         savedPlaceUseCase.unsave(userId, placeId)
         return ApiResponse.ok("장소 저장을 취소했습니다.")
@@ -73,7 +71,7 @@ class SavedPlaceController(
         @RequestParam(required = false) @Min(1) @Max(50) size: Int = 10,
         @RequestParam(required = false) mock: Boolean = false,
     ): ApiResponse<SavedPlaceListResponse> {
-        if (mock && mockGuard.isMockAllowed()) return ApiResponse.success(SavedPlaceListResponse.mock())
+        if (mock) return ApiResponse.success(SavedPlaceListResponse.mock())
 
         return ApiResponse.success(
             SavedPlaceListResponse.from(
