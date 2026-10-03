@@ -83,7 +83,7 @@ data class HomeResponse(
                     },
             )
 
-        private fun image(token: String) = "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9Gc$token&s=10"
+        private fun image(id: String) = "https://images.unsplash.com/$id?w=600&q=80&auto=format&fit=crop"
 
         /** `?mock=true` 폴백 응답 — 시드/DB 없이 프론트가 붙어볼 수 있게 피그마 홈 예시를 고정으로 내려준다. */
         val MOCK: HomeResponse =
@@ -94,7 +94,7 @@ data class HomeResponse(
                         Course(
                             id = 1,
                             title = "비 오는 날 성수 감성 카페 코스",
-                            coverImageUrl = image("HDBpbwjQOwLbBj3pgro4xFRpvBdRRZDTcbVmMkg"),
+                            coverImageUrl = image("photo-1554118811-1e0d58224f24"),
                             theme = "DATE",
                             area = "성수",
                             placeCount = 4,
@@ -105,7 +105,7 @@ data class HomeResponse(
                         Course(
                             id = 2,
                             title = "연남동 골목 브런치 산책",
-                            coverImageUrl = image("SYjLV1q0A21vyJJ_N3LlUSp3HwiDDouEZRzcVhJb8KJw"),
+                            coverImageUrl = image("photo-1528605248644-14dd04022da1"),
                             theme = "FOOD",
                             area = "연남",
                             placeCount = 3,
@@ -119,7 +119,7 @@ data class HomeResponse(
                         NearbySavedPlace(
                             placeId = 101,
                             name = "어니언 성수",
-                            imageUrl = image("Qr6pSHzsT4DD0ieT5VQ__SVo2ErRODzDyViWmZeXHGlA"),
+                            imageUrl = image("photo-1517433670267-08bbd4be890f"),
                             category = "CAFE",
                             rating = 4.8,
                             ratingCount = 212,
