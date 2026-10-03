@@ -13,9 +13,9 @@ import org.jetbrains.exposed.v1.core.isNull
 import org.jetbrains.exposed.v1.core.plus
 import org.jetbrains.exposed.v1.jdbc.batchInsert
 import org.jetbrains.exposed.v1.jdbc.insertAndGetId
+import org.jetbrains.exposed.v1.jdbc.select
 import org.jetbrains.exposed.v1.jdbc.selectAll
 import org.jetbrains.exposed.v1.jdbc.update
-import org.jetbrains.exposed.v1.jdbc.updateReturning
 import org.springframework.stereotype.Repository
 import kotlin.time.Clock
 
@@ -60,7 +60,10 @@ class PlaceReviewRepository {
 
         insertPhotos(reviewId, review.photoUrls)
         insertTagLinks(reviewId, review.tags)
-        applyCounterDelta(review.placeId, rating = review.rating, cntDelta = 1, photoDelta = review.photoUrls.size)
+        // 카운터는 공개(PUBLISHED) 리뷰만 센다 — 백필(V12)·목록 조회와 같은 기준.
+        if (review.status == PlaceReviewStatus.PUBLISHED) {
+            applyCounterDelta(review.placeId, rating = review.rating, cntDelta = 1, photoDelta = review.photoUrls.size)
+        }
 
         return PlaceReview.reconstitute(
             id = reviewId,
@@ -80,31 +83,41 @@ class PlaceReviewRepository {
         placeId: Long,
         userId: Long,
     ): Int {
-        val now = Clock.System.now()
-        val deletedRating =
+        val owned =
+            (PlaceReviewTable.id eq reviewId) and
+                (PlaceReviewTable.placeId eq placeId) and
+                (PlaceReviewTable.userId eq userId) and
+                PlaceReviewTable.deletedAt.isNull()
+        // 삭제 전 상태·별점을 먼저 읽는다 — UPDATE … RETURNING 은 갱신 후 값(DELETED)만 돌려준다.
+        val before =
             PlaceReviewTable
-                .updateReturning(
-                    returning = listOf(PlaceReviewTable.rating),
-                    where = {
-                        (PlaceReviewTable.id eq reviewId) and
-                            (PlaceReviewTable.placeId eq placeId) and
-                            (PlaceReviewTable.userId eq userId) and
-                            PlaceReviewTable.deletedAt.isNull()
-                    },
-                ) {
-                    it[deletedAt] = now
-                    it[status] = PlaceReviewStatus.DELETED
-                    it[updatedAt] = now
-                }.singleOrNull()
-                ?.get(PlaceReviewTable.rating)
+                .select(PlaceReviewTable.rating, PlaceReviewTable.status)
+                .where { owned }
+                .singleOrNull()
                 ?: return 0
-        val photoCount =
-            PlaceReviewPhotoTable
-                .selectAll()
-                .where { PlaceReviewPhotoTable.placeReviewId eq reviewId }
-                .count()
-                .toInt()
-        applyCounterDelta(placeId, rating = deletedRating.toInt(), cntDelta = -1, photoDelta = -photoCount)
+        val now = Clock.System.now()
+        val updated =
+            PlaceReviewTable.update({ owned }) {
+                it[deletedAt] = now
+                it[status] = PlaceReviewStatus.DELETED
+                it[updatedAt] = now
+            }
+        if (updated == 0) return 0
+        // 공개 리뷰였을 때만 카운터를 되돌린다 — 숨김(HIDDEN) 리뷰는 카운터에 들어 있지 않다.
+        if (before[PlaceReviewTable.status] == PlaceReviewStatus.PUBLISHED) {
+            val photoCount =
+                PlaceReviewPhotoTable
+                    .selectAll()
+                    .where { PlaceReviewPhotoTable.placeReviewId eq reviewId }
+                    .count()
+                    .toInt()
+            applyCounterDelta(
+                placeId,
+                rating = before[PlaceReviewTable.rating].toInt(),
+                cntDelta = -1,
+                photoDelta = -photoCount,
+            )
+        }
         return 1
     }
 
