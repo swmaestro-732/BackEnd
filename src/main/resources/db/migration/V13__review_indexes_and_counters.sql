@@ -16,10 +16,11 @@ CREATE INDEX idx_course_reviews_course_latest
 CREATE INDEX idx_course_review_photos_review
     ON public.course_review_photos (course_review_id);
 
--- 3) 화면 통계 카운터 + 백필 — 사진 총개수와 별점별 리뷰 수.
+-- 3) 화면 통계 카운터 — 사진 총개수와 별점별 리뷰 수.
 -- 두 집계(사진 JOIN COUNT, GROUP BY rating)는 리뷰가 많은 코스에서 매 요청 코스 전체를 읽어야 해
 -- (벤치: 공개 리뷰 2.7만 건 코스에서 36ms·4ms) rating_sum/rating_cnt(V6)와 같은 방식으로 courses 에 카운터를 두고
 -- 리뷰 작성 +, 소프트 삭제 - 로 유지한다. 별점별 카운터의 합은 rating_cnt 와 같다.
+-- 백필은 두지 않는다 — 적용 시점에 리뷰 데이터가 없다(있는 환경이면 별도 보정 필요).
 ALTER TABLE public.courses
     ADD COLUMN review_photo_cnt integer DEFAULT 0 NOT NULL,
     ADD COLUMN rating_1_cnt integer DEFAULT 0 NOT NULL,
@@ -27,36 +28,6 @@ ALTER TABLE public.courses
     ADD COLUMN rating_3_cnt integer DEFAULT 0 NOT NULL,
     ADD COLUMN rating_4_cnt integer DEFAULT 0 NOT NULL,
     ADD COLUMN rating_5_cnt integer DEFAULT 0 NOT NULL;
-
-UPDATE public.courses c
-SET review_photo_cnt = agg.photo_cnt
-FROM (
-    SELECT r.course_id, COUNT(*) AS photo_cnt
-    FROM public.course_review_photos p
-    JOIN public.course_reviews r ON r.id = p.course_review_id
-    WHERE r.status = 'PUBLISHED' AND r.deleted_at IS NULL
-    GROUP BY r.course_id
-) agg
-WHERE c.id = agg.course_id;
-
-UPDATE public.courses c
-SET rating_1_cnt = agg.r1,
-    rating_2_cnt = agg.r2,
-    rating_3_cnt = agg.r3,
-    rating_4_cnt = agg.r4,
-    rating_5_cnt = agg.r5
-FROM (
-    SELECT course_id,
-           COUNT(*) FILTER (WHERE rating = 1) AS r1,
-           COUNT(*) FILTER (WHERE rating = 2) AS r2,
-           COUNT(*) FILTER (WHERE rating = 3) AS r3,
-           COUNT(*) FILTER (WHERE rating = 4) AS r4,
-           COUNT(*) FILTER (WHERE rating = 5) AS r5
-    FROM public.course_reviews
-    WHERE status = 'PUBLISHED' AND deleted_at IS NULL
-    GROUP BY course_id
-) agg
-WHERE c.id = agg.course_id;
 
 -- ───────── 장소 리뷰 (코스와 같은 구성) ─────────
 
@@ -69,7 +40,7 @@ CREATE INDEX idx_place_reviews_place_latest
 CREATE INDEX idx_place_review_photos_review
     ON public.place_review_photos (place_review_id);
 
--- 6) 화면 통계 카운터 + 백필.
+-- 6) 화면 통계 카운터.
 ALTER TABLE public.places
     ADD COLUMN review_photo_cnt integer DEFAULT 0 NOT NULL,
     ADD COLUMN rating_1_cnt integer DEFAULT 0 NOT NULL,
@@ -77,33 +48,3 @@ ALTER TABLE public.places
     ADD COLUMN rating_3_cnt integer DEFAULT 0 NOT NULL,
     ADD COLUMN rating_4_cnt integer DEFAULT 0 NOT NULL,
     ADD COLUMN rating_5_cnt integer DEFAULT 0 NOT NULL;
-
-UPDATE public.places p
-SET review_photo_cnt = agg.photo_cnt
-FROM (
-    SELECT r.place_id, COUNT(*) AS photo_cnt
-    FROM public.place_review_photos ph
-    JOIN public.place_reviews r ON r.id = ph.place_review_id
-    WHERE r.status = 'PUBLISHED' AND r.deleted_at IS NULL
-    GROUP BY r.place_id
-) agg
-WHERE p.id = agg.place_id;
-
-UPDATE public.places p
-SET rating_1_cnt = agg.r1,
-    rating_2_cnt = agg.r2,
-    rating_3_cnt = agg.r3,
-    rating_4_cnt = agg.r4,
-    rating_5_cnt = agg.r5
-FROM (
-    SELECT place_id,
-           COUNT(*) FILTER (WHERE rating = 1) AS r1,
-           COUNT(*) FILTER (WHERE rating = 2) AS r2,
-           COUNT(*) FILTER (WHERE rating = 3) AS r3,
-           COUNT(*) FILTER (WHERE rating = 4) AS r4,
-           COUNT(*) FILTER (WHERE rating = 5) AS r5
-    FROM public.place_reviews
-    WHERE status = 'PUBLISHED' AND deleted_at IS NULL
-    GROUP BY place_id
-) agg
-WHERE p.id = agg.place_id;

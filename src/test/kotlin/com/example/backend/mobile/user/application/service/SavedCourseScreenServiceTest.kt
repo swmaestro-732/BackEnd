@@ -119,6 +119,7 @@ class SavedCourseScreenServiceTest {
         emptyList(),
         "설명",
         CourseVisibility.PUBLIC,
+        true,
         authorId,
         0,
         placeIds.mapIndexed {

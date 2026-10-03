@@ -37,7 +37,7 @@ internal object PlaceTable : LongIdTable("places") {
     val ratingSum = long("rating_sum").default(0)
     val ratingCnt = integer("rating_cnt").default(0)
 
-    // 화면 통계 카운터(V12) — 살아있는 리뷰의 사진 수와 별점별 리뷰 수. 리뷰 작성 +, 소프트 삭제 -. 별점별 합 = rating_cnt.
+    // 화면 통계 카운터(V13) — 살아있는 리뷰의 사진 수와 별점별 리뷰 수. 리뷰 작성 +, 소프트 삭제 -. 별점별 합 = rating_cnt.
     val reviewPhotoCnt = integer("review_photo_cnt").default(0)
     val rating1Cnt = integer("rating_1_cnt").default(0)
     val rating2Cnt = integer("rating_2_cnt").default(0)

@@ -84,7 +84,7 @@ class CourseReviewQueryRepository {
             .groupBy({ it[CourseReviewTagLinkTable.courseReviewId] }, { it[CourseReviewTagLinkTable.tag] })
     }
 
-    /** courses 리뷰 카운터(V6·V12) 단건 조회 — 삭제된 코스는 제외한다. */
+    /** courses 리뷰 카운터(V6·V13) 단건 조회 — 삭제된 코스는 제외한다. */
     fun findCounters(courseId: Long): CourseReviewCounters? =
         CourseTable
             .select(

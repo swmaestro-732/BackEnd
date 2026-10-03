@@ -60,7 +60,7 @@ class CourseReviewRepository {
 
         insertPhotos(reviewId, review.photoUrls)
         insertTagLinks(reviewId, review.tags)
-        // 카운터는 공개(PUBLISHED) 리뷰만 센다 — 백필(V12)·목록 조회와 같은 기준.
+        // 카운터는 공개(PUBLISHED) 리뷰만 센다 — 목록 조회와 같은 기준.
         if (review.status == CourseReviewStatus.PUBLISHED) {
             applyCounterDelta(review.courseId, rating = review.rating, cntDelta = 1, photoDelta = review.photoUrls.size)
         }

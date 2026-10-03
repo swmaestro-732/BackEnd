@@ -84,7 +84,7 @@ class PlaceReviewQueryRepository {
             .groupBy({ it[PlaceReviewTagLinkTable.placeReviewId] }, { it[PlaceReviewTagLinkTable.tag] })
     }
 
-    /** places 리뷰 카운터(V6·V12) 단건 조회 — 삭제된 장소는 제외한다. */
+    /** places 리뷰 카운터(V6·V13) 단건 조회 — 삭제된 장소는 제외한다. */
     fun findCounters(placeId: Long): PlaceReviewCounters? =
         PlaceTable
             .select(

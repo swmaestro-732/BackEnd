@@ -29,7 +29,7 @@ interface PlaceReviewQueryPort {
     /** 리뷰 id 별 태그. 저장된 값이 곧 enum 이름이라 마스터 조회가 없다(V6). */
     fun findTags(reviewIds: List<Long>): Map<Long, List<PlaceReviewTag>>
 
-    /** 장소의 리뷰 비정규화 카운터(places.rating_sum·rating_cnt — V6, 사진 수·별점별 수 — V12). 없는(삭제된) 장소면 null. */
+    /** 장소의 리뷰 비정규화 카운터(places.rating_sum·rating_cnt — V6, 사진 수·별점별 수 — V13). 없는(삭제된) 장소면 null. */
     fun findCounters(placeId: Long): PlaceReviewCounters?
 }
 

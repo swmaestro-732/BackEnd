@@ -30,7 +30,7 @@ interface CourseReviewQueryPort {
     fun findTags(reviewIds: List<Long>): Map<Long, List<CourseReviewTag>>
 
     /**
-     * 코스의 리뷰 비정규화 카운터(courses.rating_sum·rating_cnt — V6, 사진 수·별점별 수 — V12). 없는(삭제된) 코스면 null.
+     * 코스의 리뷰 비정규화 카운터(courses.rating_sum·rating_cnt — V6, 사진 수·별점별 수 — V13). 없는(삭제된) 코스면 null.
      * 장소는 Place 애그리거트가 카운터를 들지만, 코스는 Course reconstitute 전 경로 파급을 피해 읽기 포트로 따로 조회한다.
      */
     fun findCounters(courseId: Long): CourseReviewCounters?
