@@ -65,6 +65,7 @@ class CourseDuplicationPersistenceTest
                             coverImageUrl = null,
                             visibility = CourseVisibility.PRIVATE,
                             isPublished = false,
+                            duplicatedFromId = originId,
                             tags = emptyList(),
                             places = coursePlaces(3L, 4L),
                             wasPublished = false,

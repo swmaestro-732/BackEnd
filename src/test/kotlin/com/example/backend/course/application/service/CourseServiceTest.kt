@@ -245,6 +245,20 @@ class CourseServiceTest {
     }
 
     @Test
+    fun `복제 원본이 임시저장이면 예외를 던진다`() {
+        `when`(query.getDetails(listOf(50L), 1L))
+            .thenReturn(listOf(originDetail(listOf(1L, 2L), isPublished = false)))
+
+        val exception =
+            assertThrows(BusinessException::class.java) {
+                service.create(createCommand(isPublished = true, duplicatedFromId = 50L))
+            }
+
+        assertEquals(CourseErrorCode.COURSE_NOT_FOUND, exception.errorCode)
+        verify(persistence, never()).save(anyValue())
+    }
+
+    @Test
     fun `복제 시 원본 장소를 충분히 유지하지 않으면 예외를 던진다`() {
         `when`(query.getDetails(listOf(50L), 1L)).thenReturn(listOf(originDetail(listOf(1L, 2L))))
         // 전체 장소 수는 충족하지만 원본과 겹치는 장소는 1곳뿐이다.
@@ -338,7 +352,8 @@ class CourseServiceTest {
     @Test
     fun `복제 초안 편집에서 원본 장소를 두 곳 미만으로 줄이면 수정하지 않는다`() {
         stubEdit(detail(isPublished = false, areaCode = null, category = null, duplicatedFromId = 50L))
-        `when`(query.getDetails(listOf(50L), 1L)).thenReturn(listOf(originDetail(listOf(1L, 3L, 4L))))
+        `when`(persistence.existsById(50L)).thenReturn(true)
+        `when`(persistence.findPlaces(50L)).thenReturn(originPlaces(listOf(1L, 3L, 4L)))
 
         val exception = assertThrows(BusinessException::class.java) { service.edit(editCommand(isPublished = true)) }
 
@@ -347,15 +362,16 @@ class CourseServiceTest {
     }
 
     @Test
-    fun `복제 초안 편집 시 원본을 볼 수 없으면 검사 없이 수정한다`() {
+    fun `복제 원본이 삭제됐으면 참조를 끊고 일반 코스로 수정한다`() {
         stubEdit(detail(isPublished = false, areaCode = null, category = null, duplicatedFromId = 50L))
-        `when`(query.getDetails(listOf(50L), 1L)).thenReturn(emptyList())
+        `when`(persistence.existsById(50L)).thenReturn(false)
         stubPlaces()
         `when`(persistence.update(anyValue())).thenAnswer { it.arguments[0] as Course }
 
-        service.edit(editCommand(isPublished = false))
+        val result = service.edit(editCommand(isPublished = true))
 
-        verify(persistence).update(anyValue())
+        assertNull(result.duplicatedFromId)
+        verify(persistence, never()).findPlaces(50L)
     }
 
     @Test
@@ -368,26 +384,32 @@ class CourseServiceTest {
         verify(persistence, never()).softDelete(anyLong())
     }
 
-    private fun originDetail(placeIds: List<Long>) =
-        CourseDetailResult(
-            id = 50L,
-            title = "원본 코스",
-            coverImageUrl = "cover",
-            theme = null,
-            area = null,
-            tags = emptyList(),
-            description = "",
-            visibility = CourseVisibility.PUBLIC,
-            authorId = 2L,
-            tracingsCnt = 0,
-            places =
-                placeIds.mapIndexed { idx, pid ->
-                    CoursePlaceResult(idx.toLong(), pid, idx, null, null, emptyList())
-                },
-            hasSaved = false,
-            hasLiked = false,
-            hasStartedCourse = false,
-        )
+    private fun originDetail(
+        placeIds: List<Long>,
+        isPublished: Boolean = true,
+    ) = CourseDetailResult(
+        id = 50L,
+        title = "원본 코스",
+        coverImageUrl = "cover",
+        theme = null,
+        area = null,
+        tags = emptyList(),
+        description = "",
+        visibility = CourseVisibility.PUBLIC,
+        isPublished = isPublished,
+        authorId = 2L,
+        tracingsCnt = 0,
+        places =
+            placeIds.mapIndexed { idx, pid ->
+                CoursePlaceResult(idx.toLong(), pid, idx, null, null, emptyList())
+            },
+        hasSaved = false,
+        hasLiked = false,
+        hasStartedCourse = false,
+    )
+
+    private fun originPlaces(placeIds: List<Long>) =
+        placeIds.mapIndexed { idx, pid -> CoursePlaceRow(idx.toLong(), pid, idx, null, null, emptyList()) }
 
     private fun stubPlaces(areaCode: String? = AREA_CODE) {
         `when`(places.findPlacesByIds(listOf(1L, 2L)))

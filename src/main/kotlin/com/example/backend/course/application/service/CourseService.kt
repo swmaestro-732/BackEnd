@@ -18,6 +18,7 @@ import com.example.backend.course.application.port.inbound.dto.toCoursePlaces
 import com.example.backend.course.application.port.outbound.CourseDetailRow
 import com.example.backend.course.application.port.outbound.CoursePersistencePort
 import com.example.backend.course.application.port.outbound.CoursePlaceImageRow
+import com.example.backend.course.application.port.outbound.CoursePlaceRow
 import com.example.backend.course.application.port.outbound.PlaceLookupPort
 import com.example.backend.course.application.port.outbound.PlaceRef
 import com.example.backend.course.domain.model.Course
@@ -46,13 +47,14 @@ class CourseService(
 ) : CourseUseCase {
     /**
      * 코스 생성(발행·임시저장 공통) — 장소 검증·지역코드 도출 후 저장하고 [CourseSavedEvent] 를 발행한다.
-     * duplicatedFromId 가 있으면 코스 복제 — 원본을 볼 수 있어야 하고(아니면 404) 원본 장소 유지 규칙을 더 거친다.
+     * duplicatedFromId 가 있으면 코스 복제 — 원본이 발행 코스이고 볼 수 있어야 하며(아니면 404) 원본 장소 유지 규칙을 더 거친다.
      */
     override fun create(command: CreateCourseCommand): Course {
         val places = command.places.toCoursePlaces()
         command.duplicatedFromId?.let { originId ->
             val origin =
                 findVisibleOrigin(originId, command.userId)
+                    ?.takeIf { it.isPublished }
                     ?: throw BusinessException(CourseErrorCode.COURSE_NOT_FOUND, "원본 코스를 찾을 수 없습니다: id=$originId")
             Course.ensureDuplicatePlacesKept(origin.places.map(CoursePlaceResult::placeId), places)
         }
@@ -98,11 +100,13 @@ class CourseService(
             newPlaces = newPlaces,
         )
         // 복제 초안은 편집(발행 포함)에서도 원본 장소 유지 규칙을 다시 본다 — 발행 코스는 위 가드로 장소가 안 바뀐다.
-        // 원본이 그새 삭제·비공개로 바뀌어 볼 수 없으면 검사 없이 통과시키고 참조만 유지한다.
-        existingCourse.duplicatedFromId?.let { originId ->
-            findVisibleOrigin(originId, command.userId)?.let { origin ->
-                Course.ensureDuplicatePlacesKept(origin.places.map(CoursePlaceResult::placeId), newPlaces)
-            }
+        // 원본 공개범위는 생성 시점에 이미 통과했으니 여기선 삭제 여부만 본다: 원본이 삭제됐으면 참조를 끊고 일반 코스로 전환한다.
+        val duplicatedFromId = existingCourse.duplicatedFromId?.takeIf { coursePersistencePort.existsById(it) }
+        duplicatedFromId?.let { originId ->
+            Course.ensureDuplicatePlacesKept(
+                coursePersistencePort.findPlaces(originId).map(CoursePlaceRow::placeId),
+                newPlaces,
+            )
         }
         val foundPlaces = requirePlacesExist(newPlaces.map { it.placeId })
         val areaCode =
@@ -115,7 +119,14 @@ class CourseService(
             )
 
         return updateCourse(
-            command.toCourse(existingCourse, newPlaces, foundPlaces, areaCode, resolveAreaName(areaCode)),
+            command.toCourse(
+                existingCourse,
+                duplicatedFromId,
+                newPlaces,
+                foundPlaces,
+                areaCode,
+                resolveAreaName(areaCode),
+            ),
             removed = Course.countedVisibility(existingCourse.isPublished, existingCourse.visibility),
         )
     }

@@ -152,6 +152,7 @@ data class Course private constructor(
             coverImageUrl: String?,
             visibility: CourseVisibility,
             isPublished: Boolean,
+            duplicatedFromId: Long?,
             tags: List<String>,
             places: List<CoursePlace>,
             wasPublished: Boolean,
@@ -175,8 +176,7 @@ data class Course private constructor(
                 coverImageUrl = coverImageUrl,
                 visibility = visibility,
                 isPublished = isPublished,
-                // 편집은 duplicate 원본을 바꾸지 않는다(update 도 duplicated_from_id 를 쓰지 않음) — 재구성용으로 null.
-                duplicatedFromId = null,
+                duplicatedFromId = duplicatedFromId,
                 tags = tags,
                 places = places,
                 category = category,

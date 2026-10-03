@@ -75,6 +75,7 @@ class CourseRepository {
                 it[areaCode] = course.areaCode
                 it[isPublished] = course.isPublished
                 it[visibility] = course.visibility
+                it[duplicatedFromId] = course.duplicatedFromId
                 it[updatedAt] = now
             }
         // 서비스가 존재·소유권을 사전 검증하므로 0행은 동시 소프트 삭제가 이긴 경우 — 500 대신 404 로 드러낸다.

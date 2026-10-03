@@ -90,6 +90,7 @@ fun CreateCourseCommand.toCourse(
 /** 편집 커맨드 → 도메인 [Course]. [places]·[areaCode]·[area] 는 서비스가 미리 도출·조회해 넘긴다. */
 fun EditCourseCommand.toCourse(
     existing: CourseDetailRow,
+    duplicatedFromId: Long?,
     places: List<CoursePlace>,
     foundPlaces: List<PlaceRef>,
     areaCode: String?,
@@ -103,6 +104,7 @@ fun EditCourseCommand.toCourse(
         coverImageUrl = coverImageUrl,
         visibility = visibility,
         isPublished = isPublished,
+        duplicatedFromId = duplicatedFromId,
         tags = tags,
         places = places,
         wasPublished = existing.isPublished,
