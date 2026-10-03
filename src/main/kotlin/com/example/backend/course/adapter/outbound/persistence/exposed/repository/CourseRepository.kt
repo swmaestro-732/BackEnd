@@ -125,6 +125,18 @@ class CourseRepository {
             it[savesCnt] = savesCnt - 1
         }
 
+    /** deleted_at IS NULL 인 행의 comments_cnt 를 1 증가시킨다. 반환은 영향받은 행 수(0 또는 1). */
+    fun increaseCommentsCount(courseId: Long): Int =
+        CourseTable.update({ (CourseTable.id eq courseId) and CourseTable.deletedAt.isNull() }) {
+            it[commentsCnt] = commentsCnt + 1
+        }
+
+    /** deleted_at IS NULL 인 행의 comments_cnt 를 1 감소시킨다. 반환은 영향받은 행 수(0 또는 1). */
+    fun decreaseCommentsCount(courseId: Long): Int =
+        CourseTable.update({ (CourseTable.id eq courseId) and CourseTable.deletedAt.isNull() }) {
+            it[commentsCnt] = commentsCnt - 1
+        }
+
     /**
      * 좋아요 원자적 증가 — deleted_at IS NULL 인 행의 likes_cnt 를 UPDATE … RETURNING 으로 1 증가시키고
      * 증가된 새 likes_cnt 를 반환한다. 활성 코스가 없어 0행이면 null(비관락 없이 유니크+원자연산으로 정합성 확보).
@@ -275,7 +287,7 @@ class CourseRepository {
 
         cursor?.let {
             // 행 비교 (saves_cnt, created_at, id) < (?, ?, ?) — 세 키가 모두 DESC 라 정렬과 방향이 같고,
-            // V11 부분 인덱스의 탐색 조건이 된다. OR 로 풀어 쓰면 인덱스 앞부분부터 읽고 버려 깊은 페이지일수록 느려진다.
+            // 부분 인덱스(idx_courses_public_feed)의 탐색 조건이 된다. OR 로 풀어 쓰면 인덱스 앞부분부터 읽고 버려 깊은 페이지일수록 느려진다.
             val afterCursor =
                 LessOp(
                     RowExpression(CourseTable.savesCnt, CourseTable.createdAt, CourseTable.id),
