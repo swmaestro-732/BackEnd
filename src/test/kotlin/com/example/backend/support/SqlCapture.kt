@@ -8,6 +8,7 @@ import org.jetbrains.exposed.v1.core.statements.StatementContext
 /**
  * 테스트가 실행하는 동안 Exposed 가 DB 로 보내는 SQL 과 바인딩 값을 모은다.
  * [SqlCaptureInterceptor] 가 META-INF/services 로 전역 등록되고, [record] 블록 안에서만 기록한다.
+ * 버퍼는 호출 스레드에 묶여 있어 테스트가 병렬로 돌아도 서로 섞이지 않는다.
  */
 object SqlCapture {
     data class Statement(
@@ -15,25 +16,20 @@ object SqlCapture {
         val args: List<String>,
     )
 
-    private val buffer = mutableListOf<Statement>()
-
-    @Volatile
-    private var capturing = false
+    private val buffer = ThreadLocal<MutableList<Statement>>()
 
     fun <T> record(block: () -> T): Pair<T, List<Statement>> {
-        synchronized(buffer) { buffer.clear() }
-        capturing = true
+        val statements = mutableListOf<Statement>()
+        buffer.set(statements)
         try {
-            val result = block()
-            return result to synchronized(buffer) { buffer.toList() }
+            return block() to statements.toList()
         } finally {
-            capturing = false
+            buffer.remove()
         }
     }
 
     internal fun add(statement: Statement) {
-        if (!capturing) return
-        synchronized(buffer) { buffer += statement }
+        buffer.get()?.add(statement)
     }
 }
 
