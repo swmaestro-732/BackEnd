@@ -85,7 +85,7 @@ class CourseReviewScreenSqlCaptureTest
         }
 
         @Test
-        fun `별점 분포·사진 수는 매번 집계하고 숨김·삭제를 제외하며, 총 개수·평균은 courses 카운터를 읽는다`() {
+        fun `통계(총 개수·평균·사진 수·별점 분포)는 집계하지 않고 courses 카운터를 읽는다`() {
             seedReviews()
 
             val (page, sql) = capture("size=10")
@@ -93,35 +93,27 @@ class CourseReviewScreenSqlCaptureTest
             // 목록: PUBLISHED 4건만, HIDDEN(5)·DELETED(6) 제외
             assertEquals(listOf(4, 3, 2, 1), page.ids())
 
-            // 별점 분포: 살아있는 행을 GROUP BY 로 매번 집계 → 5점 2·4점 1·3점 1, HIDDEN 2점·DELETED 1점은 0
-            val distribution = page.distribution()
-            assertEquals(mapOf(5 to 2, 4 to 1, 3 to 1, 2 to 0, 1 to 0), distribution)
-            val groupBy = sql.single { it.sql.contains("GROUP BY course_reviews.rating") }
-            assertTrue(groupBy.sql.contains("course_reviews.deleted_at IS NULL"))
-            assertEquals(listOf("701", "'PUBLISHED'"), groupBy.args)
-
-            // 사진 수: 살아있는 리뷰와 조인해 매번 COUNT → 리뷰1(2장)+리뷰2(1장)=3, HIDDEN·DELETED 리뷰 사진 제외
-            assertEquals(3, page["photoCount"])
-            val photoCount = sql.single { it.sql.contains("COUNT(*)") && it.sql.contains("INNER JOIN course_reviews") }
-            assertEquals(listOf("701", "'PUBLISHED'"), photoCount.args)
-
-            // 총 개수·평균: 집계가 아니라 courses.rating_sum/rating_cnt 카운터 단건 조회.
-            // 카운터는 작성(+)·소프트 삭제(−)만 반영하므로 HIDDEN 은 남아 있다 → 5건, 19/5=3.8 (분포 합 4건과 다르다).
+            // 통계는 전부 courses 카운터 단건 조회에서 온다 — 집계(GROUP BY·JOIN COUNT) SQL 이 없다.
+            // 카운터는 작성(+)·소프트 삭제(−)만 반영하므로 HIDDEN(id5, 2점, 사진 1장)은 남아 있다 → 총 5건, 19/5=3.8, 사진 4장, 2점 1건.
             assertEquals(5, page["totalCount"])
             assertEquals(3.8, page["averageRating"])
+            assertEquals(4, page["photoCount"])
+            assertEquals(mapOf(5 to 2, 4 to 1, 3 to 1, 2 to 1, 1 to 0), page.distribution())
             val counters = sql.single { it.sql.contains("courses.rating_sum") }
-            assertTrue(counters.sql.contains("courses.rating_cnt"))
-            assertTrue(sql.none { it.sql.contains("SUM(") })
+            assertTrue(
+                counters.sql.contains("courses.review_photo_cnt") && counters.sql.contains("courses.rating_5_cnt"),
+            )
+            assertTrue(sql.none { it.sql.contains("GROUP BY") || it.sql.contains("COUNT(") })
         }
 
         // ── 검증 헬퍼 ──
 
-        /** 화면 한 번 = 목록·사진·태그·별점 분포·사진 수·카운터·작성자 7문. 목록 정렬은 [orderBy] 와 일치해야 한다. */
+        /** 화면 한 번 = 목록·사진·태그·카운터·작성자 5문. 목록 정렬은 [orderBy] 와 일치해야 한다. */
         private fun assertScreenStatements(
             sql: List<SqlCapture.Statement>,
             orderBy: String,
         ) {
-            assertEquals(7, sql.size, sql.joinToString("\n") { it.sql })
+            assertEquals(5, sql.size, sql.joinToString("\n") { it.sql })
             val list = sql[0]
             assertTrue(list.sql.startsWith("SELECT") && list.sql.contains("FROM course_reviews"))
             assertTrue(list.sql.contains("ORDER BY course_reviews.$orderBy LIMIT 3"), list.sql) // size 2 + hasNext 1
@@ -132,10 +124,8 @@ class CourseReviewScreenSqlCaptureTest
             assertTrue(
                 sql[2].sql.contains("FROM course_review_tag_links WHERE course_review_tag_links.course_review_id IN"),
             )
-            assertTrue(sql[3].sql.contains("GROUP BY course_reviews.rating"))
-            assertTrue(sql[4].sql.contains("COUNT(*)") && sql[4].sql.contains("INNER JOIN course_reviews"))
-            assertTrue(sql[5].sql.contains("courses.rating_sum"))
-            assertTrue(sql[6].sql.contains("FROM users WHERE"))
+            assertTrue(sql[3].sql.contains("courses.rating_sum") && sql[3].sql.contains("courses.rating_5_cnt"))
+            assertTrue(sql[4].sql.contains("FROM users WHERE"))
         }
 
         /** 단언보다 먼저 파일에 남겨, 실패해도 실제 SQL 을 볼 수 있게 한다. */
@@ -188,7 +178,8 @@ class CourseReviewScreenSqlCaptureTest
          * 코스 701 에 리뷰 6건. 작성일은 id 순으로 증가.
          *  id1 5점 PUBLISHED 사진2·태그2 / id2 3점 PUBLISHED 사진1 / id3 4점 PUBLISHED / id4 5점 PUBLISHED
          *  id5 2점 HIDDEN 사진1 (deleted_at NULL) / id6 1점 DELETED 사진1 (deleted_at 있음)
-         * 카운터는 쓰기 경로가 남기는 값 그대로: 작성 6건 +20/+6, id6 소프트 삭제 −1/−1 → 19/5 (HIDDEN 은 차감되지 않는다).
+         * 카운터는 쓰기 경로가 남기는 값 그대로: 작성 6건 +20/+6/+5장, id6(1점) 소프트 삭제 −1/−1/−1장 → 19/5/4장,
+         * 별점별 5점 2·4점 1·3점 1·2점 1·1점 0 (HIDDEN id5 는 차감되지 않아 2점 1건과 사진 1장이 남는다).
          */
         private fun seedReviews() {
             jdbcTemplate.update(
@@ -215,7 +206,9 @@ class CourseReviewScreenSqlCaptureTest
             jdbcTemplate.update(
                 "INSERT INTO course_review_tag_links (course_review_id, tag) VALUES (1, 'PACKED'), (1, 'SMOOTH')",
             )
-            jdbcTemplate.update("UPDATE courses SET rating_sum = 19, rating_cnt = 5 WHERE id = $COURSE_ID")
+            jdbcTemplate.update(
+                "UPDATE courses SET rating_sum = 19, rating_cnt = 5, review_photo_cnt = 4, rating_5_cnt = 2, rating_4_cnt = 1, rating_3_cnt = 1, rating_2_cnt = 1 WHERE id = $COURSE_ID",
+            )
         }
 
         private companion object {

@@ -60,7 +60,7 @@ class CourseReviewRepository {
 
         insertPhotos(reviewId, review.photoUrls)
         insertTagLinks(reviewId, review.tags)
-        applyRatingDelta(review.courseId, sumDelta = review.rating.toLong(), cntDelta = 1)
+        applyCounterDelta(review.courseId, rating = review.rating, cntDelta = 1, photoDelta = review.photoUrls.size)
 
         return CourseReview.reconstitute(
             id = reviewId,
@@ -98,19 +98,32 @@ class CourseReviewRepository {
                 }.singleOrNull()
                 ?.get(CourseReviewTable.rating)
                 ?: return 0
-        applyRatingDelta(courseId, sumDelta = -deletedRating.toLong(), cntDelta = -1)
+        val photoCount =
+            CourseReviewPhotoTable
+                .selectAll()
+                .where { CourseReviewPhotoTable.courseReviewId eq reviewId }
+                .count()
+                .toInt()
+        applyCounterDelta(courseId, rating = deletedRating.toInt(), cntDelta = -1, photoDelta = -photoCount)
         return 1
     }
 
-    /** courses 별점 카운터(rating_sum·rating_cnt) 상대 갱신 — 리뷰 쓰기와 같은 트랜잭션에서만 부른다. */
-    private fun applyRatingDelta(
+    /**
+     * courses 카운터 상대 갱신 — 리뷰 쓰기와 같은 트랜잭션에서만 부른다.
+     * [cntDelta] 는 +1(작성)/-1(삭제)이고, 별점 합·별점별 수·사진 수를 그 방향으로 함께 움직인다.
+     */
+    private fun applyCounterDelta(
         courseId: Long,
-        sumDelta: Long,
+        rating: Int,
         cntDelta: Int,
+        photoDelta: Int,
     ) {
+        val ratingColumn = CourseTable.ratingCountColumn(rating)
         CourseTable.update({ CourseTable.id eq courseId }) {
-            it[ratingSum] = ratingSum + sumDelta
+            it[ratingSum] = ratingSum + rating.toLong() * cntDelta
             it[ratingCnt] = ratingCnt + cntDelta
+            it[ratingColumn] = ratingColumn + cntDelta
+            it[reviewPhotoCnt] = reviewPhotoCnt + photoDelta
         }
     }
 
