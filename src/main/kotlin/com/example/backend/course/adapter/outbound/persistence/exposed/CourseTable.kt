@@ -5,6 +5,7 @@ import com.example.backend.course.domain.model.Course
 import com.example.backend.course.domain.model.CourseCategory
 import com.example.backend.course.domain.model.CoursePlace
 import com.example.backend.course.domain.model.CourseStatus
+import org.jetbrains.exposed.v1.core.Column
 import org.jetbrains.exposed.v1.core.dao.id.EntityID
 import org.jetbrains.exposed.v1.core.dao.id.LongIdTable
 import org.jetbrains.exposed.v1.dao.LongEntity
@@ -41,6 +42,26 @@ internal object CourseTable : LongIdTable("courses") {
     // 별점 비정규화 카운터(V6) — 리뷰 작성 +rating/+1, 소프트 삭제 -rating/-1 상대 갱신. 평균 = rating_sum / rating_cnt.
     val ratingSum = long("rating_sum").default(0)
     val ratingCnt = integer("rating_cnt").default(0)
+
+    // 화면 통계 카운터(V12) — 살아있는 리뷰의 사진 수와 별점별 리뷰 수. 리뷰 작성 +, 소프트 삭제 -. 별점별 합 = rating_cnt.
+    val reviewPhotoCnt = integer("review_photo_cnt").default(0)
+    val rating1Cnt = integer("rating_1_cnt").default(0)
+    val rating2Cnt = integer("rating_2_cnt").default(0)
+    val rating3Cnt = integer("rating_3_cnt").default(0)
+    val rating4Cnt = integer("rating_4_cnt").default(0)
+    val rating5Cnt = integer("rating_5_cnt").default(0)
+
+    /** 별점(1~5)에 해당하는 카운터 컬럼. */
+    fun ratingCountColumn(rating: Int): Column<Int> =
+        when (rating) {
+            1 -> rating1Cnt
+            2 -> rating2Cnt
+            3 -> rating3Cnt
+            4 -> rating4Cnt
+            5 -> rating5Cnt
+            else -> error("별점은 1~5 여야 한다: $rating")
+        }
+
     val forkedFromId = long("forked_from_id").nullable() // 포크 원본 course (같은 도메인)
 }
 

@@ -5,6 +5,7 @@ import com.example.backend.place.domain.model.Place
 import com.example.backend.place.domain.model.PlaceBusinessStatus
 import com.example.backend.place.domain.model.PlaceCategory
 import com.example.backend.place.domain.model.PlaceStatus
+import org.jetbrains.exposed.v1.core.Column
 import org.jetbrains.exposed.v1.core.dao.id.EntityID
 import org.jetbrains.exposed.v1.core.dao.id.LongIdTable
 import org.jetbrains.exposed.v1.dao.LongEntity
@@ -35,6 +36,25 @@ internal object PlaceTable : LongIdTable("places") {
     // 별점 비정규화 카운터(V6) — 리뷰 작성 +rating/+1, 소프트 삭제 -rating/-1. 평균 = rating_sum / rating_cnt.
     val ratingSum = long("rating_sum").default(0)
     val ratingCnt = integer("rating_cnt").default(0)
+
+    // 화면 통계 카운터(V12) — 살아있는 리뷰의 사진 수와 별점별 리뷰 수. 리뷰 작성 +, 소프트 삭제 -. 별점별 합 = rating_cnt.
+    val reviewPhotoCnt = integer("review_photo_cnt").default(0)
+    val rating1Cnt = integer("rating_1_cnt").default(0)
+    val rating2Cnt = integer("rating_2_cnt").default(0)
+    val rating3Cnt = integer("rating_3_cnt").default(0)
+    val rating4Cnt = integer("rating_4_cnt").default(0)
+    val rating5Cnt = integer("rating_5_cnt").default(0)
+
+    /** 별점(1~5)에 해당하는 카운터 컬럼. */
+    fun ratingCountColumn(rating: Int): Column<Int> =
+        when (rating) {
+            1 -> rating1Cnt
+            2 -> rating2Cnt
+            3 -> rating3Cnt
+            4 -> rating4Cnt
+            5 -> rating5Cnt
+            else -> error("별점은 1~5 여야 한다: $rating")
+        }
 }
 
 /**
