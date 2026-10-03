@@ -1,6 +1,6 @@
 -- 기존 참조와 FK를 보존하며 코스 복제 명칭으로 통일한다.
 -- 구 버전 앱은 forked_from_id를 사용하므로 구·신 버전 동시 운영 없이 전환해야 한다.
--- (V9 계획·V10 좋아요가 먼저 들어가 V11 로 올린다.)
+-- (V9 계획·V10 좋아요·V11 댓글이 먼저 들어가 V12 로 올린다.)
 ALTER TABLE courses RENAME COLUMN forked_from_id TO duplicated_from_id;
 ALTER TABLE courses RENAME CONSTRAINT courses_forked_from_id_fkey TO courses_duplicated_from_id_fkey;
 

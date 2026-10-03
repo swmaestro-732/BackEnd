@@ -141,6 +141,12 @@ interface CoursePersistencePort {
      */
     fun decreaseSavesCount(courseId: Long): Int
 
+    /** 미삭제 코스의 댓글 수(comments_cnt)를 원자적으로 1 증가시키고 영향받은 행 수를 반환한다. */
+    fun increaseCommentsCount(courseId: Long): Int
+
+    /** 미삭제 코스의 댓글 수(comments_cnt)를 원자적으로 1 감소시키고 영향받은 행 수를 반환한다. */
+    fun decreaseCommentsCount(courseId: Long): Int
+
     /**
      * 좋아요 원자적 증가 — 미삭제 행의 likes_cnt 를 UPDATE … RETURNING 으로 1 증가시키고 증가된 값을 반환한다.
      * 활성 코스가 없으면 null(비관락 없이 유니크 제약+원자연산으로 정합성 확보).
