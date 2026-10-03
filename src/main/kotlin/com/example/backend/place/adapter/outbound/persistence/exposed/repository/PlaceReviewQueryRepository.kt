@@ -3,16 +3,16 @@ package com.example.backend.place.adapter.outbound.persistence.exposed.repositor
 import com.example.backend.place.adapter.outbound.persistence.exposed.PlaceReviewPhotoTable
 import com.example.backend.place.adapter.outbound.persistence.exposed.PlaceReviewTable
 import com.example.backend.place.adapter.outbound.persistence.exposed.PlaceReviewTagLinkTable
+import com.example.backend.place.adapter.outbound.persistence.exposed.PlaceTable
 import com.example.backend.place.application.port.inbound.dto.PlaceReviewSortKey
+import com.example.backend.place.application.port.outbound.PlaceReviewCounters
 import com.example.backend.place.application.port.outbound.PlaceReviewCursor
 import com.example.backend.place.application.port.outbound.PlaceReviewRow
 import com.example.backend.place.domain.model.PlaceReviewStatus
 import com.example.backend.place.domain.model.PlaceReviewTag
-import org.jetbrains.exposed.v1.core.JoinType
 import org.jetbrains.exposed.v1.core.Op
 import org.jetbrains.exposed.v1.core.SortOrder
 import org.jetbrains.exposed.v1.core.and
-import org.jetbrains.exposed.v1.core.count
 import org.jetbrains.exposed.v1.core.eq
 import org.jetbrains.exposed.v1.core.greater
 import org.jetbrains.exposed.v1.core.inList
@@ -84,27 +84,28 @@ class PlaceReviewQueryRepository {
             .groupBy({ it[PlaceReviewTagLinkTable.placeReviewId] }, { it[PlaceReviewTagLinkTable.tag] })
     }
 
-    /** 장소 전체의 살아있는 리뷰를 별점별로 센다. */
-    fun countReviewsByRating(placeId: Long): Map<Int, Long> {
-        val reviewCount = PlaceReviewTable.id.count()
-        return PlaceReviewTable
-            .select(PlaceReviewTable.rating, reviewCount)
-            .where(alive(placeId))
-            .groupBy(PlaceReviewTable.rating)
-            .associate { it[PlaceReviewTable.rating].toInt() to it[reviewCount] }
-    }
-
-    /** 장소 전체의 살아있는 리뷰에 달린 사진을 센다. */
-    fun countPhotosByPlace(placeId: Long): Long =
-        PlaceReviewPhotoTable
-            .join(
-                PlaceReviewTable,
-                JoinType.INNER,
-                PlaceReviewPhotoTable.placeReviewId,
-                PlaceReviewTable.id,
-            ).selectAll()
-            .where(alive(placeId))
-            .count()
+    /** places 리뷰 카운터(V6·V12) 단건 조회 — 삭제된 장소는 제외한다. */
+    fun findCounters(placeId: Long): PlaceReviewCounters? =
+        PlaceTable
+            .select(
+                PlaceTable.ratingSum,
+                PlaceTable.ratingCnt,
+                PlaceTable.reviewPhotoCnt,
+                PlaceTable.rating1Cnt,
+                PlaceTable.rating2Cnt,
+                PlaceTable.rating3Cnt,
+                PlaceTable.rating4Cnt,
+                PlaceTable.rating5Cnt,
+            ).where { (PlaceTable.id eq placeId) and PlaceTable.deletedAt.isNull() }
+            .singleOrNull()
+            ?.let { row ->
+                PlaceReviewCounters(
+                    ratingSum = row[PlaceTable.ratingSum],
+                    ratingCnt = row[PlaceTable.ratingCnt],
+                    reviewPhotoCnt = row[PlaceTable.reviewPhotoCnt],
+                    ratingCounts = (1..5).associateWith { row[PlaceTable.ratingCountColumn(it)] },
+                )
+            }
 
     /** 커서 뒤(내림차순이면 더 작은 쪽)만 남기는 키셋 조건. 정렬 컬럼 순서와 반드시 일치해야 한다. */
     private fun afterCursor(

@@ -3,6 +3,7 @@ package com.example.backend.place.application.port.outbound
 import com.example.backend.place.application.port.inbound.dto.PlaceReviewSortKey
 import com.example.backend.place.domain.model.PlaceReviewTag
 import java.time.Instant
+import kotlin.math.round
 
 /**
  * 아웃바운드 포트 — 장소 리뷰(place_reviews) 읽기 계약.
@@ -28,11 +29,20 @@ interface PlaceReviewQueryPort {
     /** 리뷰 id 별 태그. 저장된 값이 곧 enum 이름이라 마스터 조회가 없다(V6). */
     fun findTags(reviewIds: List<Long>): Map<Long, List<PlaceReviewTag>>
 
-    /** 장소 전체의 별점별 리뷰 수. 실제 존재하는 별점만 반환하며 페이지와 무관하다. */
-    fun countReviewsByRating(placeId: Long): Map<Int, Long>
+    /** 장소의 리뷰 비정규화 카운터(places.rating_sum·rating_cnt — V6, 사진 수·별점별 수 — V12). 없는(삭제된) 장소면 null. */
+    fun findCounters(placeId: Long): PlaceReviewCounters?
+}
 
-    /** 장소 전체의 살아있는 리뷰에 달린 사진 수. 페이지와 무관하다. */
-    fun countPhotosByPlace(placeId: Long): Long
+/** 리뷰 비정규화 카운터 읽기 모델. 평균은 소수 첫째 자리 반올림(Place.averageRating 과 같은 규칙). */
+data class PlaceReviewCounters(
+    val ratingSum: Long,
+    val ratingCnt: Int,
+    val reviewPhotoCnt: Int,
+    /** 별점(1~5) → 리뷰 수. */
+    val ratingCounts: Map<Int, Int>,
+) {
+    val averageRating: Double
+        get() = if (ratingCnt == 0) 0.0 else round(ratingSum * 10.0 / ratingCnt) / 10.0
 }
 
 /** 리뷰 읽기 모델 — 자식(사진·태그) 없이 본문만. */
