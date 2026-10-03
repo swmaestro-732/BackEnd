@@ -38,11 +38,19 @@ data class CourseSummaryRow(
     val title: String,
     val coverImageUrl: String?,
     val category: CourseCategory?,
+    /** 코스 지역(예: "성수"). 미입력이면 null. */
+    val area: String?,
     val visibility: CourseVisibility,
     val isPublished: Boolean,
     val likesCnt: Int,
     val savesCnt: Int,
     val createdAt: Instant,
+)
+
+/** 코스별 장소 집계 — 장소 수와 구간 도보 시간 합(분, 미입력 구간은 0). */
+data class CoursePlaceStats(
+    val placeCount: Int,
+    val walkingMinutes: Int,
 )
 
 /** 코스에 담긴 장소 읽기 모델(장소별 이미지 포함, orderNo 오름차순). */
@@ -104,6 +112,9 @@ interface CoursePersistencePort {
 
     /** 여러 코스의 장소들을 courseId 별로(각 코스 안은 orderNo 오름차순) 한 번에 읽는다 — 목록 화면 배치 조회용. */
     fun findPlacesByCourseIds(courseIds: List<Long>): Map<Long, List<CoursePlaceRow>>
+
+    /** 여러 코스의 장소 집계를 group by 한 번으로 읽는다(카드 메타). 장소가 없는 코스는 결과에서 빠진다. */
+    fun findPlaceStats(courseIds: List<Long>): Map<Long, CoursePlaceStats>
 
     /** 코스 애그리거트(코스·장소·이미지·태그)를 한 트랜잭션으로 저장하고, 저장된 코스(생성 id·DB 생성값 포함)를 반환한다. */
     fun save(course: Course): Course

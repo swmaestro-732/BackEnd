@@ -11,9 +11,14 @@ import com.example.backend.course.application.port.outbound.CourseDetailRow
 import com.example.backend.course.application.port.outbound.CourseSummaryRow
 import com.example.backend.course.domain.model.Course
 import com.example.backend.course.domain.model.CourseStatus
+import org.jetbrains.exposed.v1.core.Expression
+import org.jetbrains.exposed.v1.core.LessOp
+import org.jetbrains.exposed.v1.core.QueryBuilder
+import org.jetbrains.exposed.v1.core.QueryParameter
 import org.jetbrains.exposed.v1.core.ResultRow
 import org.jetbrains.exposed.v1.core.SortOrder
 import org.jetbrains.exposed.v1.core.and
+import org.jetbrains.exposed.v1.core.dao.id.EntityID
 import org.jetbrains.exposed.v1.core.eq
 import org.jetbrains.exposed.v1.core.greater
 import org.jetbrains.exposed.v1.core.inList
@@ -281,16 +286,17 @@ class CourseRepository {
                 (CourseTable.visibility eq CourseVisibility.PUBLIC)
 
         cursor?.let {
-            val cursorCreatedAt = it.createdAt.toKotlinInstant()
+            // 행 비교 (saves_cnt, created_at, id) < (?, ?, ?) — 세 키가 모두 DESC 라 정렬과 방향이 같고,
+            // 부분 인덱스(idx_courses_public_feed)의 탐색 조건이 된다. OR 로 풀어 쓰면 인덱스 앞부분부터 읽고 버려 깊은 페이지일수록 느려진다.
             val afterCursor =
-                (CourseTable.savesCnt less it.savesCnt) or
-                    (
-                        (CourseTable.savesCnt eq it.savesCnt) and
-                            (
-                                (CourseTable.createdAt less cursorCreatedAt) or
-                                    ((CourseTable.createdAt eq cursorCreatedAt) and (CourseTable.id less it.id))
-                            )
-                    )
+                LessOp(
+                    RowExpression(CourseTable.savesCnt, CourseTable.createdAt, CourseTable.id),
+                    RowExpression(
+                        QueryParameter(it.savesCnt, CourseTable.savesCnt.columnType),
+                        QueryParameter(it.createdAt.toKotlinInstant(), CourseTable.createdAt.columnType),
+                        QueryParameter(EntityID(it.id, CourseTable), CourseTable.id.columnType),
+                    ),
+                )
             condition = condition and afterCursor
         }
 
@@ -326,10 +332,26 @@ class CourseRepository {
             title = it[CourseTable.title],
             coverImageUrl = it[CourseTable.coverImageUrl],
             category = it[CourseTable.category],
+            area = it[CourseTable.area],
             visibility = it[CourseTable.visibility],
             isPublished = it[CourseTable.isPublished],
             likesCnt = it[CourseTable.likesCnt],
             savesCnt = it[CourseTable.savesCnt],
             createdAt = it[CourseTable.createdAt].toJavaInstant(),
         )
+}
+
+/** SQL 행 값 `(a, b, c)` — 복합 키셋 비교용. Exposed 에 행 비교 연산자가 없어 [LessOp] 와 함께 쓴다. */
+private class RowExpression(
+    private vararg val parts: Expression<*>,
+) : Expression<Any>() {
+    override fun toQueryBuilder(queryBuilder: QueryBuilder) =
+        queryBuilder {
+            append("(")
+            parts.forEachIndexed { i, part ->
+                if (i > 0) append(", ")
+                append(part)
+            }
+            append(")")
+        }
 }

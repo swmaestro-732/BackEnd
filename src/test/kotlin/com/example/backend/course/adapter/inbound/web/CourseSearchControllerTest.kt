@@ -53,6 +53,8 @@ class CourseSearchControllerTest {
             likesCnt = 100,
             savesCnt = 50,
             createdAt = now,
+            placeCount = null,
+            walkingMinutes = null,
         )
 
     @Test

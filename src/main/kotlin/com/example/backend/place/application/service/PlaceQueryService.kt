@@ -5,6 +5,7 @@ import com.example.backend.common.geo.Coordinate
 import com.example.backend.common.response.CommonErrorCode
 import com.example.backend.common.response.PlaceErrorCode
 import com.example.backend.place.application.port.inbound.PlaceQueryUseCase
+import com.example.backend.place.application.port.inbound.dto.NearbyPlaceSummary
 import com.example.backend.place.application.port.inbound.dto.PlaceSummary
 import com.example.backend.place.application.port.inbound.dto.PlaceSummaryPage
 import com.example.backend.place.application.port.outbound.PlaceQueryPort
@@ -35,6 +36,31 @@ class PlaceQueryService(
         } else {
             placeQueryPort.findPlacesById(placeIds).map { it.toSummary() }
         }
+
+    override fun findNearest(
+        placeIds: List<Long>,
+        origin: Coordinate,
+        limit: Int,
+    ): List<NearbyPlaceSummary> {
+        if (placeIds.isEmpty()) return emptyList()
+        val hits = placeSearchQueryPort.nearestAmong(placeIds, origin, limit)
+        if (hits.isEmpty()) return emptyList()
+        // 엔진 거리순을 보존한다 — DB 조회 결과는 id 순이라 그대로 쓰면 정렬이 깨진다(삭제된 장소는 자연 탈락).
+        val byId = placeQueryPort.findPlacesById(hits.map { it.id }).associateBy { it.id }
+        return hits.mapNotNull { hit ->
+            byId[hit.id]?.let {
+                NearbyPlaceSummary(
+                    id = hit.id,
+                    name = it.name,
+                    category = it.category.name,
+                    imageUrl = it.imageUrl,
+                    rating = it.averageRating,
+                    ratingCount = it.ratingCnt,
+                    distanceMeters = hit.distanceMeters,
+                )
+            }
+        }
+    }
 
     override fun searchByName(
         query: String,
