@@ -91,6 +91,7 @@ class CourseReviewPersistenceTest
                         .map { it[CourseReviewPhotoTable.imageUrl] to it[CourseReviewPhotoTable.orderNo] }
 
                 assertEquals(photoUrls.mapIndexed { index, url -> url to index.toShort() }, rows)
+                assertEquals(3, photoCounter(courseId)) // 작성 시 review_photo_cnt +사진 수
                 rollback()
             }
         }
@@ -182,7 +183,16 @@ class CourseReviewPersistenceTest
         fun `소프트 삭제는 상태·deleted_at 을 스탬프하고 카운터를 되돌린다`() {
             transaction {
                 val courseId = insertCourse("삭제 코스")
-                val saved = port.save(review(courseId, rating = 4))
+                val saved =
+                    port.save(
+                        review(
+                            courseId,
+                            rating = 4,
+                            photoUrls = listOf("https://cdn.example.com/1.jpg", "https://cdn.example.com/2.jpg"),
+                        ),
+                    )
+                assertEquals(2, photoCounter(courseId))
+                assertEquals(1, ratingCount(courseId, 4)) // 작성 시 rating_4_cnt +1
 
                 val deleted = port.softDelete(reviewId = saved.id!!, courseId = courseId, userId = USER_ID)
 
@@ -191,6 +201,8 @@ class CourseReviewPersistenceTest
                 assertEquals(CourseReviewStatus.DELETED, row[CourseReviewTable.status])
                 assertNotNull(row[CourseReviewTable.deletedAt])
                 assertEquals(0L to 0, ratingCounters(courseId))
+                assertEquals(0, photoCounter(courseId)) // 삭제 시 review_photo_cnt -사진 수
+                assertEquals(0, ratingCount(courseId, 4)) // 삭제 시 rating_4_cnt -1
                 rollback()
             }
         }
@@ -246,6 +258,15 @@ class CourseReviewPersistenceTest
             val row = CourseTable.selectAll().where { CourseTable.id eq courseId }.single()
             return row[CourseTable.ratingSum] to row[CourseTable.ratingCnt]
         }
+
+        private fun photoCounter(courseId: Long): Int =
+            CourseTable.selectAll().where { CourseTable.id eq courseId }.single()[CourseTable.reviewPhotoCnt]
+
+        private fun ratingCount(
+            courseId: Long,
+            rating: Int,
+        ): Int =
+            CourseTable.selectAll().where { CourseTable.id eq courseId }.single()[CourseTable.ratingCountColumn(rating)]
 
         private companion object {
             const val USER_ID = 1L

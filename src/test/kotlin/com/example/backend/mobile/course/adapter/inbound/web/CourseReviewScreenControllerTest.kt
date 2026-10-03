@@ -164,9 +164,11 @@ class CourseReviewScreenControllerTest
             jdbcTemplate.update(
                 "INSERT INTO course_review_tag_links (course_review_id, tag) VALUES (1, 'PACKED'), (1, 'SMOOTH')",
             )
-            // totalCount·averageRating 은 행 집계가 아니라 비정규화 카운터에서 읽는다 — 쓰기 경로가 유지하는 값을 그대로 맞춰 둔다.
-            // 5+3+5 / 3건(삭제 제외)
-            jdbcTemplate.update("UPDATE courses SET rating_sum = 13, rating_cnt = 3 WHERE id = $COURSE_ID")
+            // totalCount·averageRating·photoCount·ratingDistribution 은 행 집계가 아니라 비정규화 카운터에서 읽는다 —
+            // 쓰기 경로가 유지하는 값을 그대로 맞춰 둔다. 5+3+5 / 3건(삭제 제외) / 사진 2장(리뷰 1) / 5점 2·3점 1
+            jdbcTemplate.update(
+                "UPDATE courses SET rating_sum = 13, rating_cnt = 3, review_photo_cnt = 2, rating_5_cnt = 2, rating_3_cnt = 1 WHERE id = $COURSE_ID",
+            )
         }
 
         private fun fetch(query: String): Map<String, Any?> {
