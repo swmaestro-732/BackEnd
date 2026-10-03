@@ -11,9 +11,10 @@ CREATE INDEX idx_course_reviews_course_latest
     ON public.course_reviews (course_id, created_at)
     WHERE status = 'PUBLISHED' AND deleted_at IS NULL;
 
--- 2) findPhotoUrls: FK 컬럼 인덱스. order_no까지 넣어 리뷰별 사진 순서를 인덱스 순서로 받는다.
+-- 2) findPhotoUrls: FK 컬럼 인덱스. 정렬(ORDER BY order_no)은 페이지의 사진 수십 행에 대한 Sort 로 충분해
+-- order_no 는 넣지 않는다 (넣어도 계획·버퍼 동일, 크기만 11MB→6.8MB, 벤치 실측).
 CREATE INDEX idx_course_review_photos_review
-    ON public.course_review_photos (course_review_id, order_no);
+    ON public.course_review_photos (course_review_id);
 
 -- 3) 화면 통계 카운터 + 백필 — 사진 총개수와 별점별 리뷰 수.
 -- 두 집계(사진 JOIN COUNT, GROUP BY rating)는 리뷰가 많은 코스에서 매 요청 코스 전체를 읽어야 해
@@ -64,9 +65,9 @@ CREATE INDEX idx_place_reviews_place_latest
     ON public.place_reviews (place_id, created_at)
     WHERE status = 'PUBLISHED' AND deleted_at IS NULL;
 
--- 5) findPhotoUrls: FK 컬럼 인덱스.
+-- 5) findPhotoUrls: FK 컬럼 인덱스 (코스와 같은 이유로 order_no 없음).
 CREATE INDEX idx_place_review_photos_review
-    ON public.place_review_photos (place_review_id, order_no);
+    ON public.place_review_photos (place_review_id);
 
 -- 6) 화면 통계 카운터 + 백필.
 ALTER TABLE public.places
