@@ -45,12 +45,15 @@ class HomeFeedService(
                 if (viewerId == null || userLocation == null) {
                     emptyList()
                 } else {
-                    homeNearbyPlacePort.findNearbySavedPlaces(viewerId, userLocation, HOME_SECTION_SIZE).map {
-                        HomeResult.NearbySavedPlace(
-                            place = it,
-                            walkingMinutes = ceil(it.distanceMeters / WALKING_METERS_PER_MINUTE).toInt(),
-                        )
-                    }
+                    // 포트가 가까운 순으로 주므로, 상한을 넘는 장소를 걸러도 더 가까운 장소가 빠지지 않는다.
+                    homeNearbyPlacePort
+                        .findNearbySavedPlaces(viewerId, userLocation, HOME_SECTION_SIZE)
+                        .map {
+                            HomeResult.NearbySavedPlace(
+                                place = it,
+                                walkingMinutes = ceil(it.distanceMeters / WALKING_METERS_PER_MINUTE).toInt(),
+                            )
+                        }.filter { it.walkingMinutes <= MAX_WALKING_MINUTES }
                 },
         )
 
@@ -85,5 +88,8 @@ class HomeFeedService(
 
         /** 도보 속도 근사(시속 4km = 분당 약 67m). 경로 API(TMAP)는 부르지 않는다. */
         const val WALKING_METERS_PER_MINUTE = 67.0
+
+        /** "근처"로 보여 줄 도보 시간 상한(분). 이보다 먼 저장 장소는 홈에 내리지 않는다(약 2km). */
+        const val MAX_WALKING_MINUTES = 30
     }
 }

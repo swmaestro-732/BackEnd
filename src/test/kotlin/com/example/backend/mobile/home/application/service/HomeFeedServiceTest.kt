@@ -107,6 +107,17 @@ class HomeFeedServiceTest {
     }
 
     @Test
+    fun `도보 30분을 넘는 저장 장소는 근처 저장 장소에서 뺀다`() {
+        // 30분 = 2010m(67m x 30) 까지 포함, 2011m 는 31분이라 제외
+        fakeNearbyPort.places = listOf(place(1, 400.0), place(2, 2010.0), place(3, 2011.0), place(4, 5000.0))
+
+        val result = service.getHome(viewerId = USER_ID, userLocation = ORIGIN)
+
+        assertEquals(listOf(1L, 2L), result.nearbySavedPlaces.map { it.place.placeId })
+        assertEquals(listOf(6, 30), result.nearbySavedPlaces.map { it.walkingMinutes })
+    }
+
+    @Test
     fun `근처 포트가 빈 목록이면 섹션도 비어 있다 (저장 0개나 검색 장애 흡수)`() {
         fakeNearbyPort.places = emptyList()
 

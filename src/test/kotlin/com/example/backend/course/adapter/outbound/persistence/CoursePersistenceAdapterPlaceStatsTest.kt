@@ -26,21 +26,24 @@ class CoursePersistenceAdapterPlaceStatsTest
         private val adapter: CoursePersistenceAdapter,
     ) : IntegrationTestBase() {
         @Test
-        fun `코스별 장소 수와 도보 시간 합을 집계하고 NULL 구간은 0 으로 본다`() {
+        fun `코스별 장소 수와 도보 시간 합을 집계하고 NULL, 도보 불가(-1) 구간은 더하지 않는다`() {
             transaction {
                 val mixed = insertCourse()
                 val allNull = insertCourse()
+                val unwalkableOnly = insertCourse()
                 val empty = insertCourse()
                 val notRequested = insertCourse()
-                insertPlaces(mixed, 5, 7, null)
+                insertPlaces(mixed, 5, -1, 7, null)
                 insertPlaces(allNull, null, null)
+                insertPlaces(unwalkableOnly, -1, null)
                 insertPlaces(notRequested, 30)
 
-                val stats = adapter.findPlaceStats(listOf(mixed, allNull, empty))
+                val stats = adapter.findPlaceStats(listOf(mixed, allNull, unwalkableOnly, empty))
 
                 assertThat(stats).containsOnly(
-                    entry(mixed, CoursePlaceStats(placeCount = 3, walkingMinutes = 12)),
+                    entry(mixed, CoursePlaceStats(placeCount = 4, walkingMinutes = 12)),
                     entry(allNull, CoursePlaceStats(placeCount = 2, walkingMinutes = 0)),
+                    entry(unwalkableOnly, CoursePlaceStats(placeCount = 2, walkingMinutes = 0)),
                 )
 
                 rollback()
