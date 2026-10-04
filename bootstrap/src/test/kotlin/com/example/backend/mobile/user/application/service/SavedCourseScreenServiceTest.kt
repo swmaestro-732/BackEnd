@@ -1,7 +1,5 @@
 package com.example.backend.mobile.user.application.service
 
-import com.example.backend.common.contract.CourseInteractionUseCase
-import com.example.backend.common.contract.CourseViewerState
 import com.example.backend.common.domain.CourseVisibility
 import com.example.backend.course.application.port.inbound.CourseQueryUseCase
 import com.example.backend.course.application.port.inbound.dto.CourseDetailResult
@@ -9,8 +7,10 @@ import com.example.backend.course.application.port.inbound.dto.CoursePlaceResult
 import com.example.backend.mobile.user.application.port.inbound.SavedCourseScreenCommand
 import com.example.backend.place.application.port.inbound.PlaceQueryUseCase
 import com.example.backend.place.application.port.inbound.dto.PlaceSummary
+import com.example.backend.user.application.port.inbound.CourseInteractionUseCase
 import com.example.backend.user.application.port.inbound.SavedCourseUseCase
 import com.example.backend.user.application.port.inbound.UserUseCase
+import com.example.backend.user.application.port.inbound.dto.CourseViewerState
 import com.example.backend.user.application.port.inbound.dto.SavedCourseFolderCount
 import com.example.backend.user.application.port.inbound.dto.SavedCourseFolderCounts
 import com.example.backend.user.application.port.inbound.dto.SavedCoursesCommand

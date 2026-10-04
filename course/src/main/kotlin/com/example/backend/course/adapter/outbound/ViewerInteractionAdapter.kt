@@ -1,9 +1,9 @@
 package com.example.backend.course.adapter.outbound
 
-import com.example.backend.common.contract.CourseInteractionUseCase
 import com.example.backend.course.adapter.outbound.persistence.exposed.repository.CourseLikeRepository
 import com.example.backend.course.application.port.outbound.ViewerCourseState
 import com.example.backend.course.application.port.outbound.ViewerInteractionPort
+import com.example.backend.user.application.port.inbound.CourseInteractionUseCase
 import org.springframework.stereotype.Component
 
 /**

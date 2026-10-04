@@ -6,6 +6,7 @@ WORKDIR /workspace
 COPY gradlew settings.gradle.kts build.gradle.kts ./
 COPY gradle gradle
 COPY common/build.gradle.kts common/
+COPY user-api/build.gradle.kts user-api/
 COPY area/build.gradle.kts area/
 COPY media/build.gradle.kts media/
 COPY direction/build.gradle.kts direction/
@@ -18,6 +19,7 @@ RUN chmod +x gradlew && ./gradlew :bootstrap:dependencies --no-daemon > /dev/nul
 
 # 모듈 소스 복사 후 실행 산출물(bootJar) 빌드 (도메인 단위 모듈)
 COPY common/src common/src
+COPY user-api/src user-api/src
 COPY area/src area/src
 COPY media/src media/src
 COPY direction/src direction/src

@@ -4,6 +4,7 @@ rootProject.name = "Backend"
 // 의존 방향(DAG): common <- area,media <- place <- course <- user <- mobile <- bootstrap
 include(
     "common",
+    "user-api",
     "area",
     "media",
     "direction",

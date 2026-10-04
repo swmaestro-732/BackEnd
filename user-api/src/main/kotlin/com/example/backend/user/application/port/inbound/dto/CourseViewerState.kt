@@ -1,4 +1,4 @@
-package com.example.backend.common.contract
+package com.example.backend.user.application.port.inbound.dto
 
 import java.time.Instant
 

@@ -11,6 +11,7 @@ tasks.named<Jar>("jar") { enabled = false }
 
 dependencies {
     implementation(project(":common"))
+    implementation(project(":user-api"))
     implementation(project(":area"))
     implementation(project(":media"))
     implementation(project(":direction"))
@@ -75,7 +76,7 @@ tasks.register<Test>("archTest") {
 tasks.jacocoTestReport {
     dependsOn(tasks.test)
     val coveredModules =
-        listOf("common", "area", "media", "direction", "place", "course", "user", "mobile", "bootstrap")
+        listOf("common", "user-api", "area", "media", "direction", "place", "course", "user", "mobile", "bootstrap")
     sourceDirectories.setFrom(files(coveredModules.map { rootProject.project(it).file("src/main/kotlin") }))
     classDirectories.setFrom(
         files(
@@ -92,4 +93,13 @@ tasks.jacocoTestReport {
         xml.required.set(true)
         html.required.set(true)
     }
+}
+
+// bootstrap 은 OpenSearch/SQS/S3 config 빈을 모두 가진다.
+dependencies {
+    implementation(libs.opensearch.java)
+    implementation(platform(libs.spring.cloud.aws.bom))
+    implementation("io.awspring.cloud:spring-cloud-aws-starter-sqs")
+    implementation(platform(libs.aws.bom))
+    implementation(libs.aws.s3)
 }

@@ -46,43 +46,40 @@ subprojects {
         }
     }
 
-    // 공유 인프라 의존을 한곳에 둔다(모듈별 중복 제거). 버전은 카탈로그(libs) 또는 BOM 이 관리.
-    // 도메인 모듈화에서 레이어 순수성은 각 모듈 내 ArchUnit 로 강제하므로, 전 모듈이 인프라를 갖는 것은 무방.
     val libs = rootProject.extensions.getByType<VersionCatalogsExtension>().named("libs")
 
     fun lib(alias: String) = libs.findLibrary(alias).get()
+
+    // 모든 모듈 공통: 코틀린 리플렉션/직렬화/로깅/날짜 + 테스트 러너.
     dependencies {
         add("implementation", "org.jetbrains.kotlin:kotlin-reflect")
-
-        add("implementation", "org.springframework.boot:spring-boot-starter-webmvc")
-        add("implementation", "org.springframework.boot:spring-boot-starter-security")
-        add("implementation", "org.springframework.boot:spring-boot-starter-oauth2-resource-server")
-        add("implementation", "org.springframework.boot:spring-boot-starter-validation")
-        add("implementation", "org.springframework.boot:spring-boot-starter-aspectj")
-        add("implementation", "org.springframework:spring-tx")
-
-        add("implementation", lib("exposed-core"))
-        add("implementation", lib("exposed-jdbc"))
-        add("implementation", lib("exposed-dao"))
-        add("implementation", lib("exposed-kotlin-datetime"))
-        add("implementation", lib("kotlinx-datetime"))
-
         add("implementation", "tools.jackson.module:jackson-module-kotlin")
         add("implementation", lib("jackson-module-kotlin-v2"))
         add("implementation", lib("kotlin-logging"))
-        add("implementation", lib("springdoc-openapi-webmvc-ui"))
-
-        add("implementation", platform(lib("aws-bom")))
-        add("implementation", lib("aws-s3"))
-        add("implementation", platform(lib("spring-cloud-aws-bom")))
-        add("implementation", "io.awspring.cloud:spring-cloud-aws-starter-sqs")
-
-        add("implementation", lib("opensearch-java"))
-        add("implementation", "org.apache.httpcomponents.client5:httpclient5")
-        add("implementation", "org.postgresql:postgresql")
-
+        add("implementation", lib("kotlinx-datetime"))
         add("testImplementation", "org.jetbrains.kotlin:kotlin-test-junit5")
         add("testRuntimeOnly", "org.junit.platform:junit-platform-launcher")
+    }
+
+    // 어댑터 인프라(web/security/Exposed/검증 등)는 어댑터를 가진 컨텍스트 모듈에만 준다.
+    // :common(공유 커널), :user-api(순수 계약)는 제외하고 각자 필요한 것만 선언한다.
+    // 특정 라이브러리(OpenSearch/SQS/S3)는 공통에서 빼고 실제 쓰는 모듈에서 직접 선언한다(범위 축소).
+    if (name != "common" && name != "user-api") {
+        dependencies {
+            add("implementation", "org.springframework.boot:spring-boot-starter-webmvc")
+            add("implementation", "org.springframework.boot:spring-boot-starter-security")
+            add("implementation", "org.springframework.boot:spring-boot-starter-oauth2-resource-server")
+            add("implementation", "org.springframework.boot:spring-boot-starter-validation")
+            add("implementation", "org.springframework.boot:spring-boot-starter-aspectj")
+            add("implementation", "org.springframework:spring-tx")
+            add("implementation", lib("exposed-core"))
+            add("implementation", lib("exposed-jdbc"))
+            add("implementation", lib("exposed-dao"))
+            add("implementation", lib("exposed-kotlin-datetime"))
+            add("implementation", lib("springdoc-openapi-webmvc-ui"))
+            add("implementation", "org.apache.httpcomponents.client5:httpclient5")
+            add("implementation", "org.postgresql:postgresql")
+        }
     }
 
     tasks.withType<Test>().configureEach {
