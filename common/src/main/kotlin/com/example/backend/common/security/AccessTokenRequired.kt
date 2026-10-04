@@ -1,4 +1,4 @@
-package com.example.backend.bootstrap.security
+package com.example.backend.common.security
 
 import org.springframework.security.access.prepost.PreAuthorize
 

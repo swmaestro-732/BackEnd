@@ -1,10 +1,10 @@
 package com.example.backend.place.adapter.outbound.search
 
-import com.example.backend.bootstrap.config.OpenSearchProperties
 import com.example.backend.common.exception.BusinessException
 import com.example.backend.common.geo.Coordinate
 import com.example.backend.common.geo.Viewport
 import com.example.backend.common.response.PlaceErrorCode
+import com.example.backend.common.search.OpenSearchProperties
 import com.example.backend.place.application.port.inbound.dto.PlaceMapSort
 import com.example.backend.place.application.port.outbound.PlaceSearchCriteria
 import com.example.backend.place.domain.model.PlaceCategory

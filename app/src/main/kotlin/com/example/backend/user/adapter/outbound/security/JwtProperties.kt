@@ -1,4 +1,4 @@
-package com.example.backend.bootstrap.security
+package com.example.backend.user.adapter.outbound.security
 
 import org.springframework.boot.context.properties.ConfigurationProperties
 import java.time.Duration

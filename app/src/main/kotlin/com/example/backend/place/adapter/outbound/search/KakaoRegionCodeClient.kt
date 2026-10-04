@@ -1,7 +1,7 @@
 package com.example.backend.place.adapter.outbound.search
 
-import com.example.backend.bootstrap.config.KakaoLocalProperties
 import com.example.backend.common.geo.Coordinate
+import com.example.backend.place.adapter.outbound.search.KakaoLocalProperties
 import com.example.backend.place.application.port.outbound.AreaCodeLookupPort
 import io.github.oshai.kotlinlogging.KotlinLogging
 import org.springframework.beans.factory.annotation.Qualifier

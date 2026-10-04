@@ -6,6 +6,8 @@ plugins {
 description = "Backend 실행 모듈 — Spring Boot 부트스트랩·설정·리소스(application.yml·Flyway)·bootJar 산출물"
 
 dependencies {
+    implementation(project(":common"))
+
     // Exposed 핵심 모듈
     implementation("org.jetbrains.exposed:exposed-jdbc:1.3.0")
     implementation("org.jetbrains.exposed:exposed-core:1.3.0")

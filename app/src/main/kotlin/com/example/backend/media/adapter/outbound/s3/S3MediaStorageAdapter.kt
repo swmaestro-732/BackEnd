@@ -1,6 +1,6 @@
 package com.example.backend.media.adapter.outbound.s3
 
-import com.example.backend.bootstrap.config.MediaProperties
+import com.example.backend.media.application.MediaProperties
 import com.example.backend.media.application.port.outbound.MediaStoragePort
 import io.github.oshai.kotlinlogging.KotlinLogging
 import org.springframework.stereotype.Component

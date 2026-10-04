@@ -1,6 +1,6 @@
 package com.example.backend.bootstrap.search
 
-import com.example.backend.bootstrap.config.OpenSearchProperties
+import com.example.backend.common.search.OpenSearchProperties
 import org.junit.jupiter.api.Test
 import org.mockito.ArgumentMatchers
 import org.mockito.Mockito.mock

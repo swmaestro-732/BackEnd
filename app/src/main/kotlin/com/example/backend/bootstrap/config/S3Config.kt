@@ -1,5 +1,6 @@
 package com.example.backend.bootstrap.config
 
+import com.example.backend.media.application.MediaProperties
 import org.springframework.beans.factory.annotation.Value
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration

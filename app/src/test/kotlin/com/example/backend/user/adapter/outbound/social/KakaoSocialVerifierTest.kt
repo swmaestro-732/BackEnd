@@ -1,8 +1,8 @@
 package com.example.backend.user.adapter.outbound.social
 
-import com.example.backend.bootstrap.security.KakaoOauthProperties
 import com.example.backend.common.exception.BusinessException
 import com.example.backend.common.response.CommonErrorCode
+import com.example.backend.user.adapter.outbound.social.KakaoOauthProperties
 import com.example.backend.user.domain.model.SocialProvider
 import org.junit.jupiter.api.Test
 import org.springframework.security.oauth2.jwt.Jwt

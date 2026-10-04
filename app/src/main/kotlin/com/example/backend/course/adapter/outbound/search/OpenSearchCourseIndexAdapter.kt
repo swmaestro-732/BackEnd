@@ -1,6 +1,6 @@
 package com.example.backend.course.adapter.outbound.search
 
-import com.example.backend.bootstrap.config.OpenSearchProperties
+import com.example.backend.common.search.OpenSearchProperties
 import com.example.backend.course.application.port.outbound.CourseSearchIndexPort
 import com.example.backend.course.domain.model.Course
 import io.github.oshai.kotlinlogging.KotlinLogging

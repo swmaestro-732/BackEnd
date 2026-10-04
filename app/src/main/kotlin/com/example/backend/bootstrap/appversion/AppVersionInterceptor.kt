@@ -1,5 +1,7 @@
 package com.example.backend.bootstrap.appversion
 
+import com.example.backend.common.appversion.AppFeature
+import com.example.backend.common.appversion.RequiresAppFeature
 import com.example.backend.common.exception.BusinessException
 import com.example.backend.common.response.CommonErrorCode
 import jakarta.servlet.http.HttpServletRequest

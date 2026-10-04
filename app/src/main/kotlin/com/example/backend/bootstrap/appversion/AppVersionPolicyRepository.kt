@@ -1,5 +1,6 @@
 package com.example.backend.bootstrap.appversion
 
+import com.example.backend.common.appversion.AppFeature
 import io.github.oshai.kotlinlogging.KotlinLogging
 import org.jetbrains.exposed.v1.jdbc.selectAll
 import org.springframework.stereotype.Repository

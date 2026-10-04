@@ -1,7 +1,7 @@
 package com.example.backend.mobile.home.adapter.inbound.web.v1
 
-import com.example.backend.bootstrap.appversion.AppFeature
-import com.example.backend.bootstrap.appversion.RequiresAppFeature
+import com.example.backend.common.appversion.AppFeature
+import com.example.backend.common.appversion.RequiresAppFeature
 import com.example.backend.common.response.ApiResponse
 import com.example.backend.mobile.home.adapter.inbound.web.v1.response.HomeFeedResponse
 import com.example.backend.mobile.home.application.port.inbound.HomeFeedUseCase

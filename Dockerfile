@@ -6,9 +6,11 @@ WORKDIR /workspace
 COPY gradlew settings.gradle.kts build.gradle.kts ./
 COPY gradle gradle
 COPY buildSrc buildSrc
+COPY common/build.gradle.kts common/
 COPY app/build.gradle.kts app/
 RUN chmod +x gradlew && ./gradlew :app:dependencies --no-daemon > /dev/null 2>&1 || true
 
+COPY common/src common/src
 COPY app/src app/src
 RUN ./gradlew :app:bootJar --no-daemon
 

@@ -1,7 +1,7 @@
 package com.example.backend.mobile.home.adapter.inbound.web.v2
 
-import com.example.backend.bootstrap.security.JwtTokenProvider
 import com.example.backend.support.IntegrationTestBase
+import com.example.backend.user.adapter.outbound.security.JwtTokenProvider
 import com.jayway.jsonpath.JsonPath
 import org.junit.jupiter.api.Test
 import org.springframework.beans.factory.annotation.Autowired

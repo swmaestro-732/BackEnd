@@ -1,6 +1,6 @@
 package com.example.backend.bootstrap.search
 
-import com.example.backend.bootstrap.config.OpenSearchProperties
+import com.example.backend.common.search.OpenSearchProperties
 import com.fasterxml.jackson.databind.ObjectMapper
 import io.github.oshai.kotlinlogging.KotlinLogging
 import org.opensearch.client.opensearch.OpenSearchClient

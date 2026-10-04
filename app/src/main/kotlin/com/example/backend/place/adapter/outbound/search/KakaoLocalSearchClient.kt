@@ -1,7 +1,7 @@
 package com.example.backend.place.adapter.outbound.search
 
-import com.example.backend.bootstrap.config.KakaoLocalProperties
 import com.example.backend.common.geo.Coordinate
+import com.example.backend.place.adapter.outbound.search.KakaoLocalProperties
 import com.example.backend.place.application.port.outbound.ExternalPlaceSearchPort
 import com.example.backend.place.domain.model.ExternalPlace
 import com.example.backend.place.domain.model.ExternalPlaceSource

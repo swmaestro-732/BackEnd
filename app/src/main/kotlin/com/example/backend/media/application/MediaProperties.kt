@@ -1,4 +1,4 @@
-package com.example.backend.bootstrap.config
+package com.example.backend.media.application
 
 import jakarta.validation.constraints.NotBlank
 import org.springframework.boot.context.properties.ConfigurationProperties

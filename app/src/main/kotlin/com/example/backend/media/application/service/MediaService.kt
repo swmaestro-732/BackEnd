@@ -1,9 +1,9 @@
 package com.example.backend.media.application.service
 
-import com.example.backend.bootstrap.config.MediaProperties
 import com.example.backend.common.exception.BusinessException
 import com.example.backend.common.response.CommonErrorCode
 import com.example.backend.common.support.runAfterCommit
+import com.example.backend.media.application.MediaProperties
 import com.example.backend.media.application.port.inbound.MediaCleanupUseCase
 import com.example.backend.media.application.port.inbound.PresignUploadUseCase
 import com.example.backend.media.application.port.inbound.dto.PresignCommand

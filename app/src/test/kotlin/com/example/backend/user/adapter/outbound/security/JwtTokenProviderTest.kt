@@ -1,4 +1,4 @@
-package com.example.backend.bootstrap.security
+package com.example.backend.user.adapter.outbound.security
 
 import com.example.backend.common.exception.BusinessException
 import com.example.backend.common.response.CommonErrorCode

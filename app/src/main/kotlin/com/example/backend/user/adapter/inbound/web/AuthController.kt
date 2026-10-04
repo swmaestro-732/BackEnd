@@ -1,7 +1,7 @@
 package com.example.backend.user.adapter.inbound.web
 
-import com.example.backend.bootstrap.appversion.AppFeature
-import com.example.backend.bootstrap.appversion.RequiresAppFeature
+import com.example.backend.common.appversion.AppFeature
+import com.example.backend.common.appversion.RequiresAppFeature
 import com.example.backend.common.exception.BusinessException
 import com.example.backend.common.response.ApiResponse
 import com.example.backend.common.response.CommonErrorCode

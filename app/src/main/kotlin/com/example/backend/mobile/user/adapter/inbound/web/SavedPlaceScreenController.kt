@@ -1,9 +1,9 @@
 package com.example.backend.mobile.user.adapter.inbound.web
 
-import com.example.backend.bootstrap.appversion.AppFeature
-import com.example.backend.bootstrap.appversion.RequiresAppFeature
-import com.example.backend.bootstrap.security.CurrentUserId
+import com.example.backend.common.appversion.AppFeature
+import com.example.backend.common.appversion.RequiresAppFeature
 import com.example.backend.common.response.ApiResponse
+import com.example.backend.common.security.CurrentUserId
 import com.example.backend.mobile.user.adapter.inbound.web.response.SavedPlaceScreenResponse
 import com.example.backend.mobile.user.application.port.inbound.SavedPlaceScreenCommand
 import com.example.backend.mobile.user.application.port.inbound.SavedPlaceScreenUseCase

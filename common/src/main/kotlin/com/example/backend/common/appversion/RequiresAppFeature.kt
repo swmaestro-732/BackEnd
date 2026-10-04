@@ -1,4 +1,4 @@
-package com.example.backend.bootstrap.appversion
+package com.example.backend.common.appversion
 
 @Retention(AnnotationRetention.RUNTIME)
 @Target(AnnotationTarget.FUNCTION, AnnotationTarget.CLASS)

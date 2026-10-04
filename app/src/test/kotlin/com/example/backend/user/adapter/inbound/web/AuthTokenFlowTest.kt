@@ -1,7 +1,7 @@
 package com.example.backend.user.adapter.inbound.web
 
-import com.example.backend.bootstrap.security.JwtTokenProvider
 import com.example.backend.support.IntegrationTestBase
+import com.example.backend.user.adapter.outbound.security.JwtTokenProvider
 import com.example.backend.user.application.port.outbound.UserPersistencePort
 import com.example.backend.user.domain.model.SocialProvider
 import com.example.backend.user.domain.model.UserStatus

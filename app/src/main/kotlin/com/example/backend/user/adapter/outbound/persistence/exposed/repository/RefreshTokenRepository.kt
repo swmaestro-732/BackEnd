@@ -1,8 +1,8 @@
 package com.example.backend.user.adapter.outbound.persistence.exposed.repository
 
-import com.example.backend.bootstrap.security.JwtProperties
 import com.example.backend.user.adapter.outbound.persistence.exposed.RefreshTokenEntity
 import com.example.backend.user.adapter.outbound.persistence.exposed.RefreshTokenTable
+import com.example.backend.user.adapter.outbound.security.JwtProperties
 import com.example.backend.user.application.port.outbound.RefreshTokenRecord
 import org.jetbrains.exposed.v1.core.and
 import org.jetbrains.exposed.v1.core.eq

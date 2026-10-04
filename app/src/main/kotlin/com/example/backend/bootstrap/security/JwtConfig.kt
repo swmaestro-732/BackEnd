@@ -1,5 +1,8 @@
 package com.example.backend.bootstrap.security
 
+import com.example.backend.user.adapter.outbound.security.JwtProperties
+import com.example.backend.user.adapter.outbound.social.GoogleOauthProperties
+import com.example.backend.user.adapter.outbound.social.KakaoOauthProperties
 import com.nimbusds.jose.jwk.source.ImmutableSecret
 import com.nimbusds.jose.proc.SecurityContext
 import org.springframework.beans.factory.annotation.Qualifier

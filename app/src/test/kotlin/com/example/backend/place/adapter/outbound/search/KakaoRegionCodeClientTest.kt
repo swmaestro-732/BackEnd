@@ -1,7 +1,7 @@
 package com.example.backend.place.adapter.outbound.search
 
-import com.example.backend.bootstrap.config.KakaoLocalProperties
 import com.example.backend.common.geo.Coordinate
+import com.example.backend.place.adapter.outbound.search.KakaoLocalProperties
 import org.hamcrest.Matchers.allOf
 import org.hamcrest.Matchers.containsString
 import org.junit.jupiter.api.Assertions.assertEquals

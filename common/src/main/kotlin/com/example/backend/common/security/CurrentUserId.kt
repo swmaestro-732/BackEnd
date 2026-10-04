@@ -1,4 +1,4 @@
-package com.example.backend.bootstrap.security
+package com.example.backend.common.security
 
 @Target(AnnotationTarget.VALUE_PARAMETER)
 @Retention(AnnotationRetention.RUNTIME)

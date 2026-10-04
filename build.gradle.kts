@@ -19,6 +19,7 @@ dependencyManagement {
 }
 
 dependencies {
+    jacocoAggregation(project(":common"))
     jacocoAggregation(project(":app"))
 }
 

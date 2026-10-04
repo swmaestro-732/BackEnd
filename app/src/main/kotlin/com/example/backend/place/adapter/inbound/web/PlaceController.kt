@@ -1,7 +1,7 @@
 package com.example.backend.place.adapter.inbound.web
 
-import com.example.backend.bootstrap.appversion.AppFeature
-import com.example.backend.bootstrap.appversion.RequiresAppFeature
+import com.example.backend.common.appversion.AppFeature
+import com.example.backend.common.appversion.RequiresAppFeature
 import com.example.backend.common.geo.Coordinate
 import com.example.backend.common.geo.Viewport
 import com.example.backend.common.response.ApiResponse

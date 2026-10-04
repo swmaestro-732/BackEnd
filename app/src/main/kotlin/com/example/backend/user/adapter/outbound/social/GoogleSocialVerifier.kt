@@ -1,8 +1,8 @@
 package com.example.backend.user.adapter.outbound.social
 
-import com.example.backend.bootstrap.security.GoogleOauthProperties
 import com.example.backend.common.exception.BusinessException
 import com.example.backend.common.response.CommonErrorCode
+import com.example.backend.user.adapter.outbound.social.GoogleOauthProperties
 import com.example.backend.user.application.port.outbound.SocialIdentity
 import com.example.backend.user.domain.model.SocialProvider
 import org.springframework.beans.factory.annotation.Qualifier

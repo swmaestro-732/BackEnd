@@ -1,7 +1,7 @@
 package com.example.backend.mobile.place.adapter.inbound.web
 
-import com.example.backend.bootstrap.appversion.AppFeature
-import com.example.backend.bootstrap.appversion.RequiresAppFeature
+import com.example.backend.common.appversion.AppFeature
+import com.example.backend.common.appversion.RequiresAppFeature
 import com.example.backend.common.response.ApiResponse
 import com.example.backend.mobile.place.adapter.inbound.web.response.PlaceDetailScreenResponse
 import com.example.backend.mobile.place.application.port.inbound.PlaceDetailScreenUseCase

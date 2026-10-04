@@ -1,10 +1,10 @@
 package com.example.backend.course.adapter.inbound.web
 
-import com.example.backend.bootstrap.appversion.AppFeature
-import com.example.backend.bootstrap.appversion.RequiresAppFeature
-import com.example.backend.bootstrap.security.AccessTokenRequired
-import com.example.backend.bootstrap.security.CurrentUserId
+import com.example.backend.common.appversion.AppFeature
+import com.example.backend.common.appversion.RequiresAppFeature
 import com.example.backend.common.response.ApiResponse
+import com.example.backend.common.security.AccessTokenRequired
+import com.example.backend.common.security.CurrentUserId
 import com.example.backend.course.adapter.inbound.web.response.CourseLikeResponse
 import com.example.backend.course.application.port.inbound.CourseLikeUseCase
 import org.springframework.http.HttpStatus

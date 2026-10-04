@@ -1,7 +1,7 @@
 package com.example.backend.media.adapter.inbound.web
 
-import com.example.backend.bootstrap.security.JwtTokenProvider
 import com.example.backend.support.IntegrationTestBase
+import com.example.backend.user.adapter.outbound.security.JwtTokenProvider
 import com.jayway.jsonpath.JsonPath
 import org.hamcrest.Matchers.matchesPattern
 import org.junit.jupiter.api.Assertions.assertEquals
