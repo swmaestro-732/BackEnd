@@ -32,7 +32,7 @@ jobs:
           curl -fsSLo ktlint "https://github.com/pinterest/ktlint/releases/download/${KTLINT_VERSION}/ktlint"
           chmod +x ktlint
           set +e
-          ./ktlint "src/**/*.kt" > ktlint.txt 2>&1
+          ./ktlint "**/src/**/*.kt" > ktlint.txt 2>&1
           echo "exit=$?" >> "$GITHUB_OUTPUT"
           cat ktlint.txt
           exit 0
@@ -78,7 +78,7 @@ jobs:
       - uses: gradle/actions/setup-gradle@v4
 
       - name: Build & test (+ coverage)
-        run: ./gradlew build jacocoTestReport --no-daemon
+        run: ./gradlew build testCodeCoverageReport --no-daemon
         env:
           SPRING_DATASOURCE_URL: jdbc:postgresql://localhost:5432/backend_test
           SPRING_DATASOURCE_USERNAME: test
@@ -88,7 +88,8 @@ jobs:
         if: always()
         run: |
           mkdir -p out
-          cp build/reports/jacoco/test/jacocoTestReport.xml out/jacoco.xml 2>/dev/null || true
+          # 루트 jacoco-report-aggregation 이 모든 모듈의 커버리지를 합친 xml
+          cp build/reports/jacoco/testCodeCoverageReport/testCodeCoverageReport.xml out/jacoco.xml 2>/dev/null || true
 
       - name: Upload test result
         if: always()
@@ -112,7 +113,7 @@ jobs:
           persist-credentials: false
           fetch-depth: 0 # base 와 diff 하려면 전체 히스토리 필요
       - name: Download coverage
-        # test 잡이 jacocoTestReport 전에 실패하면 result-test 아티팩트가 없다 —
+        # test 잡이 testCodeCoverageReport 전에 실패하면 result-test 아티팩트가 없다 —
         # 그 경우 다운로드 실패를 삼키고 아래 가드(jacoco.xml 없음 → 스킵)로 처리한다.
         continue-on-error: true
         uses: actions/download-artifact@v4

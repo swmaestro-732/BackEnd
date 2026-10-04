@@ -2,13 +2,15 @@
 FROM eclipse-temurin:21-jdk AS build
 WORKDIR /workspace
 
-# 의존성 캐시 레이어
+# 의존성 캐시 레이어 — 빌드 스크립트(루트·buildSrc·모듈)만 먼저 복사해 소스 변경 시에도 의존성 레이어를 재사용한다.
 COPY gradlew settings.gradle.kts build.gradle.kts ./
 COPY gradle gradle
-RUN chmod +x gradlew && ./gradlew dependencies --no-daemon > /dev/null 2>&1 || true
+COPY buildSrc buildSrc
+COPY app/build.gradle.kts app/
+RUN chmod +x gradlew && ./gradlew :app:dependencies --no-daemon > /dev/null 2>&1 || true
 
-COPY src src
-RUN ./gradlew bootJar --no-daemon
+COPY app/src app/src
+RUN ./gradlew :app:bootJar --no-daemon
 
 # ── runtime stage ──
 FROM eclipse-temurin:21-jre
@@ -20,7 +22,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends curl && rm -rf 
     rm -f /usr/bin/pebble && \
     useradd -r -u 1001 appuser
 # bootJar 산출물(단일). 버전 문자열에 결합하지 않도록 *.jar 사용.
-COPY --from=build /workspace/build/libs/*.jar app.jar
+COPY --from=build /workspace/app/build/libs/*.jar app.jar
 USER appuser
 
 EXPOSE 8080

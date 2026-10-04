@@ -2,13 +2,13 @@
 """
 PR 변경분(diff) 커버리지 계산 + 게이트.
 
-변경된 src/main 코틀린 파일의 '추가/수정된 라인' 중 JaCoCo 가 계측한 라인만 대상으로
+변경된 (모듈별) src/main 코틀린 파일의 '추가/수정된 라인' 중 JaCoCo 가 계측한 라인만 대상으로
 covered/total 을 계산한다(주석·선언·공백 등 미계측 라인은 제외). 신규 코드가 테스트로
 덮였는지를 PR 단위로 강제하기 위한 지표다.
 
 usage: diff_coverage.py <base_ref> <jacoco_xml> <threshold> [out_json]
   base_ref  : 비교 기준 (예: origin/develop)
-  jacoco_xml: jacocoTestReport.xml 경로
+  jacoco_xml: JaCoCo xml 경로(루트 testCodeCoverageReport 집계본)
   threshold : 변경분 최소 커버리지 % (미달 시 exit 1)
 
 출력: 사람이 읽는 요약(stdout) + out_json(JSON). 임계 미달이면 exit 1.
@@ -28,7 +28,7 @@ out_json = sys.argv[4] if len(sys.argv) > 4 else None
 def changed_lines_by_file(base):
     """git diff 로 변경 파일별 '새 파일 기준 추가/수정 라인번호 집합' 을 얻는다."""
     diff = subprocess.run(
-        ["git", "diff", "--unified=0", "--no-color", f"{base}...HEAD", "--", "src/main"],
+        ["git", "diff", "--unified=0", "--no-color", f"{base}...HEAD", "--", ":(glob)**/src/main/**"],
         capture_output=True, text=True, check=True,
     ).stdout
     files = {}
@@ -50,8 +50,15 @@ def changed_lines_by_file(base):
     return files
 
 
+def source_key(path):
+    """'<module>/src/main/kotlin/com/.../X.kt' → 'src/main/kotlin/com/.../X.kt'.
+    jacoco xml 에는 모듈 경로가 없으므로 src/main 이하 접미사로 매칭한다."""
+    i = path.find("src/main/")
+    return path[i:] if i >= 0 else path
+
+
 def jacoco_line_cov(xml):
-    """{파일경로: {라인번호: covered(bool)}} — jacoco 계측 라인만."""
+    """{src/main 기준 경로: {라인번호: covered(bool)}} — jacoco 계측 라인만."""
     root = ET.parse(xml).getroot()
     cov = {}
     for pkg in root.iter("package"):
@@ -73,7 +80,7 @@ def main():
     total = covered = 0
     rows = []
     for path in sorted(only_kt):
-        inst = cov.get(path, {})
+        inst = cov.get(source_key(path), {})
         c = t = 0
         for nr in only_kt[path]:
             if nr in inst:  # jacoco 계측된 라인만 집계

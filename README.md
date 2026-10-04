@@ -24,9 +24,9 @@ docker compose up -d
 brew install pre-commit          # 또는 pip install pre-commit
 pre-commit install               # commit-msg·pre-commit 훅 자동 설치
 
-# 3) 실행 / 빌드
-./gradlew bootRun
-./gradlew build jacocoTestReport
+# 3) 실행 / 빌드 (멀티모듈 — 실행 모듈은 app, 공통 빌드 규칙은 buildSrc)
+./gradlew bootRun                        # = :app:bootRun
+./gradlew build testCodeCoverageReport   # 전 모듈 빌드·테스트 + 루트 커버리지 집계(build/reports/jacoco/testCodeCoverageReport)
 ```
 
 - 애플리케이션: `http://localhost:8080`
