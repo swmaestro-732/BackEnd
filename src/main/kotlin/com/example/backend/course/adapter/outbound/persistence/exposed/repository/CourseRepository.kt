@@ -57,7 +57,7 @@ class CourseRepository {
                 areaCode = course.areaCode
                 isPublished = course.isPublished
                 visibility = course.visibility
-                forkedFromId = course.forkedFromId
+                duplicatedFromId = course.duplicatedFromId
             }.also { it.refresh(flush = true) }
 
     /**
@@ -80,6 +80,7 @@ class CourseRepository {
                 it[areaCode] = course.areaCode
                 it[isPublished] = course.isPublished
                 it[visibility] = course.visibility
+                it[duplicatedFromId] = course.duplicatedFromId
                 it[updatedAt] = now
             }
         // 서비스가 존재·소유권을 사전 검증하므로 0행은 동시 소프트 삭제가 이긴 경우 — 500 대신 404 로 드러낸다.
@@ -181,7 +182,7 @@ class CourseRepository {
         }
     }
 
-    /** deleted_at IS NULL 인 코스가 존재하는지만 확인한다(fork 원본 검증 등, 본문 미적재). */
+    /** deleted_at IS NULL 인 코스가 존재하는지만 확인한다(duplicate 원본 검증 등, 본문 미적재). */
     fun existsById(courseId: Long): Boolean =
         !CourseTable
             .selectAll()
@@ -220,6 +221,7 @@ class CourseRepository {
             status = it[CourseTable.status],
             visibility = it[CourseTable.visibility],
             isPublished = it[CourseTable.isPublished],
+            duplicatedFromId = it[CourseTable.duplicatedFromId],
         )
 
     /**

@@ -24,6 +24,8 @@ data class CourseDetailResult(
     val description: String,
     /** 코스 공개 범위(PUBLIC·FOLLOWER·PRIVATE). */
     val visibility: CourseVisibility,
+    /** 발행 여부(true=게시, false=임시저장). 복제 원본은 발행 코스만 허용한다. */
+    val isPublished: Boolean,
     val authorId: Long,
     val tracingsCnt: Int,
     val places: List<CoursePlaceResult>,

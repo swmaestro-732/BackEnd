@@ -1,17 +1,12 @@
 package com.example.backend.place.application.service
 
-import com.example.backend.common.geo.Coordinate
 import com.example.backend.place.application.port.inbound.dto.PlaceReviewSortKey
 import com.example.backend.place.application.port.inbound.dto.PlaceReviewsQuery
-import com.example.backend.place.application.port.outbound.PlaceQueryPort
+import com.example.backend.place.application.port.outbound.PlaceReviewCounters
 import com.example.backend.place.application.port.outbound.PlaceReviewCursor
 import com.example.backend.place.application.port.outbound.PlaceReviewQueryPort
 import com.example.backend.place.application.port.outbound.PlaceReviewRow
-import com.example.backend.place.domain.model.Place
-import com.example.backend.place.domain.model.PlaceBusinessStatus
-import com.example.backend.place.domain.model.PlaceCategory
 import com.example.backend.place.domain.model.PlaceReviewTag
-import com.example.backend.place.domain.model.PlaceStatus
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertNull
@@ -23,7 +18,7 @@ import java.time.Instant
  * [PlaceReviewQueryService] 단위 테스트 — 포트를 페이크로 대체해 페이지 조립 규칙만 검증한다
  * ([PlaceReviewServiceTest] 와 같은 형식).
  * 검증 대상: size+1 조회의 hasNext/nextCursor 판정, 사진·태그 배치 병합, 분포 5~1점 고정 채움,
- * 장소 카운터(rating_sum/rating_cnt) 기반 평균·총개수, 없는 장소의 빈 목록(집계 0) 규칙.
+ * 장소 카운터(rating_sum/rating_cnt/review_photo_cnt/rating_N_cnt) 기반 평균·총개수·사진 수·분포, 없는 장소의 빈 목록(집계 0) 규칙.
  * (커서 인코딩 형식·비정상 커서 방어는 [PlaceReviewCursorCodecTest] 가 커버한다.)
  */
 class PlaceReviewQueryServiceTest {
@@ -32,8 +27,7 @@ class PlaceReviewQueryServiceTest {
             var rows: List<PlaceReviewRow> = emptyList()
             var photoUrls: Map<Long, List<String>> = emptyMap()
             var tags: Map<Long, List<PlaceReviewTag>> = emptyMap()
-            var ratingCounts: Map<Int, Long> = emptyMap()
-            var photoCount: Long = 0
+            var counters: PlaceReviewCounters? = null
             var receivedCursor: PlaceReviewCursor? = null
             var receivedLimit: Int = 0
 
@@ -53,22 +47,10 @@ class PlaceReviewQueryServiceTest {
 
             override fun findTags(reviewIds: List<Long>): Map<Long, List<PlaceReviewTag>> = tags
 
-            override fun countReviewsByRating(placeId: Long): Map<Int, Long> = ratingCounts
-
-            override fun countPhotosByPlace(placeId: Long): Long = photoCount
+            override fun findCounters(placeId: Long): PlaceReviewCounters? = counters
         }
 
-    private val fakePlaceQueryPort =
-        object : PlaceQueryPort {
-            /** 살아있는 장소와 그 카운터. null 이면 없는(삭제된) 장소다. */
-            var place: Place? = null
-
-            override fun findPlaceById(placeId: Long): Place? = place
-
-            override fun findPlacesById(placeIds: List<Long>): List<Place> = listOfNotNull(place)
-        }
-
-    private val service = PlaceReviewQueryService(fakeReviewQueryPort, fakePlaceQueryPort)
+    private val service = PlaceReviewQueryService(fakeReviewQueryPort)
 
     @Test
     fun `한 페이지를 집계·자식과 함께 조립한다`() {
@@ -81,9 +63,18 @@ class PlaceReviewQueryServiceTest {
             )
         fakeReviewQueryPort.photoUrls = mapOf(3L to listOf("https://cdn.example.com/3-1.jpg"))
         fakeReviewQueryPort.tags = mapOf(3L to listOf(PlaceReviewTag.COFFEE))
-        fakeReviewQueryPort.ratingCounts = mapOf(5 to 1L, 4 to 1L, 3 to 1L)
-        fakeReviewQueryPort.photoCount = 4
-        fakePlaceQueryPort.place = place(ratingSum = 12, ratingCnt = 3)
+        fakeReviewQueryPort.counters =
+            PlaceReviewCounters(
+                ratingSum = 12,
+                ratingCnt = 3,
+                reviewPhotoCnt = 4,
+                ratingCounts =
+                    mapOf(
+                        5 to 1,
+                        4 to 1,
+                        3 to 1,
+                    ),
+            )
 
         val result = service.getReviews(PlaceReviewsQuery(placeId = PLACE_ID, size = 2))
 
@@ -93,7 +84,7 @@ class PlaceReviewQueryServiceTest {
         assertEquals(4, result.photoCount)
         assertTrue(result.hasNext)
         assertEquals(listOf(3L, 2L), result.reviews.map { it.id }) // size 만큼만 잘린다
-        // 분포는 5~1점 다섯 칸을 항상 채운다(없는 별점은 0).
+        // 분포는 카운터(rating_N_cnt)에서 읽어 5~1점 다섯 칸을 항상 채운다(없는 별점은 0).
         assertEquals(
             listOf(5 to 1, 4 to 1, 3 to 1, 2 to 0, 1 to 0),
             result.ratingDistribution.map {
@@ -116,8 +107,8 @@ class PlaceReviewQueryServiceTest {
     @Test
     fun `마지막 페이지면 hasNext 없이 nextCursor 도 비운다`() {
         fakeReviewQueryPort.rows = listOf(row(id = 1, rating = 5, createdAt = "2026-09-01T00:00:00Z"))
-        fakeReviewQueryPort.ratingCounts = mapOf(5 to 1L)
-        fakePlaceQueryPort.place = place(ratingSum = 5, ratingCnt = 1)
+        fakeReviewQueryPort.counters =
+            PlaceReviewCounters(ratingSum = 5, ratingCnt = 1, reviewPhotoCnt = 0, ratingCounts = mapOf(5 to 1))
 
         val result = service.getReviews(PlaceReviewsQuery(placeId = PLACE_ID))
 
@@ -128,7 +119,7 @@ class PlaceReviewQueryServiceTest {
 
     @Test
     fun `없는 장소는 404 가 아니라 빈 목록과 집계 0 이다`() {
-        // findPlaceById 가 null(삭제·부재 장소)이어도 예외 없이 0 으로 채운다 — 존재 판정은 상세 화면 몫.
+        // findCounters 가 null(삭제·부재 장소)이어도 예외 없이 0 으로 채운다 — 존재 판정은 상세 화면 몫.
         val result = service.getReviews(PlaceReviewsQuery(placeId = 999999L))
 
         assertEquals(0.0, result.averageRating)
@@ -165,27 +156,6 @@ class PlaceReviewQueryServiceTest {
         rating = rating,
         content = content,
         createdAt = Instant.parse(createdAt),
-    )
-
-    private fun place(
-        ratingSum: Long,
-        ratingCnt: Int,
-    ) = Place.reconstitute(
-        id = PLACE_ID,
-        status = PlaceStatus.ACTIVE,
-        name = "어니언 성수",
-        description = null,
-        category = PlaceCategory.CAFE,
-        location = Coordinate(latitude = 37.5446, longitude = 127.0559),
-        address = "서울 성동구 아차산로 100",
-        imageUrl = null,
-        businessStatus = PlaceBusinessStatus.UNKNOWN,
-        kakaoPlaceId = null,
-        createdAt = null,
-        updatedAt = null,
-        deletedAt = null,
-        ratingSum = ratingSum,
-        ratingCnt = ratingCnt,
     )
 
     private companion object {

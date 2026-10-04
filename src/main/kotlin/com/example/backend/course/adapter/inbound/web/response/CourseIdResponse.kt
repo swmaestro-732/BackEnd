@@ -3,9 +3,9 @@ package com.example.backend.course.adapter.inbound.web.response
 import com.example.backend.course.domain.model.Course
 
 /**
- * 코스 식별자만 담는 응답 — 생성·편집·포크가 공유한다.
+ * 코스 식별자만 담는 응답 — 생성·편집·코스 복제가 공유한다.
  * 세 경우 모두 이후 화면은 코스 상세 API 재조회로 구성하므로 courseId 만 내려준다.
- * 포크는 원본이 아니라 **새로 만들어진 내 코스**의 id 를 담는다.
+ * 코스 복제는 원본이 아니라 **새로 만들어진 내 코스**의 id 를 담는다.
  */
 data class CourseIdResponse(
     val courseId: Long,

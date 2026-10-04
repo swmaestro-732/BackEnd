@@ -93,6 +93,7 @@ class CourseQueryService(
                 tags = emptyList(),
                 description = course.description.orEmpty(),
                 visibility = course.visibility,
+                isPublished = course.isPublished,
                 authorId = course.userId,
                 tracingsCnt = course.tracingsCnt,
                 places = places,
