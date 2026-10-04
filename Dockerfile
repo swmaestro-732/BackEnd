@@ -10,6 +10,10 @@ COPY common/build.gradle.kts common/
 COPY area/build.gradle.kts area/
 COPY direction/build.gradle.kts direction/
 COPY media/build.gradle.kts media/
+COPY place/build.gradle.kts place/
+COPY user-api/build.gradle.kts user-api/
+COPY course/build.gradle.kts course/
+COPY user/build.gradle.kts user/
 COPY app/build.gradle.kts app/
 RUN chmod +x gradlew && ./gradlew :app:dependencies --no-daemon > /dev/null 2>&1 || true
 
@@ -17,6 +21,10 @@ COPY common/src common/src
 COPY area/src area/src
 COPY direction/src direction/src
 COPY media/src media/src
+COPY place/src place/src
+COPY user-api/src user-api/src
+COPY course/src course/src
+COPY user/src user/src
 COPY app/src app/src
 RUN ./gradlew :app:bootJar --no-daemon
 

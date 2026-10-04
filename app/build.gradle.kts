@@ -10,6 +10,10 @@ dependencies {
     implementation(project(":area"))
     implementation(project(":direction"))
     implementation(project(":media"))
+    implementation(project(":place"))
+    implementation(project(":user-api"))
+    implementation(project(":course"))
+    implementation(project(":user"))
 
     // Exposed 핵심 모듈
     implementation("org.jetbrains.exposed:exposed-jdbc:1.3.0")

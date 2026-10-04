@@ -23,6 +23,10 @@ dependencies {
     jacocoAggregation(project(":area"))
     jacocoAggregation(project(":direction"))
     jacocoAggregation(project(":media"))
+    jacocoAggregation(project(":place"))
+    jacocoAggregation(project(":user-api"))
+    jacocoAggregation(project(":course"))
+    jacocoAggregation(project(":user"))
     jacocoAggregation(project(":app"))
 }
 
