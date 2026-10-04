@@ -14,6 +14,7 @@ COPY place/build.gradle.kts place/
 COPY user-api/build.gradle.kts user-api/
 COPY course/build.gradle.kts course/
 COPY user/build.gradle.kts user/
+COPY mobile/build.gradle.kts mobile/
 COPY app/build.gradle.kts app/
 RUN chmod +x gradlew && ./gradlew :app:dependencies --no-daemon > /dev/null 2>&1 || true
 
@@ -25,6 +26,7 @@ COPY place/src place/src
 COPY user-api/src user-api/src
 COPY course/src course/src
 COPY user/src user/src
+COPY mobile/src mobile/src
 COPY app/src app/src
 RUN ./gradlew :app:bootJar --no-daemon
 

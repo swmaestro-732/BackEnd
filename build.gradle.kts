@@ -27,6 +27,7 @@ dependencies {
     jacocoAggregation(project(":user-api"))
     jacocoAggregation(project(":course"))
     jacocoAggregation(project(":user"))
+    jacocoAggregation(project(":mobile"))
     jacocoAggregation(project(":app"))
 }
 

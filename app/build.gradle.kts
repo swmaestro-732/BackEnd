@@ -14,6 +14,7 @@ dependencies {
     implementation(project(":user-api"))
     implementation(project(":course"))
     implementation(project(":user"))
+    implementation(project(":mobile"))
 
     // Exposed 핵심 모듈
     implementation("org.jetbrains.exposed:exposed-jdbc:1.3.0")
