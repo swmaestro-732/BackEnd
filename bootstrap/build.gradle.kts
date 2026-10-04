@@ -1,8 +1,13 @@
 // :bootstrap — Spring Boot 애플리케이션(main) + config/security + resources + 전체 테스트.
 // 모든 모듈에 의존하며 유일하게 실행 가능한 bootJar 를 만든다.
+// org.springframework.boot 플러그인은 이 모듈에만 적용(루트 plugins 에서 version 과 함께 apply false 로 선언, 여기서 version 생략 적용).
 plugins {
+    id("org.springframework.boot")
     jacoco
 }
+
+// 실행 가능한 bootJar 만 산출(라이브러리용 plain jar 는 끈다) — build/libs 에 jar 가 하나만 남게 해 Docker COPY *.jar 모호성 제거.
+tasks.named<Jar>("jar") { enabled = false }
 
 dependencies {
     implementation(project(":adapter"))
@@ -11,11 +16,11 @@ dependencies {
     implementation(project(":common"))
 
     // Exposed 핵심 + Spring 연동(Database 자동구성 + @Transactional)
-    implementation("org.jetbrains.exposed:exposed-jdbc:1.3.0")
-    implementation("org.jetbrains.exposed:exposed-core:1.3.0")
-    implementation("org.jetbrains.exposed:exposed-dao:1.3.0")
-    implementation("org.jetbrains.exposed:exposed-kotlin-datetime:1.3.0")
-    implementation("org.jetbrains.exposed:exposed-spring-boot-starter:1.3.0")
+    implementation(libs.exposed.jdbc)
+    implementation(libs.exposed.core)
+    implementation(libs.exposed.dao)
+    implementation(libs.exposed.kotlin.datetime)
+    implementation(libs.exposed.spring.boot.starter)
 
     implementation("org.springframework.boot:spring-boot-starter-flyway")
     implementation("org.springframework.boot:spring-boot-starter-jdbc")
@@ -27,20 +32,20 @@ dependencies {
     implementation("org.springframework.boot:spring-boot-starter-aspectj")
     runtimeOnly("io.micrometer:micrometer-registry-prometheus")
     implementation("org.springframework.boot:spring-boot-starter-opentelemetry")
-    implementation("io.sentry:sentry-spring-boot-4-starter:8.53.0")
-    implementation("org.springdoc:springdoc-openapi-starter-webmvc-ui:3.0.3")
+    implementation(libs.sentry.spring.boot)
+    implementation(libs.springdoc.openapi.webmvc.ui)
     implementation("org.flywaydb:flyway-database-postgresql")
     implementation("tools.jackson.module:jackson-module-kotlin")
-    implementation("com.fasterxml.jackson.module:jackson-module-kotlin:2.21.4")
-    implementation("io.github.oshai:kotlin-logging-jvm:7.0.3")
+    implementation(libs.jackson.module.kotlin.v2)
+    implementation(libs.kotlin.logging)
     developmentOnly("org.springframework.boot:spring-boot-devtools")
     developmentOnly("org.springframework.boot:spring-boot-docker-compose")
     implementation("org.postgresql:postgresql")
-    implementation(platform("software.amazon.awssdk:bom:2.49.0"))
-    implementation("software.amazon.awssdk:s3")
-    implementation(platform("io.awspring.cloud:spring-cloud-aws-dependencies:4.0.2"))
+    implementation(platform(libs.aws.bom))
+    implementation(libs.aws.s3)
+    implementation(platform(libs.spring.cloud.aws.bom))
     implementation("io.awspring.cloud:spring-cloud-aws-starter-sqs")
-    implementation("org.opensearch.client:opensearch-java:2.25.0") {
+    implementation(libs.opensearch.java) {
         exclude(group = "org.opensearch.client", module = "opensearch-rest-client")
     }
     implementation("org.apache.httpcomponents.client5:httpclient5")
@@ -51,8 +56,8 @@ dependencies {
     testImplementation("org.springframework.boot:spring-boot-starter-security-test")
     testImplementation("org.springframework.boot:spring-boot-starter-validation-test")
     testImplementation("org.springframework.boot:spring-boot-starter-webmvc-test")
-    testImplementation("com.tngtech.archunit:archunit-junit5:1.3.0")
-    testImplementation("org.testcontainers:junit-jupiter:1.20.4")
+    testImplementation(libs.archunit.junit5)
+    testImplementation(libs.testcontainers.junit)
 }
 
 springBoot {
@@ -85,8 +90,23 @@ tasks.register<Test>("archTest") {
     filter { includeTestsMatching("com.example.backend.architecture.*") }
 }
 
+// 전체 테스트는 이 모듈에 있으나 코드는 5개 모듈에 흩어져 있다 — 집계 리포트를 만든다.
+// bootstrap 의 test.exec 하나로 전 모듈 main 클래스의 커버리지를 집계(경로 기반, 크로스 프로젝트 모델 접근 회피).
 tasks.jacocoTestReport {
     dependsOn(tasks.test)
+    val coveredModules = listOf("common", "domain", "application", "adapter", "bootstrap")
+    sourceDirectories.setFrom(files(coveredModules.map { rootProject.project(it).file("src/main/kotlin") }))
+    classDirectories.setFrom(
+        files(
+            coveredModules.map {
+                rootProject
+                    .project(it)
+                    .layout.buildDirectory
+                    .dir("classes/kotlin/main")
+            },
+        ),
+    )
+    executionData.setFrom(fileTree(layout.buildDirectory).include("jacoco/test.exec"))
     reports {
         xml.required.set(true)
         html.required.set(true)

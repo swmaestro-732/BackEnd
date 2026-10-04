@@ -24,10 +24,12 @@ docker compose up -d
 brew install pre-commit          # 또는 pip install pre-commit
 pre-commit install               # commit-msg·pre-commit 훅 자동 설치
 
-# 3) 실행 / 빌드
-./gradlew bootRun
-./gradlew build jacocoTestReport
+# 3) 실행 / 빌드 (멀티모듈 - 실행 산출물은 :bootstrap 모듈)
+./gradlew :bootstrap:bootRun
+./gradlew build jacocoTestReport        # 집계 커버리지 리포트: bootstrap/build/reports/jacoco/test/
 ```
+
+> 모듈 구조: `:common`, `:domain`, `:application`, `:adapter`, `:bootstrap`. 헥사고날 레이어 경계를 Gradle 모듈 의존으로 강제한다(도메인은 Spring/Exposed 무의존). 실행 가능한 bootJar 는 `:bootstrap` 만 만든다.
 
 - 애플리케이션: `http://localhost:8080`
 - Swagger UI: `http://localhost:8080/swagger-ui.html`

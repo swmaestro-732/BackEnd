@@ -6,10 +6,10 @@ dependencies {
     implementation(project(":common"))
 
     // Exposed (영속성 어댑터)
-    implementation("org.jetbrains.exposed:exposed-jdbc:1.3.0")
-    implementation("org.jetbrains.exposed:exposed-core:1.3.0")
-    implementation("org.jetbrains.exposed:exposed-dao:1.3.0")
-    implementation("org.jetbrains.exposed:exposed-kotlin-datetime:1.3.0")
+    implementation(libs.exposed.jdbc)
+    implementation(libs.exposed.core)
+    implementation(libs.exposed.dao)
+    implementation(libs.exposed.kotlin.datetime)
 
     // 트랜잭션(@Transactional, @TransactionalEventListener, TransactionPhase) — 검색 동기화 리스너/화면 서비스에서 사용
     implementation("org.springframework:spring-tx")
@@ -24,22 +24,22 @@ dependencies {
 
     // 직렬화 / 로깅
     implementation("tools.jackson.module:jackson-module-kotlin")
-    implementation("com.fasterxml.jackson.module:jackson-module-kotlin:2.21.4")
-    implementation("io.github.oshai:kotlin-logging-jvm:7.0.3")
+    implementation(libs.jackson.module.kotlin.v2)
+    implementation(libs.kotlin.logging)
 
     // OpenAPI (컨트롤러 애노테이션)
-    implementation("org.springdoc:springdoc-openapi-starter-webmvc-ui:3.0.3")
+    implementation(libs.springdoc.openapi.webmvc.ui)
 
     // AWS SDK (S3)
-    implementation(platform("software.amazon.awssdk:bom:2.49.0"))
-    implementation("software.amazon.awssdk:s3")
+    implementation(platform(libs.aws.bom))
+    implementation(libs.aws.s3)
 
     // SQS (코스 개수 폴백 큐)
-    implementation(platform("io.awspring.cloud:spring-cloud-aws-dependencies:4.0.2"))
+    implementation(platform(libs.spring.cloud.aws.bom))
     implementation("io.awspring.cloud:spring-cloud-aws-starter-sqs")
 
     // OpenSearch 연결
-    implementation("org.opensearch.client:opensearch-java:2.25.0") {
+    implementation(libs.opensearch.java) {
         exclude(group = "org.opensearch.client", module = "opensearch-rest-client")
     }
     implementation("org.apache.httpcomponents.client5:httpclient5")

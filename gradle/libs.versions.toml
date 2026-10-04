@@ -1,0 +1,33 @@
+# 버전 카탈로그 — 여러 모듈 build.gradle.kts 에 흩어져 있던 명시 버전을 한곳에 모은다.
+# Spring Boot BOM 이 관리하는 라이브러리(스타터, postgresql, httpclient5, micrometer, jackson3 등)는
+# 버전을 적지 않는다(BOM 이 핀). 여기엔 BOM 밖이라 직접 버전을 박던 것만 둔다.
+[versions]
+exposed = "1.3.0"
+kotlinLogging = "7.0.3"
+kotlinxDatetime = "0.7.1-0.6.x-compat"
+jackson2 = "2.21.4"
+awsSdk = "2.49.0"
+springCloudAws = "4.0.2"
+opensearch = "2.25.0"
+springdoc = "3.0.3"
+sentry = "8.53.0"
+archunit = "1.3.0"
+testcontainers = "1.20.4"
+
+[libraries]
+exposed-core = { module = "org.jetbrains.exposed:exposed-core", version.ref = "exposed" }
+exposed-jdbc = { module = "org.jetbrains.exposed:exposed-jdbc", version.ref = "exposed" }
+exposed-dao = { module = "org.jetbrains.exposed:exposed-dao", version.ref = "exposed" }
+exposed-kotlin-datetime = { module = "org.jetbrains.exposed:exposed-kotlin-datetime", version.ref = "exposed" }
+exposed-spring-boot-starter = { module = "org.jetbrains.exposed:exposed-spring-boot-starter", version.ref = "exposed" }
+kotlin-logging = { module = "io.github.oshai:kotlin-logging-jvm", version.ref = "kotlinLogging" }
+kotlinx-datetime = { module = "org.jetbrains.kotlinx:kotlinx-datetime", version.ref = "kotlinxDatetime" }
+jackson-module-kotlin-v2 = { module = "com.fasterxml.jackson.module:jackson-module-kotlin", version.ref = "jackson2" }
+aws-bom = { module = "software.amazon.awssdk:bom", version.ref = "awsSdk" }
+aws-s3 = { module = "software.amazon.awssdk:s3" }
+spring-cloud-aws-bom = { module = "io.awspring.cloud:spring-cloud-aws-dependencies", version.ref = "springCloudAws" }
+opensearch-java = { module = "org.opensearch.client:opensearch-java", version.ref = "opensearch" }
+springdoc-openapi-webmvc-ui = { module = "org.springdoc:springdoc-openapi-starter-webmvc-ui", version.ref = "springdoc" }
+sentry-spring-boot = { module = "io.sentry:sentry-spring-boot-4-starter", version.ref = "sentry" }
+archunit-junit5 = { module = "com.tngtech.archunit:archunit-junit5", version.ref = "archunit" }
+testcontainers-junit = { module = "org.testcontainers:junit-jupiter", version.ref = "testcontainers" }

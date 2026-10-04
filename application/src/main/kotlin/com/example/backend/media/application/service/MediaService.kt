@@ -1,9 +1,9 @@
 package com.example.backend.media.application.service
 
-import com.example.backend.bootstrap.config.MediaProperties
 import com.example.backend.common.exception.BusinessException
 import com.example.backend.common.response.CommonErrorCode
 import com.example.backend.common.support.runAfterCommit
+import com.example.backend.media.application.MediaPolicy
 import com.example.backend.media.application.port.inbound.MediaCleanupUseCase
 import com.example.backend.media.application.port.inbound.PresignUploadUseCase
 import com.example.backend.media.application.port.inbound.dto.PresignCommand
@@ -16,7 +16,7 @@ import java.util.UUID
 @Service
 class MediaService(
     private val mediaStoragePort: MediaStoragePort,
-    private val mediaProperties: MediaProperties,
+    private val mediaPolicy: MediaPolicy,
 ) : PresignUploadUseCase,
     MediaCleanupUseCase {
     override fun presign(command: PresignCommand): List<PresignResult> =
@@ -39,7 +39,7 @@ class MediaService(
             CONTENT_TYPE_EXTENSIONS[contentType]
                 ?: throw BusinessException(CommonErrorCode.UNSUPPORTED_MEDIA_TYPE)
 
-        if (contentLength !in 1..mediaProperties.maxUploadBytes) {
+        if (contentLength !in 1..mediaPolicy.maxUploadBytes) {
             throw BusinessException(CommonErrorCode.PAYLOAD_TOO_LARGE)
         }
 
@@ -54,7 +54,7 @@ class MediaService(
     override fun deleteByUrl(imageUrl: String?) {
         if (imageUrl.isNullOrBlank()) return
         // 우리 CDN(cdnBaseUrl) 이 발급한 URL 만 삭제 대상 — 외부/목 URL 은 무시한다.
-        val prefix = mediaProperties.cdnBaseUrl.trimEnd('/') + "/"
+        val prefix = mediaPolicy.cdnBaseUrl.trimEnd('/') + "/"
         if (!imageUrl.startsWith(prefix)) return
         val key = imageUrl.removePrefix(prefix)
         if (key.isBlank()) return

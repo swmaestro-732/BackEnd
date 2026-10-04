@@ -185,4 +185,20 @@ class HexagonalArchitectureTest {
             }
         }
     }
+
+    /**
+     * 멀티모듈 전환 시 테스트가 bootstrap 에 모이며 영속성 Table/Entity 의 internal 가시성을 제거했다.
+     * 가시성(internal) 대신 이 규칙으로 "어댑터의 Exposed 영속성 내부는 어댑터 밖에서 참조 금지"를 강제한다.
+     * (도메인/애플리케이션은 모듈 경계로 이미 adapter 참조가 불가하고, 이 규칙은 bootstrap 포함 전 범위를 커버한다.)
+     */
+    @Test
+    fun `어댑터 밖에서는 어댑터의 영속성(Exposed) 내부를 참조하지 않는다`() {
+        noClasses()
+            .that()
+            .resideOutsideOfPackage("..adapter..")
+            .should()
+            .dependOnClassesThat()
+            .resideInAPackage("..adapter.outbound.persistence..")
+            .check(classes)
+    }
 }

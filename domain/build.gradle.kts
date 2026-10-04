@@ -4,5 +4,5 @@ dependencies {
     implementation(project(":common"))
     // 순수 날짜 타입(kotlinx.datetime.LocalDate). Exposed 가 아니라 kotlinx 라이브러리 자체라 도메인 순수성 유지.
     // 버전은 adapter 의 exposed-kotlin-datetime 이 끌어오는 것과 일치시킨다.
-    implementation("org.jetbrains.kotlinx:kotlinx-datetime:0.7.1-0.6.x-compat")
+    implementation(libs.kotlinx.datetime)
 }
