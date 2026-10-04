@@ -20,6 +20,9 @@ dependencyManagement {
 
 dependencies {
     jacocoAggregation(project(":common"))
+    jacocoAggregation(project(":area"))
+    jacocoAggregation(project(":direction"))
+    jacocoAggregation(project(":media"))
     jacocoAggregation(project(":app"))
 }
 

@@ -7,6 +7,9 @@ description = "Backend 실행 모듈 — Spring Boot 부트스트랩·설정·�
 
 dependencies {
     implementation(project(":common"))
+    implementation(project(":area"))
+    implementation(project(":direction"))
+    implementation(project(":media"))
 
     // Exposed 핵심 모듈
     implementation("org.jetbrains.exposed:exposed-jdbc:1.3.0")

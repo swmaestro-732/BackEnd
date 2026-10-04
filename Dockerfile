@@ -7,10 +7,16 @@ COPY gradlew settings.gradle.kts build.gradle.kts ./
 COPY gradle gradle
 COPY buildSrc buildSrc
 COPY common/build.gradle.kts common/
+COPY area/build.gradle.kts area/
+COPY direction/build.gradle.kts direction/
+COPY media/build.gradle.kts media/
 COPY app/build.gradle.kts app/
 RUN chmod +x gradlew && ./gradlew :app:dependencies --no-daemon > /dev/null 2>&1 || true
 
 COPY common/src common/src
+COPY area/src area/src
+COPY direction/src direction/src
+COPY media/src media/src
 COPY app/src app/src
 RUN ./gradlew :app:bootJar --no-daemon
 

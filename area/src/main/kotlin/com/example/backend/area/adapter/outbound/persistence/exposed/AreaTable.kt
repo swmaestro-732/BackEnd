@@ -8,7 +8,7 @@ import org.jetbrains.exposed.v1.core.Table
  *
  * 스키마는 Flyway(V12)가 소유한다 — SchemaUtils.create 로 만들지 않는다. PK 는 문자 코드(code)다.
  */
-internal object AreaTable : Table("area") {
+object AreaTable : Table("area") {
     val code = varchar("code", 10)
     val sidoName = varchar("sido_name", 20)
     val sigunguName = varchar("sigungu_name", 30).nullable()
