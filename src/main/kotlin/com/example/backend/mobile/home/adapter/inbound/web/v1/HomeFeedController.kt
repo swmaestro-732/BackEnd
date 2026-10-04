@@ -1,9 +1,9 @@
-package com.example.backend.mobile.home.adapter.inbound.web
+package com.example.backend.mobile.home.adapter.inbound.web.v1
 
 import com.example.backend.bootstrap.appversion.AppFeature
 import com.example.backend.bootstrap.appversion.RequiresAppFeature
 import com.example.backend.common.response.ApiResponse
-import com.example.backend.mobile.home.adapter.inbound.web.response.HomeFeedResponse
+import com.example.backend.mobile.home.adapter.inbound.web.v1.response.HomeFeedResponse
 import com.example.backend.mobile.home.application.port.inbound.HomeFeedUseCase
 import jakarta.validation.constraints.Max
 import jakarta.validation.constraints.Min
@@ -19,6 +19,9 @@ import org.springframework.web.bind.annotation.RestController
  * 컨트롤러는 Request → 포트 호출 → Response 매핑만 한다.
  *
  * 시드/DB 없이 프론트가 붙어볼 수 있도록 `?mock=true` 면 조회 없이 고정 목([HomeFeedResponse.MOCK])을 반환한다.
+ *
+ * 구버전 앱 호환용으로 응답 형태를 고정해 둔다. 새 홈 화면은 `v2.HomeController`(`/service/v2/home`)를 쓴다.
+ * home 최소 빌드를 올려 구버전 앱이 사라지면 이 컨트롤러와 [HomeFeedResponse]를 지운다.
  */
 @RequiresAppFeature(AppFeature.COURSE_DETAIL)
 @RestController

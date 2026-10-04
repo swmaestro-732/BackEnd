@@ -41,6 +41,7 @@ class OpenSearchPlaceSearchAdapterTest {
         val noClient = OpenSearchPlaceSearchAdapter(providerOf(null), OpenSearchProperties())
 
         assertThatThrownBy { noClient.search(criteria()) }.isUnavailable()
+        assertThatThrownBy { noClient.nearestAmong(listOf(1L), Coordinate(37.5, 127.0), 5) }.isUnavailable()
         assertThatThrownBy { noClient.searchMap(criteria(viewport = viewport), 5, PlaceMapSort.RELEVANCE) }
             .isUnavailable()
     }
@@ -188,6 +189,42 @@ class OpenSearchPlaceSearchAdapterTest {
                 .latlon()
                 .lat(),
         ).isEqualTo(37.5)
+    }
+
+    @Test
+    fun `저장 장소 거리순은 ids 필터와 기준점 geo_distance 정렬로 요청하고 정렬값을 미터 거리로 돌려준다`() {
+        stub(response(hits = listOf(hit("20", "152.7"), hit("10", "830.1")), total = 2))
+
+        val hits = adapter.nearestAmong(listOf(10L, 20L, 30L), Coordinate(37.544, 127.056), 5)
+
+        assertThat(hits.map { it.id }).containsExactly(20L, 10L)
+        assertThat(hits.map { it.distanceMeters }).containsExactly(152.7, 830.1)
+        val request = capturedRequest()
+        assertThat(request.index()).containsExactly("dev-place")
+        assertThat(request.size()).isEqualTo(5)
+        val filters = request.query()!!.bool().filter()
+        assertThat(filters[0].term().field()).isEqualTo("status")
+        assertThat(filters[1].ids().values()).containsExactly("10", "20", "30")
+        val primary = request.sort().first()
+        assertThat(primary.isGeoDistance).isTrue()
+        assertThat(
+            primary
+                .geoDistance()
+                .location()
+                .single()
+                .latlon()
+                .lon(),
+        ).isEqualTo(127.056)
+        assertThat(request.sort().last().isDoc).isTrue()
+    }
+
+    @Test
+    fun `저장 장소 거리순도 부분 실패와 예외를 503 으로 바꾼다`() {
+        stub(response(hits = emptyList(), total = 0, failedShards = 1))
+        assertThatThrownBy { adapter.nearestAmong(listOf(1L), Coordinate(37.5, 127.0), 5) }.isUnavailable()
+
+        `when`(client.search(any(SearchRequest::class.java), eq(Void::class.java))).thenThrow(RuntimeException("down"))
+        assertThatThrownBy { adapter.nearestAmong(listOf(1L), Coordinate(37.5, 127.0), 5) }.isUnavailable()
     }
 
     @Test

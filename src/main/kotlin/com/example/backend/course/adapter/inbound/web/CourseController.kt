@@ -7,10 +7,10 @@ import com.example.backend.common.response.ApiResponse
 import com.example.backend.course.adapter.inbound.web.request.CreateCourseRequest
 import com.example.backend.course.adapter.inbound.web.request.EditCourseRequest
 import com.example.backend.course.adapter.inbound.web.response.CourseDetailResponse
+import com.example.backend.course.adapter.inbound.web.response.CourseDraftResponse
 import com.example.backend.course.adapter.inbound.web.response.CourseIdResponse
 import com.example.backend.course.application.port.inbound.CourseQueryUseCase
 import com.example.backend.course.application.port.inbound.CourseUseCase
-import com.example.backend.course.application.port.inbound.dto.CourseSummary
 import jakarta.validation.Valid
 import org.springframework.http.HttpStatus
 import org.springframework.web.bind.annotation.DeleteMapping
@@ -23,7 +23,6 @@ import org.springframework.web.bind.annotation.RequestMapping
 import org.springframework.web.bind.annotation.RequestParam
 import org.springframework.web.bind.annotation.ResponseStatus
 import org.springframework.web.bind.annotation.RestController
-import java.time.Instant
 
 /**
  * 인바운드 어댑터 — 코스(노션 명세 · Course).
@@ -38,16 +37,16 @@ class CourseController(
 ) {
     /**
      * 로그인 작성자의 임시저장 코스를 최근 수정순으로 조회한다. 공개범위는 본인 목록이라 적용하지 않는다.
-     * `?mock=true` 면 DB 조회 없이 고정 목록을 반환한다.
+     * `?mock=true` 면 DB 조회 없이 고정 목록([CourseDraftResponse.MOCK])을 반환한다.
      */
     @RequiresAppFeature(AppFeature.COURSE_CREATE)
     @GetMapping("/drafts")
     fun listDrafts(
         @CurrentUserId userId: Long,
         @RequestParam(required = false) mock: Boolean = false,
-    ): ApiResponse<List<CourseSummary>> {
-        if (mock) return ApiResponse.success(DRAFTS_MOCK)
-        return ApiResponse.success(courseQueryUseCase.listDraftsByAuthor(userId))
+    ): ApiResponse<List<CourseDraftResponse>> {
+        if (mock) return ApiResponse.success(CourseDraftResponse.MOCK)
+        return ApiResponse.success(courseQueryUseCase.listDraftsByAuthor(userId).map(CourseDraftResponse::from))
     }
 
     /**
@@ -102,22 +101,5 @@ class CourseController(
         if (mock) return ApiResponse.ok("코스가 삭제되었습니다.")
         courseUseCase.delete(userId, courseId)
         return ApiResponse.ok("코스가 삭제되었습니다.")
-    }
-
-    private companion object {
-        val DRAFTS_MOCK: List<CourseSummary> =
-            listOf(
-                CourseSummary(
-                    id = 2,
-                    authorId = 1,
-                    title = "비 오는 날 성수 감성 카페 코스",
-                    coverImageUrl = "https://images.unsplash.com/photo-1554118811-1e0d58224f24?w=600",
-                    theme = null,
-                    area = null,
-                    likesCnt = 0,
-                    savesCnt = 0,
-                    createdAt = Instant.parse("2026-07-20T02:30:00Z"),
-                ),
-            )
     }
 }

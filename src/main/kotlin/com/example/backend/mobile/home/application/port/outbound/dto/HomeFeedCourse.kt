@@ -6,6 +6,7 @@ import java.time.Instant
  * BFF 아웃바운드 출력 — 공개 코스 피드 후보. course 도메인 응답([CourseSummary])을 BFF 안으로 복사한 격리 DTO다.
  * theme 은 도메인 enum 이 아니라 이름 문자열(크로스 도메인·BFF 격리).
  * savesCnt 는 course 도메인이 저장/취소 시 갱신하는 denormalized 카운터 값이다.
+ * placeCount 는 코스 장소 수, walkingMinutes 는 구간 도보 시간 합(분)이다.
  */
 data class HomeFeedCourse(
     val id: Long,
@@ -13,6 +14,9 @@ data class HomeFeedCourse(
     val title: String,
     val coverImageUrl: String?,
     val theme: String?,
+    val area: String?,
+    val placeCount: Int,
+    val walkingMinutes: Int,
     val likesCnt: Int,
     val savesCnt: Int,
     val createdAt: Instant,

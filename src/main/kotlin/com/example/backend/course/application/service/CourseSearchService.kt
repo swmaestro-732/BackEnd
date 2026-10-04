@@ -51,5 +51,7 @@ class CourseSearchService(
             likesCnt = row.likesCnt,
             savesCnt = row.savesCnt,
             createdAt = row.createdAt,
+            placeCount = null,
+            walkingMinutes = null,
         )
 }

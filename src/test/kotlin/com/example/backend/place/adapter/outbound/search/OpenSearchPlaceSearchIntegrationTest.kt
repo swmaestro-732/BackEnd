@@ -186,6 +186,37 @@ class OpenSearchPlaceSearchIntegrationTest
             }
         }
 
+        @Test
+        fun `저장 장소 거리순은 주어진 id 안에서만 가까운 순으로 거리(m)와 함께 준다`() {
+            val query = "근처저장${UUID.randomUUID()}"
+            val baseId = nextBaseId()
+            val far = baseId + 1
+            val near = baseId + 2
+            val mid = baseId + 3
+            val closestButNotSaved = baseId + 4
+            val origin = Coordinate(37.5, 127.0)
+            val documents =
+                listOf(
+                    document(far, query, Coordinate(37.53, 127.0)),
+                    document(near, query, Coordinate(37.501, 127.0)),
+                    document(mid, query, Coordinate(37.51, 127.0)),
+                    document(closestButNotSaved, query, origin),
+                )
+            try {
+                index(documents)
+
+                val hits = searchPort.nearestAmong(listOf(far, near, mid), origin, 2)
+
+                // 기준점 위의 closestButNotSaved 는 id 필터로 빠지고, size=2 라 far 도 잘린다.
+                assertEquals(listOf(near, mid), hits.map { it.id })
+                // 위도 0.001도 ≈ 111m, 0.01도 ≈ 1112m (Arc 거리) — 오차 1% 안.
+                assertEquals(111.2, hits[0].distanceMeters, 1.2)
+                assertEquals(1112.0, hits[1].distanceMeters, 11.0)
+            } finally {
+                delete(documents.map { it.first })
+            }
+        }
+
         private fun document(
             id: Long,
             name: String,

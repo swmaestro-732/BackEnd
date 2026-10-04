@@ -2,10 +2,16 @@ package com.example.backend.course.adapter.outbound.persistence.exposed.reposito
 
 import com.example.backend.course.adapter.outbound.persistence.exposed.CoursePlaceTable
 import com.example.backend.course.application.port.outbound.CoursePlaceRow
+import com.example.backend.course.application.port.outbound.CoursePlaceStats
 import com.example.backend.course.domain.model.CoursePlace
+import org.jetbrains.exposed.v1.core.Op
 import org.jetbrains.exposed.v1.core.SortOrder
+import org.jetbrains.exposed.v1.core.case
+import org.jetbrains.exposed.v1.core.count
 import org.jetbrains.exposed.v1.core.eq
+import org.jetbrains.exposed.v1.core.greater
 import org.jetbrains.exposed.v1.core.inList
+import org.jetbrains.exposed.v1.core.sum
 import org.jetbrains.exposed.v1.jdbc.batchInsert
 import org.jetbrains.exposed.v1.jdbc.deleteWhere
 import org.jetbrains.exposed.v1.jdbc.select
@@ -90,6 +96,27 @@ class CoursePlaceRepository(
                         images = imagesByPlace[coursePlaceId].orEmpty(),
                     )
                 }
+            }
+    }
+
+    /** 코스별 장소 수와 구간 도보 시간 합을 group by 한 번으로 집계한다(코스마다 쿼리하는 N+1 회피). */
+    fun findStatsByCourseIds(courseIds: List<Long>): Map<Long, CoursePlaceStats> {
+        if (courseIds.isEmpty()) return emptyMap()
+        val placeCount = CoursePlaceTable.id.count()
+        // 양수 구간만 더한다: -1(도보 불가)은 CASE 로 NULL 로 바꿔 빼고, NULL(마지막 장소)은 SUM 이 건너뛴다.
+        // 더할 구간이 하나도 없으면 SUM 이 NULL 이라 0 으로 본다. (상세 화면 CourseStatsResponse 의 filter { it > 0 } 와 같은 규칙)
+        val walkingMinutes =
+            case()
+                .When(CoursePlaceTable.walkingMinutes greater 0, CoursePlaceTable.walkingMinutes)
+                .Else(Op.nullOp())
+                .sum()
+        return CoursePlaceTable
+            .select(CoursePlaceTable.courseId, placeCount, walkingMinutes)
+            .where { CoursePlaceTable.courseId inList courseIds }
+            .groupBy(CoursePlaceTable.courseId)
+            .associate {
+                it[CoursePlaceTable.courseId] to
+                    CoursePlaceStats(placeCount = it[placeCount].toInt(), walkingMinutes = it[walkingMinutes] ?: 0)
             }
     }
 }
