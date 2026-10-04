@@ -27,7 +27,7 @@ import org.springframework.web.bind.annotation.RestController
  * 로그인·회원가입·로그아웃·토큰 재발급 등 **인증 액션**은 `/api/v1/auth` 로 묶는다
  * (`/my` = 내가 기준인 리소스, `/users` = 유저 도메인 리소스와 구분).
  * social-login·signup 은 [AuthUseCase]로 실구현하며, 개발 환경에서 `?mock=true`로 DB 저장 없는
- * 폴백을 제공한다(`?mockError`는 모킹 에러 화면 작업용). 운영 차단은 프로파일 게이팅으로 다룬다.
+ * 폴백을 제공한다(`?mockError`는 모킹 에러 화면 작업용). 운영 차단은 MockAspect 가 맡는다.
  */
 @RequiresAppFeature(AppFeature.AUTH)
 @RestController
@@ -42,7 +42,7 @@ class AuthController(
         @RequestParam(required = false) mock: Boolean = false,
     ): ApiResponse<SocialLoginResponse> {
         if (mock) return ApiResponse.success(SocialLoginResponse.mock(authUseCase.issueDevAccessToken()))
-        val result = authUseCase.socialLogin(request.provider.toDomain(), request.idToken)
+        val result = authUseCase.socialLogin(request.provider.toDomain(), request.token())
         return ApiResponse.success(SocialLoginResponse.from(result))
     }
 

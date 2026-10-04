@@ -17,11 +17,11 @@ class SocialVerificationAdapter(
 
     override fun verify(
         provider: SocialProvider,
-        idToken: String,
+        token: String,
     ): SocialIdentity {
         val verifier =
             byProvider[provider]
                 ?: throw BusinessException(CommonErrorCode.SOCIAL_AUTHENTICATION_FAILED)
-        return verifier.verify(idToken)
+        return verifier.verify(token)
     }
 }

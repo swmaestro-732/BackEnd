@@ -19,13 +19,13 @@ class KakaoSocialVerifier(
 ) : SocialTokenVerifier {
     override val provider: SocialProvider = SocialProvider.KAKAO
 
-    override fun verify(idToken: String): SocialIdentity {
+    override fun verify(token: String): SocialIdentity {
         if (kakaoOauthProperties.clientId.isBlank()) {
             throw BusinessException(CommonErrorCode.SOCIAL_AUTHENTICATION_FAILED)
         }
         val jwt =
             try {
-                kakaoJwtDecoder.decode(idToken)
+                kakaoJwtDecoder.decode(token)
             } catch (exception: JwtException) {
                 throw BusinessException(CommonErrorCode.SOCIAL_AUTHENTICATION_FAILED)
             }

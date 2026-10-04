@@ -38,7 +38,7 @@ class AuthControllerTest
                 .perform(
                     post("/api/v1/auth/social-login?mock=true")
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content("""{"provider":"NAVER","idToken":"x"}"""),
+                        .content("""{"provider":"UNKNOWN","idToken":"x"}"""),
                 ).andExpect(status().isBadRequest)
                 .andExpect(jsonPath("$.code").value(4001))
         }
