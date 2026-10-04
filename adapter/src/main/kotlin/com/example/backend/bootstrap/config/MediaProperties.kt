@@ -1,6 +1,6 @@
 package com.example.backend.bootstrap.config
 
-import com.example.backend.media.application.MediaPolicy
+import com.example.backend.media.application.port.outbound.MediaPolicy
 import jakarta.validation.constraints.NotBlank
 import org.springframework.boot.context.properties.ConfigurationProperties
 import org.springframework.validation.annotation.Validated

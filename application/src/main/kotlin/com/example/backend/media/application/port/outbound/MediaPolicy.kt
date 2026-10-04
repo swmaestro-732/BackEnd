@@ -1,4 +1,4 @@
-package com.example.backend.media.application
+package com.example.backend.media.application.port.outbound
 
 /**
  * MediaService 가 필요로 하는 미디어 정책 값(업로드 상한, CDN base URL).

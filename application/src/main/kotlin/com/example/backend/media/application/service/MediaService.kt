@@ -3,12 +3,12 @@ package com.example.backend.media.application.service
 import com.example.backend.common.exception.BusinessException
 import com.example.backend.common.response.CommonErrorCode
 import com.example.backend.common.support.runAfterCommit
-import com.example.backend.media.application.MediaPolicy
 import com.example.backend.media.application.port.inbound.MediaCleanupUseCase
 import com.example.backend.media.application.port.inbound.PresignUploadUseCase
 import com.example.backend.media.application.port.inbound.dto.PresignCommand
 import com.example.backend.media.application.port.inbound.dto.PresignResult
 import com.example.backend.media.application.port.inbound.dto.UploadPurpose
+import com.example.backend.media.application.port.outbound.MediaPolicy
 import com.example.backend.media.application.port.outbound.MediaStoragePort
 import org.springframework.stereotype.Service
 import java.util.UUID
