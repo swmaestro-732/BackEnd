@@ -29,7 +29,7 @@ pre-commit install               # commit-msg·pre-commit 훅 자동 설치
 ./gradlew build jacocoTestReport        # 집계 커버리지 리포트: bootstrap/build/reports/jacoco/test/
 ```
 
-> 모듈 구조: `:common`, `:domain`, `:application`, `:adapter`, `:bootstrap`. 헥사고날 레이어 경계를 Gradle 모듈 의존으로 강제한다(도메인은 Spring/Exposed 무의존). 실행 가능한 bootJar 는 `:bootstrap` 만 만든다.
+> 모듈 구조(도메인/바운디드 컨텍스트 단위): `:common`, `:area`, `:media`, `:direction`, `:place`, `:course`, `:user`, `:mobile`, `:bootstrap`. 레이어(domain/application/adapter)는 각 모듈 내부 패키지로 유지하고, 크로스도메인 의존 방향을 모듈로 강제한다(상대 도메인의 inbound 포트만 참조는 ArchUnit). 실행 가능한 bootJar 는 `:bootstrap` 만 만든다.
 
 - 애플리케이션: `http://localhost:8080`
 - Swagger UI: `http://localhost:8080/swagger-ui.html`

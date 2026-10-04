@@ -1,6 +1,6 @@
 // :bootstrap — Spring Boot 애플리케이션(main) + config/security + resources + 전체 테스트.
-// 모든 모듈에 의존하며 유일하게 실행 가능한 bootJar 를 만든다.
-// org.springframework.boot 플러그인은 이 모듈에만 적용(루트 plugins 에서 version 과 함께 apply false 로 선언, 여기서 version 생략 적용).
+// 모든 도메인 모듈에 의존하며 유일하게 실행 가능한 bootJar 를 만든다.
+// 공유 인프라(web/security/Exposed/검색/AWS 등)는 루트 subprojects 에서 상속하고, 여기선 부트 전용(자동구성/관측/마이그레이션)만 더한다.
 plugins {
     id("org.springframework.boot")
     jacoco
@@ -10,45 +10,26 @@ plugins {
 tasks.named<Jar>("jar") { enabled = false }
 
 dependencies {
-    implementation(project(":adapter"))
-    implementation(project(":application"))
-    implementation(project(":domain"))
     implementation(project(":common"))
+    implementation(project(":area"))
+    implementation(project(":media"))
+    implementation(project(":direction"))
+    implementation(project(":place"))
+    implementation(project(":course"))
+    implementation(project(":user"))
+    implementation(project(":mobile"))
 
-    // Exposed 핵심 + Spring 연동(Database 자동구성 + @Transactional)
-    implementation(libs.exposed.jdbc)
-    implementation(libs.exposed.core)
-    implementation(libs.exposed.dao)
-    implementation(libs.exposed.kotlin.datetime)
+    // 부트 전용(자동구성/관측/마이그레이션) — subprojects 인프라에 없는 것만.
     implementation(libs.exposed.spring.boot.starter)
-
     implementation("org.springframework.boot:spring-boot-starter-flyway")
     implementation("org.springframework.boot:spring-boot-starter-jdbc")
-    implementation("org.springframework.boot:spring-boot-starter-oauth2-resource-server")
-    implementation("org.springframework.boot:spring-boot-starter-security")
-    implementation("org.springframework.boot:spring-boot-starter-validation")
-    implementation("org.springframework.boot:spring-boot-starter-webmvc")
     implementation("org.springframework.boot:spring-boot-starter-actuator")
-    implementation("org.springframework.boot:spring-boot-starter-aspectj")
     runtimeOnly("io.micrometer:micrometer-registry-prometheus")
     implementation("org.springframework.boot:spring-boot-starter-opentelemetry")
     implementation(libs.sentry.spring.boot)
-    implementation(libs.springdoc.openapi.webmvc.ui)
     implementation("org.flywaydb:flyway-database-postgresql")
-    implementation("tools.jackson.module:jackson-module-kotlin")
-    implementation(libs.jackson.module.kotlin.v2)
-    implementation(libs.kotlin.logging)
     developmentOnly("org.springframework.boot:spring-boot-devtools")
     developmentOnly("org.springframework.boot:spring-boot-docker-compose")
-    implementation("org.postgresql:postgresql")
-    implementation(platform(libs.aws.bom))
-    implementation(libs.aws.s3)
-    implementation(platform(libs.spring.cloud.aws.bom))
-    implementation("io.awspring.cloud:spring-cloud-aws-starter-sqs")
-    implementation(libs.opensearch.java) {
-        exclude(group = "org.opensearch.client", module = "opensearch-rest-client")
-    }
-    implementation("org.apache.httpcomponents.client5:httpclient5")
 
     // 전체 테스트가 이 모듈에 있다 — 모든 레이어/인프라 테스트 의존을 여기서 제공.
     testImplementation("org.springframework.boot:spring-boot-starter-flyway-test")
@@ -81,7 +62,7 @@ tasks.register<Test>("opensearchIt") {
     filter { includeTestsMatching("*OpenSearch*IntegrationTest") }
 }
 
-// ArchUnit 아키텍처 경계 규칙만 실행(DB 불필요). 모듈로 승격 못 한 규칙(inbound↛outbound, 크로스도메인 등)을 계속 강제.
+// ArchUnit 아키텍처 경계 규칙만 실행(DB 불필요). 모듈로 승격 못 한 규칙(레이어 경계, 상대 inbound 포트만 등)을 계속 강제.
 tasks.register<Test>("archTest") {
     description = "ArchUnit 아키텍처 경계 규칙만 실행"
     group = "verification"
@@ -90,11 +71,11 @@ tasks.register<Test>("archTest") {
     filter { includeTestsMatching("com.example.backend.architecture.*") }
 }
 
-// 전체 테스트는 이 모듈에 있으나 코드는 5개 모듈에 흩어져 있다 — 집계 리포트를 만든다.
-// bootstrap 의 test.exec 하나로 전 모듈 main 클래스의 커버리지를 집계(경로 기반, 크로스 프로젝트 모델 접근 회피).
+// 전체 테스트는 이 모듈에 있으나 코드는 도메인 모듈들에 흩어져 있다 — 집계 리포트를 만든다.
 tasks.jacocoTestReport {
     dependsOn(tasks.test)
-    val coveredModules = listOf("common", "domain", "application", "adapter", "bootstrap")
+    val coveredModules =
+        listOf("common", "area", "media", "direction", "place", "course", "user", "mobile", "bootstrap")
     sourceDirectories.setFrom(files(coveredModules.map { rootProject.project(it).file("src/main/kotlin") }))
     classDirectories.setFrom(
         files(
