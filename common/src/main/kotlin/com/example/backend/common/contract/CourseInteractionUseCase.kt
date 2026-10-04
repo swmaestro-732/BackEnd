@@ -1,6 +1,4 @@
-package com.example.backend.user.application.port.inbound
-
-import com.example.backend.user.application.port.inbound.dto.CourseViewerState
+package com.example.backend.common.contract
 
 /**
  * 인바운드 포트 — 사용자와 코스 간 상호작용·사용자 간 관계 조회(공개 API).

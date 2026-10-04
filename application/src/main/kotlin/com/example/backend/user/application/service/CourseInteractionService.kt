@@ -1,7 +1,7 @@
 package com.example.backend.user.application.service
 
-import com.example.backend.user.application.port.inbound.CourseInteractionUseCase
-import com.example.backend.user.application.port.inbound.dto.CourseViewerState
+import com.example.backend.common.contract.CourseInteractionUseCase
+import com.example.backend.common.contract.CourseViewerState
 import com.example.backend.user.application.port.outbound.CourseInteractionPort
 import com.example.backend.user.application.port.outbound.FollowPersistencePort
 import org.springframework.stereotype.Service
