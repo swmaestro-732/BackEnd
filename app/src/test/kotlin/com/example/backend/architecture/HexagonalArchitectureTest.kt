@@ -10,15 +10,18 @@ import org.junit.jupiter.api.Test
 /**
  * 헥사고날 + 도메인 분리 경계를 테스트로 강제한다(컴파일 대신 CI 로 위반 차단).
  *
- * 도메인(user/place/course)은 서로의 내부에 의존하지 않고,
+ * 도메인(domains)은 서로의 내부에 의존하지 않고,
  * 오직 상대 도메인의 application.port.inbound(공개 API)만 참조할 수 있다.
- * BFF 패키지(bff)는 화면단위 조합을 위해 도메인의 inbound 포트에 의존할 수 있다.
+ * BFF 패키지(mobile)는 화면단위 조합을 위해 도메인의 inbound 포트에 의존할 수 있다.
  */
 class HexagonalArchitectureTest {
     private val classes =
         ClassFileImporter()
             .withImportOption(ImportOption.DoNotIncludeTests())
             .importPackages("com.example.backend")
+
+    /** 크로스 도메인·BFF 규칙 대상 컨텍스트. 새 도메인 모듈을 추가하면 여기에도 넣는다. */
+    private val domains = listOf("user", "place", "course", "area", "direction", "media")
 
     @Test
     fun `도메인은 애플리케이션·어댑터·스프링·Exposed 에 의존하지 않는다`() {
@@ -79,6 +82,18 @@ class HexagonalArchitectureTest {
             .check(classes)
     }
 
+    /** Exposed Table·Entity·Repository 는 어댑터 전용 — 멀티모듈 전환으로 `internal` 을 해제한 자리를 이 규칙이 대신한다. */
+    @Test
+    fun `어댑터 밖에서는 영속성 내부를 참조하지 않는다`() {
+        noClasses()
+            .that()
+            .resideOutsideOfPackage("..adapter..")
+            .should()
+            .dependOnClassesThat()
+            .resideInAPackage("..adapter.outbound.persistence..")
+            .check(classes)
+    }
+
     /**
      * 포트 계약 DTO는 application.port.inbound(.dto)에 둔다 — application.dto 재도입 차단.
      * application.dto에 두면 크로스 도메인·bff가 참조할 수 없어(위 규칙들) 재사용 시 빌드가 깨진다.
@@ -113,7 +128,7 @@ class HexagonalArchitectureTest {
      */
     @Test
     fun `BFF 는 도메인의 inbound 포트만 참조한다`() {
-        for (target in listOf("user", "place", "course")) {
+        for (target in domains) {
             val targetInternals =
                 resideInAnyPackage(
                     "com.example.backend.$target.domain..",
@@ -140,7 +155,6 @@ class HexagonalArchitectureTest {
      */
     @Test
     fun `도메인은 다른 도메인의 inbound 포트만 참조한다`() {
-        val domains = listOf("user", "place", "course")
         for (dependent in domains) {
             for (target in domains) {
                 if (dependent == target) continue
@@ -169,9 +183,10 @@ class HexagonalArchitectureTest {
      */
     @Test
     fun `도메인 코어는 다른 도메인을 참조하지 않는다`() {
-        val domains = listOf("user", "place", "course")
-        for (dependent in domains) {
-            for (target in domains) {
+        // course·user 코어가 area·media 인바운드 포트를 직접 호출하므로 이 규칙은 핵심 3개 도메인만 대상으로 한다.
+        val coreDomains = listOf("user", "place", "course")
+        for (dependent in coreDomains) {
+            for (target in coreDomains) {
                 if (dependent == target) continue
                 noClasses()
                     .that()
