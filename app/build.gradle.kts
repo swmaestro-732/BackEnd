@@ -85,6 +85,12 @@ dependencies {
     testRuntimeOnly("org.junit.platform:junit-platform-launcher")
 }
 
+// 멀티모듈 전환으로 bootRun 작업 디렉터리가 app/ 이 됐다. spring-boot-docker-compose 가
+// 루트의 docker-compose.yml 을 찾도록 단일 모듈 시절과 같은 루트로 고정한다.
+tasks.bootRun {
+    workingDir = rootProject.projectDir
+}
+
 // 메인 test: 아키텍처(ArchUnit) 테스트와 OpenSearch 실연결 통합테스트는 제외 —
 // 각각 전용 archTest·opensearchIt 에서만 실행(PR CI 를 무겁게 하지 않음).
 tasks.test {
