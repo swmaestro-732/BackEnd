@@ -12,17 +12,23 @@ import org.apache.hc.core5.util.Timeout
 import org.opensearch.client.json.jackson.JacksonJsonpMapper
 import org.opensearch.client.opensearch.OpenSearchClient
 import org.opensearch.client.transport.OpenSearchTransport
+import org.opensearch.client.transport.aws.AwsSdk2Transport
+import org.opensearch.client.transport.aws.AwsSdk2TransportOptions
 import org.opensearch.client.transport.httpclient5.ApacheHttpClient5TransportBuilder
 import org.springframework.boot.autoconfigure.condition.ConditionalOnExpression
 import org.springframework.boot.health.contributor.HealthIndicator
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
+import software.amazon.awssdk.auth.credentials.DefaultCredentialsProvider
+import software.amazon.awssdk.http.apache.ApacheHttpClient
+import software.amazon.awssdk.regions.Region
+import java.time.Duration
 
 /**
  * AWS OpenSearch(VPC 도메인) 클라이언트 배선. `opensearch.endpoint` 가 비어있지 않을 때만 활성(fail-soft) —
  * 로컬·CI(엔드포인트 미주입/빈값)에서는 이 설정 전체가 비활성이라 클라이언트·헬스 인디케이터가 생성되지 않고 앱은 정상 기동한다.
  * (@ConditionalOnProperty 는 빈 문자열도 "존재"로 보므로, 공백 제거 후 길이로 판정한다.)
- * HTTPS(443) + FGAC basic auth. 네트워크 도달은 VPC SG(앱티어→도메인 443)로 이미 허용돼 있다.
+ * HTTPS(443) + FGAC basic auth(기본) 또는 IAM/SigV4. 네트워크 도달은 VPC SG(앱티어→도메인 443)로 이미 허용돼 있다.
  */
 @Configuration
 @ConditionalOnExpression("'\${opensearch.endpoint:}'.trim().length() > 0")
@@ -40,6 +46,41 @@ class OpenSearchConfig(
         // 스킴이 포함된 경우(예: 로컬/CI Testcontainers http://host:port)는 그대로 파싱해 임의 스킴·포트를 허용한다.
         val endpoint = properties.endpoint.trim()
         val host = if ("://" in endpoint) HttpHost.create(endpoint) else HttpHost("https", endpoint, 443)
+        // Kotlin data class(CourseDocument 등)를 검색 응답에서 역직렬화하려면 kotlin 모듈이 필요하다.
+        // 색인 문서에 없는 필드가 늘어도 읽기가 깨지지 않도록 알 수 없는 속성은 무시한다.
+        val jsonMapper =
+            ObjectMapper()
+                .registerKotlinModule()
+                .configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false)
+        if ("iam".equals(properties.authMode, ignoreCase = true)) {
+            require(properties.region.isNotBlank()) { "IAM 인증 모드에서는 opensearch.region 설정이 필요합니다." }
+            val region = Region.of(properties.region.trim())
+            val httpClient =
+                ApacheHttpClient
+                    .builder()
+                    .connectionTimeout(Duration.ofSeconds(2))
+                    .socketTimeout(Duration.ofSeconds(2))
+                    .connectionAcquisitionTimeout(Duration.ofSeconds(2))
+                    .build()
+            val credentialsProvider = DefaultCredentialsProvider.builder().build()
+            val options =
+                AwsSdk2TransportOptions
+                    .builder()
+                    .setCredentials(credentialsProvider)
+                    .setMapper(JacksonJsonpMapper(jsonMapper))
+                    .build()
+            // AwsSdk2Transport 는 HTTPS 로 연결하므로 스킴·포트를 제외한 호스트명만 넘긴다.
+            return object : AwsSdk2Transport(httpClient, host.hostName, "es", region, options) {
+                // 2.25.0 의 close() 는 no-op 이므로 직접 만든 리소스를 빈 종료 시 정리한다.
+                override fun close() {
+                    try {
+                        httpClient.close()
+                    } finally {
+                        credentialsProvider.close()
+                    }
+                }
+            }
+        }
         val credentialsProvider =
             BasicCredentialsProvider().apply {
                 setCredentials(
@@ -57,12 +98,6 @@ class OpenSearchConfig(
                 .setResponseTimeout(Timeout.ofSeconds(2))
                 .setConnectionRequestTimeout(Timeout.ofSeconds(2))
                 .build()
-        // Kotlin data class(CourseDocument 등)를 검색 응답에서 역직렬화하려면 kotlin 모듈이 필요하다.
-        // 색인 문서에 없는 필드가 늘어도 읽기가 깨지지 않도록 알 수 없는 속성은 무시한다.
-        val jsonMapper =
-            ObjectMapper()
-                .registerKotlinModule()
-                .configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false)
         return ApacheHttpClient5TransportBuilder
             .builder(host)
             .setMapper(JacksonJsonpMapper(jsonMapper))
