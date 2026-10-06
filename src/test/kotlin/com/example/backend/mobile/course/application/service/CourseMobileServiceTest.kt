@@ -64,6 +64,7 @@ class CourseMobileServiceTest {
             tags = emptyList(),
             description = "설명",
             visibility = CourseVisibility.PUBLIC,
+            isPublished = true,
             authorId = 3L,
             tracingsCnt = 0,
             places =

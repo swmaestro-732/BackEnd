@@ -24,6 +24,8 @@ class CourseSearchResponseTest {
             likesCnt = id.toInt() * 10,
             savesCnt = id.toInt() * 5,
             createdAt = now,
+            placeCount = null,
+            walkingMinutes = null,
         )
 
     @Test
@@ -98,6 +100,8 @@ class CourseSearchResponseTest {
                 likesCnt = 0,
                 savesCnt = 0,
                 createdAt = now,
+                placeCount = null,
+                walkingMinutes = null,
             )
         val item =
             CourseSearchResponse

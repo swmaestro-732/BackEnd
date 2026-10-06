@@ -78,7 +78,7 @@ class OpenSearchCourseIndexAdapterTest {
             commentsCnt = 0,
             savesCnt = 2,
             tracingsCnt = 0,
-            forkedFromId = null,
+            duplicatedFromId = null,
             createdAt = null,
             updatedAt = null,
             deletedAt = null,

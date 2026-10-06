@@ -10,6 +10,7 @@ import com.example.backend.course.application.port.inbound.dto.FeedCursor
 import com.example.backend.course.application.port.outbound.CourseDetailRow
 import com.example.backend.course.application.port.outbound.CoursePersistencePort
 import com.example.backend.course.application.port.outbound.CoursePlaceRow
+import com.example.backend.course.application.port.outbound.CoursePlaceStats
 import com.example.backend.course.application.port.outbound.CourseSummaryRow
 import com.example.backend.course.domain.model.Course
 import org.springframework.stereotype.Component
@@ -55,6 +56,9 @@ class CoursePersistenceAdapter(
     override fun findPlacesByCourseIds(courseIds: List<Long>): Map<Long, List<CoursePlaceRow>> =
         coursePlaceRepository.findByCourseIds(courseIds)
 
+    override fun findPlaceStats(courseIds: List<Long>): Map<Long, CoursePlaceStats> =
+        coursePlaceRepository.findStatsByCourseIds(courseIds)
+
     override fun save(course: Course): Course {
         val courseEntity = courseRepository.insert(course)
         insertChildren(courseEntity.id.value, course)
@@ -80,6 +84,10 @@ class CoursePersistenceAdapter(
     override fun increaseSavesCount(courseId: Long): Int = courseRepository.increaseSavesCount(courseId)
 
     override fun decreaseSavesCount(courseId: Long): Int = courseRepository.decreaseSavesCount(courseId)
+
+    override fun increaseCommentsCount(courseId: Long): Int = courseRepository.increaseCommentsCount(courseId)
+
+    override fun decreaseCommentsCount(courseId: Long): Int = courseRepository.decreaseCommentsCount(courseId)
 
     override fun increaseLikesCountReturning(courseId: Long): Int? =
         courseRepository.incrementLikesCntReturning(courseId)

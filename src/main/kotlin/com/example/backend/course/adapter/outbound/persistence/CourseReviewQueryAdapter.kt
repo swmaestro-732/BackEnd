@@ -2,7 +2,7 @@ package com.example.backend.course.adapter.outbound.persistence
 
 import com.example.backend.course.adapter.outbound.persistence.exposed.repository.CourseReviewQueryRepository
 import com.example.backend.course.application.port.inbound.dto.CourseReviewSortKey
-import com.example.backend.course.application.port.outbound.CourseRatingCounters
+import com.example.backend.course.application.port.outbound.CourseReviewCounters
 import com.example.backend.course.application.port.outbound.CourseReviewCursor
 import com.example.backend.course.application.port.outbound.CourseReviewQueryPort
 import com.example.backend.course.application.port.outbound.CourseReviewRow
@@ -32,11 +32,6 @@ class CourseReviewQueryAdapter(
     override fun findTags(reviewIds: List<Long>): Map<Long, List<CourseReviewTag>> =
         courseReviewQueryRepository.findTags(reviewIds)
 
-    override fun countReviewsByRating(courseId: Long): Map<Int, Long> =
-        courseReviewQueryRepository.countReviewsByRating(courseId)
-
-    override fun countPhotosByCourse(courseId: Long): Long = courseReviewQueryRepository.countPhotosByCourse(courseId)
-
-    override fun findRatingCounters(courseId: Long): CourseRatingCounters? =
-        courseReviewQueryRepository.findRatingCounters(courseId)
+    override fun findCounters(courseId: Long): CourseReviewCounters? =
+        courseReviewQueryRepository.findCounters(courseId)
 }

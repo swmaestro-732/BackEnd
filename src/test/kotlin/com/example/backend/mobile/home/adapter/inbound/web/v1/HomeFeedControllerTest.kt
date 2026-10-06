@@ -1,4 +1,4 @@
-package com.example.backend.mobile.home.adapter.inbound.web
+package com.example.backend.mobile.home.adapter.inbound.web.v1
 
 import com.example.backend.support.IntegrationTestBase
 import com.jayway.jsonpath.JsonPath

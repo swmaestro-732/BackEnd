@@ -279,6 +279,9 @@ class CourseControllerTest
                 .andExpect(jsonPath("$.data[1].id").value(PRIVATE_COURSE_ID))
                 .andExpect(jsonPath("$.data[1].authorId").value(OWNER_ID))
                 .andExpect(jsonPath("$.data[1].title").value("비공개 초안"))
+                // 홈 카드용 필드(CourseSummary.placeCount/walkingMinutes)는 임시저장 응답 계약에 새지 않는다(구버전 앱 호환).
+                .andExpect(jsonPath("$.data[0].placeCount").doesNotExist())
+                .andExpect(jsonPath("$.data[0].walkingMinutes").doesNotExist())
         }
 
         @Test

@@ -3,6 +3,7 @@ package com.example.backend.user.application.service
 import com.example.backend.common.exception.BusinessException
 import com.example.backend.common.response.CommonErrorCode
 import com.example.backend.common.response.PlaceErrorCode
+import com.example.backend.user.application.port.inbound.dto.SavedPlaceRef
 import com.example.backend.user.application.port.inbound.dto.SavedPlacesCommand
 import com.example.backend.user.application.port.outbound.PlaceAccessPort
 import com.example.backend.user.application.port.outbound.PlaceRef
@@ -41,6 +42,7 @@ class SavedPlaceServiceTest {
         object : SavedPlacePersistencePort {
             var savedPlaces: Set<Pair<Long, Long>> = emptySet()
             var pageRows: List<SavedPlaceRow> = emptyList()
+            var refs: List<SavedPlaceRef> = emptyList()
             var categoryCounts: List<SavedPlaceCategoryCountRow> = emptyList()
 
             /** visited 별 카운트 — 배지가 필터와 무관한 전체 기준임을 검증하려고 값을 따로 둔다. */
@@ -98,6 +100,8 @@ class SavedPlaceServiceTest {
                 findPageArgs = FindPageArgs(userId, visited, category, cursorId, limit)
                 return pageRows
             }
+
+            override fun findAllRefs(userId: Long): List<SavedPlaceRef> = refs
         }
 
     private data class FindPageArgs(
@@ -270,6 +274,14 @@ class SavedPlaceServiceTest {
         service.getSavedPlaces(command(category = null))
 
         assertNull(fakePort.findPageArgs?.category)
+    }
+
+    @Test
+    fun `저장 장소 참조는 포트가 준 (placeId, visited) 를 그대로 돌려준다`() {
+        fakePort.refs =
+            listOf(SavedPlaceRef(placeId = 30, visited = true), SavedPlaceRef(placeId = 20, visited = false))
+
+        assertEquals(fakePort.refs, service.listSavedPlaceRefs(1L))
     }
 
     /** 포트 계약상 category 는 enum 이 아니라 이름 문자열이다(BFF 도 쓰는 계약). */

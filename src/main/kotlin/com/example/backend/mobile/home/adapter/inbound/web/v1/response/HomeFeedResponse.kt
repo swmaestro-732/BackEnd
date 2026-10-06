@@ -1,4 +1,4 @@
-package com.example.backend.mobile.home.adapter.inbound.web.response
+package com.example.backend.mobile.home.adapter.inbound.web.v1.response
 
 import com.example.backend.mobile.home.application.port.inbound.dto.HomeFeedResult
 import java.time.Instant
