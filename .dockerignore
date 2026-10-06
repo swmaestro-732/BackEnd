@@ -1,11 +1,14 @@
 .git
 .gitignore
 .github
-.gradle
-build
 .idea
 .omc
 .remember
 *.md
 Dockerfile
 .dockerignore
+# 멀티모듈: 루트·buildSrc·모듈의 로컬 산출물·캐시 전부 제외(디렉터리를 통째로 COPY 하므로 필요)
+**/.gradle
+**/build
+**/.kotlin
+!gradle/wrapper/gradle-wrapper.jar

@@ -1,0 +1,106 @@
+package com.example.backend.user.adapter.inbound.web
+
+import com.example.backend.common.appversion.AppFeature
+import com.example.backend.common.appversion.RequiresAppFeature
+import com.example.backend.common.response.ApiResponse
+import com.example.backend.common.security.AccessTokenRequired
+import com.example.backend.common.security.CurrentUserId
+import com.example.backend.user.adapter.inbound.web.request.CreateCourseFolderRequest
+import com.example.backend.user.adapter.inbound.web.request.SaveCourseRequest
+import com.example.backend.user.adapter.inbound.web.response.CourseFolderListResponse
+import com.example.backend.user.adapter.inbound.web.response.CreateCourseFolderResponse
+import com.example.backend.user.adapter.inbound.web.response.SavedCourseListResponse
+import com.example.backend.user.application.port.inbound.SavedCourseUseCase
+import com.example.backend.user.application.port.inbound.dto.SavedCoursesCommand
+import jakarta.validation.Valid
+import jakarta.validation.constraints.Max
+import jakarta.validation.constraints.Min
+import org.springframework.http.HttpStatus
+import org.springframework.web.bind.annotation.DeleteMapping
+import org.springframework.web.bind.annotation.GetMapping
+import org.springframework.web.bind.annotation.PathVariable
+import org.springframework.web.bind.annotation.PostMapping
+import org.springframework.web.bind.annotation.RequestBody
+import org.springframework.web.bind.annotation.RequestParam
+import org.springframework.web.bind.annotation.ResponseStatus
+import org.springframework.web.bind.annotation.RestController
+
+/** 인바운드 어댑터 */
+@RequiresAppFeature(AppFeature.USER_COURSE)
+@RestController
+class SavedCourseController(
+    private val savedCourseUseCase: SavedCourseUseCase,
+) {
+    @PostMapping("/api/v1/saved-courses", "/api/v1/courses/save") // 구 경로: 호출량 0 확인 후 제거
+    @ResponseStatus(HttpStatus.CREATED)
+    @AccessTokenRequired
+    fun save(
+        @CurrentUserId userId: Long,
+        @Valid @RequestBody request: SaveCourseRequest,
+        @RequestParam(required = false) mock: Boolean = false,
+    ): ApiResponse<Nothing?> {
+        if (mock) return ApiResponse.ok("코스가 저장되었습니다.")
+
+        savedCourseUseCase.save(userId, request.courseId, request.folderId)
+        return ApiResponse.ok("코스가 저장되었습니다.")
+    }
+
+    @DeleteMapping("/api/v1/saved-courses/{courseId}", "/api/v1/courses/save/{courseId}") // 구 경로: 호출량 0 확인 후 제거
+    @AccessTokenRequired
+    fun unsave(
+        @CurrentUserId userId: Long,
+        @PathVariable courseId: Long,
+        @RequestParam(required = false) mock: Boolean = false,
+    ): ApiResponse<Nothing?> {
+        if (mock) return ApiResponse.ok("코스 저장을 취소했습니다.")
+
+        savedCourseUseCase.unsave(userId, courseId)
+        return ApiResponse.ok("코스 저장을 취소했습니다.")
+    }
+
+    @GetMapping("/api/v1/my/saved-courses")
+    fun list(
+        @CurrentUserId userId: Long,
+        @RequestParam(required = false) folderId: Long?,
+        @RequestParam(required = false) cursor: String?,
+        @RequestParam(required = false) @Min(1) @Max(50) size: Int = 10,
+        @RequestParam(required = false) mock: Boolean = false,
+    ): ApiResponse<SavedCourseListResponse> {
+        if (mock) return ApiResponse.success(SavedCourseListResponse.mock())
+
+        return ApiResponse.success(
+            SavedCourseListResponse.from(
+                savedCourseUseCase.getSavedCourses(
+                    SavedCoursesCommand(userId = userId, folderId = folderId, cursor = cursor, size = size),
+                ),
+            ),
+        )
+    }
+
+    @PostMapping("/api/v1/folders")
+    @AccessTokenRequired
+    @ResponseStatus(HttpStatus.CREATED)
+    fun createFolder(
+        @CurrentUserId userId: Long,
+        @Valid @RequestBody request: CreateCourseFolderRequest,
+        @RequestParam(required = false) mock: Boolean = false,
+    ): ApiResponse<CreateCourseFolderResponse> {
+        if (mock) {
+            return ApiResponse.success(CreateCourseFolderResponse.mock(), "폴더가 생성되었습니다.")
+        }
+
+        val folder = savedCourseUseCase.createFolder(userId, request.name)
+        return ApiResponse.success(CreateCourseFolderResponse(folderId = folder.id), "폴더가 생성되었습니다.")
+    }
+
+    @GetMapping("/api/v1/folders")
+    @AccessTokenRequired
+    fun listFolders(
+        @CurrentUserId userId: Long,
+        @RequestParam(required = false) mock: Boolean = false,
+    ): ApiResponse<CourseFolderListResponse> {
+        if (mock) return ApiResponse.success(CourseFolderListResponse.mock())
+
+        return ApiResponse.success(CourseFolderListResponse.from(savedCourseUseCase.getFolders(userId)))
+    }
+}

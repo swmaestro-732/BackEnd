@@ -2,13 +2,33 @@
 FROM eclipse-temurin:21-jdk AS build
 WORKDIR /workspace
 
-# 의존성 캐시 레이어
-COPY gradlew settings.gradle.kts build.gradle.kts ./
+# 의존성 캐시 레이어 — 빌드 스크립트(루트·buildSrc·모듈)만 먼저 복사해 소스 변경 시에도 의존성 레이어를 재사용한다.
+COPY gradlew settings.gradle.kts build.gradle.kts gradle.properties ./
 COPY gradle gradle
-RUN chmod +x gradlew && ./gradlew dependencies --no-daemon > /dev/null 2>&1 || true
+COPY buildSrc buildSrc
+COPY common/build.gradle.kts common/
+COPY area/build.gradle.kts area/
+COPY direction/build.gradle.kts direction/
+COPY media/build.gradle.kts media/
+COPY place/build.gradle.kts place/
+COPY user-api/build.gradle.kts user-api/
+COPY course/build.gradle.kts course/
+COPY user/build.gradle.kts user/
+COPY mobile/build.gradle.kts mobile/
+COPY app/build.gradle.kts app/
+RUN chmod +x gradlew && ./gradlew :app:dependencies --no-daemon > /dev/null 2>&1 || true
 
-COPY src src
-RUN ./gradlew bootJar --no-daemon
+COPY common/src common/src
+COPY area/src area/src
+COPY direction/src direction/src
+COPY media/src media/src
+COPY place/src place/src
+COPY user-api/src user-api/src
+COPY course/src course/src
+COPY user/src user/src
+COPY mobile/src mobile/src
+COPY app/src app/src
+RUN ./gradlew :app:bootJar --no-daemon
 
 # ── runtime stage ──
 FROM eclipse-temurin:21-jre
@@ -20,7 +40,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends curl && rm -rf 
     rm -f /usr/bin/pebble && \
     useradd -r -u 1001 appuser
 # bootJar 산출물(단일). 버전 문자열에 결합하지 않도록 *.jar 사용.
-COPY --from=build /workspace/build/libs/*.jar app.jar
+COPY --from=build /workspace/app/build/libs/*.jar app.jar
 USER appuser
 
 EXPOSE 8080
