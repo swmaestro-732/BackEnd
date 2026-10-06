@@ -3,7 +3,7 @@ package com.example.backend.common.search
 import org.springframework.boot.context.properties.ConfigurationProperties
 
 /**
- * AWS OpenSearch(VPC 도메인) 연결 설정 — FGAC basic auth.
+ * AWS OpenSearch(VPC 도메인) 연결 설정 — FGAC basic auth 또는 IAM/SigV4.
  * 값은 배포 시 env(OPENSEARCH_ENDPOINT/USERNAME/PASSWORD)로 주입한다(Secrets Manager `chilsami/opensearch/master`).
  * [endpoint]가 비면(로컬·CI) 클라이언트 빈을 만들지 않는다(fail-soft) — [OpenSearchConfig]의 @ConditionalOnProperty.
  */
@@ -20,6 +20,10 @@ data class OpenSearchProperties(
      * 기본 "" 는 현행 prod 동작 그대로(place/place_v2). "dev-" 면 dev-place/dev-place_v2.
      */
     val indexPrefix: String = "",
+    /** 인증 모드(basic|iam). 기본 basic 은 기존 동작, iam 은 SigV4(EC2 인스턴스 역할)를 쓰며 region 이 필요하다. */
+    val authMode: String = "basic",
+    /** IAM/SigV4 서명 리전(예: ap-northeast-2). iam 모드에서 빈 값이면 설정 오류로 기동을 중단한다. */
+    val region: String = "",
 ) {
     /** 인덱스·alias 이름에 [indexPrefix] 를 붙인다. prefix="" 면 인자 그대로(prod 무영향). */
     fun withPrefix(name: String): String = "$indexPrefix$name"
