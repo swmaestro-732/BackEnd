@@ -52,7 +52,13 @@ class OpenSearchConfig(
             ObjectMapper()
                 .registerKotlinModule()
                 .configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false)
-        if ("iam".equals(properties.authMode, ignoreCase = true)) {
+        // authMode 오타가 조용히 basic 으로 폴백해 IAM 전용 도메인에서 런타임 인증 실패로 이어지는 걸 막는다.
+        // trim+소문자 정규화 후 basic/iam 이외면 기동을 중단한다("iam "·"SigV4" 등).
+        val authMode = properties.authMode.trim().lowercase()
+        require(authMode == "basic" || authMode == "iam") {
+            "opensearch.auth-mode 는 basic 또는 iam 이어야 합니다: ${properties.authMode}"
+        }
+        if (authMode == "iam") {
             require(properties.region.isNotBlank()) { "IAM 인증 모드에서는 opensearch.region 설정이 필요합니다." }
             val region = Region.of(properties.region.trim())
             val httpClient =

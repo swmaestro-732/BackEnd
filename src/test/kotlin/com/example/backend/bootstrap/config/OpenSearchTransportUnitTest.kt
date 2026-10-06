@@ -45,4 +45,11 @@ class OpenSearchTransportUnitTest {
         assertInstanceOf(ApacheHttpClient5Transport::class.java, transport)
         transport.close()
     }
+
+    @Test
+    fun `basic iam 이 아닌 authMode 는 기동을 중단한다`() {
+        assertThrows<IllegalArgumentException> {
+            config(authMode = "sigv4", region = "ap-northeast-2").openSearchTransport()
+        }
+    }
 }
