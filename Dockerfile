@@ -3,7 +3,7 @@ FROM eclipse-temurin:21-jdk AS build
 WORKDIR /workspace
 
 # 의존성 캐시 레이어 — 빌드 스크립트(루트·buildSrc·모듈)만 먼저 복사해 소스 변경 시에도 의존성 레이어를 재사용한다.
-COPY gradlew settings.gradle.kts build.gradle.kts ./
+COPY gradlew settings.gradle.kts build.gradle.kts gradle.properties ./
 COPY gradle gradle
 COPY buildSrc buildSrc
 COPY common/build.gradle.kts common/

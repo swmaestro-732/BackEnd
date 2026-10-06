@@ -4,6 +4,11 @@ plugins {
     id("backend.kotlin-conventions")
 }
 
+// opensearch-java 는 ApacheHttpClient5 전송만 쓴다 — 구형 RestClient 전송이 끌고 오는 httpclient 4.x 스택을 제외한다.
+configurations.all {
+    exclude(group = "org.opensearch.client", module = "opensearch-rest-client")
+}
+
 dependencies {
     api(project(":common"))
 

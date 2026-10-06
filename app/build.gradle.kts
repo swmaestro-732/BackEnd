@@ -85,6 +85,11 @@ dependencies {
     testRuntimeOnly("org.junit.platform:junit-platform-launcher")
 }
 
+// app 은 실행 전용 — 라이브러리용 plain jar 는 만들지 않는다(Docker COPY *.jar 단일 매칭 보장).
+tasks.jar {
+    enabled = false
+}
+
 // 멀티모듈 전환으로 bootRun 작업 디렉터리가 app/ 이 됐다. spring-boot-docker-compose 가
 // 루트의 docker-compose.yml 을 찾도록 단일 모듈 시절과 같은 루트로 고정한다.
 tasks.bootRun {
