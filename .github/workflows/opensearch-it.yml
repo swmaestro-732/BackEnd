@@ -12,7 +12,7 @@ on:
       - "**/*Reindex*.kt" # 재색인 유스케이스·서비스
       - "**/PlaceSearchService.kt" # place 색인 훅
       - "**/CourseService.kt" # course 색인 훅
-      - "build.gradle.kts" # opensearch-java·httpclient5·testcontainers 의존성
+      - "**/build.gradle.kts" # opensearch-java·httpclient5·testcontainers 의존성
       - ".github/workflows/opensearch-it.yml"
   pull_request:
     branches: [main, develop]
@@ -23,7 +23,7 @@ on:
       - "**/*Reindex*.kt"
       - "**/PlaceSearchService.kt"
       - "**/CourseService.kt"
-      - "build.gradle.kts"
+      - "**/build.gradle.kts"
       - ".github/workflows/opensearch-it.yml"
   workflow_dispatch:
 

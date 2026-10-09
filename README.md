@@ -24,10 +24,14 @@ docker compose up -d
 brew install pre-commit          # 또는 pip install pre-commit
 pre-commit install               # commit-msg·pre-commit 훅 자동 설치
 
-# 3) 실행 / 빌드
-./gradlew bootRun
-./gradlew build jacocoTestReport
+# 3) 실행 / 빌드 (멀티모듈 - 실행 산출물은 :bootstrap 모듈)
+./gradlew :bootstrap:bootRun
+./gradlew build jacocoTestReport        # 집계 커버리지 리포트: bootstrap/build/reports/jacoco/test/
 ```
+
+> 모듈 구조(도메인/바운디드 컨텍스트 단위): `:common`, `:user-api`, `:area`, `:media`, `:direction`, `:place`, `:course`, `:user`, `:mobile`, `:bootstrap`. `:user-api` 는 user↔course 순환을 끊기 위한 순수 계약 모듈(포트+DTO만). 레이어(domain/application/adapter)는 각 모듈 내부 패키지로 유지하고, 크로스도메인 의존 방향을 모듈로 강제한다(상대 도메인의 inbound 포트만 참조는 ArchUnit). 실행 가능한 bootJar 는 `:bootstrap` 만 만든다.
+>
+> 모듈을 추가할 때는 세 곳을 함께 갱신한다: `settings.gradle.kts`(include), `Dockerfile`(build.gradle.kts/src COPY), `bootstrap/build.gradle.kts`(project 의존 + jacoco `coveredModules`).
 
 - 애플리케이션: `http://localhost:8080`
 - Swagger UI: `http://localhost:8080/swagger-ui.html`
