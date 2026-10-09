@@ -1,11 +1,13 @@
 package com.example.backend.course.adapter.outbound.search
 
+import com.example.backend.bootstrap.config.OpenSearchConfig
 import com.example.backend.bootstrap.config.OpenSearchProperties
 import com.example.backend.course.application.port.outbound.CourseSearchIndexPort
 import com.example.backend.course.domain.model.Course
 import io.github.oshai.kotlinlogging.KotlinLogging
 import org.opensearch.client.opensearch.OpenSearchClient
 import org.springframework.beans.factory.ObjectProvider
+import org.springframework.beans.factory.annotation.Qualifier
 import org.springframework.stereotype.Component
 
 /**
@@ -16,7 +18,7 @@ import org.springframework.stereotype.Component
  */
 @Component
 class OpenSearchCourseIndexAdapter(
-    private val clientProvider: ObjectProvider<OpenSearchClient>,
+    @Qualifier(OpenSearchConfig.INDEX_CLIENT) private val clientProvider: ObjectProvider<OpenSearchClient>,
     properties: OpenSearchProperties,
 ) : CourseSearchIndexPort {
     private val log = KotlinLogging.logger {}

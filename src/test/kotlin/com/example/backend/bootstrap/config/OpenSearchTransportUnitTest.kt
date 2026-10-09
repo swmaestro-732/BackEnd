@@ -33,6 +33,16 @@ class OpenSearchTransportUnitTest {
     }
 
     @Test
+    fun `색인용 transport 도 같은 인증 분기로 생성된다`() {
+        val iam = config(authMode = "iam", region = "ap-northeast-2").openSearchIndexTransport()
+        assertInstanceOf(AwsSdk2Transport::class.java, iam)
+        iam.close()
+        val basic = config(authMode = "basic").openSearchIndexTransport()
+        assertInstanceOf(ApacheHttpClient5Transport::class.java, basic)
+        basic.close()
+    }
+
+    @Test
     fun `iam 모드인데 region 이 공백이면 기동을 중단한다`() {
         assertThrows<IllegalArgumentException> {
             config(authMode = "iam", region = " ").openSearchTransport()

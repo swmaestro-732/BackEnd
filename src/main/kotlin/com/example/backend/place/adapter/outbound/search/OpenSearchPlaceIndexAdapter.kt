@@ -1,11 +1,13 @@
 package com.example.backend.place.adapter.outbound.search
 
+import com.example.backend.bootstrap.config.OpenSearchConfig
 import com.example.backend.bootstrap.config.OpenSearchProperties
 import com.example.backend.place.application.port.outbound.PlaceSearchIndexPort
 import com.example.backend.place.domain.model.Place
 import io.github.oshai.kotlinlogging.KotlinLogging
 import org.opensearch.client.opensearch.OpenSearchClient
 import org.springframework.beans.factory.ObjectProvider
+import org.springframework.beans.factory.annotation.Qualifier
 import org.springframework.stereotype.Component
 
 /**
@@ -16,7 +18,7 @@ import org.springframework.stereotype.Component
  */
 @Component
 class OpenSearchPlaceIndexAdapter(
-    private val clientProvider: ObjectProvider<OpenSearchClient>,
+    @Qualifier(OpenSearchConfig.INDEX_CLIENT) private val clientProvider: ObjectProvider<OpenSearchClient>,
     properties: OpenSearchProperties,
 ) : PlaceSearchIndexPort {
     private val log = KotlinLogging.logger {}

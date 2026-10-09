@@ -1,6 +1,7 @@
 package com.example.backend.bootstrap.config
 
 import com.example.backend.support.IntegrationTestBase
+import org.junit.jupiter.api.Assertions.assertNotSame
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import org.opensearch.client.opensearch.OpenSearchClient
@@ -36,6 +37,14 @@ class OpenSearchConfigTest
         @Test
         fun `endpoint 가 있으면 OpenSearchClient 빈이 생성된다`() {
             assertTrue(context.getBeanNamesForType(OpenSearchClient::class.java).isNotEmpty())
+        }
+
+        @Test
+        fun `검색용 기본 클라이언트와 색인용 클라이언트가 따로 생성된다`() {
+            val primary = context.getBean(OpenSearchClient::class.java)
+            val index = context.getBean(OpenSearchConfig.INDEX_CLIENT, OpenSearchClient::class.java)
+            assertNotSame(primary, index)
+            assertNotSame(primary._transport(), index._transport())
         }
 
         @Test

@@ -1,5 +1,6 @@
 package com.example.backend.bootstrap.search
 
+import com.example.backend.bootstrap.config.OpenSearchConfig
 import com.example.backend.bootstrap.config.OpenSearchProperties
 import com.fasterxml.jackson.databind.ObjectMapper
 import io.github.oshai.kotlinlogging.KotlinLogging
@@ -7,6 +8,7 @@ import org.opensearch.client.opensearch.OpenSearchClient
 import org.opensearch.client.opensearch._types.mapping.TypeMapping
 import org.opensearch.client.opensearch.indices.IndexSettings
 import org.springframework.beans.factory.ObjectProvider
+import org.springframework.beans.factory.annotation.Qualifier
 import org.springframework.boot.ApplicationArguments
 import org.springframework.boot.ApplicationRunner
 import org.springframework.core.annotation.Order
@@ -30,7 +32,7 @@ import java.io.StringReader
 @Component
 @Order(0)
 class OpenSearchIndexInitializer(
-    private val clientProvider: ObjectProvider<OpenSearchClient>,
+    @Qualifier(OpenSearchConfig.INDEX_CLIENT) private val clientProvider: ObjectProvider<OpenSearchClient>,
     private val properties: OpenSearchProperties,
 ) : ApplicationRunner {
     private val log = KotlinLogging.logger {}

@@ -1,11 +1,13 @@
 package com.example.backend.bootstrap.search
 
+import com.example.backend.bootstrap.config.OpenSearchConfig
 import com.example.backend.bootstrap.config.OpenSearchProperties
 import com.example.backend.course.application.port.inbound.CourseReindexUseCase
 import com.example.backend.place.application.port.inbound.PlaceReindexUseCase
 import io.github.oshai.kotlinlogging.KotlinLogging
 import org.opensearch.client.opensearch.OpenSearchClient
 import org.springframework.beans.factory.ObjectProvider
+import org.springframework.beans.factory.annotation.Qualifier
 import org.springframework.boot.ApplicationArguments
 import org.springframework.boot.ApplicationRunner
 import org.springframework.core.annotation.Order
@@ -18,7 +20,7 @@ import org.springframework.stereotype.Component
 @Component
 @Order(1)
 class OpenSearchReindexRunner(
-    private val clientProvider: ObjectProvider<OpenSearchClient>,
+    @Qualifier(OpenSearchConfig.INDEX_CLIENT) private val clientProvider: ObjectProvider<OpenSearchClient>,
     private val properties: OpenSearchProperties,
     private val placeReindexUseCase: PlaceReindexUseCase,
     private val courseReindexUseCase: CourseReindexUseCase,
