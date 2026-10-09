@@ -1,14 +1,17 @@
 package com.example.backend.course.adapter.outbound.search
 
+import com.example.backend.bootstrap.config.OpenSearchProperties
 import com.example.backend.common.exception.BusinessException
 import com.example.backend.course.application.port.inbound.dto.CourseSearchSort
 import com.example.backend.course.application.port.outbound.CourseSearchCriteria
 import org.assertj.core.api.Assertions.assertThat
 import org.assertj.core.api.Assertions.assertThatThrownBy
 import org.junit.jupiter.api.Test
+import org.mockito.ArgumentCaptor
 import org.mockito.ArgumentMatchers.any
 import org.mockito.ArgumentMatchers.eq
 import org.mockito.Mockito.mock
+import org.mockito.Mockito.verify
 import org.mockito.Mockito.`when`
 import org.opensearch.client.opensearch.OpenSearchClient
 import org.opensearch.client.opensearch.core.SearchRequest
@@ -67,7 +70,7 @@ class OpenSearchCourseSearchAdapterTest {
         `when`(response.hits()).thenReturn(meta)
         `when`(meta.hits()).thenReturn(hits)
         `when`(client.search(any(SearchRequest::class.java), eq(CourseDocument::class.java))).thenReturn(response)
-        return OpenSearchCourseSearchAdapter(providerOf(client))
+        return OpenSearchCourseSearchAdapter(providerOf(client), OpenSearchProperties())
     }
 
     private fun providerOf(client: OpenSearchClient?): ObjectProvider<OpenSearchClient> {
@@ -95,9 +98,26 @@ class OpenSearchCourseSearchAdapterTest {
         size = size,
     )
 
+    @Suppress("UNCHECKED_CAST")
+    @Test
+    fun `환경 접두사가 붙은 course alias 를 검색한다`() {
+        val client = mock(OpenSearchClient::class.java)
+        val response = mock(SearchResponse::class.java) as SearchResponse<CourseDocument>
+        val meta = mock(HitsMetadata::class.java) as HitsMetadata<CourseDocument>
+        `when`(response.hits()).thenReturn(meta)
+        `when`(meta.hits()).thenReturn(emptyList())
+        `when`(client.search(any(SearchRequest::class.java), eq(CourseDocument::class.java))).thenReturn(response)
+
+        OpenSearchCourseSearchAdapter(providerOf(client), OpenSearchProperties(indexPrefix = "dev-")).search(criteria())
+
+        val captor = ArgumentCaptor.forClass(SearchRequest::class.java)
+        verify(client).search(captor.capture(), eq(CourseDocument::class.java))
+        assertThat(captor.value.index()).containsExactly("dev-course")
+    }
+
     @Test
     fun `클라이언트가 없으면 빈 페이지를 돌려준다`() {
-        val adapter = OpenSearchCourseSearchAdapter(providerOf(null))
+        val adapter = OpenSearchCourseSearchAdapter(providerOf(null), OpenSearchProperties())
 
         val page = adapter.search(criteria())
 
@@ -194,7 +214,8 @@ class OpenSearchCourseSearchAdapterTest {
 
     @Test
     fun `잘못된 커서는 fail-soft 로 삼키지 않고 예외로 드러난다`() {
-        val adapter = OpenSearchCourseSearchAdapter(providerOf(mock(OpenSearchClient::class.java)))
+        val adapter =
+            OpenSearchCourseSearchAdapter(providerOf(mock(OpenSearchClient::class.java)), OpenSearchProperties())
 
         assertThatThrownBy {
             adapter.search(criteria(sort = CourseSearchSort.LATEST, cursor = "not-a-valid-cursor!!"))
@@ -206,7 +227,7 @@ class OpenSearchCourseSearchAdapterTest {
         val client = mock(OpenSearchClient::class.java)
         `when`(client.search(any(SearchRequest::class.java), eq(CourseDocument::class.java)))
             .thenThrow(RuntimeException("boom"))
-        val adapter = OpenSearchCourseSearchAdapter(providerOf(client))
+        val adapter = OpenSearchCourseSearchAdapter(providerOf(client), OpenSearchProperties())
 
         val page = adapter.search(criteria())
 

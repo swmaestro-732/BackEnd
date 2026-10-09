@@ -101,7 +101,7 @@ class OpenSearchPlaceIndexAdapterTest {
     }
 
     @Test
-    fun `save(List) — bulk 빌더 람다가 실행돼 indexAlias 가 사용된다`() {
+    fun `save(List) 는 indexAlias 로 alias 필수 bulk 색인을 보낸다`() {
         val client = mock(OpenSearchClient::class.java)
         org.mockito.Mockito
             .`when`(clientProvider.ifAvailable)
@@ -120,6 +120,8 @@ class OpenSearchPlaceIndexAdapterTest {
         assertThat(capturedRequest!!.operations()).isNotEmpty()
         @Suppress("UNCHECKED_CAST")
         assertThat(capturedRequest!!.operations()[0].index<Any>()!!.index()).isEqualTo("place")
+        // alias 가 없으면 같은 이름 인덱스를 자동 생성하지 않고 실패하도록 alias 필수로 보낸다
+        assertThat(capturedRequest!!.requireAlias()).isTrue()
     }
 }
 
