@@ -77,7 +77,9 @@ class OpenSearchIndexInitializer(
                 // 이미 있는 인덱스에도 매핑을 동기화한다 — 새로 추가된 검색 필드를 반영(가산적 putMapping, 기존 필드 동일 정의는 no-op).
                 // analyzer(settings)는 생성 시에만 적용되며 putMapping 으로 바꿀 수 없다 — 그래서 변경 시 새 버전 인덱스를 쓴다.
                 client.indices().putMapping { p -> p.index(def.index).properties(definition.mappings.properties()) }
-                if (!client.indices().existsAlias { it.name(def.alias) }.value()) {
+                // alias 조회를 이 인덱스로 좁힌다 — 이름만 주면 클러스터 전체 alias 를 보므로, dev 처럼 `dev-*` 권한만 가진
+                // 계정은 security_exception 으로 막혀 alias 가 영구 미생성된다(공유 도메인 격리, SCRUM-567).
+                if (!client.indices().existsAlias { it.index(def.index).name(def.alias) }.value()) {
                     client.indices().putAlias { p -> p.index(def.index).name(def.alias) }
                 }
                 log.info { "OpenSearch 인덱스 준비: ${def.index} (alias ${def.alias})" }

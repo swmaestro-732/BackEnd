@@ -1,5 +1,6 @@
 package com.example.backend.course.adapter.outbound.search
 
+import com.example.backend.bootstrap.config.OpenSearchProperties
 import com.example.backend.course.application.port.inbound.dto.CourseSearchSort
 import com.example.backend.course.application.port.outbound.CourseSearchCriteria
 import com.example.backend.course.application.port.outbound.CourseSearchPage
@@ -21,7 +22,7 @@ import java.time.Instant
  * 아웃바운드 어댑터 — [CourseSearchQueryPort] 를 OpenSearch 검색으로 구현한다.
  *
  * [OpenSearchClient] 가 없으면(로컬·CI) 빈 페이지, 예외는 warn 로그만 남기고 빈 페이지를 돌려준다(fail-soft) —
- * 검색은 부가 기능이라 장애가 화면 전체를 500 으로 떨구지 않게 한다. alias `course` 를 대상으로 한다.
+ * 검색은 부가 기능이라 장애가 화면 전체를 500 으로 떨구지 않게 한다. 환경 접두사가 붙은 alias(`course`, dev 는 `dev-course`)를 대상으로 한다.
  *
  * 대상은 발행된 PUBLIC 코스로 고정하고(visibility·isPublished 필터), search_after 로 keyset 페이지네이션한다.
  * 커서(불투명 문자열)의 해석·생성은 이 어댑터가 소유한다([CourseSearchCursorCodec]) — 잘못된 커서는 400 으로 막고
@@ -30,8 +31,10 @@ import java.time.Instant
 @Component
 class OpenSearchCourseSearchAdapter(
     private val clientProvider: ObjectProvider<OpenSearchClient>,
+    properties: OpenSearchProperties,
 ) : CourseSearchQueryPort {
     private val log = KotlinLogging.logger {}
+    private val indexAlias = properties.withPrefix("course")
 
     override fun search(criteria: CourseSearchCriteria): CourseSearchPage {
         // 커서 해석·검증은 fail-soft try 밖에서 한다 — 잘못된 커서는 400 으로 드러나야 하고 빈 페이지로 삼키면 안 된다.
@@ -85,7 +88,7 @@ class OpenSearchCourseSearchAdapter(
         val builder =
             SearchRequest
                 .Builder()
-                .index(INDEX_ALIAS)
+                .index(indexAlias)
                 .size(criteria.size + 1) // 초과 1건으로 hasNext 판정
                 .query { q -> q.bool { b -> b.must(keywordQuery(criteria.keyword)).filter(filters(criteria)) } }
                 .sort(sortOptions(criteria.sort))
@@ -167,7 +170,6 @@ class OpenSearchCourseSearchAdapter(
         )
 
     private companion object {
-        const val INDEX_ALIAS = "course"
         val EMPTY = CourseSearchPage(hits = emptyList(), hasNext = false, nextCursor = null)
     }
 }
