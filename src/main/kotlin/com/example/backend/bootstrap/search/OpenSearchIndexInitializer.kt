@@ -84,7 +84,7 @@ class OpenSearchIndexInitializer(
                 }
                 log.info { "OpenSearch 인덱스 준비: ${def.index} (alias ${def.alias})" }
             } catch (e: Exception) {
-                log.warn(e) { "OpenSearch 인덱스 초기화 실패(무시): ${def.index} — ${e.message}" }
+                log.error(e) { "OpenSearch 인덱스 초기화 실패(무시): ${def.index} — ${e.message}" }
             }
         }
     }

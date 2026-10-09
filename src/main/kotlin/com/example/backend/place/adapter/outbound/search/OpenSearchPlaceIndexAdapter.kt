@@ -46,10 +46,10 @@ class OpenSearchPlaceIndexAdapter(
             // bulk 는 예외 없이 200 을 주면서 개별 문서만 거부될 수 있다(매핑 충돌 등) → 항목별 실패를 집계해 로그로 드러낸다.
             if (response.errors()) {
                 val failed = response.items().count { it.error() != null }
-                log.warn { "place 색인 부분 실패(무시): $failed/${documents.size}건 실패" }
+                log.error { "place 색인 부분 실패(무시): $failed/${documents.size}건 실패" }
             }
         } catch (e: Exception) {
-            log.warn { "place 색인 실패(무시): ${places.size}건 — ${e.message}" }
+            log.error(e) { "place 색인 실패(무시): ${places.size}건 — ${e.message}" }
         }
     }
 

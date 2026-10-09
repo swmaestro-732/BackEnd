@@ -28,6 +28,7 @@ class PlaceReindexService(
     }
 
     private companion object {
-        const val PAGE = 500
+        // 한 번의 bulk 요청이 클라이언트 응답 대기(2초) 안에 끝나도록 작게 잡는다. 500건은 dev(SigV4, nori 분석)에서 Read timed out 이 났다.
+        const val PAGE = 100
     }
 }
