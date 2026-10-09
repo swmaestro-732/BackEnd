@@ -15,10 +15,12 @@ import org.opensearch.client.transport.OpenSearchTransport
 import org.opensearch.client.transport.aws.AwsSdk2Transport
 import org.opensearch.client.transport.aws.AwsSdk2TransportOptions
 import org.opensearch.client.transport.httpclient5.ApacheHttpClient5TransportBuilder
+import org.springframework.beans.factory.annotation.Qualifier
 import org.springframework.boot.autoconfigure.condition.ConditionalOnExpression
 import org.springframework.boot.health.contributor.HealthIndicator
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
+import org.springframework.context.annotation.Primary
 import software.amazon.awssdk.auth.credentials.DefaultCredentialsProvider
 import software.amazon.awssdk.http.apache.ApacheHttpClient
 import software.amazon.awssdk.regions.Region
@@ -40,7 +42,18 @@ class OpenSearchConfig(
      * destroyMethod = "close" 로 컨텍스트 종료 시 정리한다(OpenSearchClient 자체는 Closeable 이 아님).
      */
     @Bean(destroyMethod = "close")
-    fun openSearchTransport(): OpenSearchTransport {
+    @Primary
+    fun openSearchTransport(): OpenSearchTransport = buildTransport(SEARCH_RESPONSE_TIMEOUT)
+
+    /**
+     * 색인용 transport — 부팅 초기화(인덱스 생성), 재색인 bulk, 색인 어댑터가 쓴다. 인덱스 생성(nori 사용자 사전 로딩)과
+     * 첫 bulk 는 2초를 넘겨, 서버는 끝냈는데 클라이언트만 timeout 으로 실패 처리하는 어긋남이 있었다(SCRUM-567).
+     * 응답 대기만 늘리고 연결·대여 timeout 은 2초로 둬 도메인 불통이면 빨리 실패한다.
+     */
+    @Bean(destroyMethod = "close")
+    fun openSearchIndexTransport(): OpenSearchTransport = buildTransport(INDEX_RESPONSE_TIMEOUT)
+
+    private fun buildTransport(responseTimeout: Duration): OpenSearchTransport {
         // @ConditionalOnExpression 의 유효성 판정과 동일하게 trim 한 값을 써서, 양끝 공백이 있어도 HttpHost 가 정상 생성되게 한다.
         // 프로덕션 시크릿은 스킴 없는 호스트만 담으므로 https:443 으로 붙인다(기존 동작 유지).
         // 스킴이 포함된 경우(예: 로컬/CI Testcontainers http://host:port)는 그대로 파싱해 임의 스킴·포트를 허용한다.
@@ -65,7 +78,7 @@ class OpenSearchConfig(
                 ApacheHttpClient
                     .builder()
                     .connectionTimeout(Duration.ofSeconds(2))
-                    .socketTimeout(Duration.ofSeconds(2))
+                    .socketTimeout(responseTimeout)
                     .connectionAcquisitionTimeout(Duration.ofSeconds(2))
                     .build()
             val credentialsProvider = DefaultCredentialsProvider.builder().build()
@@ -101,7 +114,7 @@ class OpenSearchConfig(
             RequestConfig
                 .custom()
                 .setConnectTimeout(Timeout.ofSeconds(2))
-                .setResponseTimeout(Timeout.ofSeconds(2))
+                .setResponseTimeout(Timeout.of(responseTimeout))
                 .setConnectionRequestTimeout(Timeout.ofSeconds(2))
                 .build()
         return ApacheHttpClient5TransportBuilder
@@ -117,11 +130,31 @@ class OpenSearchConfig(
             }.build()
     }
 
+    /** 검색, 헬스체크용 기본 클라이언트(응답 대기 2초). */
     @Bean
-    fun openSearchClient(transport: OpenSearchTransport): OpenSearchClient = OpenSearchClient(transport)
+    @Primary
+    fun openSearchClient(
+        @Qualifier("openSearchTransport") transport: OpenSearchTransport,
+    ): OpenSearchClient = OpenSearchClient(transport)
+
+    /** 색인용 클라이언트(응답 대기 [INDEX_RESPONSE_TIMEOUT]). 주입 시 `@Qualifier(OpenSearchConfig.INDEX_CLIENT)`. */
+    @Bean(INDEX_CLIENT)
+    fun openSearchIndexClient(
+        @Qualifier("openSearchIndexTransport") transport: OpenSearchTransport,
+    ): OpenSearchClient = OpenSearchClient(transport)
 
     /** 연결 상태를 `/actuator/health` 에 노출(불통 시 UNKNOWN — ALB 보호). 엔드포인트 있을 때만 등록된다. */
     @Bean
     fun openSearchHealthIndicator(openSearchClient: OpenSearchClient): HealthIndicator =
         OpenSearchHealthIndicator(openSearchClient)
+
+    companion object {
+        const val INDEX_CLIENT = "openSearchIndexClient"
+
+        /** 검색, 헬스체크 응답 대기. ALB 헬스체크보다 짧아야 한다(아래 basic 모드 주석 참고). */
+        private val SEARCH_RESPONSE_TIMEOUT: Duration = Duration.ofSeconds(2)
+
+        /** 색인 응답 대기. 인덱스 생성, 100건 bulk 가 dev(SigV4)에서 2초를 넘긴 것을 보고 정했다. */
+        private val INDEX_RESPONSE_TIMEOUT: Duration = Duration.ofSeconds(10)
+    }
 }
