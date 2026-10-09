@@ -102,4 +102,6 @@ dependencies {
     implementation("io.awspring.cloud:spring-cloud-aws-starter-sqs")
     implementation(platform(libs.aws.bom))
     implementation(libs.aws.s3)
+    // OpenSearch IAM/SigV4 전송(AwsSdk2Transport)에 필요한 동기 SdkHttpClient. 버전은 AWS SDK BOM 관리.
+    implementation("software.amazon.awssdk:apache-client")
 }

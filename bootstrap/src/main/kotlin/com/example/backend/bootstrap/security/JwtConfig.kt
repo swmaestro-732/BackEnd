@@ -25,6 +25,7 @@ class JwtConfig(
     private val jwtProperties: JwtProperties,
     private val kakaoOauthProperties: KakaoOauthProperties,
     private val googleOauthProperties: GoogleOauthProperties,
+    private val appleOauthProperties: AppleOauthProperties,
 ) {
     private val secretKey = SecretKeySpec(jwtProperties.secret.toByteArray(), "HmacSHA256")
 
@@ -98,6 +99,30 @@ class JwtConfig(
         return decoder
     }
 
+    @Bean
+    @Qualifier("appleJwtDecoder")
+    fun appleJwtDecoder(): JwtDecoder {
+        val decoder =
+            NimbusJwtDecoder
+                .withJwkSetUri(appleOauthProperties.jwksUri)
+                .jwsAlgorithm(SignatureAlgorithm.RS256)
+                .build()
+
+        // aud 는 플랫폼마다 다르다 — iOS 네이티브=앱 Bundle ID, 웹/안드로이드=Services ID. 설정된 값 중 하나라도 있으면 통과.
+        val allowedAudiences =
+            listOf(appleOauthProperties.clientId, appleOauthProperties.serviceId)
+                .filter { it.isNotBlank() }
+                .toSet()
+        val validator =
+            DelegatingOAuth2TokenValidator(
+                JwtValidators.createDefault(),
+                issuerValidator(setOf(appleOauthProperties.issuer)),
+                audienceValidator(allowedAudiences),
+            )
+        decoder.setJwtValidator(validator)
+        return decoder
+    }
+
     private fun issuerValidator(allowedIssuers: Set<String>): OAuth2TokenValidator<Jwt> =
         OAuth2TokenValidator { jwt ->
             if (jwt.issuer?.toString() in allowedIssuers) {
@@ -117,7 +142,7 @@ class JwtConfig(
                 OAuth2TokenValidatorResult.failure(
                     OAuth2Error(
                         "invalid_token",
-                        "Kakao ID token audience does not match a configured Kakao app key.",
+                        "ID token audience does not match a configured client id.",
                         null,
                     ),
                 )

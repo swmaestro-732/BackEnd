@@ -26,6 +26,8 @@ subprojects {
     extra["netty.version"] = "4.2.17.Final"
     extra["httpcore5.version"] = "5.4.3"
     extra["postgresql.version"] = "42.7.12"
+    // CVE-2026-47884 (CRITICAL): spring-webmvc XsltView RCE. Boot 4.1.0 번들 7.0.8 오버라이드.
+    extra["spring-framework.version"] = "7.0.9"
 
     configure<DependencyManagementExtension> {
         imports { mavenBom(SpringBootPlugin.BOM_COORDINATES) }
