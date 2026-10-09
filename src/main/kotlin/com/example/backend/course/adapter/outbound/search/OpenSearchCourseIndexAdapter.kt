@@ -26,7 +26,13 @@ class OpenSearchCourseIndexAdapter(
         val id = course.id ?: return
         val client = clientProvider.ifAvailable ?: return // endpoint 미설정 → no-op
         try {
-            client.index { req -> req.index(indexAlias).id(id.toString()).document(course.toDocument()) }
+            client.index { req ->
+                req
+                    .index(indexAlias)
+                    .requireAlias(true)
+                    .id(id.toString())
+                    .document(course.toDocument())
+            }
         } catch (e: Exception) {
             log.warn { "course 색인 실패(무시): id=$id — ${e.message}" }
         }
@@ -40,6 +46,8 @@ class OpenSearchCourseIndexAdapter(
             if (documents.isEmpty()) return
             val response =
                 client.bulk { bulk ->
+                    // alias 가 없을 때 같은 이름의 인덱스가 동적 매핑으로 자동 생성되지 않게 한다(실패시키고 재색인으로 채움)
+                    bulk.requireAlias(true)
                     bulk.operations(
                         documents.map { course ->
                             val document = course.toDocument()

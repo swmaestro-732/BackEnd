@@ -31,6 +31,8 @@ class OpenSearchPlaceIndexAdapter(
             if (documents.isEmpty()) return
             val response =
                 client.bulk { bulk ->
+                    // alias 가 없을 때 같은 이름의 인덱스가 동적 매핑으로 자동 생성되지 않게 한다(실패시키고 재색인으로 채움)
+                    bulk.requireAlias(true)
                     bulk.operations(
                         documents.map { place ->
                             val document = place.toDocument()
