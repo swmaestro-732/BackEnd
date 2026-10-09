@@ -7,13 +7,17 @@ import com.example.backend.place.domain.model.PlaceBusinessStatus
 import com.example.backend.place.domain.model.PlaceCategory
 import com.example.backend.place.domain.model.PlaceStatus
 import org.assertj.core.api.Assertions.assertThat
+import org.assertj.core.api.Assertions.assertThatCode
 import org.junit.jupiter.api.Test
 import org.mockito.Mockito.doAnswer
 import org.mockito.Mockito.mock
 import org.mockito.Mockito.never
 import org.mockito.Mockito.verify
 import org.opensearch.client.opensearch.OpenSearchClient
+import org.opensearch.client.opensearch._types.ErrorCause
 import org.opensearch.client.opensearch.core.BulkRequest
+import org.opensearch.client.opensearch.core.BulkResponse
+import org.opensearch.client.opensearch.core.bulk.BulkResponseItem
 import org.opensearch.client.util.ObjectBuilder
 import org.springframework.beans.factory.ObjectProvider
 
@@ -122,6 +126,32 @@ class OpenSearchPlaceIndexAdapterTest {
         assertThat(capturedRequest!!.operations()[0].index<Any>()!!.index()).isEqualTo("place")
         // alias 가 없으면 같은 이름 인덱스를 자동 생성하지 않고 실패하도록 alias 필수로 보낸다
         assertThat(capturedRequest!!.requireAlias()).isTrue()
+    }
+
+    @Test
+    fun `bulk 부분 실패는 실패 건수를 집계하고 예외를 전파하지 않는다`() {
+        val client = mock(OpenSearchClient::class.java)
+        org.mockito.Mockito
+            .`when`(clientProvider.ifAvailable)
+            .thenReturn(client)
+        val okItem = mock(BulkResponseItem::class.java)
+        val failedItem = mock(BulkResponseItem::class.java)
+        org.mockito.Mockito
+            .`when`(failedItem.error())
+            .thenReturn(mock(ErrorCause::class.java))
+        val response = mock(BulkResponse::class.java)
+        org.mockito.Mockito
+            .`when`(response.errors())
+            .thenReturn(true)
+        org.mockito.Mockito
+            .`when`(response.items())
+            .thenReturn(listOf(okItem, failedItem))
+        doAnswer { response }
+            .`when`(client)
+            .bulk(anyArg<java.util.function.Function<BulkRequest.Builder, ObjectBuilder<BulkRequest>>>())
+
+        assertThatCode { adapter.save(listOf(placeWithId(1L), placeWithId(2L))) }.doesNotThrowAnyException()
+        verify(response).items()
     }
 }
 

@@ -45,7 +45,7 @@ class OpenSearchReindexRunner(
                     log.info { "OpenSearch 재색인: ${t.alias} ${n}건 ($reason)" }
                 }
             } catch (e: Exception) {
-                log.warn { "OpenSearch 재색인 실패(무시): ${t.alias} — ${e.message}" }
+                log.error(e) { "OpenSearch 재색인 실패(무시): ${t.alias} — ${e.message}" }
             }
         }
     }
