@@ -1,6 +1,7 @@
 package com.example.backend.course.application.port.inbound
 
 import com.example.backend.course.application.port.inbound.dto.CourseCommentPage
+import com.example.backend.course.application.port.inbound.dto.CourseCommentRef
 
 interface CourseCommentQueryUseCase {
     fun list(
@@ -10,6 +11,6 @@ interface CourseCommentQueryUseCase {
         size: Int,
     ): CourseCommentPage
 
-    /** 미삭제 댓글의 작성자 id. 없으면 COURSE_COMMENT_NOT_FOUND. 다른 도메인(신고 등)의 대상 확인용. */
-    fun getAuthorId(commentId: Long): Long
+    /** 미삭제 댓글의 소속 코스·작성자. 없으면 COURSE_COMMENT_NOT_FOUND. 다른 도메인(신고 등)의 대상 확인용 — 부모 코스 열람 검사는 호출부가 courseId 로 한다. */
+    fun getRef(commentId: Long): CourseCommentRef
 }

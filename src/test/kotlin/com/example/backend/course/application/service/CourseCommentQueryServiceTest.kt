@@ -2,6 +2,7 @@ package com.example.backend.course.application.service
 
 import com.example.backend.common.exception.BusinessException
 import com.example.backend.common.response.CourseErrorCode
+import com.example.backend.course.application.port.inbound.dto.CourseCommentRef
 import com.example.backend.course.application.port.outbound.CourseCommentPersistencePort
 import com.example.backend.course.application.port.outbound.CourseCommentRow
 import org.junit.jupiter.api.Assertions.assertEquals
@@ -47,17 +48,17 @@ class CourseCommentQueryServiceTest {
     }
 
     @Test
-    fun `미삭제 댓글의 작성자 id 를 반환한다`() {
-        `when`(comments.findAuthorId(3L)).thenReturn(7L)
+    fun `미삭제 댓글의 소속 코스·작성자를 반환한다`() {
+        `when`(comments.findRef(3L)).thenReturn(CourseCommentRef(courseId = 10L, authorId = 7L))
 
-        assertEquals(7L, service.getAuthorId(3L))
+        assertEquals(CourseCommentRef(courseId = 10L, authorId = 7L), service.getRef(3L))
     }
 
     @Test
     fun `없거나 삭제된 댓글의 작성자 조회는 COURSE_COMMENT_NOT_FOUND 다`() {
-        `when`(comments.findAuthorId(3L)).thenReturn(null)
+        `when`(comments.findRef(3L)).thenReturn(null)
 
-        val exception = assertThrows(BusinessException::class.java) { service.getAuthorId(3L) }
+        val exception = assertThrows(BusinessException::class.java) { service.getRef(3L) }
 
         assertEquals(CourseErrorCode.COURSE_COMMENT_NOT_FOUND, exception.errorCode)
     }

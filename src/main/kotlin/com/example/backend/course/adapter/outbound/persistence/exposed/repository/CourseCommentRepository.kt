@@ -2,6 +2,7 @@ package com.example.backend.course.adapter.outbound.persistence.exposed.reposito
 
 import com.example.backend.course.adapter.outbound.persistence.exposed.CourseCommentEntity
 import com.example.backend.course.adapter.outbound.persistence.exposed.CourseCommentTable
+import com.example.backend.course.application.port.inbound.dto.CourseCommentRef
 import com.example.backend.course.application.port.outbound.CourseCommentRow
 import com.example.backend.course.domain.model.CourseCommentStatus
 import org.jetbrains.exposed.v1.core.SortOrder
@@ -65,12 +66,17 @@ class CourseCommentRepository {
         }
     }
 
-    fun findAuthorId(commentId: Long): Long? =
+    fun findRef(commentId: Long): CourseCommentRef? =
         CourseCommentTable
-            .select(CourseCommentTable.userId)
+            .select(CourseCommentTable.courseId, CourseCommentTable.userId)
             .where { (CourseCommentTable.id eq commentId) and CourseCommentTable.deletedAt.isNull() }
             .singleOrNull()
-            ?.get(CourseCommentTable.userId)
+            ?.let {
+                CourseCommentRef(
+                    courseId = it[CourseCommentTable.courseId],
+                    authorId = it[CourseCommentTable.userId],
+                )
+            }
 
     fun findPage(
         courseId: Long,

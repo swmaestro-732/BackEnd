@@ -1,6 +1,7 @@
 package com.example.backend.course.adapter.outbound.persistence
 
 import com.example.backend.course.adapter.outbound.persistence.exposed.repository.CourseCommentRepository
+import com.example.backend.course.application.port.inbound.dto.CourseCommentRef
 import com.example.backend.course.application.port.outbound.CourseCommentPersistencePort
 import com.example.backend.course.application.port.outbound.CourseCommentRow
 import org.springframework.stereotype.Component
@@ -38,7 +39,7 @@ class CourseCommentPersistenceAdapter(
         userId: Long,
     ): Int = courseCommentRepository.softDelete(courseId, commentId, userId)
 
-    override fun findAuthorId(commentId: Long): Long? = courseCommentRepository.findAuthorId(commentId)
+    override fun findRef(commentId: Long): CourseCommentRef? = courseCommentRepository.findRef(commentId)
 
     override fun findPage(
         courseId: Long,

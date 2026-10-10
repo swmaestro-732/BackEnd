@@ -1,5 +1,6 @@
 package com.example.backend.course.application.port.outbound
 
+import com.example.backend.course.application.port.inbound.dto.CourseCommentRef
 import java.time.Instant
 
 data class CourseCommentRow(
@@ -32,8 +33,8 @@ interface CourseCommentPersistencePort {
         userId: Long,
     ): Int
 
-    /** 미삭제 댓글의 작성자 id. 없거나 삭제됐으면 null. */
-    fun findAuthorId(commentId: Long): Long?
+    /** 미삭제 댓글의 소속 코스·작성자. 없거나 삭제됐으면 null. */
+    fun findRef(commentId: Long): CourseCommentRef?
 
     /** 미삭제 댓글을 id 내림차순으로 [cursor] 미만부터 최대 [size] + 1건 반환한다. */
     fun findPage(
