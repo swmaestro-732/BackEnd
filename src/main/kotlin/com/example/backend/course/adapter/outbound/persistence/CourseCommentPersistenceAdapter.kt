@@ -38,6 +38,8 @@ class CourseCommentPersistenceAdapter(
         userId: Long,
     ): Int = courseCommentRepository.softDelete(courseId, commentId, userId)
 
+    override fun findAuthorId(commentId: Long): Long? = courseCommentRepository.findAuthorId(commentId)
+
     override fun findPage(
         courseId: Long,
         cursor: Long?,

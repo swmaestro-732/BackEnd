@@ -32,6 +32,9 @@ interface CourseCommentPersistencePort {
         userId: Long,
     ): Int
 
+    /** 미삭제 댓글의 작성자 id. 없거나 삭제됐으면 null. */
+    fun findAuthorId(commentId: Long): Long?
+
     /** 미삭제 댓글을 id 내림차순으로 [cursor] 미만부터 최대 [size] + 1건 반환한다. */
     fun findPage(
         courseId: Long,

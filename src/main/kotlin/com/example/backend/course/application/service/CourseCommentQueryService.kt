@@ -1,5 +1,7 @@
 package com.example.backend.course.application.service
 
+import com.example.backend.common.exception.BusinessException
+import com.example.backend.common.response.CourseErrorCode
 import com.example.backend.course.application.port.inbound.CourseCommentQueryUseCase
 import com.example.backend.course.application.port.inbound.dto.CourseCommentPage
 import com.example.backend.course.application.port.inbound.dto.CourseCommentResult
@@ -35,4 +37,8 @@ class CourseCommentQueryService(
             hasNext = rows.size > effectiveSize,
         )
     }
+
+    override fun getAuthorId(commentId: Long): Long =
+        commentPersistencePort.findAuthorId(commentId)
+            ?: throw BusinessException(CourseErrorCode.COURSE_COMMENT_NOT_FOUND)
 }

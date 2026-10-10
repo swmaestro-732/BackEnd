@@ -9,6 +9,7 @@ import org.jetbrains.exposed.v1.core.and
 import org.jetbrains.exposed.v1.core.eq
 import org.jetbrains.exposed.v1.core.isNull
 import org.jetbrains.exposed.v1.core.less
+import org.jetbrains.exposed.v1.jdbc.select
 import org.jetbrains.exposed.v1.jdbc.selectAll
 import org.jetbrains.exposed.v1.jdbc.update
 import org.springframework.stereotype.Repository
@@ -63,6 +64,13 @@ class CourseCommentRepository {
             it[status] = CourseCommentStatus.DELETED
         }
     }
+
+    fun findAuthorId(commentId: Long): Long? =
+        CourseCommentTable
+            .select(CourseCommentTable.userId)
+            .where { (CourseCommentTable.id eq commentId) and CourseCommentTable.deletedAt.isNull() }
+            .singleOrNull()
+            ?.get(CourseCommentTable.userId)
 
     fun findPage(
         courseId: Long,
