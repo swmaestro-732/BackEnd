@@ -1,0 +1,81 @@
+## 코스 따라가기 (Course · course-track) — 모킹 API
+# 종료는 @AccessTokenRequired 로 access 토큰을 강제하고 @CurrentUserId(JWT subject)로 userId 를 뽑는다.
+# 아래 첫 요청(mock 로그인)이 accessToken 을 전역 저장 → 이후 요청은 Authorization 헤더로 재사용한다.
+# (auth.http 를 먼저 실행해 두었다면 이 요청은 건너뛰어도 된다.)
+# 고정 성공만 내리고 저장하지 않는다 — 실구현 시 tracing_courses 기록·tracings_cnt 반영으로 교체.
+
+### 0) 사전: mock 소셜 로그인 — dev accessToken(user id=1) 발급 + 전역 저장
+POST http://localhost:8080/api/v1/auth/social-login?mock=true
+Content-Type: application/json
+
+{
+  "provider": "KAKAO",
+  "idToken": "dev"
+}
+
+> {%
+    client.global.set("accessToken", response.body.data.accessToken);
+    client.global.set("refreshToken", response.body.data.refreshToken);
+%}
+
+## 따라가기 종료 (POST /api/v1/courses/{courseId}/trace) — 모킹 API
+
+### 1) 따라가기 종료 — 방문 장소 기록 + 소요 시간(분) + 이동 거리(m) → 200 / 2000, data 없음
+POST http://localhost:8080/api/v1/courses/1/trace
+Content-Type: application/json
+Authorization: Bearer {{accessToken}}
+
+{
+  "visitedPlaces": [
+    { "placeId": 22, "visitedAt": "2026-10-10T05:00:00Z" },
+    { "placeId": 23, "visitedAt": "2026-10-10T06:00:00Z" },
+    { "placeId": 24, "visitedAt": "2026-10-10T06:50:00Z" },
+    { "placeId": 25, "visitedAt": "2026-10-10T07:48:00Z" }
+  ],
+  "durationMinutes": 192,
+  "distanceMeters": 2400
+}
+
+### 2) 검증 실패 — durationMinutes 음수 · placeId 0 → 400 / 4002 VALIDATION_FAILED + fieldErrors
+POST http://localhost:8080/api/v1/courses/1/trace
+Content-Type: application/json
+Authorization: Bearer {{accessToken}}
+
+{
+  "visitedPlaces": [
+    { "placeId": 0, "visitedAt": "2026-10-10T05:00:00Z" }
+  ],
+  "durationMinutes": -1,
+  "distanceMeters": 2400
+}
+
+### 3) 필수 필드 누락(durationMinutes) → 400 / 4001 INVALID_INPUT
+POST http://localhost:8080/api/v1/courses/1/trace
+Content-Type: application/json
+Authorization: Bearer {{accessToken}}
+
+{
+  "visitedPlaces": [],
+  "distanceMeters": 0
+}
+
+### 4) 토큰 없음 → 401
+POST http://localhost:8080/api/v1/courses/1/trace
+Content-Type: application/json
+
+{
+  "visitedPlaces": [],
+  "durationMinutes": 0,
+  "distanceMeters": 0
+}
+
+### 5) 모킹 에러 주입 — 404 / 4040 NOT_FOUND (courseId 없음)
+POST http://localhost:8080/api/v1/courses/999/trace?mockError=4040
+Content-Type: application/json
+Authorization: Bearer {{accessToken}}
+
+{
+  "visitedPlaces": [],
+  "durationMinutes": 0,
+  "distanceMeters": 0
+}
