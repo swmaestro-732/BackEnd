@@ -15,3 +15,8 @@ CREATE TABLE public.tracing_course_places (
         FOREIGN KEY (tracing_course_id) REFERENCES public.tracing_courses(id),
     CONSTRAINT tracing_course_places_tracing_course_id_order_no_key UNIQUE (tracing_course_id, order_no)
 );
+
+-- 기능별 최소 빌드 정책 — 따라가기(course-tracing) 키 신설. 따라가기 API 가 들어가는 빌드가 5 라 그 미만은 426.
+-- 값 변경은 UPSERT, 롤백은 행 삭제(V9 plan 방식).
+INSERT INTO app_version_policies (feature, platform, min_build) VALUES
+    ('course-tracing', 'android', 5);
