@@ -14,6 +14,7 @@ COPY place/build.gradle.kts place/
 COPY course/build.gradle.kts course/
 COPY user/build.gradle.kts user/
 COPY mobile/build.gradle.kts mobile/
+COPY report/build.gradle.kts report/
 COPY bootstrap/build.gradle.kts bootstrap/
 RUN chmod +x gradlew && ./gradlew :bootstrap:dependencies --no-daemon > /dev/null 2>&1 || true
 
@@ -27,6 +28,7 @@ COPY place/src place/src
 COPY course/src course/src
 COPY user/src user/src
 COPY mobile/src mobile/src
+COPY report/src report/src
 COPY bootstrap/src bootstrap/src
 RUN ./gradlew :bootstrap:bootJar --no-daemon
 

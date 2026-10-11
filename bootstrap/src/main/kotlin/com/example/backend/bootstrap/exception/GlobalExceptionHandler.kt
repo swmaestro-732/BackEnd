@@ -6,6 +6,7 @@ import com.example.backend.common.response.CommonErrorCode
 import com.example.backend.common.response.CourseErrorCode
 import com.example.backend.common.response.ErrorCode
 import com.example.backend.common.response.PlaceErrorCode
+import com.example.backend.common.response.ReportErrorCode
 import com.example.backend.common.response.UserErrorCode
 import io.github.oshai.kotlinlogging.KotlinLogging
 import io.sentry.Sentry
@@ -108,6 +109,7 @@ class GlobalExceptionHandler {
                     "saved_places" in message -> PlaceErrorCode.PLACE_ALREADY_SAVED
                     "uq_place_reviews_user_place" in message -> PlaceErrorCode.PLACE_REVIEW_ALREADY_EXISTS
                     "uq_course_reviews_user_course" in message -> CourseErrorCode.COURSE_REVIEW_ALREADY_EXISTS
+                    "uq_reports_reporter_target" in message -> ReportErrorCode.REPORT_ALREADY_EXISTS
                     else -> null
                 }
             if (errorCode != null) {

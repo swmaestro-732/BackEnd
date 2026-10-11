@@ -94,17 +94,22 @@ class OpenSearchCourseIndexAdapterTest {
     }
 
     @Test
-    fun `save 는 클라이언트가 있으면 문서를 색인한다`() {
+    fun `save 는 alias 필수로 문서를 색인한다`() {
         val client = mock(OpenSearchClient::class.java)
+        var request: IndexRequest<*>? = null
         `when`(client.index(anyIndexFn())).thenAnswer { inv ->
-            inv.getArgument<Function<IndexRequest.Builder<CourseDocument>, *>>(0).apply(IndexRequest.Builder())
+            val builder = IndexRequest.Builder<CourseDocument>()
+            inv.getArgument<Function<IndexRequest.Builder<CourseDocument>, *>>(0).apply(builder)
+            request = builder.build()
             mock(IndexResponse::class.java)
         }
-        val adapter = OpenSearchCourseIndexAdapter(providerOf(client), OpenSearchProperties())
+        val adapter = OpenSearchCourseIndexAdapter(providerOf(client), OpenSearchProperties(indexPrefix = "dev-"))
 
         adapter.save(course(id = 1L))
 
         verify(client).index(anyIndexFn())
+        assertThat(request!!.index()).isEqualTo("dev-course")
+        assertThat(request!!.requireAlias()).isTrue()
     }
 
     @Test
@@ -134,10 +139,13 @@ class OpenSearchCourseIndexAdapterTest {
     }
 
     @Test
-    fun `bulk save 는 문서들을 색인하고 성공하면 로그만 남긴다`() {
+    fun `bulk save 는 alias 필수로 문서들을 색인하고 성공하면 로그만 남긴다`() {
         val client = mock(OpenSearchClient::class.java)
+        var request: BulkRequest? = null
         `when`(client.bulk(anyBulkFn())).thenAnswer { inv ->
-            inv.getArgument<Function<BulkRequest.Builder, *>>(0).apply(BulkRequest.Builder())
+            val builder = BulkRequest.Builder()
+            inv.getArgument<Function<BulkRequest.Builder, *>>(0).apply(builder)
+            request = builder.build()
             val resp = mock(BulkResponse::class.java)
             `when`(resp.errors()).thenReturn(false)
             resp
@@ -147,6 +155,7 @@ class OpenSearchCourseIndexAdapterTest {
         adapter.save(listOf(course(id = 1L), course(id = 2L)))
 
         verify(client).bulk(anyBulkFn())
+        assertThat(request!!.requireAlias()).isTrue()
     }
 
     @Test

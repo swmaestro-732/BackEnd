@@ -19,6 +19,7 @@ dependencies {
     implementation(project(":course"))
     implementation(project(":user"))
     implementation(project(":mobile"))
+    implementation(project(":report"))
 
     // 부트 전용(자동구성/관측/마이그레이션) — subprojects 인프라에 없는 것만.
     implementation(libs.exposed.spring.boot.starter)
@@ -76,7 +77,19 @@ tasks.register<Test>("archTest") {
 tasks.jacocoTestReport {
     dependsOn(tasks.test)
     val coveredModules =
-        listOf("common", "user-api", "area", "media", "direction", "place", "course", "user", "mobile", "bootstrap")
+        listOf(
+            "common",
+            "user-api",
+            "area",
+            "media",
+            "direction",
+            "place",
+            "course",
+            "user",
+            "mobile",
+            "report",
+            "bootstrap",
+        )
     sourceDirectories.setFrom(files(coveredModules.map { rootProject.project(it).file("src/main/kotlin") }))
     classDirectories.setFrom(
         files(

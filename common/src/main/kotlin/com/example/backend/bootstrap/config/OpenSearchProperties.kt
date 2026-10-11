@@ -27,4 +27,9 @@ data class OpenSearchProperties(
 ) {
     /** 인덱스·alias 이름에 [indexPrefix] 를 붙인다. prefix="" 면 인자 그대로(prod 무영향). */
     fun withPrefix(name: String): String = "$indexPrefix$name"
+
+    companion object {
+        /** 색인용 [org.opensearch.client.opensearch.OpenSearchClient] 빈 이름. 도메인 모듈이 bootstrap 을 보지 않도록 여기 둔다. */
+        const val INDEX_CLIENT = "openSearchIndexClient"
+    }
 }
