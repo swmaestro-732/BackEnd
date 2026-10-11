@@ -8,8 +8,11 @@ on:
 
 permissions:
   contents: read
+  actions: read # 마지막 성공 실행의 커밋(처리 체크포인트) 조회
 
 # 머지가 몰려도 하나씩 순서대로 처리한다(같은 위키 문서를 동시에 고쳐 PR 이 충돌하지 않게).
+# 대기 실행은 하나만 유지돼 새 push 가 기존 대기 실행을 대체할 수 있다. 그래서 범위는 push 의 before 가 아니라
+# 마지막 성공 실행의 커밋부터 잡아, 취소된 실행의 커밋도 다음 실행이 함께 처리한다.
 concurrency:
   group: wiki-sync
   cancel-in-progress: false
@@ -50,15 +53,25 @@ jobs:
           path: .ai
           persist-credentials: false
 
-      # push 이벤트의 before..after 범위를 입력으로 만든다. 브랜치 첫 push 처럼 before 가 없으면 직전 커밋과 비교한다.
+      # 범위 시작점: 마지막 성공 실행의 커밋(현재 커밋의 조상일 때) → push 의 before → 직전 커밋 순으로 고른다.
       - name: 변경 범위 정리
         id: diff
         if: steps.secrets.outputs.enabled == 'true'
         env:
-          BEFORE: ${{ github.event.before }}
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          EVENT_BEFORE: ${{ github.event.before }}
           AFTER: ${{ github.sha }}
         run: |
-          if ! git cat-file -e "${BEFORE}^{commit}" 2>/dev/null; then BEFORE="${AFTER}~1"; fi
+          LAST=$(gh run list --repo "$REPO" --workflow wiki-sync.yml --branch develop --status success --limit 1 --json headSha -q '.[0].headSha' || true)
+          if [ -n "$LAST" ] && git merge-base --is-ancestor "$LAST" "$AFTER" 2>/dev/null; then
+            BEFORE="$LAST"
+          elif git cat-file -e "${EVENT_BEFORE}^{commit}" 2>/dev/null; then
+            BEFORE="$EVENT_BEFORE"
+          else
+            BEFORE="${AFTER}~1"
+          fi
+          echo "범위: $BEFORE..$AFTER"
           mkdir -p .wiki-sync-input
           git log --format='%h %s' "$BEFORE..$AFTER" > .wiki-sync-input/commits.txt
           git diff --stat "$BEFORE" "$AFTER" > .wiki-sync-input/stat.txt
