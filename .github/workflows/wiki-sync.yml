@@ -1,0 +1,119 @@
+name: Wiki sync (.ai)
+
+# develop 머지마다 변경을 보고, .ai 위키 갱신이 필요하면 .ai 에 PR 을 연다(SCRUM-588, .ai decisions/0003).
+# 판단과 수정은 Claude Code 가 .github/wiki-sync/prompt.md 지시문대로 하고, 결과는 사람이 PR 에서 확인 후 머지한다.
+on:
+  push:
+    branches: [develop]
+
+permissions:
+  contents: read
+
+# 머지가 몰려도 하나씩 순서대로 처리한다(같은 위키 문서를 동시에 고쳐 PR 이 충돌하지 않게).
+concurrency:
+  group: wiki-sync
+  cancel-in-progress: false
+
+jobs:
+  wiki-sync:
+    name: .ai 위키 갱신 PR
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      # 시크릿이 없으면 실패가 아니라 건너뛴다(포크, 시크릿 등록 전).
+      - name: 시크릿 확인
+        id: secrets
+        env:
+          CLAUDE_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          WIKI_TOKEN: ${{ secrets.WIKI_REPO_TOKEN }}
+        run: |
+          if [ -z "$CLAUDE_TOKEN" ] || [ -z "$WIKI_TOKEN" ]; then
+            echo "::notice::CLAUDE_CODE_OAUTH_TOKEN 또는 WIKI_REPO_TOKEN 이 없어 위키 자동 갱신을 건너뜁니다."
+            echo "enabled=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "enabled=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      # 공급망 보안: 토큰을 다루므로 액션을 커밋 SHA 로 고정한다(주석은 버전).
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+        if: steps.secrets.outputs.enabled == 'true'
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: .ai 체크아웃
+        if: steps.secrets.outputs.enabled == 'true'
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+        with:
+          repository: swmaestro-732/.ai
+          token: ${{ secrets.WIKI_REPO_TOKEN }}
+          path: .ai
+          persist-credentials: false
+
+      # push 이벤트의 before..after 범위를 입력으로 만든다. 브랜치 첫 push 처럼 before 가 없으면 직전 커밋과 비교한다.
+      - name: 변경 범위 정리
+        id: diff
+        if: steps.secrets.outputs.enabled == 'true'
+        env:
+          BEFORE: ${{ github.event.before }}
+          AFTER: ${{ github.sha }}
+        run: |
+          if ! git cat-file -e "${BEFORE}^{commit}" 2>/dev/null; then BEFORE="${AFTER}~1"; fi
+          mkdir -p .wiki-sync-input
+          git log --format='%h %s' "$BEFORE..$AFTER" > .wiki-sync-input/commits.txt
+          git diff --stat "$BEFORE" "$AFTER" > .wiki-sync-input/stat.txt
+          git diff "$BEFORE" "$AFTER" > .wiki-sync-input/changes.diff
+          echo "short=$(git rev-parse --short "$AFTER")" >> "$GITHUB_OUTPUT"
+          cat .wiki-sync-input/commits.txt
+
+      - name: Claude Code 로 위키 갱신
+        if: steps.secrets.outputs.enabled == 'true'
+        uses: anthropics/claude-code-action@1d6de8cb0c237e7c15e9e1bdf973826ebae490cc # v1
+        with:
+          # 구독 계정(Pro/Max) OAuth 토큰. `claude setup-token` 으로 발급한다(API 키 미사용).
+          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          github_token: ${{ github.token }}
+          prompt: |
+            `.github/wiki-sync/prompt.md` 를 읽고 그 지시대로 작업한다.
+            대상: BackEnd ${{ github.repository }} develop 머지 ${{ steps.diff.outputs.short }}.
+          # 파일 읽기, 수정과 diff 조회, 위키 lint 만 허용한다(네트워크, push, 임의 셸 없음).
+          claude_args: |
+            --model sonnet
+            --max-turns 60
+            --allowedTools "Read,Edit,Write,Glob,Grep,Bash(git log:*),Bash(git diff:*),Bash(git show:*),Bash(git -C .ai diff:*),Bash(python3 .ai/scripts/wiki-lint.py)"
+
+      - name: 위키 lint
+        if: steps.secrets.outputs.enabled == 'true'
+        working-directory: .ai
+        run: python3 scripts/wiki-lint.py
+
+      - name: PR 본문 준비
+        id: body
+        if: steps.secrets.outputs.enabled == 'true'
+        env:
+          SHORT: ${{ steps.diff.outputs.short }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          {
+            echo "BackEnd develop \`${SHORT}\` 머지를 보고 Claude Code 가 자동으로 만든 위키 갱신 PR 입니다. 사람이 diff 를 확인한 뒤 머지합니다."
+            echo
+            echo "근거 커밋:"
+            sed 's/^/- /' .wiki-sync-input/commits.txt
+            echo
+            if [ -s .wiki-sync-input/pr-body.md ]; then cat .wiki-sync-input/pr-body.md; echo; fi
+            echo "워크플로 실행: ${RUN_URL}"
+          } > .wiki-sync-input/final-body.md
+
+      # .ai 에 바뀐 파일이 없으면 PR 을 만들지 않는다.
+      - name: .ai PR 생성
+        if: steps.secrets.outputs.enabled == 'true'
+        uses: peter-evans/create-pull-request@5f6978faf089d4d20b00c7766989d076bb2fc7f1 # v8
+        with:
+          path: .ai
+          token: ${{ secrets.WIKI_REPO_TOKEN }}
+          base: main
+          branch: wiki-sync/${{ steps.diff.outputs.short }}
+          delete-branch: true
+          commit-message: "docs: BackEnd ${{ steps.diff.outputs.short }} 변경 위키 반영 (자동)"
+          title: "docs: BackEnd ${{ steps.diff.outputs.short }} 변경 위키 반영 (자동)"
+          body-path: .wiki-sync-input/final-body.md
