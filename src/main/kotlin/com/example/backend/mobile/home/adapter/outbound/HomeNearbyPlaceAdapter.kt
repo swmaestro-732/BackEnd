@@ -4,7 +4,7 @@ import com.example.backend.common.geo.Coordinate
 import com.example.backend.mobile.home.application.port.outbound.HomeNearbyPlacePort
 import com.example.backend.mobile.home.application.port.outbound.dto.HomeNearbyPlace
 import com.example.backend.place.application.port.inbound.PlaceQueryUseCase
-import com.example.backend.user.application.port.outbound.SavedPlaceSearchQueryPort
+import com.example.backend.user.application.port.inbound.SavedPlaceSearchQueryPort
 import org.springframework.stereotype.Component
 
 /** OS 에서 사용자·반경 내 저장 장소를 랭킹하고, 결과 ID 만 DB 에서 조회해 최신 상세를 합친다. */

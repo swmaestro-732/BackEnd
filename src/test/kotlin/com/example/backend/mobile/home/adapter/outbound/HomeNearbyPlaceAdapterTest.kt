@@ -3,8 +3,8 @@ package com.example.backend.mobile.home.adapter.outbound
 import com.example.backend.common.geo.Coordinate
 import com.example.backend.place.application.port.inbound.PlaceQueryUseCase
 import com.example.backend.place.application.port.inbound.dto.PlaceSummary
-import com.example.backend.user.application.port.outbound.SavedPlaceSearchQueryPort
-import com.example.backend.user.application.port.outbound.dto.NearbySavedHit
+import com.example.backend.user.application.port.inbound.SavedPlaceSearchQueryPort
+import com.example.backend.user.application.port.inbound.dto.NearbySavedHit
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test

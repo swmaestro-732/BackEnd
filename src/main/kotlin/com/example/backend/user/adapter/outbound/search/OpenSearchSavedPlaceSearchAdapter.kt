@@ -2,8 +2,8 @@ package com.example.backend.user.adapter.outbound.search
 
 import com.example.backend.bootstrap.config.OpenSearchProperties
 import com.example.backend.common.geo.Coordinate
-import com.example.backend.user.application.port.outbound.SavedPlaceSearchQueryPort
-import com.example.backend.user.application.port.outbound.dto.NearbySavedHit
+import com.example.backend.user.application.port.inbound.SavedPlaceSearchQueryPort
+import com.example.backend.user.application.port.inbound.dto.NearbySavedHit
 import io.github.oshai.kotlinlogging.KotlinLogging
 import org.opensearch.client.json.JsonData
 import org.opensearch.client.opensearch.OpenSearchClient
@@ -79,7 +79,7 @@ class OpenSearchSavedPlaceSearchAdapter(
                 )
             }
         } catch (e: Exception) {
-            log.warn { "saved_place 거리순 검색 실패 — 빈 목록으로 대체: ${e.message}" }
+            log.warn(e) { "saved_place 거리순 검색 실패 — 빈 목록으로 대체" }
             emptyList()
         }
     }
