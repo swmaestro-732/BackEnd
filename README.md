@@ -31,7 +31,9 @@ pre-commit install               # commit-msg·pre-commit 훅 자동 설치
 
 > 모듈 구조(도메인/바운디드 컨텍스트 단위): `:common`, `:user-api`, `:area`, `:media`, `:direction`, `:place`, `:course`, `:user`, `:mobile`, `:report`, `:bootstrap`. `:user-api` 는 user↔course 순환을 끊기 위한 순수 계약 모듈(포트+DTO만). 레이어(domain/application/adapter)는 각 모듈 내부 패키지로 유지하고, 크로스도메인 의존 방향을 모듈로 강제한다(상대 도메인의 inbound 포트만 참조는 ArchUnit). 실행 가능한 bootJar 는 `:bootstrap` 만 만든다.
 >
-> 모듈을 추가할 때는 세 곳을 함께 갱신한다: `settings.gradle.kts`(include), `Dockerfile`(build.gradle.kts/src COPY), `bootstrap/build.gradle.kts`(project 의존 + jacoco `coveredModules`).
+> 공통 빌드 규칙은 `buildSrc` 의 컨벤션 플러그인이 담당한다. 모든 모듈은 `backend.kotlin-conventions`(JDK, Spring BOM, CVE 오버라이드, 테스트 env), 어댑터를 가진 컨텍스트 모듈과 `:bootstrap` 은 `backend.context-conventions`(web/security/Exposed 등 어댑터 인프라 추가)를 적용한다. 버전은 플러그인 포함 전부 `gradle/libs.versions.toml` 에서 관리한다.
+>
+> 모듈을 추가할 때는 네 곳을 함께 갱신한다: 새 모듈 `build.gradle.kts`(맞는 컨벤션 플러그인 선택), `settings.gradle.kts`(include), `Dockerfile`(build.gradle.kts/src COPY), `bootstrap/build.gradle.kts`(project 의존 + jacoco `coveredModules`).
 
 - 애플리케이션: `http://localhost:8080`
 - Swagger UI: `http://localhost:8080/swagger-ui.html`

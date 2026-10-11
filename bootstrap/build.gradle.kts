@@ -1,7 +1,8 @@
 // :bootstrap — Spring Boot 애플리케이션(main) + config/security + resources + 전체 테스트.
 // 모든 도메인 모듈에 의존하며 유일하게 실행 가능한 bootJar 를 만든다.
-// 공유 인프라(web/security/Exposed/검색/AWS 등)는 루트 subprojects 에서 상속하고, 여기선 부트 전용(자동구성/관측/마이그레이션)만 더한다.
+// 공유 인프라(web/security/Exposed 등)는 backend.context-conventions 에서 받고, 여기선 부트 전용(자동구성/관측/마이그레이션)만 더한다.
 plugins {
+    id("backend.context-conventions")
     id("org.springframework.boot")
     jacoco
 }
@@ -21,7 +22,7 @@ dependencies {
     implementation(project(":mobile"))
     implementation(project(":report"))
 
-    // 부트 전용(자동구성/관측/마이그레이션) — subprojects 인프라에 없는 것만.
+    // 부트 전용(자동구성/관측/마이그레이션): 컨벤션 플러그인 인프라에 없는 것만.
     implementation(libs.exposed.spring.boot.starter)
     implementation("org.springframework.boot:spring-boot-starter-flyway")
     implementation("org.springframework.boot:spring-boot-starter-jdbc")

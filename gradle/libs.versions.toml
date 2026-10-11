@@ -2,6 +2,11 @@
 # Spring Boot BOM 이 관리하는 라이브러리(스타터, postgresql, httpclient5, micrometer, jackson3 등)는
 # 버전을 적지 않는다(BOM 이 핀). 여기엔 BOM 밖이라 직접 버전을 박던 것만 둔다.
 [versions]
+# Gradle 플러그인(buildSrc 컨벤션 플러그인이 클래스패스로 쓴다)
+kotlin = "2.3.21"
+springBoot = "4.1.0"
+springDependencyManagement = "1.1.7"
+# 라이브러리
 exposed = "1.3.0"
 kotlinLogging = "7.0.3"
 kotlinxDatetime = "0.7.1-0.6.x-compat"
@@ -15,6 +20,12 @@ archunit = "1.3.0"
 testcontainers = "1.20.4"
 
 [libraries]
+# Gradle 플러그인 아티팩트(buildSrc/build.gradle.kts 전용)
+kotlin-gradle-plugin = { module = "org.jetbrains.kotlin:kotlin-gradle-plugin", version.ref = "kotlin" }
+kotlin-allopen = { module = "org.jetbrains.kotlin:kotlin-allopen", version.ref = "kotlin" }
+spring-boot-gradle-plugin = { module = "org.springframework.boot:spring-boot-gradle-plugin", version.ref = "springBoot" }
+spring-dependency-management-plugin = { module = "io.spring.gradle:dependency-management-plugin", version.ref = "springDependencyManagement" }
+# 라이브러리
 exposed-core = { module = "org.jetbrains.exposed:exposed-core", version.ref = "exposed" }
 exposed-jdbc = { module = "org.jetbrains.exposed:exposed-jdbc", version.ref = "exposed" }
 exposed-dao = { module = "org.jetbrains.exposed:exposed-dao", version.ref = "exposed" }

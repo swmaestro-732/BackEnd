@@ -5,6 +5,8 @@ WORKDIR /workspace
 # 의존성 캐시 레이어 — 빌드 스크립트만 먼저 복사(소스만 바뀌면 이 레이어 캐시 재사용)
 COPY gradlew settings.gradle.kts build.gradle.kts ./
 COPY gradle gradle
+# 컨벤션 플러그인(공통 빌드 규칙). 모듈 build 파일보다 먼저 있어야 한다.
+COPY buildSrc buildSrc
 COPY common/build.gradle.kts common/
 COPY user-api/build.gradle.kts user-api/
 COPY area/build.gradle.kts area/

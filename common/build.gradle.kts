@@ -1,5 +1,9 @@
 // :common - 공유 커널(response/exception/geo/web/mock) + 공통 웹/보안 애노테이션 + 설정 프로퍼티 + PostGIS/트랜잭션 헬퍼.
-// 어댑터 인프라 일괄 제공(subprojects)에서 제외되며, 여기 내용이 실제 쓰는 최소 인프라만 선언한다.
+// 어댑터 인프라 컨벤션(backend.context-conventions)을 쓰지 않고, 실제 쓰는 최소 인프라만 선언한다.
+plugins {
+    id("backend.kotlin-conventions")
+}
+
 dependencies {
     implementation("org.springframework.boot:spring-boot-starter-security")
     implementation("org.springframework.boot:spring-boot-starter-webmvc")

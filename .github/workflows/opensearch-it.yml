@@ -13,6 +13,8 @@ on:
       - "**/PlaceSearchService.kt" # place 색인 훅
       - "**/CourseService.kt" # course 색인 훅
       - "**/build.gradle.kts" # opensearch-java·httpclient5·testcontainers 의존성
+      - "buildSrc/**" # 컨벤션 플러그인(공통 의존성)
+      - "gradle/libs.versions.toml" # 버전 카탈로그
       - ".github/workflows/opensearch-it.yml"
   pull_request:
     branches: [main, develop]
@@ -24,6 +26,8 @@ on:
       - "**/PlaceSearchService.kt"
       - "**/CourseService.kt"
       - "**/build.gradle.kts"
+      - "buildSrc/**"
+      - "gradle/libs.versions.toml"
       - ".github/workflows/opensearch-it.yml"
   workflow_dispatch:
 
