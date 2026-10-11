@@ -1,7 +1,7 @@
 package com.example.backend.user.application.port.outbound
 
 /**
- * 아웃바운드 포트 — user 도메인이 course 도메인에 필요한 것(존재 검증·저장 카운터 갱신)을 요청하는 경계.
+ * 아웃바운드 포트 — user 도메인이 course 도메인에 필요한 것(존재 검증·저장 카운터 갱신·완주 코스 조회)을 요청하는 경계.
  *
  * user 코어는 course 를 직접 알지 않고 이 포트에만 의존한다(MSA 분리 대비). 실제 course 인바운드 포트
  * 호출은 ACL 어댑터([com.example.backend.user.adapter.outbound.course.CourseAccessAdapter])가 담당하며,
@@ -19,4 +19,7 @@ interface CourseAccessPort {
 
     /** 코스 저장 수(saves_cnt)를 1 감소시킨다 — 실제 저장 취소가 일어난 경우만 호출한다. */
     fun decreaseSavesCount(courseId: Long)
+
+    /** 사용자가 따라간(=완주한) 코스 id 집합 — 저장함 완주 필터·완주 수에 쓴다. */
+    fun findTracedCourseIds(userId: Long): Set<Long>
 }

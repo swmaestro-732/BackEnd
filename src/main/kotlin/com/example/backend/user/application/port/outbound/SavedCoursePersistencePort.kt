@@ -44,23 +44,25 @@ interface SavedCoursePersistencePort {
      * 필터에 해당하는 저장 코스 개수.
      * - folderId: null 이면 전체(폴더 미분류 포함).
      * - completed: null 이면 완주 여부 무관, true 면 따라간(=완주) 코스만, false 면 아직 안 따라간 코스만.
-     *   완주 판정은 tracing_courses(user_id, course_id) 존재 여부다([com.example.backend.user.adapter.outbound.persistence.TracingCourseTable]).
+     *   완주 판정은 course_id 가 tracedCourseIds(course 도메인에서 받은 완주 코스 집합)에 있는지다.
      */
     fun count(
         userId: Long,
         folderId: Long?,
         completed: Boolean?,
+        tracedCourseIds: Set<Long>,
     ): Long
 
     /**
      * 저장 레코드를 id 내림차순(최신 저장순)으로 조회한다.
      * cursorId 가 있으면 그보다 작은 id 만(다음 페이지), limit 개까지 반환한다.
-     * completed 필터는 [count] 와 동일한 의미다(tracing_courses 존재 여부 기준).
+     * completed 필터는 [count] 와 동일한 의미다(tracedCourseIds 포함 여부 기준).
      */
     fun findPage(
         userId: Long,
         folderId: Long?,
         completed: Boolean?,
+        tracedCourseIds: Set<Long>,
         cursorId: Long?,
         limit: Int,
     ): List<SavedCourseRow>

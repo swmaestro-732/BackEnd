@@ -138,6 +138,12 @@ class CourseRepository {
             it[commentsCnt] = commentsCnt - 1
         }
 
+    /** deleted_at IS NULL 인 행의 tracings_cnt 를 1 증가시킨다. 반환은 영향받은 행 수(0 또는 1). */
+    fun increaseTracingsCount(courseId: Long): Int =
+        CourseTable.update({ (CourseTable.id eq courseId) and CourseTable.deletedAt.isNull() }) {
+            it[tracingsCnt] = tracingsCnt + 1
+        }
+
     /**
      * 좋아요 원자적 증가 — deleted_at IS NULL 인 행의 likes_cnt 를 UPDATE … RETURNING 으로 1 증가시키고
      * 증가된 새 likes_cnt 를 반환한다. 활성 코스가 없어 0행이면 null(비관락 없이 유니크+원자연산으로 정합성 확보).

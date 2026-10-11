@@ -2,6 +2,7 @@ package com.example.backend.user.adapter.outbound.course
 
 import com.example.backend.course.application.port.inbound.CourseCounterUseCase
 import com.example.backend.course.application.port.inbound.CourseQueryUseCase
+import com.example.backend.course.application.port.inbound.CourseTraceUseCase
 import com.example.backend.user.application.port.outbound.CourseAccessPort
 import org.springframework.stereotype.Component
 
@@ -13,10 +14,13 @@ import org.springframework.stereotype.Component
 class CourseAccessAdapter(
     private val courseQueryUseCase: CourseQueryUseCase,
     private val courseCounterUseCase: CourseCounterUseCase,
+    private val courseTraceUseCase: CourseTraceUseCase,
 ) : CourseAccessPort {
     override fun existsCourse(courseId: Long): Boolean = courseQueryUseCase.existsById(courseId)
 
     override fun increaseSavesCount(courseId: Long): Int = courseCounterUseCase.increaseSavesCount(courseId)
 
     override fun decreaseSavesCount(courseId: Long) = courseCounterUseCase.decreaseSavesCount(courseId)
+
+    override fun findTracedCourseIds(userId: Long): Set<Long> = courseTraceUseCase.findTracedCourseIds(userId)
 }
