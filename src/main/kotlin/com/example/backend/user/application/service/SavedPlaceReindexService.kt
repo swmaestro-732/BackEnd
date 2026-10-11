@@ -15,6 +15,10 @@ class SavedPlaceReindexService(
     private val placeAccessPort: PlaceAccessPort,
     private val savedPlaceSearchIndexPort: SavedPlaceSearchIndexPort,
 ) : SavedPlaceReindexUseCase {
+    /**
+     * DB 의 살아있는 저장 행만 OS 로 upsert 한다(누락 복구용). upsert-only 라서
+     * 이전 unsave 색인 삭제 실패로 남은 ghost 문서는 정리하지 않는다 — 완전 동기화가 아니다.
+     */
     override fun reindexAll(): Int {
         var afterId: Long? = null
         var total = 0
