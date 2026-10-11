@@ -10,7 +10,9 @@ import org.jetbrains.exposed.v1.core.SortOrder
 import org.jetbrains.exposed.v1.core.and
 import org.jetbrains.exposed.v1.core.eq
 import org.jetbrains.exposed.v1.core.inList
+import org.jetbrains.exposed.v1.core.inSubQuery
 import org.jetbrains.exposed.v1.core.min
+import org.jetbrains.exposed.v1.jdbc.deleteWhere
 import org.jetbrains.exposed.v1.jdbc.insertIgnore
 import org.jetbrains.exposed.v1.jdbc.insertIgnoreAndGetId
 import org.jetbrains.exposed.v1.jdbc.select
@@ -52,10 +54,12 @@ class CourseTraceRepository {
                 it[distanceMeters] = 0
             }?.value
 
+    /** 세션 행을 FOR UPDATE 로 읽어 체크인·종료가 같은 잠금으로 직렬화되게 한다 — 종료가 먼저 커밋되면 뒤따르는 체크인은 COMPLETED 를 본다. */
     fun findById(traceId: Long): CourseTraceRow? =
         CourseTraceTable
             .selectAll()
             .where { CourseTraceTable.id eq traceId }
+            .forUpdate()
             .singleOrNull()
             ?.toRow()
 
@@ -124,6 +128,13 @@ class CourseTraceRepository {
             .where { (CourseTraceTable.userId eq userId) and (CourseTraceTable.status eq CourseTraceStatus.COMPLETED) }
             .withDistinct()
             .mapTo(mutableSetOf()) { it[CourseTraceTable.courseId] }
+
+    /** 사용자의 따라가기 세션과 체크인을 전부 하드 삭제한다(탈퇴 정리). FK 때문에 체크인(자식) → 세션(부모) 순. */
+    fun deleteAllByUser(userId: Long) {
+        val traceIds = CourseTraceTable.select(CourseTraceTable.id).where { CourseTraceTable.userId eq userId }
+        CourseTracePlaceTable.deleteWhere { tracingCourseId inSubQuery traceIds }
+        CourseTraceTable.deleteWhere { CourseTraceTable.userId eq userId }
+    }
 
     private fun ResultRow.toRow() =
         CourseTraceRow(

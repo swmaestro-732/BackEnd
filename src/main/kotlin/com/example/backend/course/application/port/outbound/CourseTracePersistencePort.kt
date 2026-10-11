@@ -27,6 +27,7 @@ interface CourseTracePersistencePort {
         courseId: Long,
     ): Long?
 
+    /** 세션 행을 잠그고 읽는다(FOR UPDATE) — 쓰기 트랜잭션 안에서만 호출한다. */
     fun findById(traceId: Long): CourseTraceRow?
 
     /** 세션의 체크인 장소를 체크인 순서대로. */
@@ -54,4 +55,7 @@ interface CourseTracePersistencePort {
 
     /** 사용자가 한 번이라도 완주한 코스 id 집합. */
     fun findTracedCourseIds(userId: Long): Set<Long>
+
+    /** 사용자의 따라가기 세션·체크인을 전부 하드 삭제한다(탈퇴 정리). */
+    fun deleteAllByUser(userId: Long)
 }

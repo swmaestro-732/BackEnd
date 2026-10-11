@@ -45,4 +45,6 @@ class CourseTracePersistenceAdapter(
     ): Map<Long, Instant> = courseTraceRepository.findCompletedAt(userId, courseIds)
 
     override fun findTracedCourseIds(userId: Long): Set<Long> = courseTraceRepository.findTracedCourseIds(userId)
+
+    override fun deleteAllByUser(userId: Long) = courseTraceRepository.deleteAllByUser(userId)
 }

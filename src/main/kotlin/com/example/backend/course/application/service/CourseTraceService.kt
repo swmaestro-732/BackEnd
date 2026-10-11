@@ -91,6 +91,9 @@ class CourseTraceService(
 
     override fun findTracedCourseIds(userId: Long): Set<Long> = courseTracePersistencePort.findTracedCourseIds(userId)
 
+    @Transactional
+    override fun purgeByUser(userId: Long) = courseTracePersistencePort.deleteAllByUser(userId)
+
     /** 방문 기록은 코스 장소만 받는다 — 하나라도 코스에 없으면 400. 게시 코스는 장소 구성이 불변이라 요청 시점 검사로 충분하다. */
     private fun requirePlacesInCourse(
         courseId: Long,

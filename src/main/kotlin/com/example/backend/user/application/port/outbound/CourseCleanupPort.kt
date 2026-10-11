@@ -17,4 +17,7 @@ interface CourseCleanupPort {
 
     /** 탈퇴자의 코스 좋아요를 전부 삭제하고 대상 코스의 likes_cnt 를 보정한다. */
     fun purgeLikesByUser(userId: Long)
+
+    /** 탈퇴자의 코스 따라가기 세션·체크인 기록(위치 이력)을 전부 삭제한다. */
+    fun purgeTracesByUser(userId: Long)
 }

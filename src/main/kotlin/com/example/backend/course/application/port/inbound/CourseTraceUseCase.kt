@@ -33,4 +33,7 @@ interface CourseTraceUseCase {
 
     /** 사용자가 한 번이라도 완주한 코스 id 집합 — 저장함 완주 필터·완주 수에 쓴다. */
     fun findTracedCourseIds(userId: Long): Set<Long>
+
+    /** 탈퇴자의 따라가기 세션·체크인 기록을 전부 삭제한다(크로스 도메인 정리용). 코스 tracings_cnt 는 누적 통계라 되돌리지 않는다. */
+    fun purgeByUser(userId: Long)
 }

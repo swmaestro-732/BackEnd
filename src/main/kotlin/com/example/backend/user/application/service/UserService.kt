@@ -116,6 +116,8 @@ class UserService(
         savedCoursePersistencePort.deleteAllByUser(userId)
         // 1-1) 코스 좋아요: 좋아요 레코드를 지우고 대상 코스 likes_cnt 를 보정한다.
         courseCleanupPort.purgeLikesByUser(userId)
+        // 1-2) 코스 따라가기: 세션·체크인(위치 이력)을 지운다. tracings_cnt 는 누적 통계라 되돌리지 않는다.
+        courseCleanupPort.purgeTracesByUser(userId)
         // 2) 팔로우: 양방향 삭제 + 상대 카운터 보정.
         followPersistencePort.purgeFollowsOf(userId)
         // 3) 관심 지역·테마: 빈 목록으로 전체 치환(=전부 삭제).
@@ -128,8 +130,8 @@ class UserService(
         userPersistencePort.softDelete(user.withdraw())
         // 6) 리프레시 토큰 폐기.
         refreshTokenPort.revokeAllByUser(userId)
-        // TODO(추후): 저장 장소(saved_places)·리뷰(course_reviews/place_reviews)·코스 따라가기 기록(tracing_courses, course 소유)은
-        //  아직 정리 대상에서 제외했다. 각 기능이 실제로 저장되기 시작하면 이 정리 단계에 함께 추가해 "처음 계정처럼" 불변식을 유지할 것.
+        // TODO(추후): 저장 장소(saved_places)·리뷰(course_reviews/place_reviews)는 아직 정리 대상에서 제외했다.
+        //  각 기능이 실제로 저장되기 시작하면 이 정리 단계에 함께 추가해 "처음 계정처럼" 불변식을 유지할 것.
     }
 
     private companion object {
