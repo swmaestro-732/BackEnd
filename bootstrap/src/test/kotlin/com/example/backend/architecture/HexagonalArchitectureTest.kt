@@ -10,7 +10,7 @@ import org.junit.jupiter.api.Test
 /**
  * 헥사고날 + 도메인 분리 경계를 테스트로 강제한다(컴파일 대신 CI 로 위반 차단).
  *
- * 도메인(user/place/course)은 서로의 내부에 의존하지 않고,
+ * 도메인([DOMAINS])은 서로의 내부에 의존하지 않고,
  * 오직 상대 도메인의 application.port.inbound(공개 API)만 참조할 수 있다.
  * BFF 패키지(bff)는 화면단위 조합을 위해 도메인의 inbound 포트에 의존할 수 있다.
  */
@@ -19,6 +19,11 @@ class HexagonalArchitectureTest {
         ClassFileImporter()
             .withImportOption(ImportOption.DoNotIncludeTests())
             .importPackages("com.example.backend")
+
+    companion object {
+        /** 크로스 도메인 규칙 대상. 도메인 모듈을 추가하면 여기에 넣는다(빠지면 그 모듈은 규칙 밖이 된다). */
+        private val DOMAINS = listOf("user", "place", "course", "report")
+    }
 
     @Test
     fun `도메인은 애플리케이션·어댑터·스프링·Exposed 에 의존하지 않는다`() {
@@ -102,6 +107,7 @@ class HexagonalArchitectureTest {
                 "..user..",
                 "..place..",
                 "..course..",
+                "..report..",
                 "..mobile..",
             ).check(classes)
     }
@@ -113,7 +119,7 @@ class HexagonalArchitectureTest {
      */
     @Test
     fun `BFF 는 도메인의 inbound 포트만 참조한다`() {
-        for (target in listOf("user", "place", "course")) {
+        for (target in DOMAINS) {
             val targetInternals =
                 resideInAnyPackage(
                     "com.example.backend.$target.domain..",
@@ -140,9 +146,8 @@ class HexagonalArchitectureTest {
      */
     @Test
     fun `도메인은 다른 도메인의 inbound 포트만 참조한다`() {
-        val domains = listOf("user", "place", "course")
-        for (dependent in domains) {
-            for (target in domains) {
+        for (dependent in DOMAINS) {
+            for (target in DOMAINS) {
                 if (dependent == target) continue
                 // dependent 도메인은 target 도메인의 내부(도메인/어댑터/서비스/DTO/아웃바운드 포트)에 의존할 수 없다.
                 // 허용되는 건 target.application.port.inbound 뿐이다.
@@ -169,9 +174,8 @@ class HexagonalArchitectureTest {
      */
     @Test
     fun `도메인 코어는 다른 도메인을 참조하지 않는다`() {
-        val domains = listOf("user", "place", "course")
-        for (dependent in domains) {
-            for (target in domains) {
+        for (dependent in DOMAINS) {
+            for (target in DOMAINS) {
                 if (dependent == target) continue
                 noClasses()
                     .that()
