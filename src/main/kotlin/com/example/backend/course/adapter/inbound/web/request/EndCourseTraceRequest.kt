@@ -5,7 +5,7 @@ import jakarta.validation.constraints.Min
 import jakarta.validation.constraints.Positive
 import java.time.Instant
 
-/** 따라가기 종료 요청 — 방문한 장소 기록과 소요 시간·이동 거리(클라이언트가 측정해 보낸다). */
+/** 따라가기 종료 요청 — 소요 시간·이동 거리(클라이언트가 측정해 보낸다). 서버에 못 보낸 체크인이 있으면 visitedPlaces 로 합친다. */
 data class EndCourseTraceRequest(
     @field:Valid
     val visitedPlaces: List<VisitedPlace> = emptyList(),
