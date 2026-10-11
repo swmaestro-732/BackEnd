@@ -56,6 +56,12 @@ interface SavedPlacePersistencePort {
         limit: Int,
     ): List<SavedPlaceRow>
 
+    /** 재색인용 살아있는 저장 관계를 id 오름차순으로 배치 조회한다. */
+    fun findForIndex(
+        afterId: Long?,
+        limit: Int,
+    ): List<SavedPlace>
+
     /** 살아있는 저장 레코드 전체의 (placeId, visited). 순서는 보장하지 않는다. */
     fun findAllRefs(userId: Long): List<SavedPlaceRef>
 }

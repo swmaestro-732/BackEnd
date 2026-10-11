@@ -128,8 +128,11 @@ class UserService(
         userPersistencePort.softDelete(user.withdraw())
         // 6) 리프레시 토큰 폐기.
         refreshTokenPort.revokeAllByUser(userId)
-        // TODO(추후): 저장 장소(saved_places)·코스 따라가기/완주 기록(tracing_courses)·추가 장소(added_places)·
-        //  리뷰(course_reviews/place_reviews) 는 아직 쓰기 경로가 없어(스텁) 정리 대상에서 제외했다.
+        // TODO(추후): 저장 장소(saved_places)는 이제 쓰기와 OS 색인(saved_place) 경로가 생겼으므로, 탈퇴 시
+        //  DB saved_places 삭제 + OS saved_place 색인 정리(userId 로 deleteByUser)를 이 단계에 추가해야 한다
+        //  (현재 미구현 — 탈퇴해도 OS 에 ghost 문서가 남고, 같은 소셜 재가입 시 stale 가능. userId 필터라 타인에겐 안 섞임).
+        //  코스 따라가기/완주 기록(tracing_courses), 추가 장소(added_places), 리뷰(course_reviews/place_reviews)는
+        //  아직 쓰기 경로가 없어(스텁) 정리 대상에서 제외했다.
         //  각 기능이 실제로 저장되기 시작하면 이 정리 단계에 함께 추가해 "처음 계정처럼" 불변식을 유지할 것.
     }
 

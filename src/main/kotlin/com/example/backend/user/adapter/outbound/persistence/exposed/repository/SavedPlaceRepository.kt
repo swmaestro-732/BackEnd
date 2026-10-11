@@ -11,6 +11,7 @@ import org.jetbrains.exposed.v1.core.SortOrder
 import org.jetbrains.exposed.v1.core.and
 import org.jetbrains.exposed.v1.core.count
 import org.jetbrains.exposed.v1.core.eq
+import org.jetbrains.exposed.v1.core.greater
 import org.jetbrains.exposed.v1.core.isNotNull
 import org.jetbrains.exposed.v1.core.isNull
 import org.jetbrains.exposed.v1.core.less
@@ -158,6 +159,29 @@ class SavedPlaceRepository {
             .select(SavedPlaceTable.placeId, SavedPlaceTable.visited)
             .where { alive(userId) }
             .map { SavedPlaceRef(placeId = it[SavedPlaceTable.placeId], visited = it[SavedPlaceTable.visited]) }
+
+    fun findForIndex(
+        afterId: Long?,
+        limit: Int,
+    ): List<SavedPlace> {
+        var condition: Op<Boolean> = SavedPlaceTable.deletedAt.isNull()
+        afterId?.let { condition = condition and (SavedPlaceTable.id greater it) }
+        return SavedPlaceTable
+            .selectAll()
+            .where(condition)
+            .orderBy(SavedPlaceTable.id to SortOrder.ASC)
+            .limit(limit)
+            .map {
+                SavedPlace(
+                    id = it[SavedPlaceTable.id].value,
+                    userId = it[SavedPlaceTable.userId],
+                    placeId = it[SavedPlaceTable.placeId],
+                    category = it[SavedPlaceTable.category],
+                    visited = it[SavedPlaceTable.visited],
+                    savedAt = it[SavedPlaceTable.createdAt].toJavaInstant(),
+                )
+            }
+    }
 
     /** 소유자의 살아있는(소프트 삭제 제외) 저장 레코드 필터. */
     private fun alive(userId: Long): Op<Boolean> =
