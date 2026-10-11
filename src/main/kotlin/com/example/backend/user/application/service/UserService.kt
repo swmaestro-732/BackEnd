@@ -128,9 +128,8 @@ class UserService(
         userPersistencePort.softDelete(user.withdraw())
         // 6) 리프레시 토큰 폐기.
         refreshTokenPort.revokeAllByUser(userId)
-        // TODO(추후): 저장 장소(saved_places)·코스 따라가기/완주 기록(tracing_courses)·추가 장소(added_places)·
-        //  리뷰(course_reviews/place_reviews) 는 아직 쓰기 경로가 없어(스텁) 정리 대상에서 제외했다.
-        //  각 기능이 실제로 저장되기 시작하면 이 정리 단계에 함께 추가해 "처음 계정처럼" 불변식을 유지할 것.
+        // TODO(추후): 저장 장소(saved_places)·리뷰(course_reviews/place_reviews)·코스 따라가기 기록(tracing_courses, course 소유)은
+        //  아직 정리 대상에서 제외했다. 각 기능이 실제로 저장되기 시작하면 이 정리 단계에 함께 추가해 "처음 계정처럼" 불변식을 유지할 것.
     }
 
     private companion object {

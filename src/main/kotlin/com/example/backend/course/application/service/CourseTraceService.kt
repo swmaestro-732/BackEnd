@@ -9,9 +9,11 @@ import com.example.backend.course.application.port.outbound.CourseTracePersisten
 import com.example.backend.course.domain.model.CourseStatus
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
+import java.time.Instant
 
-/** 코스 따라가기 유스케이스 — 종료 시 기록·방문 장소 삽입 + tracings_cnt 원자적 +1. CourseLikeService 미러(열람 권한 검사 동일). */
+/** 코스 따라가기 유스케이스 — 종료 시 기록·방문 장소 삽입 + tracings_cnt 원자적 +1, 완주 조회. CourseLikeService 미러(열람 권한 검사 동일). */
 @Service
+@Transactional(readOnly = true)
 class CourseTraceService(
     private val courseTracePersistencePort: CourseTracePersistencePort,
     private val coursePersistencePort: CoursePersistencePort,
@@ -34,4 +36,11 @@ class CourseTraceService(
             throw BusinessException(CourseErrorCode.COURSE_NOT_FOUND, "따라가기를 종료할 코스를 찾을 수 없습니다: courseId=$courseId")
         }
     }
+
+    override fun findCompletedAt(
+        userId: Long,
+        courseIds: List<Long>,
+    ): Map<Long, Instant> = courseTracePersistencePort.findCompletedAt(userId, courseIds)
+
+    override fun findTracedCourseIds(userId: Long): Set<Long> = courseTracePersistencePort.findTracedCourseIds(userId)
 }
