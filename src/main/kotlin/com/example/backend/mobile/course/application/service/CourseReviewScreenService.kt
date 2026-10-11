@@ -1,6 +1,7 @@
 package com.example.backend.mobile.course.application.service
 
 import com.example.backend.course.application.port.inbound.CourseReviewQueryUseCase
+import com.example.backend.course.application.port.inbound.CourseTraceUseCase
 import com.example.backend.course.application.port.inbound.dto.CourseReviewsQuery
 import com.example.backend.mobile.course.application.port.inbound.CourseReviewScreenUseCase
 import com.example.backend.mobile.course.application.port.inbound.dto.CourseReviewScreenQuery
@@ -15,6 +16,7 @@ import org.springframework.transaction.annotation.Transactional
 class CourseReviewScreenService(
     private val courseReviewQueryUseCase: CourseReviewQueryUseCase,
     private val userSummaryUseCase: UserSummaryUseCase,
+    private val courseTraceUseCase: CourseTraceUseCase,
 ) : CourseReviewScreenUseCase {
     override fun getScreen(query: CourseReviewScreenQuery): CourseReviewScreenResult {
         val page =
@@ -31,13 +33,11 @@ class CourseReviewScreenService(
             userSummaryUseCase
                 .findSummaries(page.reviews.map { it.userId }.distinct())
                 .associateBy { it.id }
-        // 비로그인은 완주 이력이 있을 수 없으니 무조건 false. 로그인 유저 판정은 실구현에서 채운다.
-        val hasCompletedCourse = if (query.viewerId == null) false else STUB_HAS_COMPLETED_COURSE
+        // 비로그인은 완주 이력이 있을 수 없으니 false. 로그인 유저는 이 코스를 완주(COMPLETED 세션)한 적이 있는지로 판정한다.
+        val hasCompletedCourse =
+            query.viewerId?.let { viewerId ->
+                query.courseId in courseTraceUseCase.findCompletedAt(viewerId, listOf(query.courseId))
+            } ?: false
         return CourseReviewScreenResult.of(page, authors, hasCompletedCourse = hasCompletedCourse)
-    }
-
-    companion object {
-        /** STUB: 완주(따라가기 완료) 판정 전 안전 고정값(false). tracing_courses 실구현 시 제거한다. */
-        const val STUB_HAS_COMPLETED_COURSE = false
     }
 }
