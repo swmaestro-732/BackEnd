@@ -24,6 +24,9 @@ class HttpClientConfig {
     @Bean
     fun naverRestClient(): RestClient = restClient("https://openapi.naver.com")
 
+    @Bean
+    fun googlePlacesRestClient(): RestClient = restClient("https://places.googleapis.com")
+
     private fun restClient(baseUrl: String): RestClient =
         RestClient
             .builder()
