@@ -28,8 +28,8 @@ MAX_DELETED_TOTAL = 100
 SECRET = re.compile(r"sk-ant-|gh[pousr]_[A-Za-z0-9]{20,}|github_pat_|x-access-token|AKIA[0-9A-Z]{16}|BEGIN [A-Z ]*PRIVATE KEY")
 HASH_STAMP = re.compile(r"`[0-9a-f]{7,8}`")
 UNMAPPED = "(unmapped)"
-# 판정 뒤에 괄호 이유가 있어야 판정으로 인정한다(이유 없는 "갱신 불필요"로 검토 근거가 사라지지 않게).
-DECISION = re.compile(r"^\s*-\s*`?([^\s`:]+)`?\s*:\s*(고침|갱신 불필요|사람 확인 필요)\s+\(.+\)\s*$")
+# 판정 뒤에 괄호 이유 하나로 끝나야 판정으로 인정한다(이유 없는 "갱신 불필요", 괄호 뒤 덧붙임 금지). 이유 안에는 괄호를 쓰지 않는다.
+DECISION = re.compile(r"^\s*-\s*`?([^\s`:]+)`?\s*:\s*(고침|갱신 불필요|사람 확인 필요)\s+\([^()\r\n]+\)\s*$")
 
 
 # 훅과 fsmonitor 를 끄고 git 을 실행한다(설정이 오염됐어도 검사 중 임의 명령이 돌지 않게).
