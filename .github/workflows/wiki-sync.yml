@@ -133,6 +133,7 @@ jobs:
         run: |
           if [ -z "$(git status --porcelain)" ]; then
             echo "위키 갱신할 내용이 없습니다."
+            { echo "## .ai 반영"; echo; echo "바뀐 위키 문서가 없어 커밋하지 않았습니다."; } >> "$GITHUB_STEP_SUMMARY"
             exit 0
           fi
           {
@@ -157,7 +158,27 @@ jobs:
             if git -c core.hooksPath=/dev/null -c core.fsmonitor=false -c http.extraheader="$AUTH" pull --rebase -q origin main \
               && env -u WIKI_TOKEN python3 scripts/wiki-lint.py >/dev/null \
               && git -c core.hooksPath=/dev/null -c core.fsmonitor=false -c http.extraheader="$AUTH" push -q origin HEAD:main; then
-              { echo "## .ai 반영"; echo; echo "커밋 $(git rev-parse --short HEAD) 를 main 에 push 했습니다."; } >> "$GITHUB_STEP_SUMMARY"
+              # 실제로 .ai 에 무엇이 반영됐는지 실행 요약에 남긴다(커밋 링크, 파일별 변경 줄 수, 접힌 diff).
+              SHA=$(git rev-parse HEAD)
+              {
+                echo "## .ai 반영"
+                echo
+                echo "[\`${SHA:0:7}\`](https://github.com/swmaestro-732/.ai/commit/${SHA}) 를 main 에 push 했습니다."
+                echo
+                echo "| 문서 | 추가 | 삭제 |"
+                echo "|---|---|---|"
+                git -c core.hooksPath=/dev/null log -1 --numstat --format= | awk -F'\t' '{printf "| `%s` | %s | %s |\n", $3, $1, $2}'
+                echo
+                echo "<details><summary>diff 보기</summary>"
+                echo
+                echo '```diff'
+                # pipefail 아래에서 head 가 파이프를 먼저 닫으면 SIGPIPE 로 단계가 실패하므로 파일로 받아 자른다.
+                git -c core.hooksPath=/dev/null show --format= HEAD > ../.wiki-sync-input/applied.diff
+                head -n 300 ../.wiki-sync-input/applied.diff
+                echo '```'
+                echo
+                echo "</details>"
+              } >> "$GITHUB_STEP_SUMMARY"
               git log --oneline -1
               exit 0
             fi
