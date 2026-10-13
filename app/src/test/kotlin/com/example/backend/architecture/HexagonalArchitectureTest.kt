@@ -21,7 +21,7 @@ class HexagonalArchitectureTest {
             .importPackages("com.example.backend")
 
     /** 크로스 도메인·BFF 규칙 대상 컨텍스트. 새 도메인 모듈을 추가하면 여기에도 넣는다. */
-    private val domains = listOf("user", "place", "course", "area", "direction", "media")
+    private val domains = listOf("user", "place", "course", "area", "direction", "media", "report")
 
     @Test
     fun `도메인은 애플리케이션·어댑터·스프링·Exposed 에 의존하지 않는다`() {
