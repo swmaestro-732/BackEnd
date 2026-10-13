@@ -52,6 +52,29 @@ class PlaceBusinessHourRepositoryTest
         }
 
         @Test
+        fun `쉬는 시간도 함께 저장되고 되읽힌다`() {
+            transaction {
+                val placeId = insertPlace()
+
+                repository.saveBusinessHours(
+                    placeId,
+                    listOf(
+                        PlaceBusinessHour(2, LocalTime(11, 0), LocalTime(21, 0), LocalTime(15, 0), LocalTime(17, 0)),
+                    ),
+                )
+
+                val row =
+                    PlaceBusinessHourTable
+                        .selectAll()
+                        .where { PlaceBusinessHourTable.placeId eq placeId }
+                        .single()
+                assertThat(row[PlaceBusinessHourTable.breakStart]).isEqualTo(LocalTime(15, 0))
+                assertThat(row[PlaceBusinessHourTable.breakEnd]).isEqualTo(LocalTime(17, 0))
+                rollback()
+            }
+        }
+
+        @Test
         fun `영업시간이 빈 목록이면 행 없이 동기화 시각만 남는다`() {
             transaction {
                 val placeId = insertPlace()

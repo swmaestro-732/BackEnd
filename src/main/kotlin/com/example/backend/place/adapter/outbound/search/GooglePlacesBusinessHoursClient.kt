@@ -86,7 +86,7 @@ class GooglePlacesBusinessHoursClient(
     }
 
     /**
-     * Google period → 요일별 한 행. 같은 요일에 여러 period(브레이크타임)면 첫 개점~마지막 폐점으로 합친다.
+     * Google period → 요일별 한 행. 같은 요일에 period 2개면 브레이크타임으로 보고 그 사이 공백을 쉬는 시간으로 담는다.
      * 24시간 영업(close 없음)은 매일 00:00~23:59, period 에 없는 요일은 휴무(null) 행으로 채운다.
      */
     private fun toBusinessHours(periods: List<GooglePeriod>): List<PlaceBusinessHour> {
@@ -102,14 +102,24 @@ class GooglePlacesBusinessHoursClient(
                     val day = period.open.day ?: return@mapNotNull null
                     toIsoDay(day) to (open to close)
                 }.groupBy({ it.first }, { it.second })
-        return (1..7).map { day ->
-            val spans = byDay[day]
-            if (spans.isNullOrEmpty()) {
-                PlaceBusinessHour(day, null, null)
-            } else {
-                PlaceBusinessHour(day, spans.first().first, spans.last().second)
-            }
-        }
+        return (1..7).map { day -> byDay[day].orEmpty().toBusinessHour(day) }
+    }
+
+    /**
+     * 한 요일의 영업 구간들을 행 하나로 만든다. 영업은 첫 개점~마지막 폐점이고,
+     * 구간이 정확히 둘이면 그 사이가 쉬는 시간이다(표본상 셋 이상은 없어 그 경우 쉬는 시간은 담지 않는다).
+     */
+    private fun List<Pair<LocalTime, LocalTime>>.toBusinessHour(day: Int): PlaceBusinessHour {
+        if (isEmpty()) return PlaceBusinessHour(day, null, null)
+        val sorted = sortedBy { it.first }
+        val breakSpan = if (sorted.size == 2) sorted[0].second to sorted[1].first else null
+        return PlaceBusinessHour(
+            dayOfWeek = day,
+            openTime = sorted.first().first,
+            closeTime = sorted.last().second,
+            breakStart = breakSpan?.first,
+            breakEnd = breakSpan?.second,
+        )
     }
 
     private fun GoogleTimePoint.toLocalTime(): LocalTime? {

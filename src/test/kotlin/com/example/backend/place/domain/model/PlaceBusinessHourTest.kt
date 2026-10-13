@@ -33,6 +33,35 @@ class PlaceBusinessHourTest {
     }
 
     @Test
+    fun `쉬는 시간은 시작과 종료를 함께 담는다`() {
+        val hour =
+            PlaceBusinessHour(
+                dayOfWeek = 2,
+                openTime = LocalTime(11, 0),
+                closeTime = LocalTime(21, 0),
+                breakStart = LocalTime(15, 0),
+                breakEnd = LocalTime(17, 0),
+            )
+
+        assertThat(hour.breakStart).isEqualTo(LocalTime(15, 0))
+        assertThat(hour.breakEnd).isEqualTo(LocalTime(17, 0))
+    }
+
+    @Test
+    fun `쉬는 시간의 시작과 종료 중 하나만 있으면 거부한다`() {
+        assertThatThrownBy {
+            PlaceBusinessHour(2, LocalTime(11, 0), LocalTime(21, 0), breakStart = LocalTime(15, 0))
+        }.isInstanceOf(IllegalArgumentException::class.java)
+    }
+
+    @Test
+    fun `휴무일에는 쉬는 시간을 둘 수 없다`() {
+        assertThatThrownBy {
+            PlaceBusinessHour(2, null, null, breakStart = LocalTime(15, 0), breakEnd = LocalTime(17, 0))
+        }.isInstanceOf(IllegalArgumentException::class.java)
+    }
+
+    @Test
     fun `개점과 폐점 중 하나만 있으면 거부한다`() {
         assertThatThrownBy { PlaceBusinessHour(dayOfWeek = 3, openTime = LocalTime(9, 0), closeTime = null) }
             .isInstanceOf(IllegalArgumentException::class.java)

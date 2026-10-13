@@ -70,10 +70,13 @@ class GooglePlacesBusinessHoursClientTest {
         // period 에 없는 요일은 휴무
         assertThat(byDay[3]!!.openTime).isNull()
         assertThat(byDay[3]!!.closeTime).isNull()
+        // 구간이 하나뿐인 날은 쉬는 시간이 없다
+        assertThat(byDay[1]!!.breakStart).isNull()
+        assertThat(byDay[1]!!.breakEnd).isNull()
     }
 
     @Test
-    fun `같은 요일에 여러 period 면 첫 개점부터 마지막 폐점으로 합친다`() {
+    fun `같은 요일에 period 가 둘이면 그 사이를 쉬는 시간으로 담는다`() {
         expectSearch(
             placeBody(
                 periods(
@@ -88,6 +91,8 @@ class GooglePlacesBusinessHoursClientTest {
         server.verify()
         assertThat(tuesday.openTime).isEqualTo(LocalTime(11, 0))
         assertThat(tuesday.closeTime).isEqualTo(LocalTime(21, 0))
+        assertThat(tuesday.breakStart).isEqualTo(LocalTime(15, 0))
+        assertThat(tuesday.breakEnd).isEqualTo(LocalTime(17, 0))
     }
 
     @Test

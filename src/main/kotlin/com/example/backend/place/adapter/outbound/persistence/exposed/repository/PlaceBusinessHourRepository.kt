@@ -37,6 +37,8 @@ class PlaceBusinessHourRepository {
             this[PlaceBusinessHourTable.dayOfWeek] = hour.dayOfWeek.toShort()
             this[PlaceBusinessHourTable.openTime] = hour.openTime
             this[PlaceBusinessHourTable.closeTime] = hour.closeTime
+            this[PlaceBusinessHourTable.breakStart] = hour.breakStart
+            this[PlaceBusinessHourTable.breakEnd] = hour.breakEnd
         }
         PlaceTable.update({ PlaceTable.id eq placeId }) {
             it[businessHoursSyncedAt] = Clock.System.now()
