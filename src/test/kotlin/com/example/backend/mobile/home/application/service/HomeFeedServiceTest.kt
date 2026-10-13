@@ -103,7 +103,7 @@ class HomeFeedServiceTest {
 
         val result = service.getHome(viewerId = USER_ID, userLocation = ORIGIN)
 
-        assertEquals(listOf(Triple(USER_ID, ORIGIN, 2)), fakeNearbyPort.calls)
+        assertEquals(listOf(Triple(USER_ID, ORIGIN, 3)), fakeNearbyPort.calls)
         assertEquals(listOf(1L, 2L, 3L, 4L), result.nearbySavedPlaces.map { it.place.placeId })
         // 400/67=5.97 → 6, 670/67=10 → 10(정수면 그대로), 671/67=10.01 → 11, 0 → 0
         assertEquals(listOf(6, 10, 11, 0), result.nearbySavedPlaces.map { it.walkingMinutes })
@@ -116,7 +116,7 @@ class HomeFeedServiceTest {
         val result = service.getHome(viewerId = USER_ID, userLocation = ORIGIN)
 
         assertEquals(listOf(2010.0), fakeNearbyPort.radii)
-        assertEquals(listOf(Triple(USER_ID, ORIGIN, 2)), fakeNearbyPort.calls)
+        assertEquals(listOf(Triple(USER_ID, ORIGIN, 3)), fakeNearbyPort.calls)
         assertEquals(listOf(1L, 2L), result.nearbySavedPlaces.map { it.place.placeId })
         assertEquals(listOf(30, 31), result.nearbySavedPlaces.map { it.walkingMinutes })
     }

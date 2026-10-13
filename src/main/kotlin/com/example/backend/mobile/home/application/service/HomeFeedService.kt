@@ -89,7 +89,7 @@ class HomeFeedService(
 
     private companion object {
         const val HOME_SECTION_SIZE = 5
-        const val HOME_NEARBY_SIZE = 2
+        const val HOME_NEARBY_SIZE = 3
 
         /** 도보 속도 근사(시속 4km = 분당 약 67m). 경로 API(TMAP)는 부르지 않는다. */
         const val WALKING_METERS_PER_MINUTE = 67.0
