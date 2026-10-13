@@ -7,7 +7,7 @@ import java.time.Instant
 /**
  * 웹 응답 DTO — 장소 상세 화면 조합(BFF). 프론트 화면 계약 형태.
  * 장소 정보 + 리뷰 요약/미리보기(작성자) + 저장 여부 + "이 근처 코스"(이 장소를 포함한 코스)를 한 번에 내려준다.
- * 실구현은 place 도메인 인바운드 포트로 장소·리뷰 요약을 조회해 채운다([from]). 이 근처 코스·저장 여부는 아직
+ * 실구현은 place 도메인 인바운드 포트로 장소·영업 상태·리뷰 요약을 조회해 채운다([from]). 이 근처 코스·저장 여부는 아직
  * 백엔드가 없어 빈/false 스텁으로 채운다(MVP 범위). `?mock=true` 폴백은 고정 목([MOCK])을 반환한다.
  */
 data class PlaceDetailScreenResponse(
@@ -15,7 +15,7 @@ data class PlaceDetailScreenResponse(
     val nearbyCourses: List<NearbyCourseResponse>,
 ) {
     companion object {
-        /** 실구현 매핑 — 장소·리뷰 요약을 채우고 이 근처 코스·저장 여부는 빈/false 스텁. */
+        /** 실구현 매핑 — 장소·영업 상태·리뷰 요약을 채우고 이 근처 코스·저장 여부는 빈/false 스텁. */
         fun from(result: PlaceDetailScreenResult) =
             PlaceDetailScreenResponse(
                 place =
@@ -26,8 +26,8 @@ data class PlaceDetailScreenResponse(
                         imageUrls = result.imageUrl?.let { listOf(it) } ?: emptyList(),
                         address = result.address,
                         location = PlaceLocationResponse(latitude = result.latitude, longitude = result.longitude),
-                        openStatus = "UNKNOWN",
-                        openingHoursText = null,
+                        openStatus = result.openStatus,
+                        openingHoursText = result.openingHoursText,
                         reviewSummary = PlaceReviewSummaryResponse.from(result.reviewSummary),
                         viewer = PlaceViewerResponse(hasSaved = false),
                     ),
@@ -50,7 +50,7 @@ data class PlaceDetailScreenResponse(
                         address = "서울 성동구 아차산로 100",
                         location = PlaceLocationResponse(latitude = 37.5446, longitude = 127.0559),
                         openStatus = "OPEN",
-                        openingHoursText = "매일 11:00 – 21:00",
+                        openingHoursText = "월–금 11:00 – 21:00 (브레이크 15:00 – 17:00), 토·일 10:00 – 22:00",
                         reviewSummary =
                             PlaceReviewSummaryResponse(
                                 averageRating = 4.8,
