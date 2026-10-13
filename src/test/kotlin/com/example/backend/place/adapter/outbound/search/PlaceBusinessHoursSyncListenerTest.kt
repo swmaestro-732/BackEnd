@@ -23,8 +23,6 @@ class PlaceBusinessHoursSyncListenerTest {
                 requested += placeIds
                 return placeIds.size
             }
-
-            override fun backfillAll(): Int = 0
         }
 
     private val listener = PlaceBusinessHoursSyncListener(useCase)
