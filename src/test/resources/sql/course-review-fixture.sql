@@ -3,6 +3,7 @@
 -- RESTART IDENTITY 로 course_reviews 시퀀스도 되돌려, 첫 작성 리뷰가 항상 id=1 이 되게 한다.
 TRUNCATE TABLE course_reviews RESTART IDENTITY CASCADE;
 TRUNCATE TABLE courses RESTART IDENTITY CASCADE;
+TRUNCATE TABLE tracing_course_places, tracing_courses RESTART IDENTITY CASCADE;
 
 INSERT INTO courses (id, user_id, title, is_published, visibility)
 VALUES

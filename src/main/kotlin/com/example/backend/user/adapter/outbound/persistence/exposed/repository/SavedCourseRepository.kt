@@ -1,7 +1,6 @@
 package com.example.backend.user.adapter.outbound.persistence.exposed.repository
 
 import com.example.backend.user.adapter.outbound.persistence.exposed.SavedCourseTable
-import com.example.backend.user.adapter.outbound.persistence.exposed.TracingCourseTable
 import com.example.backend.user.application.port.outbound.SavedCourseRow
 import com.example.backend.user.domain.model.SavedCourse
 import org.jetbrains.exposed.v1.core.Op
@@ -9,11 +8,10 @@ import org.jetbrains.exposed.v1.core.SortOrder
 import org.jetbrains.exposed.v1.core.and
 import org.jetbrains.exposed.v1.core.eq
 import org.jetbrains.exposed.v1.core.inList
-import org.jetbrains.exposed.v1.core.inSubQuery
 import org.jetbrains.exposed.v1.core.isNotNull
 import org.jetbrains.exposed.v1.core.isNull
 import org.jetbrains.exposed.v1.core.less
-import org.jetbrains.exposed.v1.core.notInSubQuery
+import org.jetbrains.exposed.v1.core.notInList
 import org.jetbrains.exposed.v1.jdbc.deleteWhere
 import org.jetbrains.exposed.v1.jdbc.insert
 import org.jetbrains.exposed.v1.jdbc.select
@@ -109,10 +107,11 @@ class SavedCourseRepository {
         userId: Long,
         folderId: Long?,
         completed: Boolean?,
+        tracedCourseIds: Set<Long>,
     ): Long =
         SavedCourseTable
             .selectAll()
-            .where(filter(userId, folderId, completed))
+            .where(filter(userId, folderId, completed, tracedCourseIds))
             .count()
 
     /**
@@ -133,10 +132,11 @@ class SavedCourseRepository {
         userId: Long,
         folderId: Long?,
         completed: Boolean?,
+        tracedCourseIds: Set<Long>,
         cursorId: Long?,
         limit: Int,
     ): List<SavedCourseRow> {
-        var condition = filter(userId, folderId, completed)
+        var condition = filter(userId, folderId, completed, tracedCourseIds)
         cursorId?.let { condition = condition and (SavedCourseTable.id less it) }
 
         return SavedCourseTable
@@ -173,32 +173,28 @@ class SavedCourseRepository {
      * 소유자 + 폴더 + 완주 여부 필터.
      * - folderId 가 null 이면 전체(폴더 미분류 포함).
      * - completed 가 null 이면 완주 여부 무관, true 면 따라간(=완주) 코스만, false 면 아직 안 따라간 코스만.
-     *   완주 판정은 tracing_courses 에 (user_id, course_id) 행이 있는지로 한다(course_id in/ not in 서브쿼리).
+     *   완주 판정은 course_id 가 tracedCourseIds(course 도메인이 준 완주 코스 집합)에 있는지로 한다.
      */
     private fun filter(
         userId: Long,
         folderId: Long?,
         completed: Boolean?,
+        tracedCourseIds: Set<Long>,
     ): Op<Boolean> {
         var condition: Op<Boolean> = (SavedCourseTable.userId eq userId) and SavedCourseTable.deletedAt.isNull()
         folderId?.let { condition = condition and (SavedCourseTable.folderId eq it) }
-        completed?.let { condition = condition and completedOp(userId, it) }
+        completed?.let { condition = condition and completedOp(it, tracedCourseIds) }
         return condition
     }
 
-    /** (user, course) 가 tracing_courses 에 있으면 완주로 본다 — completed=true 는 in, false 는 not in. */
+    /** completed=true 는 in, false 는 not in. 빈 집합은 Exposed 가 각각 FALSE / TRUE 로 렌더링한다. */
     private fun completedOp(
-        userId: Long,
         completed: Boolean,
-    ): Op<Boolean> {
-        val tracedCourseIds =
-            TracingCourseTable
-                .select(TracingCourseTable.courseId)
-                .where { TracingCourseTable.userId eq userId }
-        return if (completed) {
-            SavedCourseTable.courseId inSubQuery tracedCourseIds
+        tracedCourseIds: Set<Long>,
+    ): Op<Boolean> =
+        if (completed) {
+            SavedCourseTable.courseId inList tracedCourseIds
         } else {
-            SavedCourseTable.courseId notInSubQuery tracedCourseIds
+            SavedCourseTable.courseId notInList tracedCourseIds
         }
-    }
 }

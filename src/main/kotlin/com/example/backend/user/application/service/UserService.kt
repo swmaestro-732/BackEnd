@@ -116,6 +116,8 @@ class UserService(
         savedCoursePersistencePort.deleteAllByUser(userId)
         // 1-1) 코스 좋아요: 좋아요 레코드를 지우고 대상 코스 likes_cnt 를 보정한다.
         courseCleanupPort.purgeLikesByUser(userId)
+        // 1-2) 코스 따라가기: 세션·체크인(위치 이력)을 지운다. tracings_cnt 는 누적 통계라 되돌리지 않는다.
+        courseCleanupPort.purgeTracesByUser(userId)
         // 2) 팔로우: 양방향 삭제 + 상대 카운터 보정.
         followPersistencePort.purgeFollowsOf(userId)
         // 3) 관심 지역·테마: 빈 목록으로 전체 치환(=전부 삭제).
@@ -128,7 +130,7 @@ class UserService(
         userPersistencePort.softDelete(user.withdraw())
         // 6) 리프레시 토큰 폐기.
         refreshTokenPort.revokeAllByUser(userId)
-        // TODO(추후): 저장 장소(saved_places)는 이제 쓰기와 OS 색인(saved_place) 경로가 생겼으므로, 탈퇴 시
+        // TODO(SCRUM-590): 저장 장소(saved_places)는 이제 쓰기와 OS 색인(saved_place) 경로가 생겼으므로, 탈퇴 시
         //  DB saved_places 삭제 + OS saved_place 색인 정리(userId 로 deleteByUser)를 이 단계에 추가해야 한다
         //  (현재 미구현 — 탈퇴해도 OS 에 ghost 문서가 남고, 같은 소셜 재가입 시 stale 가능. userId 필터라 타인에겐 안 섞임).
         //  코스 따라가기/완주 기록(tracing_courses), 추가 장소(added_places), 리뷰(course_reviews/place_reviews)는

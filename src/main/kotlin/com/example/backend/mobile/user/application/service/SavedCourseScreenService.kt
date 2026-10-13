@@ -1,12 +1,12 @@
 package com.example.backend.mobile.user.application.service
 
 import com.example.backend.course.application.port.inbound.CourseQueryUseCase
+import com.example.backend.course.application.port.inbound.CourseTraceUseCase
 import com.example.backend.course.application.port.inbound.dto.CourseDetailResult
 import com.example.backend.mobile.user.application.port.inbound.SavedCourseScreenCommand
 import com.example.backend.mobile.user.application.port.inbound.SavedCourseScreenUseCase
 import com.example.backend.mobile.user.application.port.inbound.dto.SavedCourseScreenResult
 import com.example.backend.place.application.port.inbound.PlaceQueryUseCase
-import com.example.backend.user.application.port.inbound.CourseInteractionUseCase
 import com.example.backend.user.application.port.inbound.SavedCourseUseCase
 import com.example.backend.user.application.port.inbound.UserUseCase
 import com.example.backend.user.application.port.inbound.dto.SavedCoursesCommand
@@ -24,7 +24,7 @@ class SavedCourseScreenService(
     private val courseQueryUseCase: CourseQueryUseCase,
     private val userUseCase: UserUseCase,
     private val placeQueryUseCase: PlaceQueryUseCase,
-    private val courseInteractionUseCase: CourseInteractionUseCase,
+    private val courseTraceUseCase: CourseTraceUseCase,
 ) : SavedCourseScreenUseCase {
     override fun getScreen(command: SavedCourseScreenCommand): SavedCourseScreenResult {
         val saved = savedCourseUseCase.getSavedCourses(command.toSavedCoursesCommand())
@@ -61,10 +61,7 @@ class SavedCourseScreenService(
         val recordsWithCourse = attachCourseDetails(records, viewerId)
         val courses = recordsWithCourse.map { it.second }
 
-        val completedAtByCourse =
-            courseInteractionUseCase
-                .getViewerStates(viewerId, courses.map { it.id })
-                .associateBy({ it.courseId }, { it.completedAt })
+        val completedAtByCourse = courseTraceUseCase.findCompletedAt(viewerId, courses.map { it.id })
         val authorById =
             userUseCase.getProfiles(courses.map { it.authorId }, viewerId).associateBy { it.id }
         val placeById =

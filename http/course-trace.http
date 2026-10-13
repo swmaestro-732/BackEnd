@@ -1,0 +1,103 @@
+## 코스 따라가기 (Course · course-track)
+# 모든 요청은 @AccessTokenRequired 로 access 토큰을 강제하고 @CurrentUserId(JWT subject)로 userId 를 뽑는다.
+# 아래 첫 요청(mock 로그인)이 accessToken 을 전역 저장 → 이후 요청은 Authorization 헤더로 재사용한다.
+# (auth.http 를 먼저 실행해 두었다면 이 요청은 건너뛰어도 된다.)
+# 흐름: 시작(세션 생성 또는 이어가기) → 장소 체크인(방문 즉시) → 종료(소요 시간·이동 거리, tracings_cnt +1).
+
+### 0) 사전: mock 소셜 로그인 — dev accessToken(user id=1) 발급 + 전역 저장
+POST http://localhost:8080/api/v1/auth/social-login?mock=true
+Content-Type: application/json
+
+{
+  "provider": "KAKAO",
+  "idToken": "dev"
+}
+
+> {%
+    client.global.set("accessToken", response.body.data.accessToken);
+    client.global.set("refreshToken", response.body.data.refreshToken);
+%}
+
+## 따라가기 시작 (POST /api/v1/courses/{courseId}/traces)
+
+### 1) 시작 — 200 / 2000, data = { traceId, courseId, startedAt, visitedPlaces }. 진행 중 세션이 있으면 그 세션을 그대로 돌려준다(이어가기)
+POST http://localhost:8080/api/v1/courses/1/traces
+Authorization: Bearer {{accessToken}}
+
+> {%
+    client.global.set("traceId", response.body.data.traceId);
+%}
+
+### 2) 없는 코스 → 404 / 4041 COURSE_NOT_FOUND
+POST http://localhost:8080/api/v1/courses/999/traces
+Authorization: Bearer {{accessToken}}
+
+## 장소 체크인 (POST /api/v1/traces/{traceId}/places)
+
+### 3) 체크인 — 200 / 2000, data 없음. 같은 장소를 다시 보내도 200
+POST http://localhost:8080/api/v1/traces/{{traceId}}/places
+Content-Type: application/json
+Authorization: Bearer {{accessToken}}
+
+{
+  "placeId": 22,
+  "visitedAt": "2026-10-10T05:00:00Z"
+}
+
+### 4) 검증 실패 — placeId 0 → 400 / 4002 VALIDATION_FAILED + fieldErrors. 코스에 없는 장소는 400 / 4005 PLACE_NOT_IN_COURSE
+POST http://localhost:8080/api/v1/traces/{{traceId}}/places
+Content-Type: application/json
+Authorization: Bearer {{accessToken}}
+
+{
+  "placeId": 0,
+  "visitedAt": "2026-10-10T05:00:00Z"
+}
+
+### 5) 내 세션이 아니거나 없음 → 404 / 4049 COURSE_TRACE_NOT_FOUND
+POST http://localhost:8080/api/v1/traces/999999/places
+Content-Type: application/json
+Authorization: Bearer {{accessToken}}
+
+{
+  "placeId": 22,
+  "visitedAt": "2026-10-10T05:00:00Z"
+}
+
+## 따라가기 종료 (POST /api/v1/traces/{traceId}/end)
+
+### 6) 종료 — 소요 시간(분) + 이동 거리(m) + 미전송 체크인 병합 → 200 / 2000, data 없음
+POST http://localhost:8080/api/v1/traces/{{traceId}}/end
+Content-Type: application/json
+Authorization: Bearer {{accessToken}}
+
+{
+  "visitedPlaces": [
+    { "placeId": 25, "visitedAt": "2026-10-10T07:48:00Z" }
+  ],
+  "durationMinutes": 192,
+  "distanceMeters": 2400
+}
+
+### 7) 이미 종료된 세션을 다시 종료(또는 체크인) → 409 / 4099 COURSE_TRACE_ALREADY_ENDED
+POST http://localhost:8080/api/v1/traces/{{traceId}}/end
+Content-Type: application/json
+Authorization: Bearer {{accessToken}}
+
+{
+  "durationMinutes": 0,
+  "distanceMeters": 0
+}
+
+### 8) 검증 실패 — durationMinutes 음수 → 400 / 4002 VALIDATION_FAILED + fieldErrors
+POST http://localhost:8080/api/v1/traces/{{traceId}}/end
+Content-Type: application/json
+Authorization: Bearer {{accessToken}}
+
+{
+  "durationMinutes": -1,
+  "distanceMeters": 2400
+}
+
+### 9) 토큰 없음 → 401
+POST http://localhost:8080/api/v1/courses/1/traces
