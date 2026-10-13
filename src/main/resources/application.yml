@@ -85,7 +85,6 @@ tmap:
 google:
   places:
     api-key: ${GOOGLE_PLACES_API_KEY:}
-    backfill-on-startup: ${GOOGLE_PLACES_BACKFILL_ON_STARTUP:false}
 
 aws:
   region: ${AWS_REGION:ap-northeast-2}

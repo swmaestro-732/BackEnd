@@ -14,11 +14,6 @@ class PlaceBusinessHourPersistenceAdapter(
     override fun findUnsynced(placeIds: List<Long>): List<Place> =
         repository.findUnsynced(placeIds).map { it.toDomain() }
 
-    override fun findUnsynced(
-        afterId: Long?,
-        limit: Int,
-    ): List<Place> = repository.findUnsynced(afterId, limit).map { it.toDomain() }
-
     override fun replaceBusinessHours(
         placeId: Long,
         hours: List<PlaceBusinessHour>,

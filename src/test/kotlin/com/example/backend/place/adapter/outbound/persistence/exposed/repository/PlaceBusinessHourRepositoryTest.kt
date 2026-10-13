@@ -107,21 +107,6 @@ class PlaceBusinessHourRepositoryTest
             }
         }
 
-        @Test
-        fun `findUnsynced 페이징은 afterId 다음부터 id 오름차순으로 준다`() {
-            transaction {
-                val first = insertPlace()
-                val second = insertPlace()
-
-                val page = repository.findUnsynced(afterId = first - 1, limit = 2).map { it.id.value }
-
-                assertThat(page).startsWith(first, second)
-                assertThat(repository.findUnsynced(afterId = second, limit = 2).map { it.id.value })
-                    .doesNotContain(first, second)
-                rollback()
-            }
-        }
-
         private fun hoursOf(placeId: Long) =
             PlaceBusinessHourTable
                 .selectAll()
