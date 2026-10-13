@@ -26,6 +26,7 @@ MAX_DELETED_PER_FILE = 30
 MAX_DELETED_TOTAL = 100
 SECRET = re.compile(r"sk-ant-|gh[pousr]_[A-Za-z0-9]{20,}|github_pat_|x-access-token|AKIA[0-9A-Z]{16}|BEGIN [A-Z ]*PRIVATE KEY")
 HASH_STAMP = re.compile(r"`[0-9a-f]{7,8}`")
+DECISION = re.compile(r"^\s*-\s*`?([^\s`:]+)`?\s*:\s*(고침|갱신 불필요|사람 확인 필요)")
 
 
 # 훅과 fsmonitor 를 끄고 git 을 실행한다(설정이 오염됐어도 검사 중 임의 명령이 돌지 않게).
@@ -79,7 +80,13 @@ def summary_coverage_errors() -> list[str]:
         return []
     summary_path = os.path.join(INPUT, "summary.md")
     summary = open(summary_path, encoding="utf-8").read() if os.path.exists(summary_path) else ""
-    missing = [d for d in docs if d not in summary]
+    # "- <문서>: <판정>" 줄만 판정으로 인정한다(부분 문자열 비교는 api-spec.md 가 backend/api-spec.md 에 걸리는 식으로 거짓 통과).
+    decided = set()
+    for line in summary.splitlines():
+        m = DECISION.match(line)
+        if m:
+            decided.add(m.group(1))
+    missing = [d for d in docs if d not in decided]
     return ["요약에 판정이 빠진 갱신 후보 문서: " + ", ".join(missing)] if missing else []
 
 
