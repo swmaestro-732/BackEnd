@@ -16,12 +16,9 @@ import kotlin.math.sin
 import kotlin.math.sqrt
 
 /**
- * Google Places API(New) 영업시간 어댑터.
- *
- * 1) `POST /v1/places:searchText` — 이름을 질의하고 카카오 좌표로 locationBias, 필드마스크 `places.id`(ID 전용 SKU, 무료).
- * 2) `GET /v1/places/{id}` — 필드마스크 `location,regularOpeningHours`(Enterprise SKU, 과금).
- * 상세 좌표가 카카오 좌표에서 [MAX_MATCH_DISTANCE_METERS] 보다 멀면 다른 장소로 보고 빈 목록을 준다.
- * 키 미설정·호출 실패는 null(재시도 대상), 매칭 없음·영업시간 없음은 빈 목록(동기화 완료)으로 구분한다.
+ * Google Places API(New) 영업시간 어댑터. 텍스트 검색 한 번으로 좌표와 `regularOpeningHours` 를 함께 받는다.
+ * 카카오 좌표에서 [MAX_MATCH_DISTANCE_METERS] 보다 먼 결과는 동명이소로 보고 버린다.
+ * null 은 호출 실패(다음 동기화에서 재시도), 빈 목록은 매칭·정보 없음(동기화 완료)이다.
  */
 @Component
 class GooglePlacesBusinessHoursClient(
@@ -38,29 +35,28 @@ class GooglePlacesBusinessHoursClient(
     ): List<PlaceBusinessHour>? {
         if (properties.apiKey.isBlank()) return null
         return try {
-            val placeId = searchPlaceId(name, coordinate) ?: return emptyList()
-            val detail = fetchDetail(placeId) ?: return emptyList()
-            val location = detail.location?.toCoordinate() ?: return emptyList()
+            val place = searchPlace(name, coordinate) ?: return emptyList()
+            val location = place.location?.toCoordinate() ?: return emptyList()
             if (distanceMeters(coordinate, location) > MAX_MATCH_DISTANCE_METERS) {
-                log.info { "Google Places 매칭 거리 초과로 무시: name=$name, googlePlaceId=$placeId" }
+                log.info { "Google Places 매칭 거리 초과로 무시: name=$name, googlePlaceId=${place.id}" }
                 return emptyList()
             }
-            toBusinessHours(detail.regularOpeningHours?.periods.orEmpty())
+            toBusinessHours(place.regularOpeningHours?.periods.orEmpty())
         } catch (exception: Exception) {
             log.warn(exception) { "Google Places 영업시간 조회 실패: name=$name" }
             null
         }
     }
 
-    private fun searchPlaceId(
+    private fun searchPlace(
         name: String,
         coordinate: Coordinate,
-    ): String? =
+    ): GooglePlace? =
         googlePlacesRestClient
             .post()
             .uri("/v1/places:searchText")
             .header(API_KEY_HEADER, properties.apiKey)
-            .header(FIELD_MASK_HEADER, "places.id")
+            .header(FIELD_MASK_HEADER, FIELD_MASK)
             .contentType(MediaType.APPLICATION_JSON)
             .body(
                 mapOf(
@@ -82,17 +78,6 @@ class GooglePlacesBusinessHoursClient(
             .body(GoogleTextSearchResponse::class.java)
             ?.places
             ?.firstOrNull()
-            ?.id
-            ?.takeIf(String::isNotBlank)
-
-    private fun fetchDetail(placeId: String): GooglePlaceDetail? =
-        googlePlacesRestClient
-            .get()
-            .uri("/v1/places/{id}", placeId)
-            .header(API_KEY_HEADER, properties.apiKey)
-            .header(FIELD_MASK_HEADER, "location,regularOpeningHours")
-            .retrieve()
-            .body(GooglePlaceDetail::class.java)
 
     private fun GoogleLatLng.toCoordinate(): Coordinate? {
         val lat = latitude ?: return null
@@ -150,6 +135,9 @@ class GooglePlacesBusinessHoursClient(
     private companion object {
         const val API_KEY_HEADER = "X-Goog-Api-Key"
         const val FIELD_MASK_HEADER = "X-Goog-FieldMask"
+
+        // 좌표(매칭 검증)와 영업시간을 검색 응답에서 바로 받는다 — 상세 조회를 따로 하지 않는다.
+        const val FIELD_MASK = "places.id,places.location,places.regularOpeningHours"
         const val SEARCH_BIAS_RADIUS_METERS = 500.0
         const val MAX_MATCH_DISTANCE_METERS = 300.0
         const val EARTH_RADIUS_METERS = 6_371_000.0

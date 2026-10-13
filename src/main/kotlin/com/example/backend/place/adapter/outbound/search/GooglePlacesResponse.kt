@@ -1,15 +1,12 @@
 package com.example.backend.place.adapter.outbound.search
 
-/** Google Places API(New) 원시 응답 — 어댑터 밖으로 노출하지 않는다. 모든 필드 기본값은 역직렬화 무인자 생성자용. */
+/** Google Places API(New) 텍스트 검색 원시 응답 — 어댑터 밖으로 노출하지 않는다. */
 internal data class GoogleTextSearchResponse(
-    val places: List<GooglePlaceRef>? = null,
+    val places: List<GooglePlace>? = null,
 )
 
-internal data class GooglePlaceRef(
+internal data class GooglePlace(
     val id: String? = null,
-)
-
-internal data class GooglePlaceDetail(
     val location: GoogleLatLng? = null,
     val regularOpeningHours: GoogleOpeningHours? = null,
 )
