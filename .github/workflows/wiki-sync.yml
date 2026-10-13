@@ -86,21 +86,25 @@ jobs:
       - name: .ai git 설정 기준값 저장
         run: sha256sum .ai/.git/config > .wiki-sync-input/git-config.sha256
 
+      # claude-code-action 은 push 이벤트를 지원하지 않아(Unsupported event type: push) CLI 를 직접 실행한다.
+      # 로컬 dry run 으로 검증한 버전으로 고정한다.
+      - name: Claude Code CLI 설치
+        run: npm install -g @anthropic-ai/claude-code@2.1.284
+
       - name: Claude Code 로 위키 갱신
-        uses: anthropics/claude-code-action@1d6de8cb0c237e7c15e9e1bdf973826ebae490cc # v1
-        with:
+        env:
           # 구독 계정(Pro/Max) OAuth 토큰. `claude setup-token` 으로 발급한다(API 키 미사용).
-          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
-          github_token: ${{ github.token }}
-          prompt: |
-            `.github/wiki-sync/prompt.md` 를 읽고 그 지시대로 작업한다.
-            대상: BackEnd ${{ github.repository }} develop 머지 ${{ steps.diff.outputs.short }}.
-          # 작업 디렉터리 안 읽기, 자동 반영 허용 문서(check.py ALLOWED 와 같은 범위)와 요약 파일 쓰기, 위키 lint 만 허용한다.
-          # scripts/(lint 스크립트)와 .git/(설정, 훅)은 쓸 수 없어 이 단계와 이후 단계의 git 명령으로 임의 실행이 번지지 않는다. git 명령은 diff 드라이버, --output 으로
-          # 임의 명령 실행이나 파일 덮어쓰기에 쓰일 수 있어 막는다(입력 diff 는 이전 단계가 파일로 준다).
-          claude_args: |
-            --model sonnet
-            --max-turns 60
+          CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          SHORT: ${{ steps.diff.outputs.short }}
+          REPO: ${{ github.repository }}
+        # 작업 디렉터리 안 읽기, 자동 반영 허용 문서(check.py ALLOWED 와 같은 범위)와 요약 파일 쓰기, 위키 lint 만 허용한다.
+        # scripts/(lint 스크립트)와 .git/(설정, 훅)은 쓸 수 없어 이 단계와 이후 단계의 git 명령으로 임의 실행이 번지지 않는다.
+        # git 명령은 diff 드라이버, --output 으로 임의 명령 실행이나 파일 덮어쓰기에 쓰일 수 있어 막는다(입력 diff 는 이전 단계가 파일로 준다).
+        run: |
+          claude -p "\`.github/wiki-sync/prompt.md\` 를 읽고 그 지시대로 작업한다.
+          대상: BackEnd ${REPO} develop 머지 ${SHORT}." \
+            --model sonnet \
+            --max-turns 60 \
             --allowedTools "Read(./**),Glob,Grep,Edit(./.ai/backend/**),Edit(./.ai/runbooks/**),Edit(./.ai/api-spec.md),Edit(./.ai/api-design.md),Edit(./.ai/taxonomy.md),Edit(./.wiki-sync-input/summary.md),Bash(python3 .ai/scripts/wiki-lint.py)"
 
       # 허용 경로(backend/, runbooks/, api-spec.md, api-design.md, taxonomy.md) 밖 변경, 대량 삭제, 토큰 유출을 기계적으로 막는다.
