@@ -50,7 +50,16 @@ data class PlaceDetailScreenResponse(
                         address = "서울 성동구 아차산로 100",
                         location = PlaceLocationResponse(latitude = 37.5446, longitude = 127.0559),
                         openStatus = "OPEN",
-                        openingHoursText = "월–금 11:00 – 21:00 (브레이크 15:00 – 17:00), 토·일 10:00 – 22:00",
+                        openingHoursText =
+                            listOf(
+                                "월 11:00 - 21:00 (브레이크타임 15:00 - 17:00)",
+                                "화 11:00 - 21:00 (브레이크타임 15:00 - 17:00)",
+                                "수 11:00 - 21:00 (브레이크타임 15:00 - 17:00)",
+                                "목 11:00 - 21:00 (브레이크타임 15:00 - 17:00)",
+                                "금 11:00 - 21:00 (브레이크타임 15:00 - 17:00)",
+                                "토 10:00 - 22:00",
+                                "일 휴무",
+                            ).joinToString("\n"),
                         reviewSummary =
                             PlaceReviewSummaryResponse(
                                 averageRating = 4.8,
