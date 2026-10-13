@@ -5,6 +5,7 @@
 - 추가된 줄에 토큰처럼 보이는 문자열이 있으면 실패
 - Claude 단계 중 .ai/.git/config 가 바뀌었거나 훅이 생겼으면 실패
 - 갱신 후보 문서(targets.txt)가 Claude 요약(summary.md)에 하나라도 빠졌으면 실패
+- auto 후보의 판정과 실제 변경이 어긋나면 실패("고침"인데 안 바뀜, 바뀌었는데 "고침"이 아님)
 - 가운뎃점, em 대시, 커밋 해시 도장은 경고만 남긴다
 결과는 GITHUB_STEP_SUMMARY 에도 쓴다. 이 스크립트는 BackEnd 저장소 파일이라 Claude 단계가 고칠 수 없다.
 
@@ -26,6 +27,7 @@ MAX_DELETED_PER_FILE = 30
 MAX_DELETED_TOTAL = 100
 SECRET = re.compile(r"sk-ant-|gh[pousr]_[A-Za-z0-9]{20,}|github_pat_|x-access-token|AKIA[0-9A-Z]{16}|BEGIN [A-Z ]*PRIVATE KEY")
 HASH_STAMP = re.compile(r"`[0-9a-f]{7,8}`")
+UNMAPPED = "(unmapped)"
 DECISION = re.compile(r"^\s*-\s*`?([^\s`:]+)`?\s*:\s*(고침|갱신 불필요|사람 확인 필요)")
 
 
@@ -53,12 +55,17 @@ def build_targets() -> int:
         changed = [line.strip() for line in f if line.strip()]
     hits: dict[str, list[str]] = {}
     for path in changed:
+        matched = False
         for pattern, doc in rules:
             if fnmatch.fnmatch(path, pattern):
                 hits.setdefault(doc, []).append(path)
+                matched = True
+        # 매핑에 안 걸린 운영 코드 변경도 판정을 받게 한다(서비스 로직, 새 패키지 등이 조용히 빠지지 않게).
+        if not matched and path.startswith("src/main/"):
+            hits.setdefault(UNMAPPED, []).append(path)
     rows = []
     for doc in sorted(hits):
-        mode = "auto" if doc.startswith(ALLOWED) else "human"
+        mode = "auto" if doc.startswith(ALLOWED) else "human"  # UNMAPPED 도 human
         files = sorted(set(hits[doc]))
         rows.append(f"{doc}\t{mode}\t{', '.join(files[:5])}{' 외' if len(files) > 5 else ''}")
     with open(os.path.join(INPUT, "targets.txt"), "w", encoding="utf-8") as f:
@@ -69,25 +76,42 @@ def build_targets() -> int:
     return 0
 
 
-def summary_coverage_errors() -> list[str]:
-    """targets.txt 의 문서가 Claude 요약에 모두 언급됐는지 본다(고침, 갱신 불필요, 사람 확인 필요 중 하나)."""
-    targets_path = os.path.join(INPUT, "targets.txt")
-    if not os.path.exists(targets_path):
-        return ["targets.txt 가 없음"]
-    with open(targets_path, encoding="utf-8") as f:
-        docs = [line.split("\t")[0] for line in f if line.strip()]
-    if not docs:
+def read_targets() -> list[tuple[str, str]]:
+    path = os.path.join(INPUT, "targets.txt")
+    if not os.path.exists(path):
         return []
-    summary_path = os.path.join(INPUT, "summary.md")
-    summary = open(summary_path, encoding="utf-8").read() if os.path.exists(summary_path) else ""
-    # "- <문서>: <판정>" 줄만 판정으로 인정한다(부분 문자열 비교는 api-spec.md 가 backend/api-spec.md 에 걸리는 식으로 거짓 통과).
-    decided = set()
+    with open(path, encoding="utf-8") as f:
+        return [tuple(line.split("\t")[:2]) for line in f if line.strip()]
+
+
+def read_decisions() -> dict[str, str]:
+    """summary.md 에서 "- <문서>: <판정>" 줄만 판정으로 읽는다(부분 문자열 비교는 거짓 통과)."""
+    path = os.path.join(INPUT, "summary.md")
+    summary = open(path, encoding="utf-8").read() if os.path.exists(path) else ""
+    decisions = {}
     for line in summary.splitlines():
         m = DECISION.match(line)
         if m:
-            decided.add(m.group(1))
-    missing = [d for d in docs if d not in decided]
-    return ["요약에 판정이 빠진 갱신 후보 문서: " + ", ".join(missing)] if missing else []
+            decisions[m.group(1)] = m.group(2)
+    return decisions
+
+
+def decision_errors(targets: list[tuple[str, str]], decisions: dict[str, str], changed: set[str]) -> list[str]:
+    """모든 후보에 판정이 있고, auto 후보는 "고침" 판정과 실제 변경이 일치해야 한다."""
+    if not os.path.exists(os.path.join(INPUT, "targets.txt")):
+        return ["targets.txt 가 없음"]
+    errors = []
+    missing = [doc for doc, _ in targets if doc not in decisions]
+    if missing:
+        errors.append("요약에 판정이 빠진 갱신 후보 문서: " + ", ".join(missing))
+    for doc, mode in targets:
+        if mode != "auto" or doc not in decisions:
+            continue
+        if decisions[doc] == "고침" and doc not in changed:
+            errors.append(f"{doc}: 요약은 '고침'인데 실제로 바뀌지 않음")
+        if decisions[doc] != "고침" and doc in changed:
+            errors.append(f"{doc}: 실제로 바뀌었는데 요약 판정이 '{decisions[doc]}'")
+    return errors
 
 
 def git(*args: str) -> str:
@@ -115,9 +139,14 @@ def main() -> int:
     if meta_errors:  # 설정이 오염됐으면 git 명령 자체를 더 돌리지 않는다
         print("\n".join(["## 위키 변경 검사", "", "### 실패", *[f"- {e}" for e in meta_errors]]))
         return 1
-    errors, warnings = summary_coverage_errors(), []
     git("add", "-A", "--intent-to-add")  # 새 파일도 diff 에 잡히게 한다(내용은 스테이징하지 않음)
     changed = [line for line in git("diff", "--name-only").splitlines() if line]
+    targets = read_targets()
+    errors, warnings = decision_errors(targets, read_decisions(), set(changed)), []
+    target_docs = {doc for doc, _ in targets}
+    extra = [p for p in changed if p not in target_docs]
+    if extra:  # 허용 범위 안이면 정당한 추가 수정일 수 있어 경고만
+        warnings.append("갱신 후보 밖에서 고친 문서: " + ", ".join(extra))
 
     outside = [p for p in changed if not p.startswith(ALLOWED)]
     if outside:
