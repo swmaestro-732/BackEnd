@@ -17,14 +17,14 @@ dependencies {
     implementation(project(":mobile"))
 
     // Exposed 핵심 모듈
-    implementation("org.jetbrains.exposed:exposed-jdbc:1.3.0")
-    implementation("org.jetbrains.exposed:exposed-core:1.3.0")
-    implementation("org.jetbrains.exposed:exposed-dao:1.3.0")
+    implementation(libs.exposed.jdbc)
+    implementation(libs.exposed.core)
+    implementation(libs.exposed.dao)
     // 날짜/시간 지원
-    implementation("org.jetbrains.exposed:exposed-kotlin-datetime:1.3.0")
+    implementation(libs.exposed.kotlin.datetime)
 
     // Exposed ↔ Spring 연동 (Database 자동구성 + @Transactional 지원)
-    implementation("org.jetbrains.exposed:exposed-spring-boot-starter:1.3.0")
+    implementation(libs.exposed.spring.boot.starter)
 
     implementation("org.springframework.boot:spring-boot-starter-flyway")
     implementation("org.springframework.boot:spring-boot-starter-jdbc") // HikariCP 포함
@@ -40,34 +40,34 @@ dependencies {
     implementation("org.springframework.boot:spring-boot-starter-opentelemetry")
 
     // Sentry 에러 트래킹. Boot 4 전용 스타터(spring-boot-starter:4.1.0 대상). SENTRY_DSN 비면 no-op.
-    implementation("io.sentry:sentry-spring-boot-4-starter:8.53.0")
+    implementation(libs.sentry.spring.boot)
     // OpenAPI 명세 + Swagger UI (springdoc 3.x = Spring Boot 4 호환)
-    implementation("org.springdoc:springdoc-openapi-starter-webmvc-ui:3.0.3")
+    implementation(libs.springdoc.openapi.webmvc.ui)
     implementation("org.flywaydb:flyway-database-postgresql")
     implementation("org.jetbrains.kotlin:kotlin-reflect")
     implementation("tools.jackson.module:jackson-module-kotlin")
     // opensearch-java 의 JacksonJsonpMapper 는 Jackson 2(com.fasterxml)를 쓴다 — 검색 응답을 Kotlin data class
     // (CourseDocument)로 역직렬화하려면 Jackson 2 용 kotlin 모듈이 필요하다(색인=직렬화는 없이도 되지만 읽기는 불가).
     // 버전은 opensearch-java 2.25.0 이 끌어오는 jackson-databind 2.21.4 에 맞춘다.
-    implementation("com.fasterxml.jackson.module:jackson-module-kotlin:2.21.4")
+    implementation(libs.jackson.module.kotlin.v2)
     // 로깅 파사드 — SLF4J 위 얇은 래퍼. 코틀린 람다(지연) 로깅 `log.info { "$var" }`. logback/MDC/traceId 그대로.
-    implementation("io.github.oshai:kotlin-logging-jvm:7.0.3")
+    implementation(libs.kotlin.logging)
     developmentOnly("org.springframework.boot:spring-boot-devtools")
     // 로컬 bootRun 시 docker-compose.yml 자동 기동 + DataSource 자동 연결. (운영 빌드엔 미포함)
     developmentOnly("org.springframework.boot:spring-boot-docker-compose")
     implementation("org.postgresql:postgresql")
     // AWS SDK v2 (raw) — S3Presigner 는 s3 모듈 소속. 보안 패치용 버전은 buildSrc 컨벤션 플러그인의 extra[] 가 관리한다.
-    implementation(platform("software.amazon.awssdk:bom:2.49.0"))
+    implementation(platform(libs.aws.bom))
     implementation("software.amazon.awssdk:s3")
     // OpenSearch IAM/SigV4 전송에 필요한 동기 SdkHttpClient. 버전은 위 AWS SDK BOM 관리.
     implementation("software.amazon.awssdk:apache-client")
     // SQS — 코스 개수 폴백 큐(course 이벤트 동기 반영 실패 시 재시도). spring-cloud-aws 4.0.x = Spring Boot 4 + Jackson 3.
     // @SqsListener(수신)·SqsTemplate(발행)을 자동 배선한다. 큐 미설정 시 리스너 비활성·발행 no-op(fail-soft).
-    implementation(platform("io.awspring.cloud:spring-cloud-aws-dependencies:4.0.2"))
+    implementation(platform(libs.spring.cloud.aws.bom))
     implementation("io.awspring.cloud:spring-cloud-aws-starter-sqs")
     // OpenSearch(AWS) 연결 — 기본 FGAC basic auth(ApacheHttpClient5), 선택 IAM/SigV4(AwsSdk2Transport).
     // 사용하지 않는 구형 RestClient 전송(opensearch-rest-client)은 제외한다.
-    implementation("org.opensearch.client:opensearch-java:2.25.0") {
+    implementation(libs.opensearch.java) {
         exclude(group = "org.opensearch.client", module = "opensearch-rest-client")
     }
     implementation("org.apache.httpcomponents.client5:httpclient5")
@@ -78,11 +78,11 @@ dependencies {
     testImplementation("org.springframework.boot:spring-boot-starter-webmvc-test")
     testImplementation("org.jetbrains.kotlin:kotlin-test-junit5")
     // 아키텍처 경계(헥사고날·도메인 분리)를 테스트로 강제
-    testImplementation("com.tngtech.archunit:archunit-junit5:1.3.0")
+    testImplementation(libs.archunit.junit5)
 
     // OpenSearch 실연결 통합테스트용(태그드 opensearchIt 태스크에서만 사용) — 실제 OpenSearch 컨테이너 기동.
     // Spring Boot BOM 이 testcontainers 버전을 관리하지 않아 명시적으로 핀한다.
-    testImplementation("org.testcontainers:junit-jupiter:1.20.4")
+    testImplementation(libs.testcontainers.junit)
     testRuntimeOnly("org.junit.platform:junit-platform-launcher")
 }
 

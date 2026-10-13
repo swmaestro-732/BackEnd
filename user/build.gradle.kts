@@ -14,6 +14,6 @@ dependencies {
     implementation("org.springframework.boot:spring-boot-starter-security")
     implementation("org.springframework.boot:spring-boot-starter-oauth2-resource-server") // JWT 발급·검증(nimbus)
     // SQS — 코스 개수 폴백 큐. spring-cloud-aws 4.0.x = Spring Boot 4 + Jackson 3.
-    implementation(platform("io.awspring.cloud:spring-cloud-aws-dependencies:4.0.2"))
+    implementation(platform(libs.spring.cloud.aws.bom))
     implementation("io.awspring.cloud:spring-cloud-aws-starter-sqs")
 }

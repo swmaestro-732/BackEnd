@@ -9,20 +9,23 @@ configurations.all {
     exclude(group = "org.opensearch.client", module = "opensearch-rest-client")
 }
 
+// 컨벤션 플러그인에서는 libs.* 타입 안전 접근자가 생성되지 않아 카탈로그를 이름으로 조회한다.
+fun lib(alias: String) = versionCatalogs.named("libs").findLibrary(alias).get()
+
 dependencies {
     api(project(":common"))
 
     implementation("org.springframework.boot:spring-boot-starter-webmvc")
     implementation("org.springframework.boot:spring-boot-starter-validation")
-    implementation("org.jetbrains.exposed:exposed-core:1.3.0")
-    implementation("org.jetbrains.exposed:exposed-jdbc:1.3.0")
-    implementation("org.jetbrains.exposed:exposed-dao:1.3.0")
-    implementation("org.jetbrains.exposed:exposed-kotlin-datetime:1.3.0")
-    implementation("org.jetbrains.exposed:exposed-spring-boot-starter:1.3.0")
-    implementation("io.github.oshai:kotlin-logging-jvm:7.0.3")
+    implementation(lib("exposed-core"))
+    implementation(lib("exposed-jdbc"))
+    implementation(lib("exposed-dao"))
+    implementation(lib("exposed-kotlin-datetime"))
+    implementation(lib("exposed-spring-boot-starter"))
+    implementation(lib("kotlin-logging"))
     implementation("tools.jackson.module:jackson-module-kotlin") // 어댑터 내부 data class(JSON 응답) 역직렬화
     implementation("com.fasterxml.jackson.core:jackson-annotations") // @JsonProperty 등(Jackson 2/3 공용)
-    implementation("org.springdoc:springdoc-openapi-starter-webmvc-api:3.0.3") // @Tag 등 OpenAPI 어노테이션
+    implementation(lib("springdoc-openapi-webmvc-api")) // @Tag 등 OpenAPI 어노테이션
 
     // 단위 테스트(컨텍스트 미부팅). @SpringBootTest 통합 테스트는 app 모듈에 둔다.
     testImplementation("org.springframework.boot:spring-boot-starter-test")
