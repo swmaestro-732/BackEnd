@@ -51,3 +51,6 @@ out/
 
 # .ai 위키 심링크 (../.ai)
 .ai
+
+# 위키 자동 갱신 워크플로 입력(CI 전용)
+.wiki-sync-input/
