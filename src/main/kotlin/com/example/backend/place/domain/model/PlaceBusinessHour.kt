@@ -20,4 +20,16 @@ data class PlaceBusinessHour(
         require((breakStart == null) == (breakEnd == null)) { "쉬는 시간의 시작·종료는 함께 있거나 함께 없어야 합니다." }
         require(breakStart == null || openTime != null) { "휴무일에는 쉬는 시간을 둘 수 없습니다." }
     }
+
+    /** 24시간 영업 — 00:00~23:59 로 저장된다. */
+    val isAllDay: Boolean
+        get() = openTime == DAY_START && closeTime == DAY_END
+
+    val crossesMidnight: Boolean
+        get() = openTime != null && closeTime!! < openTime
+
+    private companion object {
+        val DAY_START = LocalTime(0, 0)
+        val DAY_END = LocalTime(23, 59)
+    }
 }
