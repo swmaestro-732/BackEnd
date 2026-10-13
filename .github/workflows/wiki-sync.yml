@@ -61,16 +61,24 @@ jobs:
           LAST=$(gh run list --repo "$REPO" --workflow wiki-sync.yml --branch develop --status success --limit 1 --json headSha -q '.[0].headSha' || true)
           if [ -n "$LAST" ] && git merge-base --is-ancestor "$LAST" "$AFTER" 2>/dev/null; then
             BEFORE="$LAST"
-          elif git cat-file -e "${EVENT_BEFORE}^{commit}" 2>/dev/null; then
-            BEFORE="$EVENT_BEFORE"
           else
-            BEFORE="${AFTER}~1"
+            if [ -n "$LAST" ]; then
+              echo "::warning::마지막 성공 실행 커밋 $LAST 가 현재 커밋의 조상이 아닙니다(develop 이력 재작성?). 그 사이 실패했던 범위는 빠질 수 있습니다."
+            fi
+            if git cat-file -e "${EVENT_BEFORE}^{commit}" 2>/dev/null; then BEFORE="$EVENT_BEFORE"; else BEFORE="${AFTER}~1"; fi
           fi
           echo "범위: $BEFORE..$AFTER"
           mkdir -p .wiki-sync-input
           git log --format='%h %s' "$BEFORE..$AFTER" > .wiki-sync-input/commits.txt
           git diff --stat "$BEFORE" "$AFTER" > .wiki-sync-input/stat.txt
           git diff "$BEFORE" "$AFTER" > .wiki-sync-input/changes.diff
+          # 실패가 이어져 범위가 커지면 컨텍스트, 사용량 한도로 또 실패하므로 큰 diff 는 넘기지 않고 stat 과 코드 직접 읽기로 대신한다.
+          DIFF_LINES=$(wc -l < .wiki-sync-input/changes.diff)
+          if [ "$DIFF_LINES" -gt 4000 ]; then
+            echo "diff 가 ${DIFF_LINES}줄이라 생략했다. stat.txt 와 commits.txt 로 범위를 파악하고 필요한 파일은 저장소에서 직접 읽는다." > .wiki-sync-input/changes.diff
+            echo "::warning::diff ${DIFF_LINES}줄이 커서 Claude 에 stat 과 커밋 목록만 넘깁니다."
+          fi
+          { echo "## 위키 동기화 범위"; echo; echo "\`$BEFORE..$AFTER\` (diff ${DIFF_LINES}줄)"; echo; sed 's/^/- /' .wiki-sync-input/commits.txt; echo; } >> "$GITHUB_STEP_SUMMARY"
           echo "short=$(git rev-parse --short "$AFTER")" >> "$GITHUB_OUTPUT"
           cat .wiki-sync-input/commits.txt
 
@@ -83,21 +91,17 @@ jobs:
           prompt: |
             `.github/wiki-sync/prompt.md` 를 읽고 그 지시대로 작업한다.
             대상: BackEnd ${{ github.repository }} develop 머지 ${{ steps.diff.outputs.short }}.
-          # 파일 읽기, 수정과 diff 조회, 위키 lint 만 허용한다(네트워크, push, 임의 셸 없음).
+          # 작업 디렉터리 안 읽기, .ai 와 요약 파일 쓰기, 위키 lint 만 허용한다. git 명령은 diff 드라이버, --output 으로
+          # 임의 명령 실행이나 파일 덮어쓰기에 쓰일 수 있어 막는다(입력 diff 는 이전 단계가 파일로 준다).
           claude_args: |
             --model sonnet
             --max-turns 60
-            --allowedTools "Read,Edit,Write,Glob,Grep,Bash(git log:*),Bash(git diff:*),Bash(git show:*),Bash(git -C .ai diff:*),Bash(python3 .ai/scripts/wiki-lint.py)"
+            --allowedTools "Read(./**),Glob,Grep,Edit(./.ai/**),Edit(./.wiki-sync-input/summary.md),Bash(python3 .ai/scripts/wiki-lint.py)"
 
-      # 실행하는 lint 스크립트를 신뢰할 수 있게, Claude 가 위키 문서 외(scripts, .github)를 건드렸으면 실패시킨다.
-      - name: 문서 외 변경 차단
-        working-directory: .ai
-        run: |
-          if ! git diff --quiet HEAD -- scripts .github || [ -n "$(git ls-files --others --exclude-standard -- scripts .github)" ]; then
-            echo "::error::Claude 단계가 .ai 의 scripts 또는 .github 를 바꿨습니다. 반영하지 않습니다."
-            git status --short -- scripts .github
-            exit 1
-          fi
+      # 허용 경로(backend/, runbooks/, api-spec.md, api-design.md, taxonomy.md) 밖 변경, 대량 삭제, 토큰 유출을 기계적으로 막는다.
+      # 에이전트 지시문(AGENTS.md, skills/, README.md, sync.md, decisions/)과 lint 스크립트(scripts/)는 자동 반영하지 않는다.
+      - name: 위키 변경 검사
+        run: python3 .github/wiki-sync/check.py
 
       - name: 위키 lint
         working-directory: .ai
@@ -120,7 +124,7 @@ jobs:
             echo
             echo "근거 커밋:"
             sed 's/^/- /' ../.wiki-sync-input/commits.txt
-            if [ -s ../.wiki-sync-input/summary.md ]; then echo; cat ../.wiki-sync-input/summary.md; fi
+            if [ -s ../.wiki-sync-input/summary.md ]; then echo; head -n 40 ../.wiki-sync-input/summary.md; fi
             echo
             echo "워크플로 실행: ${RUN_URL}"
           } > ../.wiki-sync-input/commit-msg.txt
@@ -137,6 +141,7 @@ jobs:
             if git -c http.extraheader="$AUTH" pull --rebase -q origin main \
               && env -u WIKI_TOKEN python3 scripts/wiki-lint.py >/dev/null \
               && git -c http.extraheader="$AUTH" push -q origin HEAD:main; then
+              { echo "## .ai 반영"; echo; echo "커밋 $(git rev-parse --short HEAD) 를 main 에 push 했습니다."; } >> "$GITHUB_STEP_SUMMARY"
               git log --oneline -1
               exit 0
             fi
@@ -146,3 +151,13 @@ jobs:
           done
           echo "::error::.ai main push 에 실패했습니다(충돌 가능). 워크플로 로그와 위키를 확인하세요."
           exit 1
+
+      # 갱신 여부와 판단 근거를 실행 요약에 남긴다(갱신 없음으로 끝난 실행도 체크포인트가 되므로 흔적을 남긴다).
+      - name: Claude 판단 요약
+        if: always()
+        run: |
+          {
+            echo "## Claude 판단 요약"
+            echo
+            if [ -s .wiki-sync-input/summary.md ]; then head -n 40 .wiki-sync-input/summary.md; else echo "요약 파일이 없습니다."; fi
+          } >> "$GITHUB_STEP_SUMMARY"
