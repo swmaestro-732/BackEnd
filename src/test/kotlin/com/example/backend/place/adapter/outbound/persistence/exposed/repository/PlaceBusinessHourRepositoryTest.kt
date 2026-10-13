@@ -30,11 +30,11 @@ class PlaceBusinessHourRepositoryTest
         private val repository: PlaceBusinessHourRepository,
     ) : IntegrationTestBase() {
         @Test
-        fun `replaceBusinessHours 는 요일별 행을 넣고 동기화 시각을 기록한다`() {
+        fun `saveBusinessHours 는 요일별 행을 넣고 동기화 시각을 기록한다`() {
             transaction {
                 val placeId = insertPlace()
 
-                repository.replaceBusinessHours(
+                repository.saveBusinessHours(
                     placeId,
                     listOf(
                         PlaceBusinessHour(1, LocalTime(9, 0), LocalTime(22, 0)),
@@ -52,31 +52,11 @@ class PlaceBusinessHourRepositoryTest
         }
 
         @Test
-        fun `replaceBusinessHours 를 다시 부르면 기존 행을 지우고 새로 넣는다`() {
-            transaction {
-                val placeId = insertPlace()
-                repository.replaceBusinessHours(
-                    placeId,
-                    listOf(PlaceBusinessHour(1, LocalTime(9, 0), LocalTime(22, 0))),
-                )
-
-                repository.replaceBusinessHours(
-                    placeId,
-                    listOf(PlaceBusinessHour(2, LocalTime(11, 0), LocalTime(20, 0))),
-                )
-
-                // 유니크 충돌 없이 교체된다 — 월요일 행은 사라지고 화요일 행만 남는다
-                assertThat(hoursOf(placeId)).containsOnly(2.toShort() to LocalTime(11, 0))
-                rollback()
-            }
-        }
-
-        @Test
         fun `영업시간이 빈 목록이면 행 없이 동기화 시각만 남는다`() {
             transaction {
                 val placeId = insertPlace()
 
-                repository.replaceBusinessHours(placeId, emptyList())
+                repository.saveBusinessHours(placeId, emptyList())
 
                 assertThat(hoursOf(placeId)).isEmpty()
                 assertThat(syncedAtOf(placeId)).isNotNull()
@@ -90,7 +70,7 @@ class PlaceBusinessHourRepositoryTest
                 val pending = insertPlace()
                 val done = insertPlace()
                 val deleted = insertPlace(deleted = true)
-                repository.replaceBusinessHours(done, emptyList())
+                repository.saveBusinessHours(done, emptyList())
 
                 val byIds = repository.findUnsynced(listOf(pending, done, deleted)).map { it.id.value }
 

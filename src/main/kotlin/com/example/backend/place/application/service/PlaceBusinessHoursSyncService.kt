@@ -57,7 +57,7 @@ class PlaceBusinessHoursSyncService(
             // 잠금 대기 중 다른 요청이 이미 채웠을 수 있다.
             if (readTx.execute { _ -> persistencePort.findUnsynced(listOf(placeId)) }.orEmpty().isEmpty()) return false
             val hours = lookupPort.findBusinessHours(place.name, place.address, place.location) ?: return false
-            writeTx.execute { _ -> persistencePort.replaceBusinessHours(placeId, hours) }
+            writeTx.execute { _ -> persistencePort.saveBusinessHours(placeId, hours) }
             return true
         } catch (exception: Exception) {
             log.warn(exception) { "장소 영업시간 저장 실패: placeId=$placeId" }

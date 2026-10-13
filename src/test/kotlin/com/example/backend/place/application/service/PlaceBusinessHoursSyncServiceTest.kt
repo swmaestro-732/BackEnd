@@ -161,7 +161,7 @@ class PlaceBusinessHoursSyncServiceTest {
                 placeIds.mapNotNull { pending[it] }
             }
 
-        override fun replaceBusinessHours(
+        override fun saveBusinessHours(
             placeId: Long,
             hours: List<PlaceBusinessHour>,
         ) {

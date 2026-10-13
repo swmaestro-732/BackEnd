@@ -9,7 +9,6 @@ import org.jetbrains.exposed.v1.core.eq
 import org.jetbrains.exposed.v1.core.inList
 import org.jetbrains.exposed.v1.core.isNull
 import org.jetbrains.exposed.v1.jdbc.batchInsert
-import org.jetbrains.exposed.v1.jdbc.deleteWhere
 import org.jetbrains.exposed.v1.jdbc.update
 import org.springframework.stereotype.Repository
 import kotlin.time.Clock
@@ -25,12 +24,14 @@ class PlaceBusinessHourRepository {
             .toList()
     }
 
-    /** 요일별 행을 지우고 다시 넣은 뒤 동기화 시각을 기록한다. */
-    fun replaceBusinessHours(
+    /**
+     * 요일별 행을 넣고 동기화 시각을 같은 트랜잭션에서 기록한다 — 둘은 항상 함께 남는다.
+     * 호출부가 미동기화(`business_hours_synced_at IS NULL`) 장소만 넘기므로 기존 행은 없다.
+     */
+    fun saveBusinessHours(
         placeId: Long,
         hours: List<PlaceBusinessHour>,
     ) {
-        PlaceBusinessHourTable.deleteWhere { PlaceBusinessHourTable.placeId eq placeId }
         PlaceBusinessHourTable.batchInsert(hours) { hour ->
             this[PlaceBusinessHourTable.placeId] = placeId
             this[PlaceBusinessHourTable.dayOfWeek] = hour.dayOfWeek.toShort()
