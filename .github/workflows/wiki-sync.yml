@@ -71,6 +71,9 @@ jobs:
           mkdir -p .wiki-sync-input
           git log --format='%h %s' "$BEFORE..$AFTER" > .wiki-sync-input/commits.txt
           git diff --stat "$BEFORE" "$AFTER" > .wiki-sync-input/stat.txt
+          git diff --name-only "$BEFORE" "$AFTER" > .wiki-sync-input/changed.txt
+          # 갱신 후보 문서는 모델이 아니라 매핑표(mapping.tsv)로 정한다. Claude 는 이 목록의 문서마다 판정을 남겨야 한다.
+          python3 .github/wiki-sync/check.py targets
           git diff "$BEFORE" "$AFTER" > .wiki-sync-input/changes.diff
           # 실패가 이어져 범위가 커지면 컨텍스트, 사용량 한도로 또 실패하므로 큰 diff 는 넘기지 않고 stat 과 코드 직접 읽기로 대신한다.
           DIFF_LINES=$(wc -l < .wiki-sync-input/changes.diff)
