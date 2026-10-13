@@ -68,6 +68,12 @@ oauth:
     ios-client-id: ${GOOGLE_IOS_CLIENT_ID:}
     jwks-uri: https://www.googleapis.com/oauth2/v3/certs
     issuer: https://accounts.google.com
+  apple:
+    # iOS 네이티브 identityToken aud = 앱 Bundle ID. service-id 는 웹/안드로이드용 Services ID(미설정 시 iOS 만 허용).
+    client-id: ${APPLE_CLIENT_ID:}
+    service-id: ${APPLE_SERVICE_ID:}
+    jwks-uri: https://appleid.apple.com/auth/keys
+    issuer: https://appleid.apple.com
 
 # 외부 지도 연동(SCRUM-387). 키가 없으면 각 기능은 빈 결과/null 로 fail-soft.
 kakao:

@@ -6,6 +6,7 @@ import com.example.backend.media.application.MediaProperties
 import com.example.backend.place.adapter.outbound.search.KakaoLocalProperties
 import com.example.backend.user.adapter.outbound.messaging.SqsProperties
 import com.example.backend.user.adapter.outbound.security.JwtProperties
+import com.example.backend.user.adapter.outbound.social.AppleOauthProperties
 import com.example.backend.user.adapter.outbound.social.GoogleOauthProperties
 import com.example.backend.user.adapter.outbound.social.KakaoOauthProperties
 import org.springframework.boot.autoconfigure.SpringBootApplication
@@ -17,6 +18,7 @@ import org.springframework.boot.runApplication
     JwtProperties::class,
     KakaoOauthProperties::class,
     GoogleOauthProperties::class,
+    AppleOauthProperties::class,
     MediaProperties::class,
     KakaoLocalProperties::class,
     TmapProperties::class,

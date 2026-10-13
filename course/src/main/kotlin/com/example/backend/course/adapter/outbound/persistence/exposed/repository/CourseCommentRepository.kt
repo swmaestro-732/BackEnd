@@ -2,6 +2,7 @@ package com.example.backend.course.adapter.outbound.persistence.exposed.reposito
 
 import com.example.backend.course.adapter.outbound.persistence.exposed.CourseCommentEntity
 import com.example.backend.course.adapter.outbound.persistence.exposed.CourseCommentTable
+import com.example.backend.course.application.port.inbound.dto.CourseCommentRef
 import com.example.backend.course.application.port.outbound.CourseCommentRow
 import com.example.backend.course.domain.model.CourseCommentStatus
 import org.jetbrains.exposed.v1.core.SortOrder
@@ -9,6 +10,7 @@ import org.jetbrains.exposed.v1.core.and
 import org.jetbrains.exposed.v1.core.eq
 import org.jetbrains.exposed.v1.core.isNull
 import org.jetbrains.exposed.v1.core.less
+import org.jetbrains.exposed.v1.jdbc.select
 import org.jetbrains.exposed.v1.jdbc.selectAll
 import org.jetbrains.exposed.v1.jdbc.update
 import org.springframework.stereotype.Repository
@@ -63,6 +65,18 @@ class CourseCommentRepository {
             it[status] = CourseCommentStatus.DELETED
         }
     }
+
+    fun findRef(commentId: Long): CourseCommentRef? =
+        CourseCommentTable
+            .select(CourseCommentTable.courseId, CourseCommentTable.userId)
+            .where { (CourseCommentTable.id eq commentId) and CourseCommentTable.deletedAt.isNull() }
+            .singleOrNull()
+            ?.let {
+                CourseCommentRef(
+                    courseId = it[CourseCommentTable.courseId],
+                    authorId = it[CourseCommentTable.userId],
+                )
+            }
 
     fun findPage(
         courseId: Long,

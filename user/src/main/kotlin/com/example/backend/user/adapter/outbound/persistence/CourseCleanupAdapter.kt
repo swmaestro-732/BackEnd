@@ -2,6 +2,7 @@ package com.example.backend.user.adapter.outbound.persistence
 
 import com.example.backend.course.application.port.inbound.CourseCounterUseCase
 import com.example.backend.course.application.port.inbound.CourseLikeUseCase
+import com.example.backend.course.application.port.inbound.CourseTraceUseCase
 import com.example.backend.course.application.port.inbound.CourseUseCase
 import com.example.backend.course.application.port.inbound.PlanUseCase
 import com.example.backend.user.application.port.outbound.CourseCleanupPort
@@ -17,6 +18,7 @@ class CourseCleanupAdapter(
     private val courseCounterUseCase: CourseCounterUseCase,
     private val planUseCase: PlanUseCase,
     private val courseLikeUseCase: CourseLikeUseCase,
+    private val courseTraceUseCase: CourseTraceUseCase,
 ) : CourseCleanupPort {
     override fun softDeleteCoursesByAuthor(authorId: Long) = courseUseCase.deleteAllByAuthor(authorId)
 
@@ -26,4 +28,6 @@ class CourseCleanupAdapter(
         courseIds.forEach(courseCounterUseCase::decreaseSavesCount)
 
     override fun purgeLikesByUser(userId: Long) = courseLikeUseCase.purgeByUser(userId)
+
+    override fun purgeTracesByUser(userId: Long) = courseTraceUseCase.purgeByUser(userId)
 }

@@ -102,8 +102,12 @@ class CourseReviewScreenControllerTest
         }
 
         @Test
-        fun `로그인 조회자도 완주 여부는 스텁 false 다`() {
+        fun `로그인 조회자가 이 코스를 완주한 적 없으면 hasCompletedCourse 는 false 다`() {
             seedReviews()
+            // 진행 중 세션만 있는 경우도 완주가 아니다.
+            jdbcTemplate.update(
+                "INSERT INTO tracing_courses (user_id, course_id, status, created_at) VALUES ($AUTHOR_A, $COURSE_ID, 'IN_PROGRESS', now())",
+            )
 
             mockMvc
                 .perform(
@@ -111,6 +115,22 @@ class CourseReviewScreenControllerTest
                         .header(HttpHeaders.AUTHORIZATION, "Bearer ${jwtTokenProvider.issueAccessToken(AUTHOR_A)}"),
                 ).andExpect(status().isOk)
                 .andExpect(jsonPath("$.data.hasCompletedCourse").value(false))
+        }
+
+        @Test
+        fun `로그인 조회자가 이 코스를 완주했으면 hasCompletedCourse 는 true 다`() {
+            seedReviews()
+            jdbcTemplate.update(
+                "INSERT INTO tracing_courses (user_id, course_id, status, created_at, ended_at) " +
+                    "VALUES ($AUTHOR_A, $COURSE_ID, 'COMPLETED', now(), now())",
+            )
+
+            mockMvc
+                .perform(
+                    get("/service/v1/courses/$COURSE_ID/reviews")
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer ${jwtTokenProvider.issueAccessToken(AUTHOR_A)}"),
+                ).andExpect(status().isOk)
+                .andExpect(jsonPath("$.data.hasCompletedCourse").value(true))
         }
 
         @Test

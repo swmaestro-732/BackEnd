@@ -1,11 +1,13 @@
 package com.example.backend.place.adapter.outbound.search
 
+import com.example.backend.common.search.OpenSearchIndexClient
 import com.example.backend.common.search.OpenSearchProperties
 import com.example.backend.place.application.port.outbound.PlaceSearchIndexPort
 import com.example.backend.place.domain.model.Place
 import io.github.oshai.kotlinlogging.KotlinLogging
 import org.opensearch.client.opensearch.OpenSearchClient
 import org.springframework.beans.factory.ObjectProvider
+import org.springframework.beans.factory.annotation.Qualifier
 import org.springframework.stereotype.Component
 
 /**
@@ -16,7 +18,7 @@ import org.springframework.stereotype.Component
  */
 @Component
 class OpenSearchPlaceIndexAdapter(
-    private val clientProvider: ObjectProvider<OpenSearchClient>,
+    @Qualifier(OpenSearchIndexClient.NAME) private val clientProvider: ObjectProvider<OpenSearchClient>,
     properties: OpenSearchProperties,
 ) : PlaceSearchIndexPort {
     private val log = KotlinLogging.logger {}
@@ -31,6 +33,8 @@ class OpenSearchPlaceIndexAdapter(
             if (documents.isEmpty()) return
             val response =
                 client.bulk { bulk ->
+                    // alias 가 없을 때 같은 이름의 인덱스가 동적 매핑으로 자동 생성되지 않게 한다(실패시키고 재색인으로 채움)
+                    bulk.requireAlias(true)
                     bulk.operations(
                         documents.map { place ->
                             val document = place.toDocument()
@@ -44,10 +48,10 @@ class OpenSearchPlaceIndexAdapter(
             // bulk 는 예외 없이 200 을 주면서 개별 문서만 거부될 수 있다(매핑 충돌 등) → 항목별 실패를 집계해 로그로 드러낸다.
             if (response.errors()) {
                 val failed = response.items().count { it.error() != null }
-                log.warn { "place 색인 부분 실패(무시): $failed/${documents.size}건 실패" }
+                log.error { "place 색인 부분 실패(무시): $failed/${documents.size}건 실패" }
             }
         } catch (e: Exception) {
-            log.warn { "place 색인 실패(무시): ${places.size}건 — ${e.message}" }
+            log.error(e) { "place 색인 실패(무시): ${places.size}건 — ${e.message}" }
         }
     }
 

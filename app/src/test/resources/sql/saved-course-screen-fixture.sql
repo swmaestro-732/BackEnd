@@ -50,4 +50,5 @@ INSERT INTO saved_courses (user_id, folder_id, course_id, created_at) VALUES
     (1, 2, 2, '2026-07-15T00:00:00Z');
 
 -- 완주(따라가기): user 1 이 한남 갤러리 코스(2)를 완주.
-INSERT INTO tracing_courses (user_id, course_id, created_at) VALUES (1, 2, '2026-07-20T00:00:00Z');
+INSERT INTO tracing_courses (user_id, course_id, status, created_at, ended_at)
+VALUES (1, 2, 'COMPLETED', '2026-07-20T00:00:00Z', '2026-07-20T03:00:00Z');

@@ -15,13 +15,14 @@ import org.springframework.test.context.jdbc.Sql
  *
  * 시드: A(1, 탈퇴 대상)·B(2)·C(3).
  *  - A→B, B→A 상호 팔로우.  - A 가 공개 코스 2개 작성(course 1·2).  - C 가 코스 작성(course 3), A 가 이를 저장.
- *  - A 가 계획 2개 작성(plan 1·2, 그중 하나는 장소 포함), C 도 계획 1개 작성(plan 3).
+ *  - A 가 계획 2개 작성(plan 1·2, 그중 하나는 장소 포함), C 도 계획 1개 작성(plan 3).  - A 가 C 코스를 완주 1회 + 진행 중 1회(체크인 포함).
  *  - A 는 관심 테마 2개·관심 지역 1개·bio·비영(非零) 카운터를 갖는다.
  */
 @Sql(
     statements = [
-        "TRUNCATE TABLE follows, saved_courses, saved_course_folders, user_like_categories, " +
-            "user_areas, course_likes, plan_places, plans, courses, places, users RESTART IDENTITY CASCADE",
+        "TRUNCATE TABLE follows, saved_courses, saved_course_folders, user_like_categories, user_areas, " +
+            "course_likes, tracing_course_places, tracing_courses, plan_places, plans, courses, places, users " +
+            "RESTART IDENTITY CASCADE",
         // A(1) — 탈퇴 대상. 카운터를 실제 관계/코스 수와 맞춰 preset.
         "INSERT INTO users (nickname, handle, bio, profile_image_url, status, social_provider, social_id, " +
             "followers_cnt, followings_cnt, public_courses_cnt, follower_courses_cnt, private_courses_cnt) " +
@@ -41,6 +42,10 @@ import org.springframework.test.context.jdbc.Sql
         "INSERT INTO saved_courses (user_id, course_id, created_at) VALUES (1, 3, now())",
         // A 가 C 코스를 좋아요한 상태 — 탈퇴 시 좋아요가 지워지고 C 코스 likes_cnt 가 보정돼야 한다.
         "INSERT INTO course_likes (user_id, course_id) VALUES (1, 3)",
+        // 따라가기: A 가 C 코스를 완주(trace 1, 체크인 1건)하고 다시 진행 중(trace 2). 탈퇴 시 둘 다 체크인까지 지워져야 한다.
+        "INSERT INTO tracing_courses (user_id, course_id, status, created_at, ended_at) " +
+            "VALUES (1, 3, 'COMPLETED', now(), now()), (1, 3, 'IN_PROGRESS', now(), NULL)",
+        "INSERT INTO tracing_course_places (tracing_course_id, place_id, visited_at) VALUES (1, 1, now())",
         "INSERT INTO user_like_categories (user_id, category) VALUES (1, 'CAFETOUR'), (1, 'DATE')",
         "INSERT INTO user_areas (user_id, area_code, updated_at) VALUES (1, '1168010100', now())",
         // 계획: A(1) 의 2건(plan 1·2)과 C(3) 의 1건(plan 3). plan 1 은 장소를 담아 자식 보존까지 본다.
@@ -86,6 +91,10 @@ class WithdrawPurgeIntegrationTest
             // 코스 좋아요 — A 의 좋아요가 사라지고 대상(C) 코스 likes_cnt 가 보정된다.
             assertEquals(0L, count("SELECT count(*) FROM course_likes WHERE user_id = 1"))
             assertEquals(0, intOf("SELECT likes_cnt FROM courses WHERE id = 3"))
+
+            // 코스 따라가기 — A 의 세션(완주·진행 중)과 체크인(위치 이력)이 전부 사라진다.
+            assertEquals(0L, count("SELECT count(*) FROM tracing_courses WHERE user_id = 1"))
+            assertEquals(0L, count("SELECT count(*) FROM tracing_course_places"))
 
             // 개인화 — 관심 테마·지역이 사라진다.
             assertEquals(0L, count("SELECT count(*) FROM user_like_categories WHERE user_id = 1"))

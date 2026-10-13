@@ -44,6 +44,10 @@ class SavedCourseServiceTest {
             override fun decreaseSavesCount(courseId: Long) {
                 decreasedCourseIds += courseId
             }
+
+            var tracedCourseIds: Set<Long> = emptySet()
+
+            override fun findTracedCourseIds(userId: Long): Set<Long> = tracedCourseIds
         }
 
     private val fakePort =
@@ -105,16 +109,18 @@ class SavedCourseServiceTest {
                 userId: Long,
                 folderId: Long?,
                 completed: Boolean?,
+                tracedCourseIds: Set<Long>,
             ): Long = countReturn
 
             override fun findPage(
                 userId: Long,
                 folderId: Long?,
                 completed: Boolean?,
+                tracedCourseIds: Set<Long>,
                 cursorId: Long?,
                 limit: Int,
             ): List<SavedCourseRow> {
-                findPageArgs = FindPageArgs(userId, folderId, completed, cursorId, limit)
+                findPageArgs = FindPageArgs(userId, folderId, completed, tracedCourseIds, cursorId, limit)
                 return pageRows
             }
 
@@ -423,6 +429,7 @@ class SavedCourseServiceTest {
         val userId: Long,
         val folderId: Long?,
         val completed: Boolean?,
+        val tracedCourseIds: Set<Long>,
         val cursorId: Long?,
         val limit: Int,
     )

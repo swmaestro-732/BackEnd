@@ -86,6 +86,8 @@ class SavedCourseService(
 
     override fun getSavedCourses(command: SavedCoursesCommand): SavedCoursesResult {
         val cursorId = command.cursor?.let(::decodeCursor)
+        // 완주 판정 기준(따라간 코스 집합)은 course 도메인 소유라 한 번 받아 필터·완주 수에 같이 쓴다.
+        val tracedCourseIds = courseAccessPort.findTracedCourseIds(command.userId)
 
         // hasNext 판정을 위해 한 개 더 조회한 뒤, 페이지 크기만큼 잘라낸다. 완주 필터(command.completed)를 그대로 넘긴다.
         val rows =
@@ -93,6 +95,7 @@ class SavedCourseService(
                 command.userId,
                 command.folderId,
                 command.completed,
+                tracedCourseIds,
                 cursorId,
                 command.size + 1,
             )
@@ -101,8 +104,20 @@ class SavedCourseService(
 
         return SavedCoursesResult(
             // 칩 배지는 완주 필터와 무관한 폴더 전체·완주 개수다 — count 는 완주 필터를 각각 null/true 로 고정해 센다.
-            totalCount = savedCoursePersistencePort.count(command.userId, command.folderId, completed = null),
-            completedCount = savedCoursePersistencePort.count(command.userId, command.folderId, completed = true),
+            totalCount =
+                savedCoursePersistencePort.count(
+                    command.userId,
+                    command.folderId,
+                    completed = null,
+                    tracedCourseIds = tracedCourseIds,
+                ),
+            completedCount =
+                savedCoursePersistencePort.count(
+                    command.userId,
+                    command.folderId,
+                    completed = true,
+                    tracedCourseIds = tracedCourseIds,
+                ),
             nextCursor = if (hasNext) page.lastOrNull()?.id?.toString() else null,
             hasNext = hasNext,
             savedCourses =

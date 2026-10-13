@@ -14,6 +14,7 @@ dependencies {
     implementation(project(":user-api"))
     implementation(project(":course"))
     implementation(project(":user"))
+    implementation(project(":report"))
     implementation(project(":mobile"))
 
     // Exposed 핵심 모듈

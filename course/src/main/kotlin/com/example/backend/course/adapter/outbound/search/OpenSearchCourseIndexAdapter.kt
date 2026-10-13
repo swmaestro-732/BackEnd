@@ -1,11 +1,13 @@
 package com.example.backend.course.adapter.outbound.search
 
+import com.example.backend.common.search.OpenSearchIndexClient
 import com.example.backend.common.search.OpenSearchProperties
 import com.example.backend.course.application.port.outbound.CourseSearchIndexPort
 import com.example.backend.course.domain.model.Course
 import io.github.oshai.kotlinlogging.KotlinLogging
 import org.opensearch.client.opensearch.OpenSearchClient
 import org.springframework.beans.factory.ObjectProvider
+import org.springframework.beans.factory.annotation.Qualifier
 import org.springframework.stereotype.Component
 
 /**
@@ -16,7 +18,7 @@ import org.springframework.stereotype.Component
  */
 @Component
 class OpenSearchCourseIndexAdapter(
-    private val clientProvider: ObjectProvider<OpenSearchClient>,
+    @Qualifier(OpenSearchIndexClient.NAME) private val clientProvider: ObjectProvider<OpenSearchClient>,
     properties: OpenSearchProperties,
 ) : CourseSearchIndexPort {
     private val log = KotlinLogging.logger {}
@@ -26,9 +28,15 @@ class OpenSearchCourseIndexAdapter(
         val id = course.id ?: return
         val client = clientProvider.ifAvailable ?: return // endpoint 미설정 → no-op
         try {
-            client.index { req -> req.index(indexAlias).id(id.toString()).document(course.toDocument()) }
+            client.index { req ->
+                req
+                    .index(indexAlias)
+                    .requireAlias(true)
+                    .id(id.toString())
+                    .document(course.toDocument())
+            }
         } catch (e: Exception) {
-            log.warn { "course 색인 실패(무시): id=$id — ${e.message}" }
+            log.error(e) { "course 색인 실패(무시): id=$id — ${e.message}" }
         }
     }
 
@@ -40,6 +48,8 @@ class OpenSearchCourseIndexAdapter(
             if (documents.isEmpty()) return
             val response =
                 client.bulk { bulk ->
+                    // alias 가 없을 때 같은 이름의 인덱스가 동적 매핑으로 자동 생성되지 않게 한다(실패시키고 재색인으로 채움)
+                    bulk.requireAlias(true)
                     bulk.operations(
                         documents.map { course ->
                             val document = course.toDocument()
@@ -53,10 +63,10 @@ class OpenSearchCourseIndexAdapter(
             // bulk 는 예외 없이 200 을 주면서 개별 문서만 거부될 수 있다(매핑 충돌 등) → 항목별 실패를 집계해 로그로 드러낸다.
             if (response.errors()) {
                 val failed = response.items().count { it.error() != null }
-                log.warn { "course 색인 부분 실패(무시): $failed/${documents.size}건 실패" }
+                log.error { "course 색인 부분 실패(무시): $failed/${documents.size}건 실패" }
             }
         } catch (e: Exception) {
-            log.warn { "course 색인 실패(무시): ${courses.size}건 — ${e.message}" }
+            log.error(e) { "course 색인 실패(무시): ${courses.size}건 — ${e.message}" }
         }
     }
 
@@ -65,7 +75,7 @@ class OpenSearchCourseIndexAdapter(
         try {
             client.delete { req -> req.index(indexAlias).id(courseId.toString()) }
         } catch (e: Exception) {
-            log.warn { "course 색인 삭제 실패(무시): id=$courseId — ${e.message}" }
+            log.error(e) { "course 색인 삭제 실패(무시): id=$courseId — ${e.message}" }
         }
     }
 
@@ -78,7 +88,7 @@ class OpenSearchCourseIndexAdapter(
                 }
             }
         } catch (e: Exception) {
-            log.warn { "course 작성자 색인 삭제 실패(무시): authorId=$authorId — ${e.message}" }
+            log.error(e) { "course 작성자 색인 삭제 실패(무시): authorId=$authorId — ${e.message}" }
         }
     }
 
