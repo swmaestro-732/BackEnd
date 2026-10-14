@@ -5,6 +5,7 @@ import com.example.backend.common.geo.Coordinate
 import com.example.backend.user.application.port.outbound.SavedPlaceIndexDocument
 import org.assertj.core.api.Assertions.assertThat
 import org.assertj.core.api.Assertions.assertThatCode
+import org.assertj.core.api.Assertions.assertThatThrownBy
 import org.junit.jupiter.api.Test
 import org.mockito.Mockito.doAnswer
 import org.mockito.Mockito.mock
@@ -84,13 +85,23 @@ class OpenSearchSavedPlaceIndexAdapterTest {
     }
 
     @Test
-    fun `bulk 요청 실패는 저장 요청으로 전파하지 않는다`() {
+    fun `단건 색인 전송 실패는 전파한다 (리스너가 폴백 큐로 재처리)`() {
         `when`(provider.ifAvailable).thenReturn(client)
         doAnswer { throw RuntimeException("index unavailable") }
             .`when`(client)
             .bulk(anyArg<Function<BulkRequest.Builder, ObjectBuilder<BulkRequest>>>())
 
-        assertThatCode { adapter.index(document()) }.doesNotThrowAnyException()
+        assertThatThrownBy { adapter.index(document()) }.isInstanceOf(RuntimeException::class.java)
+    }
+
+    @Test
+    fun `배치 색인 전송 실패는 전파하지 않는다 (재색인 best-effort)`() {
+        `when`(provider.ifAvailable).thenReturn(client)
+        doAnswer { throw RuntimeException("index unavailable") }
+            .`when`(client)
+            .bulk(anyArg<Function<BulkRequest.Builder, ObjectBuilder<BulkRequest>>>())
+
+        assertThatCode { adapter.index(listOf(document())) }.doesNotThrowAnyException()
     }
 
     @Test
@@ -130,13 +141,13 @@ class OpenSearchSavedPlaceIndexAdapterTest {
     }
 
     @Test
-    fun `삭제 실패는 저장 취소 요청으로 전파하지 않는다`() {
+    fun `삭제 전송 실패는 전파한다 (리스너가 폴백 큐로 재처리)`() {
         `when`(provider.ifAvailable).thenReturn(client)
         doAnswer { throw RuntimeException("delete unavailable") }
             .`when`(client)
             .delete(anyArg<Function<DeleteRequest.Builder, ObjectBuilder<DeleteRequest>>>())
 
-        assertThatCode { adapter.delete(7L, 10L) }.doesNotThrowAnyException()
+        assertThatThrownBy { adapter.delete(7L, 10L) }.isInstanceOf(RuntimeException::class.java)
     }
 
     private fun captureBulk(capture: (BulkRequest) -> Unit) {

@@ -4,6 +4,7 @@ import com.example.backend.common.geo.Coordinate
 import com.example.backend.user.application.event.SavedPlaceIndexedEvent
 import com.example.backend.user.application.event.SavedPlaceRemovedEvent
 import com.example.backend.user.application.port.outbound.SavedPlaceIndexDocument
+import com.example.backend.user.application.port.outbound.SavedPlaceIndexFallbackPort
 import com.example.backend.user.application.port.outbound.SavedPlaceSearchIndexPort
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertTrue
@@ -20,9 +21,12 @@ import java.util.function.Supplier
 class SavedPlaceSearchSyncListenerTest {
     private val indexedDocuments = mutableListOf<SavedPlaceIndexDocument>()
     private val deletedIds = mutableListOf<Pair<Long, Long>>()
+    private var failIndex = false
+    private var failDelete = false
     private val port =
         object : SavedPlaceSearchIndexPort {
             override fun index(document: SavedPlaceIndexDocument) {
+                if (failIndex) throw RuntimeException("색인 전송 실패")
                 indexedDocuments += document
             }
 
@@ -34,10 +38,26 @@ class SavedPlaceSearchSyncListenerTest {
                 userId: Long,
                 placeId: Long,
             ) {
+                if (failDelete) throw RuntimeException("삭제 전송 실패")
                 deletedIds += userId to placeId
             }
         }
-    private val listener = SavedPlaceSearchSyncListener(port)
+    private val fallbackIndexed = mutableListOf<SavedPlaceIndexDocument>()
+    private val fallbackDeleted = mutableListOf<Pair<Long, Long>>()
+    private val fallbackPort =
+        object : SavedPlaceIndexFallbackPort {
+            override fun enqueueIndex(document: SavedPlaceIndexDocument) {
+                fallbackIndexed += document
+            }
+
+            override fun enqueueDelete(
+                userId: Long,
+                placeId: Long,
+            ) {
+                fallbackDeleted += userId to placeId
+            }
+        }
+    private val listener = SavedPlaceSearchSyncListener(port, fallbackPort)
 
     @Test
     fun `저장 이벤트의 관계와 좌표 방문 여부 저장 시각을 색인 문서에 싣는다`() {
@@ -72,6 +92,39 @@ class SavedPlaceSearchSyncListenerTest {
 
         assertEquals(listOf(7L to 42L), deletedIds)
         assertTrue(indexedDocuments.isEmpty())
+    }
+
+    @Test
+    fun `동기 색인이 실패하면 같은 문서를 폴백 큐로 넘긴다`() {
+        failIndex = true
+        val event =
+            SavedPlaceIndexedEvent(7L, 42L, Coordinate(37.51, 127.02), true, Instant.parse("2026-10-11T08:00:00Z"))
+
+        listener.onSavedPlaceIndexed(event)
+
+        assertTrue(indexedDocuments.isEmpty())
+        assertEquals(
+            listOf(
+                SavedPlaceIndexDocument(
+                    7L,
+                    42L,
+                    Coordinate(37.51, 127.02),
+                    true,
+                    Instant.parse("2026-10-11T08:00:00Z"),
+                ),
+            ),
+            fallbackIndexed,
+        )
+    }
+
+    @Test
+    fun `동기 삭제가 실패하면 같은 키를 폴백 큐로 넘긴다`() {
+        failDelete = true
+
+        listener.onSavedPlaceRemoved(SavedPlaceRemovedEvent(userId = 7L, placeId = 42L))
+
+        assertTrue(deletedIds.isEmpty())
+        assertEquals(listOf(7L to 42L), fallbackDeleted)
     }
 
     @Test
