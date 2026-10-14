@@ -47,9 +47,8 @@ class OpenSearchSavedPlaceSearchIntegrationTest
                     .mappings()
                     .properties()
 
-            assertThat(fields.keys).containsExactlyInAnyOrder("userId", "placeId", "location", "visited", "savedAt")
+            assertThat(fields.keys).containsExactlyInAnyOrder("userId", "placeId", "location", "savedAt")
             assertThat(fields.getValue("location").isGeoPoint).isTrue()
-            assertThat(fields.getValue("visited").isBoolean).isTrue()
             assertThat(fields.getValue("savedAt").isDate).isTrue()
         }
 
@@ -59,7 +58,7 @@ class OpenSearchSavedPlaceSearchIntegrationTest
                 document(7L, 30L, latitude = 37.5618),
                 document(7L, 40L, latitude = 37.563),
                 document(8L, 50L, latitude = origin.latitude),
-                document(7L, 10L, latitude = 37.549, visited = true),
+                document(7L, 10L, latitude = 37.549),
                 document(7L, 20L, latitude = 37.545),
             )
 
@@ -67,7 +66,6 @@ class OpenSearchSavedPlaceSearchIntegrationTest
 
             assertThat(nearest.map { it.placeId }).containsExactly(20L, 10L)
             assertThat(nearest.map { it.distanceMeters }).isSorted()
-            assertThat(nearest.map { it.visited }).containsExactly(false, true)
             assertThat(nearest.first().distanceMeters).isBetween(100.0, 120.0)
             assertThat(nearest.last().distanceMeters).isBetween(540.0, 570.0)
             val allWithinRadius = queryPort.nearestSaved(7L, origin, radiusMeters = 2000.0, size = 10)
@@ -82,7 +80,7 @@ class OpenSearchSavedPlaceSearchIntegrationTest
                 document(7L, 100L, latitude = 37.58),
                 document(7L, 200L, latitude = 37.563),
                 document(8L, 300L, latitude = origin.latitude),
-                document(7L, 20L, latitude = 37.56, visited = true),
+                document(7L, 20L, latitude = 37.56),
                 document(7L, 10L, latitude = 37.55),
             )
 
@@ -94,16 +92,15 @@ class OpenSearchSavedPlaceSearchIntegrationTest
         }
 
         @Test
-        fun `같은 사용자 장소 재색인은 중복 없이 좌표와 방문 상태를 갱신한다`() {
+        fun `같은 사용자 장소 재색인은 중복 없이 좌표를 갱신한다`() {
             index(document(7L, 10L, latitude = 37.58))
             assertThat(queryPort.nearestSaved(7L, origin, 2000.0, 2)).isEmpty()
 
-            index(document(7L, 10L, latitude = 37.545, visited = true))
+            index(document(7L, 10L, latitude = 37.545))
 
             val nearest = queryPort.nearestSaved(7L, origin, 2000.0, 2)
             assertThat(nearest).hasSize(1)
             assertThat(nearest.single().placeId).isEqualTo(10L)
-            assertThat(nearest.single().visited).isTrue()
             assertThat(indexClient.count { it.index(ALIAS) }.count()).isEqualTo(1L)
         }
 
@@ -127,12 +124,10 @@ class OpenSearchSavedPlaceSearchIntegrationTest
             userId: Long,
             placeId: Long,
             latitude: Double,
-            visited: Boolean = false,
         ) = SavedPlaceIndexDocument(
             userId = userId,
             placeId = placeId,
             location = Coordinate(latitude, origin.longitude),
-            visited = visited,
             savedAt = Instant.parse("2026-10-11T08:00:00Z"),
         )
 

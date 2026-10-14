@@ -54,10 +54,10 @@ class SavedPlaceService(
         // 예전에 저장했다 취소한 장소면 그때 소프트 삭제된 행을 지우고 새로 발행한다(행을 쌓지 않는다).
         val saved = savedPlacePersistencePort.insert(userId, placeId, category)
         eventPublisher.publishEvent(
-            SavedPlaceIndexedEvent(saved.userId, saved.placeId, place.location, saved.visited, saved.savedAt),
+            SavedPlaceIndexedEvent(saved.userId, saved.placeId, place.location, saved.savedAt),
         )
-        // TODO(추후): visited 토글 경로가 생기면 그때도 SavedPlaceIndexedEvent 를 재발행해 OS 색인의 visited 를 갱신할 것.
-        //  현재는 visited 변경 경로가 없어 저장 시점 값만 색인된다(스테일 없음).
+        // visited 는 색인하지 않는다 — 홈 근처 조회가 거리 랭킹(OS) 후 방문 여부를 DB 에서 읽으므로,
+        // 방문 처리 경로가 생겨도 색인 갱신(재색인 이벤트)이 필요 없다.
         return saved
     }
 
@@ -116,6 +116,12 @@ class SavedPlaceService(
     }
 
     override fun listSavedPlaceRefs(userId: Long): List<SavedPlaceRef> = savedPlacePersistencePort.findAllRefs(userId)
+
+    override fun findVisited(
+        userId: Long,
+        placeIds: List<Long>,
+    ): Map<Long, Boolean> =
+        if (placeIds.isEmpty()) emptyMap() else savedPlacePersistencePort.findVisitedByPlaceIds(userId, placeIds)
 
     /** 커서(=저장 레코드 id)를 파싱한다. 형식이 잘못되면 400. */
     private fun decodeCursor(cursor: String): Long =

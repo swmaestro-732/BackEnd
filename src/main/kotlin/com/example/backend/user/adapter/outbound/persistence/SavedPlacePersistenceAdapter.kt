@@ -55,4 +55,9 @@ class SavedPlacePersistenceAdapter(
     ): List<SavedPlace> = savedPlaceRepository.findForIndex(afterId, limit)
 
     override fun findAllRefs(userId: Long): List<SavedPlaceRef> = savedPlaceRepository.findAllRefs(userId)
+
+    override fun findVisitedByPlaceIds(
+        userId: Long,
+        placeIds: List<Long>,
+    ): Map<Long, Boolean> = savedPlaceRepository.findVisitedByPlaceIds(userId, placeIds)
 }

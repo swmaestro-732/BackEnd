@@ -8,6 +8,5 @@ data class SavedPlaceIndexedEvent(
     val userId: Long,
     val placeId: Long,
     val location: Coordinate,
-    val visited: Boolean,
     val savedAt: Instant,
 )

@@ -52,7 +52,6 @@ class OpenSearchSavedPlaceIndexAdapter(
                                                     "lat" to document.location.latitude,
                                                     "lon" to document.location.longitude,
                                                 ),
-                                            "visited" to document.visited,
                                             "savedAt" to document.savedAt.toEpochMilli(),
                                         ),
                                     )

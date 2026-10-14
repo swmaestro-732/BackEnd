@@ -41,7 +41,7 @@ class OpenSearchSavedPlaceSearchAdapter(
                     .Builder()
                     .index(indexAlias)
                     .size(size)
-                    .source { it.filter { f -> f.includes("placeId", "visited") } }
+                    .source { it.filter { f -> f.includes("placeId") } }
                     .query { q ->
                         q.bool { b ->
                             b
@@ -75,7 +75,6 @@ class OpenSearchSavedPlaceSearchAdapter(
                 NearbySavedHit(
                     source.getJsonNumber("placeId").longValue(),
                     hit.sort().first().toDouble(),
-                    source.getBoolean("visited"),
                 )
             }
         } catch (e: Exception) {

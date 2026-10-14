@@ -60,13 +60,12 @@ class SavedPlaceSearchSyncListenerTest {
     private val listener = SavedPlaceSearchSyncListener(port, fallbackPort)
 
     @Test
-    fun `저장 이벤트의 관계와 좌표 방문 여부 저장 시각을 색인 문서에 싣는다`() {
+    fun `저장 이벤트의 관계와 좌표 저장 시각을 색인 문서에 싣는다`() {
         listener.onSavedPlaceIndexed(
             SavedPlaceIndexedEvent(
                 userId = 7L,
                 placeId = 42L,
                 location = Coordinate(latitude = 37.51, longitude = 127.02),
-                visited = true,
                 savedAt = Instant.parse("2026-10-11T08:00:00Z"),
             ),
         )
@@ -77,7 +76,6 @@ class SavedPlaceSearchSyncListenerTest {
                     userId = 7L,
                     placeId = 42L,
                     location = Coordinate(latitude = 37.51, longitude = 127.02),
-                    visited = true,
                     savedAt = Instant.parse("2026-10-11T08:00:00Z"),
                 ),
             ),
@@ -98,7 +96,7 @@ class SavedPlaceSearchSyncListenerTest {
     fun `동기 색인이 실패하면 같은 문서를 폴백 큐로 넘긴다`() {
         failIndex = true
         val event =
-            SavedPlaceIndexedEvent(7L, 42L, Coordinate(37.51, 127.02), true, Instant.parse("2026-10-11T08:00:00Z"))
+            SavedPlaceIndexedEvent(7L, 42L, Coordinate(37.51, 127.02), Instant.parse("2026-10-11T08:00:00Z"))
 
         listener.onSavedPlaceIndexed(event)
 
@@ -109,7 +107,6 @@ class SavedPlaceSearchSyncListenerTest {
                     7L,
                     42L,
                     Coordinate(37.51, 127.02),
-                    true,
                     Instant.parse("2026-10-11T08:00:00Z"),
                 ),
             ),
@@ -179,7 +176,7 @@ class SavedPlaceSearchSyncListenerTest {
         }
 
     private fun savedEvent() =
-        SavedPlaceIndexedEvent(7L, 42L, Coordinate(37.51, 127.02), false, Instant.parse("2026-10-11T08:00:00Z"))
+        SavedPlaceIndexedEvent(7L, 42L, Coordinate(37.51, 127.02), Instant.parse("2026-10-11T08:00:00Z"))
 
     private fun transactionTemplate(): TransactionTemplate =
         TransactionTemplate(

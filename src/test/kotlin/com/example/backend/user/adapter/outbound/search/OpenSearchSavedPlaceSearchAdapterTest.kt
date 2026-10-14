@@ -43,7 +43,7 @@ class OpenSearchSavedPlaceSearchAdapterTest {
         val request = capturedRequest()
         assertThat(request.index()).containsExactly("dev-saved_place")
         assertThat(request.size()).isEqualTo(2)
-        assertThat(request.source()!!.filter().includes()).containsExactlyInAnyOrder("placeId", "visited")
+        assertThat(request.source()!!.filter().includes()).containsExactly("placeId")
         val filters = request.query()!!.bool().filter()
         assertThat(filters).hasSize(2)
         val userFilter = filters.single { it.isTerm }.term()
@@ -84,14 +84,13 @@ class OpenSearchSavedPlaceSearchAdapterTest {
     }
 
     @Test
-    fun `검색 순서를 유지하고 source 의 장소와 방문 상태 및 sort 의 미터 거리를 반환한다`() {
-        stub(response(listOf(hit(20L, "152.7", true), hit(10L, "830.1", false))))
+    fun `검색 순서를 유지하고 source 의 장소와 sort 의 미터 거리를 반환한다`() {
+        stub(response(listOf(hit(20L, "152.7"), hit(10L, "830.1"))))
 
         val hits = adapter.nearestSaved(7L, origin, 2010.0, 2)
 
         assertThat(hits.map { it.placeId }).containsExactly(20L, 10L)
         assertThat(hits.map { it.distanceMeters }).containsExactly(152.7, 830.1)
-        assertThat(hits.map { it.visited }).containsExactly(true, false)
     }
 
     @Test
@@ -103,14 +102,14 @@ class OpenSearchSavedPlaceSearchAdapterTest {
 
     @Test
     fun `검색 타임아웃이면 부분 결과 대신 빈 목록을 반환한다`() {
-        stub(response(listOf(hit(10L, "100.0", false)), timedOut = true))
+        stub(response(listOf(hit(10L, "100.0")), timedOut = true))
 
         assertThat(adapter.nearestSaved(7L, origin, 2010.0, 2)).isEmpty()
     }
 
     @Test
     fun `샤드가 실패하면 부분 결과 대신 빈 목록을 반환한다`() {
-        stub(response(listOf(hit(10L, "100.0", false)), failedShards = 1))
+        stub(response(listOf(hit(10L, "100.0")), failedShards = 1))
 
         assertThat(adapter.nearestSaved(7L, origin, 2010.0, 2)).isEmpty()
     }
@@ -139,7 +138,7 @@ class OpenSearchSavedPlaceSearchAdapterTest {
 
     @Test
     fun `거리 정렬값이 잘못된 문서도 예외를 전파하지 않는다`() {
-        stub(response(listOf(hit(10L, "invalid", false))))
+        stub(response(listOf(hit(10L, "invalid"))))
 
         assertThat(adapter.nearestSaved(7L, origin, 2010.0, 2)).isEmpty()
     }
@@ -164,13 +163,12 @@ class OpenSearchSavedPlaceSearchAdapterTest {
     private fun hit(
         placeId: Long,
         distance: String,
-        visited: Boolean,
     ): Hit<JsonData> =
         Hit
             .Builder<JsonData>()
             .index("saved_place")
             .id("7:$placeId")
-            .source(JsonData.of(mapOf("placeId" to placeId, "visited" to visited), JacksonJsonpMapper()))
+            .source(JsonData.of(mapOf("placeId" to placeId), JacksonJsonpMapper()))
             .sort(listOf(distance, "0"))
             .build()
 

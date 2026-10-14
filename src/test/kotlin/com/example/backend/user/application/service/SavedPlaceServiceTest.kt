@@ -119,6 +119,13 @@ class SavedPlaceServiceTest {
 
             override fun findAllRefs(userId: Long): List<SavedPlaceRef> = refs
 
+            var visitedByPlaceIds: Map<Long, Boolean> = emptyMap()
+
+            override fun findVisitedByPlaceIds(
+                userId: Long,
+                placeIds: List<Long>,
+            ): Map<Long, Boolean> = visitedByPlaceIds.filterKeys { it in placeIds }
+
             override fun findForIndex(
                 afterId: Long?,
                 limit: Int,
@@ -176,20 +183,20 @@ class SavedPlaceServiceTest {
         assertEquals(SavedPlaceCategory.RESTAURANT, result.category)
         assertFalse(result.visited) // 저장 직후는 미방문
         assertEquals(
-            listOf(SavedPlaceIndexedEvent(1L, 42L, location, false, Instant.parse("2026-08-13T00:00:00Z"))),
+            listOf(SavedPlaceIndexedEvent(1L, 42L, location, Instant.parse("2026-08-13T00:00:00Z"))),
             publishedEvents,
         )
     }
 
     @Test
-    fun `색인 이벤트의 방문 여부와 저장 시각은 DB 저장 결과를 사용한다`() {
+    fun `색인 이벤트의 저장 시각은 DB 저장 결과를 사용한다`() {
         fakePlaceAccess.places = mapOf(42L to "CAFE")
         val savedAt = Instant.parse("2026-10-11T08:00:00Z")
         fakePort.insertResult = SavedPlace(100L, 1L, 42L, SavedPlaceCategory.CAFE, true, savedAt)
 
         service.save(userId = 1L, placeId = 42L)
 
-        assertEquals(listOf(SavedPlaceIndexedEvent(1L, 42L, location, true, savedAt)), publishedEvents)
+        assertEquals(listOf(SavedPlaceIndexedEvent(1L, 42L, location, savedAt)), publishedEvents)
     }
 
     @Test

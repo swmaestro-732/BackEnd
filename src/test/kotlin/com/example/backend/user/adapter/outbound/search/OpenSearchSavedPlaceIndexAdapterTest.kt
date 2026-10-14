@@ -66,7 +66,7 @@ class OpenSearchSavedPlaceIndexAdapterTest {
         assertThat(payload["userId"]).isEqualTo(7L)
         assertThat(payload["placeId"]).isEqualTo(10L)
         assertThat(payload["location"]).isEqualTo(mapOf("lat" to 37.544, "lon" to 127.056))
-        assertThat(payload["visited"]).isEqualTo(true)
+        assertThat(payload).doesNotContainKey("visited")
         assertThat(payload["savedAt"]).isEqualTo(saved.savedAt.toEpochMilli())
     }
 
@@ -168,7 +168,6 @@ class OpenSearchSavedPlaceIndexAdapterTest {
         userId = userId,
         placeId = placeId,
         location = Coordinate(37.544, 127.056),
-        visited = true,
         savedAt = Instant.parse("2026-10-11T08:00:00Z"),
     )
 }

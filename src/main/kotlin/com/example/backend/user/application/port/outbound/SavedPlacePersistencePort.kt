@@ -64,6 +64,12 @@ interface SavedPlacePersistencePort {
 
     /** 살아있는 저장 레코드 전체의 (placeId, visited). 순서는 보장하지 않는다. */
     fun findAllRefs(userId: Long): List<SavedPlaceRef>
+
+    /** 주어진 placeId 들 중 살아있는 저장 레코드의 placeId → visited. 저장 안 된 placeId 는 결과에 없다. */
+    fun findVisitedByPlaceIds(
+        userId: Long,
+        placeIds: List<Long>,
+    ): Map<Long, Boolean>
 }
 
 /** 저장 레코드 읽기 모델 — 조회 전용. */

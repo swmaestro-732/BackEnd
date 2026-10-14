@@ -26,7 +26,7 @@ class SavedPlaceSearchSyncListener(
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
     fun onSavedPlaceIndexed(event: SavedPlaceIndexedEvent) {
         val document =
-            SavedPlaceIndexDocument(event.userId, event.placeId, event.location, event.visited, event.savedAt)
+            SavedPlaceIndexDocument(event.userId, event.placeId, event.location, event.savedAt)
         try {
             port.index(document) // 동기 우선
         } catch (e: Exception) {

@@ -24,13 +24,12 @@ class SavedPlaceIndexSqsConsumerTest {
                 placeId = 42L,
                 lat = 37.51,
                 lon = 127.02,
-                visited = true,
                 savedAtEpochMs = Instant.parse("2026-10-11T08:00:00Z").toEpochMilli(),
             ),
         )
 
         verify(port).index(
-            SavedPlaceIndexDocument(7L, 42L, Coordinate(37.51, 127.02), true, Instant.parse("2026-10-11T08:00:00Z")),
+            SavedPlaceIndexDocument(7L, 42L, Coordinate(37.51, 127.02), Instant.parse("2026-10-11T08:00:00Z")),
         )
     }
 

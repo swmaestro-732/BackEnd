@@ -13,7 +13,6 @@ data class SavedPlaceIndexMessage(
     val placeId: Long,
     val lat: Double? = null,
     val lon: Double? = null,
-    val visited: Boolean? = null,
     val savedAtEpochMs: Long? = null,
 ) {
     companion object {

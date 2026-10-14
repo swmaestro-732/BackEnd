@@ -33,7 +33,6 @@ class SavedPlaceReindexService(
                             saved.userId,
                             saved.placeId,
                             place.location,
-                            saved.visited,
                             saved.savedAt,
                         )
                     }

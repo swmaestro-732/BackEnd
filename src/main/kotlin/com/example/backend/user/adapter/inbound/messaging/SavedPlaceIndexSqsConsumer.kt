@@ -37,7 +37,6 @@ class SavedPlaceIndexSqsConsumer(
                                 latitude = requireNotNull(message.lat),
                                 longitude = requireNotNull(message.lon),
                             ),
-                        visited = requireNotNull(message.visited),
                         savedAt = Instant.ofEpochMilli(requireNotNull(message.savedAtEpochMs)),
                     ),
                 )

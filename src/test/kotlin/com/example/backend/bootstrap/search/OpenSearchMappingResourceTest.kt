@@ -44,7 +44,7 @@ class OpenSearchMappingResourceTest {
         assertThat(props.path("userId").path("type").asText()).isEqualTo("long")
         assertThat(props.path("placeId").path("type").asText()).isEqualTo("long")
         assertThat(props.path("location").path("type").asText()).isEqualTo("geo_point")
-        assertThat(props.path("visited").path("type").asText()).isEqualTo("boolean")
+        assertThat(props.path("visited").isMissingNode).isTrue() // visited 는 색인하지 않고 DB 에서 읽는다
         assertThat(props.path("savedAt").path("type").asText()).isEqualTo("date")
     }
 

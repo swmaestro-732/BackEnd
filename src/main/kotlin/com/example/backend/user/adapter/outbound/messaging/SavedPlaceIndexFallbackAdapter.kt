@@ -30,7 +30,6 @@ class SavedPlaceIndexFallbackAdapter(
                 placeId = document.placeId,
                 lat = document.location.latitude,
                 lon = document.location.longitude,
-                visited = document.visited,
                 savedAtEpochMs = document.savedAt.toEpochMilli(),
             ),
         )

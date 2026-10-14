@@ -12,6 +12,7 @@ import org.jetbrains.exposed.v1.core.and
 import org.jetbrains.exposed.v1.core.count
 import org.jetbrains.exposed.v1.core.eq
 import org.jetbrains.exposed.v1.core.greater
+import org.jetbrains.exposed.v1.core.inList
 import org.jetbrains.exposed.v1.core.isNotNull
 import org.jetbrains.exposed.v1.core.isNull
 import org.jetbrains.exposed.v1.core.less
@@ -159,6 +160,17 @@ class SavedPlaceRepository {
             .select(SavedPlaceTable.placeId, SavedPlaceTable.visited)
             .where { alive(userId) }
             .map { SavedPlaceRef(placeId = it[SavedPlaceTable.placeId], visited = it[SavedPlaceTable.visited]) }
+
+    fun findVisitedByPlaceIds(
+        userId: Long,
+        placeIds: List<Long>,
+    ): Map<Long, Boolean> {
+        if (placeIds.isEmpty()) return emptyMap()
+        return SavedPlaceTable
+            .select(SavedPlaceTable.placeId, SavedPlaceTable.visited)
+            .where { alive(userId) and (SavedPlaceTable.placeId inList placeIds) }
+            .associate { it[SavedPlaceTable.placeId] to it[SavedPlaceTable.visited] }
+    }
 
     fun findForIndex(
         afterId: Long?,
