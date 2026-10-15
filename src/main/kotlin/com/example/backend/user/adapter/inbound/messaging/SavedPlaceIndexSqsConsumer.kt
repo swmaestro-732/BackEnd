@@ -48,7 +48,7 @@ class SavedPlaceIndexSqsConsumer(
             }
 
             SavedPlaceIndexMessage.OP_DELETE -> {
-                port.delete(message.userId, message.placeId)
+                port.delete(message.userId, message.placeId, requireNotNull(message.removedAtEpochMs))
             }
 
             else -> {

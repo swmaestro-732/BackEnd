@@ -11,5 +11,6 @@ interface SavedPlaceIndexFallbackPort {
     fun enqueueDelete(
         userId: Long,
         placeId: Long,
+        versionEpochMs: Long,
     )
 }

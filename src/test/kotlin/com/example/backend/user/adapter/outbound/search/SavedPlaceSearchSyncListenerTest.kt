@@ -37,6 +37,7 @@ class SavedPlaceSearchSyncListenerTest {
             override fun delete(
                 userId: Long,
                 placeId: Long,
+                versionEpochMs: Long,
             ) {
                 if (failDelete) throw RuntimeException("삭제 전송 실패")
                 deletedIds += userId to placeId
@@ -53,6 +54,7 @@ class SavedPlaceSearchSyncListenerTest {
             override fun enqueueDelete(
                 userId: Long,
                 placeId: Long,
+                versionEpochMs: Long,
             ) {
                 fallbackDeleted += userId to placeId
             }
@@ -96,7 +98,9 @@ class SavedPlaceSearchSyncListenerTest {
 
     @Test
     fun `저장 취소 이벤트는 사용자와 장소의 복합 키로 삭제한다`() {
-        listener.onSavedPlaceRemoved(SavedPlaceRemovedEvent(userId = 7L, placeId = 42L))
+        listener.onSavedPlaceRemoved(
+            SavedPlaceRemovedEvent(userId = 7L, placeId = 42L, removedAt = Instant.parse("2026-10-11T09:00:00Z")),
+        )
 
         assertEquals(listOf(7L to 42L), deletedIds)
         assertTrue(indexedDocuments.isEmpty())
@@ -132,7 +136,9 @@ class SavedPlaceSearchSyncListenerTest {
     fun `동기 삭제가 실패하면 같은 키를 폴백 큐로 넘긴다`() {
         failDelete = true
 
-        listener.onSavedPlaceRemoved(SavedPlaceRemovedEvent(userId = 7L, placeId = 42L))
+        listener.onSavedPlaceRemoved(
+            SavedPlaceRemovedEvent(userId = 7L, placeId = 42L, removedAt = Instant.parse("2026-10-11T09:00:00Z")),
+        )
 
         assertTrue(deletedIds.isEmpty())
         assertEquals(listOf(7L to 42L), fallbackDeleted)
@@ -143,7 +149,7 @@ class SavedPlaceSearchSyncListenerTest {
         eventContext().use { context ->
             transactionTemplate().executeWithoutResult {
                 context.publishEvent(savedEvent())
-                context.publishEvent(SavedPlaceRemovedEvent(7L, 42L))
+                context.publishEvent(SavedPlaceRemovedEvent(7L, 42L, Instant.parse("2026-10-11T09:00:00Z")))
 
                 assertTrue(indexedDocuments.isEmpty())
                 assertTrue(deletedIds.isEmpty())
@@ -159,7 +165,7 @@ class SavedPlaceSearchSyncListenerTest {
         eventContext().use { context ->
             transactionTemplate().executeWithoutResult { status ->
                 context.publishEvent(savedEvent())
-                context.publishEvent(SavedPlaceRemovedEvent(7L, 42L))
+                context.publishEvent(SavedPlaceRemovedEvent(7L, 42L, Instant.parse("2026-10-11T09:00:00Z")))
                 status.setRollbackOnly()
             }
 
@@ -172,7 +178,7 @@ class SavedPlaceSearchSyncListenerTest {
     fun `트랜잭션 밖에서 발행된 이벤트는 색인하지 않는다`() {
         eventContext().use { context ->
             context.publishEvent(savedEvent())
-            context.publishEvent(SavedPlaceRemovedEvent(7L, 42L))
+            context.publishEvent(SavedPlaceRemovedEvent(7L, 42L, Instant.parse("2026-10-11T09:00:00Z")))
 
             assertTrue(indexedDocuments.isEmpty())
             assertTrue(deletedIds.isEmpty())

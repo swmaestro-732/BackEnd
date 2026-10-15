@@ -48,7 +48,7 @@ class SavedPlaceIndexFallbackAdapterTest {
         val adapter = SavedPlaceIndexFallbackAdapter(emptyProvider, SqsProperties(savedPlaceQueueUrl = ""))
         assertDoesNotThrow {
             adapter.enqueueIndex(document)
-            adapter.enqueueDelete(7L, 42L)
+            adapter.enqueueDelete(7L, 42L, 1000L)
         }
     }
 
@@ -72,7 +72,7 @@ class SavedPlaceIndexFallbackAdapterTest {
         val template = mock(SqsTemplate::class.java)
         val adapter = SavedPlaceIndexFallbackAdapter(providerOf(template), SqsProperties(savedPlaceQueueUrl = ""))
 
-        adapter.enqueueDelete(7L, 42L)
+        adapter.enqueueDelete(7L, 42L, 1000L)
 
         val sendCalled = Mockito.mockingDetails(template).invocations.any { it.method.name == "send" }
         assertTrue(!sendCalled, "queueUrl 이 비면 send 가 호출돼서는 안 된다")

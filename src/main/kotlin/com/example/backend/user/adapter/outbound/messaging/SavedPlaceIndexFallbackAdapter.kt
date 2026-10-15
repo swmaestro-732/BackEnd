@@ -42,7 +42,15 @@ class SavedPlaceIndexFallbackAdapter(
     override fun enqueueDelete(
         userId: Long,
         placeId: Long,
-    ) = send(SavedPlaceIndexMessage(op = SavedPlaceIndexMessage.OP_DELETE, userId = userId, placeId = placeId))
+        versionEpochMs: Long,
+    ) = send(
+        SavedPlaceIndexMessage(
+            op = SavedPlaceIndexMessage.OP_DELETE,
+            userId = userId,
+            placeId = placeId,
+            removedAtEpochMs = versionEpochMs,
+        ),
+    )
 
     private fun send(message: SavedPlaceIndexMessage) {
         val template = sqsTemplateProvider.ifAvailable ?: return // SQS 미설정 → no-op

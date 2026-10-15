@@ -50,9 +50,16 @@ class SavedPlaceIndexSqsConsumerTest {
 
     @Test
     fun `DELETE 메시지는 복합 키로 삭제를 재처리한다`() {
-        consumer.onMessage(SavedPlaceIndexMessage(op = SavedPlaceIndexMessage.OP_DELETE, userId = 7L, placeId = 42L))
+        consumer.onMessage(
+            SavedPlaceIndexMessage(
+                op = SavedPlaceIndexMessage.OP_DELETE,
+                userId = 7L,
+                placeId = 42L,
+                removedAtEpochMs = 1000L,
+            ),
+        )
 
-        verify(port).delete(7L, 42L)
+        verify(port).delete(7L, 42L, 1000L)
     }
 
     @Test

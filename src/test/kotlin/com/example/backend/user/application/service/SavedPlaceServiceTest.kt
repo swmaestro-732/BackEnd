@@ -272,7 +272,9 @@ class SavedPlaceServiceTest {
         service.unsave(userId = 1L, placeId = 42L)
 
         assertEquals(1L to 42L, fakePort.deleteArgs)
-        assertEquals(listOf(SavedPlaceRemovedEvent(1L, 42L)), publishedEvents)
+        val removed = publishedEvents.single() as SavedPlaceRemovedEvent
+        assertEquals(1L, removed.userId)
+        assertEquals(42L, removed.placeId) // removedAt 은 발행 시각(now)이라 값 자체는 검증하지 않는다
     }
 
     @Test
@@ -281,7 +283,8 @@ class SavedPlaceServiceTest {
 
         service.unsave(userId = 1L, placeId = 42L)
 
-        assertEquals(listOf(SavedPlaceRemovedEvent(1L, 42L)), publishedEvents)
+        val removed = publishedEvents.single() as SavedPlaceRemovedEvent
+        assertEquals(1L to 42L, removed.userId to removed.placeId)
     }
 
     @Test

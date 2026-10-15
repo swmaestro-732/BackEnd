@@ -33,6 +33,7 @@ class SavedPlaceReindexServiceTest {
             override fun delete(
                 userId: Long,
                 placeId: Long,
+                versionEpochMs: Long,
             ) = error("재색인 중 문서를 삭제하면 안 된다")
         }
     private val service = SavedPlaceReindexService(persistence, places, index)

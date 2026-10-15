@@ -124,7 +124,7 @@ class OpenSearchSavedPlaceSearchIntegrationTest
         fun `저장 취소는 같은 장소를 저장한 다른 사용자 문서를 유지한다`() {
             index(document(7L, 10L, latitude = 37.545), document(8L, 10L, latitude = 37.545))
 
-            indexPort.delete(7L, 10L)
+            indexPort.delete(7L, 10L, 9999999999999L)
             indexClient.indices().refresh { it.index(ALIAS) }
 
             assertThat(queryPort.nearestSaved(7L, origin, 2000.0, 2)).isEmpty()

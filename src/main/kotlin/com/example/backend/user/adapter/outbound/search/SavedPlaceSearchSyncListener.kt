@@ -47,11 +47,12 @@ class SavedPlaceSearchSyncListener(
 
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
     fun onSavedPlaceRemoved(event: SavedPlaceRemovedEvent) {
+        val version = event.removedAt.toEpochMilli()
         try {
-            port.delete(event.userId, event.placeId) // 동기 우선
+            port.delete(event.userId, event.placeId, version) // 동기 우선
         } catch (e: Exception) {
             log.warn { "동기 saved_place 삭제 실패 → SQS 폴백: ${event.userId}:${event.placeId} — ${e.message}" }
-            fallbackPort.enqueueDelete(event.userId, event.placeId) // 실패 시 폴백 재처리
+            fallbackPort.enqueueDelete(event.userId, event.placeId, version) // 실패 시 폴백 재처리
         }
     }
 }

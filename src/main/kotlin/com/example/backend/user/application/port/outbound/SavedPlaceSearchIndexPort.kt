@@ -11,8 +11,10 @@ interface SavedPlaceSearchIndexPort {
     /** 벌크 재색인(backfill) — best-effort 라 실패를 삼킨다. */
     fun index(documents: List<SavedPlaceIndexDocument>)
 
+    /** 단건 삭제(동기) — [versionEpochMs]를 external version(removedAt)으로 실어 순서 역전을 막는다. 실패 시 예외를 던진다. */
     fun delete(
         userId: Long,
         placeId: Long,
+        versionEpochMs: Long,
     )
 }

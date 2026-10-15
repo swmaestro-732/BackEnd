@@ -14,9 +14,12 @@ import org.mockito.Mockito.verify
 import org.mockito.Mockito.`when`
 import org.opensearch.client.opensearch.OpenSearchClient
 import org.opensearch.client.opensearch._types.ErrorCause
+import org.opensearch.client.opensearch._types.VersionType
 import org.opensearch.client.opensearch.core.BulkRequest
 import org.opensearch.client.opensearch.core.BulkResponse
 import org.opensearch.client.opensearch.core.DeleteRequest
+import org.opensearch.client.opensearch.core.IndexRequest
+import org.opensearch.client.opensearch.core.IndexResponse
 import org.opensearch.client.opensearch.core.bulk.BulkResponseItem
 import org.opensearch.client.util.ObjectBuilder
 import org.springframework.beans.factory.ObjectProvider
@@ -43,31 +46,33 @@ class OpenSearchSavedPlaceIndexAdapterTest {
         assertThatCode {
             adapter.index(document())
             adapter.index(listOf(document()))
-            adapter.delete(7L, 10L)
+            adapter.delete(7L, 10L, 1000L)
         }.doesNotThrowAnyException()
     }
 
     @Test
-    fun `단건 색인은 prefix alias 와 복합 문서 ID 및 좌표 방문 상태 저장 시각을 보낸다`() {
+    fun `단건 색인은 prefix alias 와 복합 ID, external version(savedAt), 좌표·표시정보를 보낸다`() {
         `when`(provider.ifAvailable).thenReturn(client)
-        var request: BulkRequest? = null
-        captureBulk { request = it }
+        var request: IndexRequest<*>? = null
+        captureIndex { request = it }
         val saved = document()
 
         adapter.index(saved)
 
-        val bulk = requireNotNull(request)
-        assertThat(bulk.requireAlias()).isTrue()
-        assertThat(bulk.operations()).hasSize(1)
-        val operation = bulk.operations().single().index<Map<String, Any>>()
-        assertThat(operation.index()).isEqualTo("dev-saved_place")
-        assertThat(operation.id()).isEqualTo("7:10")
-        val payload = operation.document()
+        val req = requireNotNull(request)
+        assertThat(req.index()).isEqualTo("dev-saved_place")
+        assertThat(req.id()).isEqualTo("7:10")
+        assertThat(req.requireAlias()).isTrue()
+        assertThat(req.versionType()).isEqualTo(VersionType.External)
+        assertThat(req.version()).isEqualTo(saved.savedAt.toEpochMilli())
+        @Suppress("UNCHECKED_CAST")
+        val payload = req.document() as Map<String, Any?>
         assertThat(payload["userId"]).isEqualTo(7L)
         assertThat(payload["placeId"]).isEqualTo(10L)
         assertThat(payload["location"]).isEqualTo(mapOf("lat" to 37.544, "lon" to 127.056))
+        assertThat(payload["name"]).isEqualTo("어니언 성수")
+        assertThat(payload["rating"]).isEqualTo(4.8)
         assertThat(payload).doesNotContainKey("visited")
-        assertThat(payload["savedAt"]).isEqualTo(saved.savedAt.toEpochMilli())
     }
 
     @Test
@@ -89,7 +94,7 @@ class OpenSearchSavedPlaceIndexAdapterTest {
         `when`(provider.ifAvailable).thenReturn(client)
         doAnswer { throw RuntimeException("index unavailable") }
             .`when`(client)
-            .bulk(anyArg<Function<BulkRequest.Builder, ObjectBuilder<BulkRequest>>>())
+            .index(anyArg<Function<IndexRequest.Builder<Any>, ObjectBuilder<IndexRequest<Any>>>>())
 
         assertThatThrownBy { adapter.index(document()) }.isInstanceOf(RuntimeException::class.java)
     }
@@ -105,7 +110,7 @@ class OpenSearchSavedPlaceIndexAdapterTest {
     }
 
     @Test
-    fun `bulk 부분 실패는 확인하되 예외를 전파하지 않는다`() {
+    fun `배치 부분 실패는 확인하되 예외를 전파하지 않는다`() {
         `when`(provider.ifAvailable).thenReturn(client)
         val successful = mock(BulkResponseItem::class.java)
         val failed = mock(BulkResponseItem::class.java)
@@ -124,7 +129,7 @@ class OpenSearchSavedPlaceIndexAdapterTest {
     }
 
     @Test
-    fun `삭제는 prefix alias 에서 해당 사용자 장소 복합 ID 만 제거한다`() {
+    fun `삭제는 prefix alias 에서 복합 ID 를 external version(removedAt)으로 제거한다`() {
         `when`(provider.ifAvailable).thenReturn(client)
         var request: DeleteRequest? = null
         doAnswer { invocation ->
@@ -134,10 +139,13 @@ class OpenSearchSavedPlaceIndexAdapterTest {
             null
         }.`when`(client).delete(anyArg<Function<DeleteRequest.Builder, ObjectBuilder<DeleteRequest>>>())
 
-        adapter.delete(7L, 10L)
+        adapter.delete(7L, 10L, 5000L)
 
-        assertThat(requireNotNull(request).index()).isEqualTo("dev-saved_place")
-        assertThat(requireNotNull(request).id()).isEqualTo("7:10")
+        val req = requireNotNull(request)
+        assertThat(req.index()).isEqualTo("dev-saved_place")
+        assertThat(req.id()).isEqualTo("7:10")
+        assertThat(req.versionType()).isEqualTo(VersionType.External)
+        assertThat(req.version()).isEqualTo(5000L)
     }
 
     @Test
@@ -147,7 +155,16 @@ class OpenSearchSavedPlaceIndexAdapterTest {
             .`when`(client)
             .delete(anyArg<Function<DeleteRequest.Builder, ObjectBuilder<DeleteRequest>>>())
 
-        assertThatThrownBy { adapter.delete(7L, 10L) }.isInstanceOf(RuntimeException::class.java)
+        assertThatThrownBy { adapter.delete(7L, 10L, 5000L) }.isInstanceOf(RuntimeException::class.java)
+    }
+
+    private fun captureIndex(capture: (IndexRequest<*>) -> Unit) {
+        doAnswer { invocation ->
+            @Suppress("UNCHECKED_CAST")
+            val fn = invocation.arguments[0] as Function<IndexRequest.Builder<Any>, ObjectBuilder<IndexRequest<Any>>>
+            capture(fn.apply(IndexRequest.Builder()).build())
+            mock(IndexResponse::class.java)
+        }.`when`(client).index(anyArg<Function<IndexRequest.Builder<Any>, ObjectBuilder<IndexRequest<Any>>>>())
     }
 
     private fun captureBulk(capture: (BulkRequest) -> Unit) {

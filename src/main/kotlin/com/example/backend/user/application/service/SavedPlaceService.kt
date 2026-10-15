@@ -16,6 +16,7 @@ import com.example.backend.user.domain.model.SavedPlaceCategory
 import org.springframework.context.ApplicationEventPublisher
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
+import java.time.Instant
 
 /**
  * 장소 저장 유스케이스 — 저장·저장 취소와 저장 장소 조회를 함께 담당한다.
@@ -78,7 +79,8 @@ class SavedPlaceService(
     ) {
         savedPlacePersistencePort.deleteByUserAndPlace(userId, placeId)
         // 이미 삭제된 DB 행이어도 이전 색인 삭제 실패를 복구할 수 있도록 멱등 이벤트를 발행한다.
-        eventPublisher.publishEvent(SavedPlaceRemovedEvent(userId, placeId))
+        // removedAt(지금)을 external version 으로 실어, 늦게 도착한 과거 save 색인이 이 삭제를 덮어쓰지 못하게 한다.
+        eventPublisher.publishEvent(SavedPlaceRemovedEvent(userId, placeId, Instant.now()))
     }
 
     override fun getSavedPlaces(command: SavedPlacesCommand): SavedPlacesResult {
