@@ -48,7 +48,8 @@ class TmapPedestrianAdapterTest {
         val route = adapter.walkingRoute(from, to)
 
         server.verify()
-        assertEquals(PedestrianRoute.Reachable(540), route)
+        assertEquals(540, (route as PedestrianRoute.Reachable).seconds)
+        assertEquals(720, route.distanceMeters)
     }
 
     @Test
