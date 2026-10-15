@@ -1,0 +1,16 @@
+{
+  "settings": {},
+  "mappings": {
+    "properties": {
+      "userId": { "type": "long" },
+      "placeId": { "type": "long" },
+      "location": { "type": "geo_point" },
+      "savedAt": { "type": "date" },
+      "name": { "type": "keyword", "index": false },
+      "category": { "type": "keyword", "index": false },
+      "imageUrl": { "type": "keyword", "index": false },
+      "rating": { "type": "double", "index": false },
+      "ratingCount": { "type": "long", "index": false }
+    }
+  }
+}

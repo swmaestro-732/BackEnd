@@ -3,6 +3,8 @@ package com.example.backend.user.application.service
 import com.example.backend.common.exception.BusinessException
 import com.example.backend.common.response.CommonErrorCode
 import com.example.backend.common.response.PlaceErrorCode
+import com.example.backend.user.application.event.SavedPlaceIndexedEvent
+import com.example.backend.user.application.event.SavedPlaceRemovedEvent
 import com.example.backend.user.application.port.inbound.SavedPlaceUseCase
 import com.example.backend.user.application.port.inbound.dto.SavedPlaceRef
 import com.example.backend.user.application.port.inbound.dto.SavedPlacesCommand
@@ -11,8 +13,10 @@ import com.example.backend.user.application.port.outbound.PlaceAccessPort
 import com.example.backend.user.application.port.outbound.SavedPlacePersistencePort
 import com.example.backend.user.domain.model.SavedPlace
 import com.example.backend.user.domain.model.SavedPlaceCategory
+import org.springframework.context.ApplicationEventPublisher
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
+import java.time.Instant
 
 /**
  * 장소 저장 유스케이스 — 저장·저장 취소와 저장 장소 조회를 함께 담당한다.
@@ -31,6 +35,7 @@ import org.springframework.transaction.annotation.Transactional
 class SavedPlaceService(
     private val savedPlacePersistencePort: SavedPlacePersistencePort,
     private val placeAccessPort: PlaceAccessPort,
+    private val eventPublisher: ApplicationEventPublisher,
 ) : SavedPlaceUseCase {
     @Transactional
     override fun save(
@@ -48,7 +53,23 @@ class SavedPlaceService(
         // 장소 카테고리 스냅샷 — SavedPlaceCategory 는 PlaceCategory 의 사본 enum 이라 이름으로 매핑한다(모르는 값은 미분류 null).
         val category = SavedPlaceCategory.entries.find { it.name == place.category }
         // 예전에 저장했다 취소한 장소면 그때 소프트 삭제된 행을 지우고 새로 발행한다(행을 쌓지 않는다).
-        return savedPlacePersistencePort.insert(userId, placeId, category)
+        val saved = savedPlacePersistencePort.insert(userId, placeId, category)
+        eventPublisher.publishEvent(
+            SavedPlaceIndexedEvent(
+                userId = saved.userId,
+                placeId = saved.placeId,
+                location = place.location,
+                savedAt = saved.savedAt,
+                name = place.name,
+                category = place.category,
+                imageUrl = place.imageUrl,
+                rating = place.rating,
+                ratingCount = place.ratingCount,
+            ),
+        )
+        // visited 는 색인하지 않고 조회 시 DB 에서 읽는다. 이름/카테고리/이미지/평점은 저장 시점 스냅샷으로 색인에 중복 저장한다
+        //  — 홈 근처 조회가 ES 결과만으로 카드를 그려 DB 왕복을 없앤다. 평점은 가변이지만 지금은 스냅샷(실시간 신선도는 후속 Redis).
+        return saved
     }
 
     @Transactional
@@ -57,6 +78,9 @@ class SavedPlaceService(
         placeId: Long,
     ) {
         savedPlacePersistencePort.deleteByUserAndPlace(userId, placeId)
+        // 이미 삭제된 DB 행이어도 이전 색인 삭제 실패를 복구할 수 있도록 멱등 이벤트를 발행한다.
+        // removedAt(지금)을 external version 으로 실어, 늦게 도착한 과거 save 색인이 이 삭제를 덮어쓰지 못하게 한다.
+        eventPublisher.publishEvent(SavedPlaceRemovedEvent(userId, placeId, Instant.now()))
     }
 
     override fun getSavedPlaces(command: SavedPlacesCommand): SavedPlacesResult {
@@ -104,6 +128,12 @@ class SavedPlaceService(
     }
 
     override fun listSavedPlaceRefs(userId: Long): List<SavedPlaceRef> = savedPlacePersistencePort.findAllRefs(userId)
+
+    override fun findVisited(
+        userId: Long,
+        placeIds: List<Long>,
+    ): Map<Long, Boolean> =
+        if (placeIds.isEmpty()) emptyMap() else savedPlacePersistencePort.findVisitedByPlaceIds(userId, placeIds)
 
     /** 커서(=저장 레코드 id)를 파싱한다. 형식이 잘못되면 400. */
     private fun decodeCursor(cursor: String): Long =

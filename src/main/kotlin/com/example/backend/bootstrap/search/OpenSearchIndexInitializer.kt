@@ -56,6 +56,11 @@ class OpenSearchIndexInitializer(
                 index = properties.withPrefix("course_v2"),
                 mappingResource = "opensearch/course.json",
             ),
+            IndexDef(
+                alias = properties.withPrefix("saved_place"),
+                index = properties.withPrefix("saved_place_v1"),
+                mappingResource = "opensearch/saved_place.json",
+            ),
         )
 
     override fun run(args: ApplicationArguments) {
