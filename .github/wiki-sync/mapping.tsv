@@ -13,6 +13,7 @@
 */src/main/kotlin/com/example/backend/bootstrap/search/*	backend/search.md
 */src/main/kotlin/com/example/backend/bootstrap/config/OpenSearch*	backend/search.md
 */src/main/kotlin/com/example/backend/area/*	backend/area.md
+settings.gradle.kts	backend/architecture.md
 *build.gradle.kts	backend/README.md
 buildSrc/*	backend/README.md
 gradle/libs.versions.toml	backend/README.md
