@@ -23,7 +23,8 @@ class DirectionServiceTest {
         ): PedestrianRoute = routeByPair[from to to] ?: PedestrianRoute.Unknown
     }
 
-    private fun reachable(seconds: Int) = PedestrianRoute.Reachable(seconds)
+    private fun reachable(seconds: Int) =
+        PedestrianRoute.Reachable(seconds = seconds, distanceMeters = 0, path = emptyList(), guides = emptyList())
 
     @Test
     fun `초를 분으로 올림 변환한다`() {
