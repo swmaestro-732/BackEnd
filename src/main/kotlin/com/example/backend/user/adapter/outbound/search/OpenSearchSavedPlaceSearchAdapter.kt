@@ -41,8 +41,11 @@ class OpenSearchSavedPlaceSearchAdapter(
                     .Builder()
                     .index(indexAlias)
                     .size(size)
-                    .source { it.filter { f -> f.includes("placeId") } }
-                    .query { q ->
+                    .source {
+                        it.filter { f ->
+                            f.includes("placeId", "name", "category", "imageUrl", "rating", "ratingCount")
+                        }
+                    }.query { q ->
                         q.bool { b ->
                             b
                                 .filter { f -> f.term { t -> t.field("userId").value(FieldValue.of(userId)) } }
@@ -73,8 +76,19 @@ class OpenSearchSavedPlaceSearchAdapter(
             response.hits().hits().map { hit ->
                 val source = checkNotNull(hit.source()).toJson().asJsonObject()
                 NearbySavedHit(
-                    source.getJsonNumber("placeId").longValue(),
-                    hit.sort().first().toDouble(),
+                    placeId = source.getJsonNumber("placeId").longValue(),
+                    distanceMeters = hit.sort().first().toDouble(),
+                    name = source.getString("name"),
+                    category = source.getString("category"),
+                    imageUrl =
+                        source
+                            .takeIf {
+                                it.containsKey(
+                                    "imageUrl",
+                                ) && !it.isNull("imageUrl")
+                            }?.getString("imageUrl"),
+                    rating = source.getJsonNumber("rating").doubleValue(),
+                    ratingCount = source.getJsonNumber("ratingCount").intValue(),
                 )
             }
         } catch (e: Exception) {

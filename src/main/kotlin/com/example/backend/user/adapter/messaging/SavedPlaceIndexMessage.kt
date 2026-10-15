@@ -14,6 +14,11 @@ data class SavedPlaceIndexMessage(
     val lat: Double? = null,
     val lon: Double? = null,
     val savedAtEpochMs: Long? = null,
+    val name: String? = null,
+    val category: String? = null,
+    val imageUrl: String? = null,
+    val rating: Double? = null,
+    val ratingCount: Int? = null,
 ) {
     companion object {
         const val OP_INDEX = "INDEX"

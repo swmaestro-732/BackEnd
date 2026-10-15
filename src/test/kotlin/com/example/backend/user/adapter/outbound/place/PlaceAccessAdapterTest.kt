@@ -19,7 +19,10 @@ class PlaceAccessAdapterTest {
     fun `장소 조회는 카테고리와 위경도를 user 소유 DTO로 변환한다`() {
         `when`(query.findPlacesById(listOf(42L))).thenReturn(listOf(place(42L, 37.51, 127.02)))
 
-        assertEquals(PlaceRef(42L, "CAFE", Coordinate(37.51, 127.02)), adapter.findPlace(42L))
+        assertEquals(
+            PlaceRef(42L, "장소 42", "CAFE", null, Coordinate(37.51, 127.02), 0.0, 0),
+            adapter.findPlace(42L),
+        )
         verify(query).findPlacesById(listOf(42L))
     }
 
@@ -37,8 +40,8 @@ class PlaceAccessAdapterTest {
 
         assertEquals(
             listOf(
-                PlaceRef(44L, "CAFE", Coordinate(37.53, 127.04)),
-                PlaceRef(42L, "CAFE", Coordinate(37.51, 127.02)),
+                PlaceRef(44L, "장소 44", "CAFE", null, Coordinate(37.53, 127.04), 0.0, 0),
+                PlaceRef(42L, "장소 42", "CAFE", null, Coordinate(37.51, 127.02), 0.0, 0),
             ),
             adapter.findPlaces(listOf(42L, 43L, 44L)),
         )

@@ -25,11 +25,26 @@ class SavedPlaceIndexSqsConsumerTest {
                 lat = 37.51,
                 lon = 127.02,
                 savedAtEpochMs = Instant.parse("2026-10-11T08:00:00Z").toEpochMilli(),
+                name = "어니언 성수",
+                category = "CAFE",
+                imageUrl = "https://img/42.jpg",
+                rating = 4.8,
+                ratingCount = 212,
             ),
         )
 
         verify(port).index(
-            SavedPlaceIndexDocument(7L, 42L, Coordinate(37.51, 127.02), Instant.parse("2026-10-11T08:00:00Z")),
+            SavedPlaceIndexDocument(
+                userId = 7L,
+                placeId = 42L,
+                location = Coordinate(37.51, 127.02),
+                savedAt = Instant.parse("2026-10-11T08:00:00Z"),
+                name = "어니언 성수",
+                category = "CAFE",
+                imageUrl = "https://img/42.jpg",
+                rating = 4.8,
+                ratingCount = 212,
+            ),
         )
     }
 

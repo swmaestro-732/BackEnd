@@ -19,6 +19,14 @@ class PlaceAccessAdapter(
 
     override fun findPlaces(placeIds: List<Long>): List<PlaceRef> =
         placeQueryUseCase.findPlacesById(placeIds).map {
-            PlaceRef(id = it.id, category = it.category, location = Coordinate(it.latitude, it.longitude))
+            PlaceRef(
+                id = it.id,
+                name = it.name,
+                category = it.category,
+                imageUrl = it.imageUrl,
+                location = Coordinate(it.latitude, it.longitude),
+                rating = it.rating,
+                ratingCount = it.ratingCount,
+            )
         }
 }

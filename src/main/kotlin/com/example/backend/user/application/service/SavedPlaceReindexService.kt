@@ -30,10 +30,15 @@ class SavedPlaceReindexService(
                 batch.mapNotNull { saved ->
                     places[saved.placeId]?.let { place ->
                         SavedPlaceIndexDocument(
-                            saved.userId,
-                            saved.placeId,
-                            place.location,
-                            saved.savedAt,
+                            userId = saved.userId,
+                            placeId = saved.placeId,
+                            location = place.location,
+                            savedAt = saved.savedAt,
+                            name = place.name,
+                            category = place.category,
+                            imageUrl = place.imageUrl,
+                            rating = place.rating,
+                            ratingCount = place.ratingCount,
                         )
                     }
                 }

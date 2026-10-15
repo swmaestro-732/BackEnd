@@ -169,6 +169,11 @@ class OpenSearchSavedPlaceIndexAdapterTest {
         placeId = placeId,
         location = Coordinate(37.544, 127.056),
         savedAt = Instant.parse("2026-10-11T08:00:00Z"),
+        name = "어니언 성수",
+        category = "CAFE",
+        imageUrl = "https://img/$placeId.jpg",
+        rating = 4.8,
+        ratingCount = 212,
     )
 }
 

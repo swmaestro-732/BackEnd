@@ -19,10 +19,16 @@ interface PlaceAccessPort {
 
 /**
  * user 소유 DTO — place 도메인 타입(place 의 PlaceSummary)이 코어 경계 밖으로 새지 않게 한다.
- * user 가 실제로 쓰는 필드만 담는다: 존재 검증([id]) + 저장 시 복사하는 카테고리 스냅샷([category]) + 검색 색인 좌표([location]).
+ * 존재 검증([id]) + 저장 시 복사하는 카테고리 스냅샷([category]) + 검색 색인 좌표([location]) +
+ * saved_place 색인에 중복 저장하는 표시용 정적 정보([name]/[imageUrl]) 및 평점 스냅샷([rating]/[ratingCount]).
+ * 평점은 가변이지만 지금은 저장/재색인 시점 스냅샷으로 둔다(실시간 신선도는 후속 Redis 트랙).
  */
 data class PlaceRef(
     val id: Long,
+    val name: String,
     val category: String,
+    val imageUrl: String?,
     val location: Coordinate,
+    val rating: Double,
+    val ratingCount: Int,
 )

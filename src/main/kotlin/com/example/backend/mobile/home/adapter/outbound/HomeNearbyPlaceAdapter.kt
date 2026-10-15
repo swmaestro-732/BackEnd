@@ -3,20 +3,19 @@ package com.example.backend.mobile.home.adapter.outbound
 import com.example.backend.common.geo.Coordinate
 import com.example.backend.mobile.home.application.port.outbound.HomeNearbyPlacePort
 import com.example.backend.mobile.home.application.port.outbound.dto.HomeNearbyPlace
-import com.example.backend.place.application.port.inbound.PlaceQueryUseCase
 import com.example.backend.user.application.port.inbound.SavedPlaceSearchQueryPort
 import com.example.backend.user.application.port.inbound.SavedPlaceUseCase
 import org.springframework.stereotype.Component
 
 /**
- * OS 에서 사용자·반경 내 저장 장소를 랭킹하고(거리순), 결과 ID 만 DB 에서 조회해 최신 상세를 합친다.
- * 장소 상세(이름/평점)는 place 도메인에서, 방문 여부는 user 도메인(saved_places)에서 신선하게 읽는다 — 둘 다 상위 결과만.
+ * OS 에서 사용자·반경 내 저장 장소를 랭킹하고(거리순), 표시용 정보(이름/카테고리/이미지/평점)는 색인에 중복 저장된 값을 그대로 쓴다 — DB 왕복 없음.
+ * 방문 여부(visited)만 가변 관계라 user 도메인(saved_places)에서 상위 결과만 작은 쿼리로 읽어 합친다.
+ * 평점은 저장/재색인 시점 스냅샷이라 잠깐 스테일할 수 있다(실시간 신선도는 후속 Redis 트랙). 삭제된 장소는 재색인/저장 취소로 정리된다.
  */
 @Component
 class HomeNearbyPlaceAdapter(
     private val savedPlaceSearchQueryPort: SavedPlaceSearchQueryPort,
     private val savedPlaceUseCase: SavedPlaceUseCase,
-    private val placeQueryUseCase: PlaceQueryUseCase,
 ) : HomeNearbyPlacePort {
     override fun findNearbySavedPlaces(
         userId: Long,
@@ -26,23 +25,18 @@ class HomeNearbyPlaceAdapter(
     ): List<HomeNearbyPlace> {
         val hits = savedPlaceSearchQueryPort.nearestSaved(userId, origin, radiusMeters, limit)
         if (hits.isEmpty()) return emptyList()
-        val placeIds = hits.map { it.placeId }
-        val places = placeQueryUseCase.findPlacesById(placeIds).associateBy { it.id }
-        val visitedByPlace = savedPlaceUseCase.findVisited(userId, placeIds)
-        // DB 조회 순서와 무관하게 OS 거리순을 보존한다. DB 에서 삭제된 장소는 제외한다.
-        return hits.mapNotNull { hit ->
-            places[hit.placeId]?.let { place ->
-                HomeNearbyPlace(
-                    placeId = place.id,
-                    name = place.name,
-                    imageUrl = place.imageUrl,
-                    category = place.category,
-                    rating = place.rating,
-                    ratingCount = place.ratingCount,
-                    distanceMeters = hit.distanceMeters,
-                    visited = visitedByPlace[place.id] ?: false,
-                )
-            }
+        val visitedByPlace = savedPlaceUseCase.findVisited(userId, hits.map { it.placeId })
+        return hits.map { hit ->
+            HomeNearbyPlace(
+                placeId = hit.placeId,
+                name = hit.name,
+                imageUrl = hit.imageUrl,
+                category = hit.category,
+                rating = hit.rating,
+                ratingCount = hit.ratingCount,
+                distanceMeters = hit.distanceMeters,
+                visited = visitedByPlace[hit.placeId] ?: false,
+            )
         }
     }
 }

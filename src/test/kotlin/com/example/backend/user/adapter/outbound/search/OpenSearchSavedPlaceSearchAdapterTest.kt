@@ -43,7 +43,8 @@ class OpenSearchSavedPlaceSearchAdapterTest {
         val request = capturedRequest()
         assertThat(request.index()).containsExactly("dev-saved_place")
         assertThat(request.size()).isEqualTo(2)
-        assertThat(request.source()!!.filter().includes()).containsExactly("placeId")
+        assertThat(request.source()!!.filter().includes())
+            .containsExactly("placeId", "name", "category", "imageUrl", "rating", "ratingCount")
         val filters = request.query()!!.bool().filter()
         assertThat(filters).hasSize(2)
         val userFilter = filters.single { it.isTerm }.term()
@@ -91,6 +92,11 @@ class OpenSearchSavedPlaceSearchAdapterTest {
 
         assertThat(hits.map { it.placeId }).containsExactly(20L, 10L)
         assertThat(hits.map { it.distanceMeters }).containsExactly(152.7, 830.1)
+        assertThat(hits.map { it.name }).containsExactly("장소 20", "장소 10")
+        assertThat(hits.map { it.category }).containsExactly("CAFE", "CAFE")
+        assertThat(hits.map { it.imageUrl }).containsExactly("https://img/20.jpg", "https://img/10.jpg")
+        assertThat(hits.map { it.rating }).containsExactly(4.8, 4.8)
+        assertThat(hits.map { it.ratingCount }).containsExactly(212, 212)
     }
 
     @Test
@@ -168,8 +174,19 @@ class OpenSearchSavedPlaceSearchAdapterTest {
             .Builder<JsonData>()
             .index("saved_place")
             .id("7:$placeId")
-            .source(JsonData.of(mapOf("placeId" to placeId), JacksonJsonpMapper()))
-            .sort(listOf(distance, "0"))
+            .source(
+                JsonData.of(
+                    mapOf(
+                        "placeId" to placeId,
+                        "name" to "장소 $placeId",
+                        "category" to "CAFE",
+                        "imageUrl" to "https://img/$placeId.jpg",
+                        "rating" to 4.8,
+                        "ratingCount" to 212,
+                    ),
+                    JacksonJsonpMapper(),
+                ),
+            ).sort(listOf(distance, "0"))
             .build()
 
     private fun response(

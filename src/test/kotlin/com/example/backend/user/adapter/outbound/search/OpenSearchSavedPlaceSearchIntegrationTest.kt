@@ -47,7 +47,17 @@ class OpenSearchSavedPlaceSearchIntegrationTest
                     .mappings()
                     .properties()
 
-            assertThat(fields.keys).containsExactlyInAnyOrder("userId", "placeId", "location", "savedAt")
+            assertThat(fields.keys).containsExactlyInAnyOrder(
+                "userId",
+                "placeId",
+                "location",
+                "savedAt",
+                "name",
+                "category",
+                "imageUrl",
+                "rating",
+                "ratingCount",
+            )
             assertThat(fields.getValue("location").isGeoPoint).isTrue()
             assertThat(fields.getValue("savedAt").isDate).isTrue()
         }
@@ -68,6 +78,12 @@ class OpenSearchSavedPlaceSearchIntegrationTest
             assertThat(nearest.map { it.distanceMeters }).isSorted()
             assertThat(nearest.first().distanceMeters).isBetween(100.0, 120.0)
             assertThat(nearest.last().distanceMeters).isBetween(540.0, 570.0)
+            // 표시용 정적 정보는 색인에 중복 저장된 값을 그대로 돌려준다(DB 조회 없음).
+            assertThat(nearest.first().name).isEqualTo("장소 20")
+            assertThat(nearest.first().category).isEqualTo("CAFE")
+            assertThat(nearest.first().imageUrl).isEqualTo("https://img/20.jpg")
+            assertThat(nearest.first().rating).isEqualTo(4.8)
+            assertThat(nearest.first().ratingCount).isEqualTo(212)
             val allWithinRadius = queryPort.nearestSaved(7L, origin, radiusMeters = 2000.0, size = 10)
             assertThat(allWithinRadius.map { it.placeId }).containsExactly(20L, 10L, 30L)
             assertThat(allWithinRadius.all { it.distanceMeters <= 2000.0 }).isTrue()
@@ -129,6 +145,11 @@ class OpenSearchSavedPlaceSearchIntegrationTest
             placeId = placeId,
             location = Coordinate(latitude, origin.longitude),
             savedAt = Instant.parse("2026-10-11T08:00:00Z"),
+            name = "장소 $placeId",
+            category = "CAFE",
+            imageUrl = "https://img/$placeId.jpg",
+            rating = 4.8,
+            ratingCount = 212,
         )
 
         companion object {

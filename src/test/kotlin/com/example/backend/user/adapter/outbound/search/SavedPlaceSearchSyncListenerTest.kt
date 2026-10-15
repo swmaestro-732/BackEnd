@@ -67,6 +67,11 @@ class SavedPlaceSearchSyncListenerTest {
                 placeId = 42L,
                 location = Coordinate(latitude = 37.51, longitude = 127.02),
                 savedAt = Instant.parse("2026-10-11T08:00:00Z"),
+                name = "어니언 성수",
+                category = "CAFE",
+                imageUrl = "https://img/42.jpg",
+                rating = 4.8,
+                ratingCount = 212,
             ),
         )
 
@@ -77,6 +82,11 @@ class SavedPlaceSearchSyncListenerTest {
                     placeId = 42L,
                     location = Coordinate(latitude = 37.51, longitude = 127.02),
                     savedAt = Instant.parse("2026-10-11T08:00:00Z"),
+                    name = "어니언 성수",
+                    category = "CAFE",
+                    imageUrl = "https://img/42.jpg",
+                    rating = 4.8,
+                    ratingCount = 212,
                 ),
             ),
             indexedDocuments,
@@ -95,8 +105,7 @@ class SavedPlaceSearchSyncListenerTest {
     @Test
     fun `동기 색인이 실패하면 같은 문서를 폴백 큐로 넘긴다`() {
         failIndex = true
-        val event =
-            SavedPlaceIndexedEvent(7L, 42L, Coordinate(37.51, 127.02), Instant.parse("2026-10-11T08:00:00Z"))
+        val event = savedEvent()
 
         listener.onSavedPlaceIndexed(event)
 
@@ -104,10 +113,15 @@ class SavedPlaceSearchSyncListenerTest {
         assertEquals(
             listOf(
                 SavedPlaceIndexDocument(
-                    7L,
-                    42L,
-                    Coordinate(37.51, 127.02),
-                    Instant.parse("2026-10-11T08:00:00Z"),
+                    userId = 7L,
+                    placeId = 42L,
+                    location = Coordinate(37.51, 127.02),
+                    savedAt = Instant.parse("2026-10-11T08:00:00Z"),
+                    name = "성수 카페",
+                    category = "CAFE",
+                    imageUrl = null,
+                    rating = 4.5,
+                    ratingCount = 100,
                 ),
             ),
             fallbackIndexed,
@@ -176,7 +190,17 @@ class SavedPlaceSearchSyncListenerTest {
         }
 
     private fun savedEvent() =
-        SavedPlaceIndexedEvent(7L, 42L, Coordinate(37.51, 127.02), Instant.parse("2026-10-11T08:00:00Z"))
+        SavedPlaceIndexedEvent(
+            userId = 7L,
+            placeId = 42L,
+            location = Coordinate(37.51, 127.02),
+            savedAt = Instant.parse("2026-10-11T08:00:00Z"),
+            name = "성수 카페",
+            category = "CAFE",
+            imageUrl = null,
+            rating = 4.5,
+            ratingCount = 100,
+        )
 
     private fun transactionTemplate(): TransactionTemplate =
         TransactionTemplate(

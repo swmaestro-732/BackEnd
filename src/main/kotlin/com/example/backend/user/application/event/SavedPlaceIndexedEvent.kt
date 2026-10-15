@@ -9,4 +9,9 @@ data class SavedPlaceIndexedEvent(
     val placeId: Long,
     val location: Coordinate,
     val savedAt: Instant,
+    val name: String,
+    val category: String,
+    val imageUrl: String?,
+    val rating: Double,
+    val ratingCount: Int,
 )

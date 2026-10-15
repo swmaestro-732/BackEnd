@@ -42,7 +42,17 @@ class SavedPlaceServiceTest {
 
             override fun findPlace(placeId: Long): PlaceRef? {
                 requestedPlaceIds += placeId
-                return places[placeId]?.let { PlaceRef(id = placeId, category = it, location = location) }
+                return places[placeId]?.let {
+                    PlaceRef(
+                        id = placeId,
+                        name = "장소 $placeId",
+                        category = it,
+                        imageUrl = null,
+                        location = location,
+                        rating = 0.0,
+                        ratingCount = 0,
+                    )
+                }
             }
 
             override fun findPlaces(placeIds: List<Long>): List<PlaceRef> = placeIds.mapNotNull(::findPlace)
@@ -183,7 +193,19 @@ class SavedPlaceServiceTest {
         assertEquals(SavedPlaceCategory.RESTAURANT, result.category)
         assertFalse(result.visited) // 저장 직후는 미방문
         assertEquals(
-            listOf(SavedPlaceIndexedEvent(1L, 42L, location, Instant.parse("2026-08-13T00:00:00Z"))),
+            listOf(
+                SavedPlaceIndexedEvent(
+                    userId = 1L,
+                    placeId = 42L,
+                    location = location,
+                    savedAt = Instant.parse("2026-08-13T00:00:00Z"),
+                    name = "장소 42",
+                    category = "RESTAURANT",
+                    imageUrl = null,
+                    rating = 0.0,
+                    ratingCount = 0,
+                ),
+            ),
             publishedEvents,
         )
     }
@@ -196,7 +218,22 @@ class SavedPlaceServiceTest {
 
         service.save(userId = 1L, placeId = 42L)
 
-        assertEquals(listOf(SavedPlaceIndexedEvent(1L, 42L, location, savedAt)), publishedEvents)
+        assertEquals(
+            listOf(
+                SavedPlaceIndexedEvent(
+                    userId = 1L,
+                    placeId = 42L,
+                    location = location,
+                    savedAt = savedAt,
+                    name = "장소 42",
+                    category = "CAFE",
+                    imageUrl = null,
+                    rating = 0.0,
+                    ratingCount = 0,
+                ),
+            ),
+            publishedEvents,
+        )
     }
 
     @Test

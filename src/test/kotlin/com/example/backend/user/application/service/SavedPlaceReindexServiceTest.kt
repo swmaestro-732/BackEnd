@@ -64,8 +64,8 @@ class SavedPlaceReindexServiceTest {
         assertEquals((1L..102L).toList(), batches.flatten().map { it.placeId })
         assertEquals(
             listOf(
-                SavedPlaceIndexDocument(7L, 101L, location, savedAt),
-                SavedPlaceIndexDocument(7L, 102L, location, savedAt),
+                doc(101L),
+                doc(102L),
             ),
             batches.last(),
         )
@@ -108,7 +108,7 @@ class SavedPlaceReindexServiceTest {
 
         assertEquals(1, service.reindexAll())
 
-        assertEquals(listOf(listOf(SavedPlaceIndexDocument(7L, 101L, location, savedAt))), batches)
+        assertEquals(listOf(listOf(doc(101L))), batches)
     }
 
     @Test
@@ -134,5 +134,27 @@ class SavedPlaceReindexServiceTest {
             savedAt = savedAt,
         )
 
-    private fun place(id: Long) = PlaceRef(id, "CAFE", location)
+    private fun place(id: Long) =
+        PlaceRef(
+            id = id,
+            name = "장소 $id",
+            category = "CAFE",
+            imageUrl = null,
+            location = location,
+            rating = 0.0,
+            ratingCount = 0,
+        )
+
+    private fun doc(placeId: Long) =
+        SavedPlaceIndexDocument(
+            userId = 7L,
+            placeId = placeId,
+            location = location,
+            savedAt = savedAt,
+            name = "장소 $placeId",
+            category = "CAFE",
+            imageUrl = null,
+            rating = 0.0,
+            ratingCount = 0,
+        )
 }

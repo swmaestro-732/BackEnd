@@ -38,6 +38,11 @@ class SavedPlaceIndexSqsConsumer(
                                 longitude = requireNotNull(message.lon),
                             ),
                         savedAt = Instant.ofEpochMilli(requireNotNull(message.savedAtEpochMs)),
+                        name = requireNotNull(message.name),
+                        category = requireNotNull(message.category),
+                        imageUrl = message.imageUrl,
+                        rating = requireNotNull(message.rating),
+                        ratingCount = requireNotNull(message.ratingCount),
                     ),
                 )
             }

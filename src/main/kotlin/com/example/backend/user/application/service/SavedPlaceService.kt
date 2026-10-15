@@ -54,10 +54,20 @@ class SavedPlaceService(
         // 예전에 저장했다 취소한 장소면 그때 소프트 삭제된 행을 지우고 새로 발행한다(행을 쌓지 않는다).
         val saved = savedPlacePersistencePort.insert(userId, placeId, category)
         eventPublisher.publishEvent(
-            SavedPlaceIndexedEvent(saved.userId, saved.placeId, place.location, saved.savedAt),
+            SavedPlaceIndexedEvent(
+                userId = saved.userId,
+                placeId = saved.placeId,
+                location = place.location,
+                savedAt = saved.savedAt,
+                name = place.name,
+                category = place.category,
+                imageUrl = place.imageUrl,
+                rating = place.rating,
+                ratingCount = place.ratingCount,
+            ),
         )
-        // visited 는 색인하지 않는다 — 홈 근처 조회가 거리 랭킹(OS) 후 방문 여부를 DB 에서 읽으므로,
-        // 방문 처리 경로가 생겨도 색인 갱신(재색인 이벤트)이 필요 없다.
+        // visited 는 색인하지 않고 조회 시 DB 에서 읽는다. 이름/카테고리/이미지/평점은 저장 시점 스냅샷으로 색인에 중복 저장한다
+        //  — 홈 근처 조회가 ES 결과만으로 카드를 그려 DB 왕복을 없앤다. 평점은 가변이지만 지금은 스냅샷(실시간 신선도는 후속 Redis).
         return saved
     }
 
