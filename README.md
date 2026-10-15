@@ -24,10 +24,25 @@ docker compose up -d
 brew install pre-commit          # 또는 pip install pre-commit
 pre-commit install               # commit-msg·pre-commit 훅 자동 설치
 
-# 3) 실행 / 빌드
-./gradlew bootRun
-./gradlew build jacocoTestReport
+# 3) 실행 / 빌드 (멀티모듈 - 실행 산출물은 :app-api 모듈)
+./gradlew :app-api:bootRun
+./gradlew build jacocoTestReport        # 집계 커버리지 리포트: app-api/build/reports/jacoco/test/
 ```
+
+> 모듈 구조(기능 단위, 우아한형제들 기술블로그 "멀티모듈 설계 이야기" 계층): 의존은 위에서 아래로만 흐른다.
+>
+> | 모듈 | 계층 | 역할 | 원칙 |
+> |---|---|---|---|
+> | `:app-api` | 어플리케이션 | 실행 가능한 API 서버. 컨트롤러, BFF, 설정, RDB 외 어댑터(검색, S3, SQS, 외부 API), 전체 테스트 | 하위 모듈을 조립한다. 유일하게 bootJar 를 만든다 |
+> | `:client-opensearch` | 내부 | OpenSearch 연결 설정(basic, IAM), 검색용/색인용 클라이언트, 헬스체크 | 도메인과 서비스 비즈니스를 모른다 |
+> | `:domain-rds` | 도메인 | 모든 컨텍스트의 도메인 모델 + 유스케이스(포트, 서비스) + PostgreSQL 영속성 + Flyway 마이그레이션 | 책임지는 인프라는 RDB 하나. 웹, 보안, 검색, AWS 를 모른다 |
+> | `:common` | 공통 | 응답 엔벨로프, 에러 코드, 예외, 좌표, 공통 타입 | 외부 의존을 두지 않는다 |
+>
+> 도메인(user, course, place ...) 구분은 모듈이 아니라 **패키지**로 하고, 도메인 간 경계(상대 도메인의 inbound 포트만 참조 등)는 ArchUnit 이 지킨다. 실제로 서버를 나눠 띄우는 MSA 단계가 오면 그때 도메인 단위 모듈로 뗀다.
+>
+> 공통 빌드 규칙은 `buildSrc` 의 컨벤션 플러그인 `backend.kotlin-conventions`(JDK, Spring BOM, CVE 오버라이드, 컴파일 옵션, 테스트 env)가 담당하고, 라이브러리 의존은 각 모듈이 실제로 쓰는 것만 선언한다. 버전은 플러그인 포함 전부 `gradle/libs.versions.toml` 에서 관리한다.
+>
+> 모듈을 추가할 때는 네 곳을 함께 갱신한다: 새 모듈 `build.gradle.kts`, `settings.gradle.kts`(include), `Dockerfile`(build.gradle.kts/src COPY), `app-api/build.gradle.kts`(project 의존 + jacoco `coveredModules`).
 
 - 애플리케이션: `http://localhost:8080`
 - Swagger UI: `http://localhost:8080/swagger-ui.html`
@@ -96,7 +111,7 @@ feat/* ─▶ develop ─▶ main
 
 ## 5. 아키텍처 (DDD + 헥사고날, 모듈러 모놀리스)
 
-**멀티모듈은 쓰지 않고**, 도메인(bounded context)별로 패키지를 나눈 뒤 각 도메인 안을 헥사고날로 구성한다. 나중에 특정 도메인을 MSA로 떼기 쉽게(extraction-ready) 경계를 유지한다.
+멀티모듈은 기능 단위(위 2장 표)로만 나누고, 도메인(bounded context)은 패키지로 나눈 뒤 각 도메인 안을 헥사고날로 구성한다. 나중에 특정 도메인을 MSA로 떼기 쉽게(extraction-ready) 경계를 유지한다.
 
 ```text
 com.example.backend
