@@ -13,6 +13,7 @@ usage: diff_coverage.py <base_ref> <jacoco_xml> <threshold> [out_json]
 
 출력: 사람이 읽는 요약(stdout) + out_json(JSON). 임계 미달이면 exit 1.
 """
+import glob
 import json
 import re
 import subprocess
@@ -27,8 +28,10 @@ out_json = sys.argv[4] if len(sys.argv) > 4 else None
 
 def changed_lines_by_file(base):
     """git diff 로 변경 파일별 '새 파일 기준 추가/수정 라인번호 집합' 을 얻는다."""
+    # 멀티모듈: 모듈 경로(<module>/src/main/...)를 git pathspec 으로 잡기 까다로워 전체 diff 를 받고
+    # 아래에서 '/src/main/' 포함 경로만 필터한다(pathspec 글롭 경계 이슈 회피).
     diff = subprocess.run(
-        ["git", "diff", "--unified=0", "--no-color", f"{base}...HEAD", "--", "src/main"],
+        ["git", "diff", "--unified=0", "--no-color", f"{base}...HEAD"],
         capture_output=True, text=True, check=True,
     ).stdout
     files = {}
@@ -38,6 +41,8 @@ def changed_lines_by_file(base):
         if line.startswith("+++ "):
             p = line[4:].strip()
             cur = None if p == "/dev/null" else p[2:] if p.startswith("b/") else p
+            if cur is not None and "/src/main/" not in cur:
+                cur = None  # src/main 아래 파일만 대상(빌드 스크립트·테스트·리소스 제외)
         elif line.startswith("@@") and cur:
             m = hunk_re.match(line)
             if not m:
@@ -57,7 +62,10 @@ def jacoco_line_cov(xml):
     for pkg in root.iter("package"):
         pkg_name = pkg.get("name")  # com/example/backend/...
         for sf in pkg.findall("sourcefile"):
-            path = f"src/main/kotlin/{pkg_name}/{sf.get('name')}"
+            # 멀티모듈: 실제 파일은 <module>/src/main/kotlin/<pkg>/<file> 중 하나다. glob 으로 실제 경로를 찾는다.
+            rel = f"{pkg_name}/{sf.get('name')}"
+            matches = glob.glob(f"*/src/main/kotlin/{rel}")
+            path = matches[0] if matches else f"src/main/kotlin/{rel}"
             lines = {}
             for ln in sf.findall("line"):
                 lines[int(ln.get("nr"))] = int(ln.get("ci")) > 0
