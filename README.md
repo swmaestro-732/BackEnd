@@ -26,7 +26,7 @@ pre-commit install               # commit-msg·pre-commit 훅 자동 설치
 
 # 3) 실행 / 빌드
 ./gradlew bootRun
-./gradlew build jacocoTestReport
+./gradlew build testCodeCoverageReport
 ```
 
 - 애플리케이션: `http://localhost:8080`
@@ -77,7 +77,7 @@ feat/* ─▶ develop ─▶ main
 | 체크 | 내용 |
 |---|---|
 | ktlint | 포맷 검사 (ktlint 1.8.0) |
-| build & test | 빌드 + 테스트 + JaCoCo 커버리지 |
+| build & test | 빌드 + 테스트 + JaCoCo 커버리지 (전 모듈 합산 `testCodeCoverageReport`) |
 | diff coverage | 변경분(diff) 라인 커버리지 게이트 (임계 90%) |
 | architecture | ArchUnit 아키텍처 경계 규칙 (DB 불필요) |
 | opensearch integration test | OpenSearch 실연결 통합테스트 (Testcontainers) |
@@ -96,7 +96,18 @@ feat/* ─▶ develop ─▶ main
 
 ## 5. 아키텍처 (DDD + 헥사고날, 모듈러 모놀리스)
 
-**멀티모듈은 쓰지 않고**, 도메인(bounded context)별로 패키지를 나눈 뒤 각 도메인 안을 헥사고날로 구성한다. 나중에 특정 도메인을 MSA로 떼기 쉽게(extraction-ready) 경계를 유지한다.
+Gradle 모듈은 **계층(기술) 단위**로 나눈다. 위 계층만 아래 계층에 의존하며, 이 방향은 Gradle 의존으로 강제된다. 각 모듈의 역할은 모듈별 `README.md` 에 있다.
+
+| 계층 | 모듈 | 내용 |
+|---|---|---|
+| 어플리케이션 | `app-api` | 실행 모듈. 컨트롤러·BFF·접착 어댑터·통합 테스트 |
+| 내부 | `core-web`, `client-tmap`, `client-kakao`, `client-oauth`, `client-s3` | 웹 공통, 외부 API 클라이언트 (비즈니스 모름) |
+| 도메인 | `domain-rds` → `domain-search` | 도메인·유스케이스·RDS 영속 / OpenSearch 검색 |
+| 공통 | `common` | 순수 타입 (의존 없음) |
+
+빌드 공통 설정은 `buildSrc` 의 convention plugin(`backend.kotlin-conventions` 등), 버전은 `gradle/libs.versions.toml` 에서 관리한다.
+
+도메인(bounded context) 경계는 모듈이 아니라 **패키지**로 나누고 각 도메인 안을 헥사고날로 구성한다(아래 구조는 모든 모듈이 공유하는 패키지 체계). 나중에 특정 도메인을 MSA로 떼기 쉽게(extraction-ready) 경계를 유지하며, 이 경계는 ArchUnit(`archTest`)이 강제한다.
 
 ```text
 com.example.backend

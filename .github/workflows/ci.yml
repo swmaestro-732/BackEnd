@@ -32,7 +32,7 @@ jobs:
           curl -fsSLo ktlint "https://github.com/pinterest/ktlint/releases/download/${KTLINT_VERSION}/ktlint"
           chmod +x ktlint
           set +e
-          ./ktlint "src/**/*.kt" > ktlint.txt 2>&1
+          ./ktlint "**/src/**/*.kt" > ktlint.txt 2>&1
           echo "exit=$?" >> "$GITHUB_OUTPUT"
           cat ktlint.txt
           exit 0
@@ -78,7 +78,7 @@ jobs:
       - uses: gradle/actions/setup-gradle@v4
 
       - name: Build & test (+ coverage)
-        run: ./gradlew build jacocoTestReport --no-daemon
+        run: ./gradlew build testCodeCoverageReport --no-daemon
         env:
           SPRING_DATASOURCE_URL: jdbc:postgresql://localhost:5432/backend_test
           SPRING_DATASOURCE_USERNAME: test
@@ -88,7 +88,7 @@ jobs:
         if: always()
         run: |
           mkdir -p out
-          cp build/reports/jacoco/test/jacocoTestReport.xml out/jacoco.xml 2>/dev/null || true
+          cp app-api/build/reports/jacoco/testCodeCoverageReport/testCodeCoverageReport.xml out/jacoco.xml 2>/dev/null || true
 
       - name: Upload test result
         if: always()
