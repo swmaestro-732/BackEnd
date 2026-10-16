@@ -1,6 +1,5 @@
 package com.example.backend.media.application.service
 
-import com.example.backend.bootstrap.config.MediaProperties
 import com.example.backend.common.exception.BusinessException
 import com.example.backend.common.response.CommonErrorCode
 import com.example.backend.common.support.runAfterCommit
@@ -16,7 +15,6 @@ import java.util.UUID
 @Service
 class MediaService(
     private val mediaStoragePort: MediaStoragePort,
-    private val mediaProperties: MediaProperties,
 ) : PresignUploadUseCase,
     MediaCleanupUseCase {
     override fun presign(command: PresignCommand): List<PresignResult> =
@@ -39,7 +37,7 @@ class MediaService(
             CONTENT_TYPE_EXTENSIONS[contentType]
                 ?: throw BusinessException(CommonErrorCode.UNSUPPORTED_MEDIA_TYPE)
 
-        if (contentLength !in 1..mediaProperties.maxUploadBytes) {
+        if (contentLength !in 1..MAX_UPLOAD_BYTES) {
             throw BusinessException(CommonErrorCode.PAYLOAD_TOO_LARGE)
         }
 
@@ -53,11 +51,8 @@ class MediaService(
 
     override fun deleteByUrl(imageUrl: String?) {
         if (imageUrl.isNullOrBlank()) return
-        // 우리 CDN(cdnBaseUrl) 이 발급한 URL 만 삭제 대상 — 외부/목 URL 은 무시한다.
-        val prefix = mediaProperties.cdnBaseUrl.trimEnd('/') + "/"
-        if (!imageUrl.startsWith(prefix)) return
-        val key = imageUrl.removePrefix(prefix)
-        if (key.isBlank()) return
+        // 우리 CDN 이 발급한 URL 만 삭제 대상 — 외부/목 URL 은 무시한다.
+        val key = mediaStoragePort.keyOf(imageUrl) ?: return
 
         // 프로필 수정 등 트랜잭션 안에서 호출되면 커밋 성공 후에만 삭제한다(롤백 시 DB엔 옛 URL이
         // 남는데 S3만 지워지는 정합성 붕괴 방지). 삭제 자체는 fail-soft(어댑터에서 예외 무시).
@@ -65,6 +60,8 @@ class MediaService(
     }
 
     private companion object {
+        const val MAX_UPLOAD_BYTES = 10_485_760L
+
         val CONTENT_TYPE_EXTENSIONS =
             mapOf(
                 "image/jpeg" to "jpg",

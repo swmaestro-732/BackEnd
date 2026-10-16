@@ -1,11 +1,11 @@
 package com.example.backend.course.adapter.outbound.search
 
-import com.example.backend.bootstrap.config.OpenSearchProperties
 import com.example.backend.course.application.port.inbound.dto.CourseSearchSort
 import com.example.backend.course.application.port.outbound.CourseSearchCriteria
 import com.example.backend.course.application.port.outbound.CourseSearchPage
 import com.example.backend.course.application.port.outbound.CourseSearchQueryPort
 import com.example.backend.course.application.port.outbound.CourseSearchRow
+import com.example.backend.search.OpenSearchProperties
 import io.github.oshai.kotlinlogging.KotlinLogging
 import org.opensearch.client.opensearch.OpenSearchClient
 import org.opensearch.client.opensearch._types.FieldValue

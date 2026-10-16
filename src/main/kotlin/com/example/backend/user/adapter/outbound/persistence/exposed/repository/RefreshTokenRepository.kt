@@ -1,6 +1,5 @@
 package com.example.backend.user.adapter.outbound.persistence.exposed.repository
 
-import com.example.backend.bootstrap.security.JwtProperties
 import com.example.backend.user.adapter.outbound.persistence.exposed.RefreshTokenEntity
 import com.example.backend.user.adapter.outbound.persistence.exposed.RefreshTokenTable
 import com.example.backend.user.application.port.outbound.RefreshTokenRecord
@@ -9,9 +8,11 @@ import org.jetbrains.exposed.v1.core.eq
 import org.jetbrains.exposed.v1.core.greater
 import org.jetbrains.exposed.v1.jdbc.insert
 import org.jetbrains.exposed.v1.jdbc.update
+import org.springframework.beans.factory.annotation.Value
 import org.springframework.stereotype.Repository
 import java.security.MessageDigest
 import java.time.Clock
+import java.time.Duration
 import java.util.UUID
 import kotlin.time.toJavaInstant
 import kotlin.time.toKotlinInstant
@@ -19,12 +20,12 @@ import kotlin.time.toKotlinInstant
 /** refresh_tokens 테이블 접근 리포지토리 — 불투명 refresh token 을 발급하고 V4 refresh_tokens 에 저장·검증한다. */
 @Repository
 class RefreshTokenRepository(
-    private val jwtProperties: JwtProperties,
+    @param:Value("\${jwt.refresh-ttl}") private val refreshTtl: Duration,
     private val clock: Clock,
 ) {
     fun issue(userId: Long): String {
         val token = UUID.randomUUID().toString()
-        val expiresAt = clock.instant().plus(jwtProperties.refreshTtl).toKotlinInstant()
+        val expiresAt = clock.instant().plus(refreshTtl).toKotlinInstant()
         RefreshTokenTable.insert {
             it[RefreshTokenTable.userId] = userId
             it[RefreshTokenTable.tokenHash] = hash(token)

@@ -1,6 +1,5 @@
 package com.example.backend.media.application.service
 
-import com.example.backend.bootstrap.config.MediaProperties
 import com.example.backend.common.exception.BusinessException
 import com.example.backend.common.response.CommonErrorCode
 import com.example.backend.media.application.port.inbound.dto.PresignCommand
@@ -11,7 +10,6 @@ import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertThrows
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
-import java.time.Duration
 
 class MediaServiceTest {
     private val deletedKeys = mutableListOf<String>()
@@ -26,20 +24,15 @@ class MediaServiceTest {
 
             override fun publicUrl(key: String): String = "https://cdn.example.com/$key"
 
+            override fun keyOf(publicUrl: String): String? =
+                publicUrl.takeIf { it.startsWith("https://cdn.example.com/") }?.removePrefix("https://cdn.example.com/")
+
             override fun delete(key: String) {
                 deletedKeys.add(key)
             }
         }
 
-    private val mediaProperties =
-        MediaProperties(
-            bucket = "dummy-bucket",
-            cdnBaseUrl = "https://cdn.example.com",
-            presignTtl = Duration.ofMinutes(5),
-            maxUploadBytes = 10_485_760,
-        )
-
-    private val service = MediaService(fakePort, mediaProperties)
+    private val service = MediaService(fakePort)
 
     @Test
     fun `허용된 contentType이면 확장자를 매핑하고 profile 키 형식으로 발급한다`() {
@@ -111,7 +104,7 @@ class MediaServiceTest {
                             listOf(
                                 PresignItem(
                                     contentType = "image/jpeg",
-                                    contentLength = mediaProperties.maxUploadBytes + 1,
+                                    contentLength = 10_485_760L + 1,
                                 ),
                             ),
                     ),

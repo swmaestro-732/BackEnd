@@ -1,6 +1,7 @@
 package com.example.backend.direction.adapter.outbound.tmap
 
-import com.example.backend.bootstrap.config.TmapProperties
+import com.example.backend.client.tmap.TmapPedestrianClient
+import com.example.backend.client.tmap.TmapProperties
 import com.example.backend.common.geo.Coordinate
 import com.example.backend.direction.application.port.outbound.PedestrianRoute
 import org.hamcrest.Matchers.containsString
@@ -25,8 +26,10 @@ class TmapPedestrianAdapterTest {
         val server = MockRestServiceServer.bindTo(builder).build()
         val adapter =
             TmapPedestrianAdapter(
-                tmapRestClient = builder.build(),
-                tmapProperties = TmapProperties(appKey = appKey),
+                TmapPedestrianClient(
+                    tmapRestClient = builder.build(),
+                    tmapProperties = TmapProperties(appKey = appKey),
+                ),
             )
         return adapter to server
     }

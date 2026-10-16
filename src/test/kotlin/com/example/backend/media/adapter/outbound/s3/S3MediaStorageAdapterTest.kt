@@ -1,6 +1,7 @@
 package com.example.backend.media.adapter.outbound.s3
 
-import com.example.backend.bootstrap.config.MediaProperties
+import com.example.backend.client.s3.S3Properties
+import com.example.backend.client.s3.S3StorageClient
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
@@ -28,14 +29,14 @@ class S3MediaStorageAdapterTest {
             .credentialsProvider(StaticCredentialsProvider.create(AwsBasicCredentials.create("dummy", "dummy")))
             .build()
 
-    private val mediaProperties =
-        MediaProperties(
+    private val s3Properties =
+        S3Properties(
             bucket = "dummy-bucket",
             cdnBaseUrl = "https://cdn.example.com",
             presignTtl = Duration.ofMinutes(5),
         )
 
-    private val adapter = S3MediaStorageAdapter(s3Presigner, s3Client, mediaProperties)
+    private val adapter = S3MediaStorageAdapter(S3StorageClient(s3Presigner, s3Client, s3Properties))
 
     @Test
     fun `presignedPutUrl은 서명 쿼리 파라미터가 포함된 URL을 반환한다`() {

@@ -1,6 +1,5 @@
 package com.example.backend.place.adapter.outbound.search
 
-import com.example.backend.bootstrap.config.OpenSearchProperties
 import com.example.backend.common.exception.BusinessException
 import com.example.backend.common.geo.Coordinate
 import com.example.backend.common.response.PlaceErrorCode
@@ -12,6 +11,7 @@ import com.example.backend.place.application.port.outbound.PlaceMapSearchPort
 import com.example.backend.place.application.port.outbound.PlaceSearchCriteria
 import com.example.backend.place.application.port.outbound.PlaceSearchHits
 import com.example.backend.place.application.port.outbound.PlaceSearchQueryPort
+import com.example.backend.search.OpenSearchProperties
 import io.github.oshai.kotlinlogging.KotlinLogging
 import org.opensearch.client.json.JsonData
 import org.opensearch.client.opensearch.OpenSearchClient

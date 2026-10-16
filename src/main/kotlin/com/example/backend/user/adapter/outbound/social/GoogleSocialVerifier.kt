@@ -1,6 +1,6 @@
 package com.example.backend.user.adapter.outbound.social
 
-import com.example.backend.bootstrap.security.GoogleOauthProperties
+import com.example.backend.client.oauth.GoogleOauthProperties
 import com.example.backend.common.exception.BusinessException
 import com.example.backend.common.response.CommonErrorCode
 import com.example.backend.user.application.port.outbound.SocialIdentity

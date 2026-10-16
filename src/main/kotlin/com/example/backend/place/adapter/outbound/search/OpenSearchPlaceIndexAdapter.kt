@@ -1,9 +1,9 @@
 package com.example.backend.place.adapter.outbound.search
 
-import com.example.backend.bootstrap.config.OpenSearchConfig
-import com.example.backend.bootstrap.config.OpenSearchProperties
 import com.example.backend.place.application.port.outbound.PlaceSearchIndexPort
 import com.example.backend.place.domain.model.Place
+import com.example.backend.search.OpenSearchConfig
+import com.example.backend.search.OpenSearchProperties
 import io.github.oshai.kotlinlogging.KotlinLogging
 import org.opensearch.client.opensearch.OpenSearchClient
 import org.springframework.beans.factory.ObjectProvider

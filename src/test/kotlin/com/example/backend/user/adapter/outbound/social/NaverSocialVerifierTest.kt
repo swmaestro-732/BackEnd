@@ -1,5 +1,6 @@
 package com.example.backend.user.adapter.outbound.social
 
+import com.example.backend.client.oauth.NaverProfileClient
 import com.example.backend.common.exception.BusinessException
 import com.example.backend.common.response.CommonErrorCode
 import com.example.backend.user.domain.model.SocialProvider
@@ -24,7 +25,7 @@ import java.net.SocketTimeoutException
 class NaverSocialVerifierTest {
     private val builder = RestClient.builder().baseUrl("https://openapi.naver.com")
     private val server = MockRestServiceServer.bindTo(builder).build()
-    private val client = NaverSocialVerifier(builder.build())
+    private val client = NaverSocialVerifier(NaverProfileClient(builder.build()))
 
     @ParameterizedTest
     @ValueSource(strings = ["", " ", "token\rvalue", "token\nvalue", "token\u0000value"])

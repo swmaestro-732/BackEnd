@@ -1,9 +1,9 @@
 package com.example.backend.course.adapter.outbound.search
 
-import com.example.backend.bootstrap.config.OpenSearchProperties
 import com.example.backend.common.exception.BusinessException
 import com.example.backend.course.application.port.inbound.dto.CourseSearchSort
 import com.example.backend.course.application.port.outbound.CourseSearchCriteria
+import com.example.backend.search.OpenSearchProperties
 import org.assertj.core.api.Assertions.assertThat
 import org.assertj.core.api.Assertions.assertThatThrownBy
 import org.junit.jupiter.api.Test
