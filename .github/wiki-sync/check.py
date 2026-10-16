@@ -62,7 +62,7 @@ def build_targets() -> int:
                 hits.setdefault(doc, []).append(path)
                 matched = True
         # 매핑에 안 걸린 운영 코드 변경도 판정을 받게 한다(서비스 로직, 새 패키지 등이 조용히 빠지지 않게).
-        if not matched and path.startswith("src/main/"):
+        if not matched and "/src/main/" in path:
             hits.setdefault(UNMAPPED, []).append(path)
     rows = []
     for doc in sorted(hits):

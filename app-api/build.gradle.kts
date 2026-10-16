@@ -1,6 +1,6 @@
 plugins {
     id("backend.app-conventions")
-    jacoco
+    `jacoco-report-aggregation`
 }
 
 description = "Backend API 서버"
@@ -91,7 +91,6 @@ tasks.test {
         excludeTestsMatching("com.example.backend.architecture.*")
         excludeTestsMatching("*OpenSearch*IntegrationTest")
     }
-    finalizedBy(tasks.jacocoTestReport) // 테스트 후 커버리지 리포트 생성
 }
 
 // OpenSearch 실연결 통합테스트(Testcontainers 로 실제 OpenSearch 기동). build/check 에 연결하지 않아
@@ -114,8 +113,9 @@ tasks.register<Test>("archTest") {
     filter { includeTestsMatching("com.example.backend.architecture.*") }
 }
 
-tasks.jacocoTestReport {
-    dependsOn(tasks.test)
+// 커버리지 리포트 — app-api 가 의존하는 모든 모듈의 test 결과를 하나로 합친다(CI 커버리지 게이트 입력).
+// `./gradlew testCodeCoverageReport` → build/reports/jacoco/testCodeCoverageReport/testCodeCoverageReport.xml
+tasks.named<JacocoReport>("testCodeCoverageReport") {
     reports {
         xml.required.set(true) // CI 에서 커버리지 % 파싱용
         html.required.set(true)

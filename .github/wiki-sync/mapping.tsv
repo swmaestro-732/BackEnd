@@ -1,19 +1,26 @@
 # .ai sync.md "레포별 경로 패턴 매핑" BackEnd 표의 기계용 사본. 표를 바꾸면 이 파일도 함께 바꾼다.
 # 형식: 경로 glob(저장소 루트 기준, * 는 / 도 포함)<TAB>위키 문서
-src/main/resources/db/migration/*	backend/db.md
-src/main/kotlin/com/example/backend/*/domain/*	backend/domain.md
-src/main/kotlin/com/example/backend/*/adapter/inbound/*	api-spec.md
-src/main/kotlin/com/example/backend/mobile/*	api-spec.md
-src/main/kotlin/com/example/backend/common/response/*	api-design.md
-src/main/kotlin/com/example/backend/common/response/*	backend/code-convention.md
-src/main/kotlin/com/example/backend/common/exception/*	api-design.md
-src/main/kotlin/com/example/backend/common/exception/*	backend/code-convention.md
-src/main/kotlin/com/example/backend/*/adapter/outbound/search/*	backend/search.md
-src/main/kotlin/com/example/backend/bootstrap/search/*	backend/search.md
-src/main/kotlin/com/example/backend/bootstrap/config/OpenSearch*	backend/search.md
-src/main/kotlin/com/example/backend/area/*	backend/area.md
-build.gradle.kts	backend/README.md
-build.gradle.kts	backend/code-convention.md
+# 코드는 모듈 디렉터리(app-api·domain-rds 등) 아래에 있어 소스 경로는 */src/main/... 로 매칭한다.
+*/src/main/resources/db/migration/*	backend/db.md
+*/src/main/kotlin/com/example/backend/*/domain/*	backend/domain.md
+*/src/main/kotlin/com/example/backend/*/adapter/inbound/*	api-spec.md
+*/src/main/kotlin/com/example/backend/mobile/*	api-spec.md
+*/src/main/kotlin/com/example/backend/common/response/*	api-design.md
+*/src/main/kotlin/com/example/backend/common/response/*	backend/code-convention.md
+*/src/main/kotlin/com/example/backend/common/exception/*	api-design.md
+*/src/main/kotlin/com/example/backend/common/exception/*	backend/code-convention.md
+*/src/main/kotlin/com/example/backend/*/adapter/outbound/search/*	backend/search.md
+*/src/main/kotlin/com/example/backend/bootstrap/search/*	backend/search.md
+*/src/main/kotlin/com/example/backend/search/*	backend/search.md
+*/src/main/kotlin/com/example/backend/area/*	backend/area.md
+*build.gradle.kts	backend/README.md
+settings.gradle.kts	backend/README.md
+gradle/libs.versions.toml	backend/README.md
+buildSrc/*	backend/README.md
+*build.gradle.kts	backend/code-convention.md
+settings.gradle.kts	backend/code-convention.md
+gradle/libs.versions.toml	backend/code-convention.md
+buildSrc/*	backend/code-convention.md
 .pre-commit-config.yaml	backend/README.md
 .pre-commit-config.yaml	backend/code-convention.md
 .github/*	conventions.md
