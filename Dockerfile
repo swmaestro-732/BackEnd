@@ -5,6 +5,16 @@ WORKDIR /workspace
 # 의존성 캐시 레이어
 COPY gradlew settings.gradle.kts build.gradle.kts ./
 COPY gradle gradle
+COPY buildSrc buildSrc
+COPY common/build.gradle.kts common/
+COPY exposed-postgis/build.gradle.kts exposed-postgis/
+COPY domain-rds/build.gradle.kts domain-rds/
+COPY domain-search/build.gradle.kts domain-search/
+COPY core-web/build.gradle.kts core-web/
+COPY client-tmap/build.gradle.kts client-tmap/
+COPY client-kakao/build.gradle.kts client-kakao/
+COPY client-oauth/build.gradle.kts client-oauth/
+COPY client-s3/build.gradle.kts client-s3/
 RUN chmod +x gradlew && ./gradlew dependencies --no-daemon > /dev/null 2>&1 || true
 
 COPY src src
