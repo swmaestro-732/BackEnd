@@ -37,6 +37,8 @@ dependencyManagement {
 
 kotlin {
     compilerOptions {
+        // Spring Boot 플러그인이 app 모듈에만 켜 주는 설정 — 라이브러리 모듈도 파라미터 이름을 보존한다(AOP·MVC 바인딩).
+        javaParameters = true
         freeCompilerArgs.addAll("-Xjsr305=strict", "-Xannotation-default-target=param-property")
     }
 }

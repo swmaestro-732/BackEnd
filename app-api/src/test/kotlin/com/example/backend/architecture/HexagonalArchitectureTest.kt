@@ -13,6 +13,9 @@ import org.junit.jupiter.api.Test
  * 도메인(user/place/course)은 서로의 내부에 의존하지 않고,
  * 오직 상대 도메인의 application.port.inbound(공개 API)만 참조할 수 있다.
  * BFF 패키지(bff)는 화면단위 조합을 위해 도메인의 inbound 포트에 의존할 수 있다.
+ *
+ * 모듈 간 계층(common ← domain ← app 등)은 Gradle 의존으로 강제되므로, 여기서는 한 모듈 안의 계층과
+ * 컨텍스트 간 경계만 다룬다.
  */
 class HexagonalArchitectureTest {
     private val classes =
@@ -89,21 +92,6 @@ class HexagonalArchitectureTest {
             .should()
             .resideInAPackage("..application.dto..")
             .check(classes)
-    }
-
-    @Test
-    fun `common 은 도메인을 참조하지 않는다`() {
-        noClasses()
-            .that()
-            .resideInAPackage("..common..")
-            .should()
-            .dependOnClassesThat()
-            .resideInAnyPackage(
-                "..user..",
-                "..place..",
-                "..course..",
-                "..mobile..",
-            ).check(classes)
     }
 
     /**
