@@ -3,3 +3,7 @@ plugins {
     id("backend.kotlin-conventions")
     `java-library`
 }
+
+dependencies {
+    "testImplementation"("org.springframework.boot:spring-boot-starter-test")
+}

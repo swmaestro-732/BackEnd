@@ -3,11 +3,11 @@ FROM eclipse-temurin:21-jdk AS build
 WORKDIR /workspace
 
 # 의존성 캐시 레이어
-COPY gradlew settings.gradle.kts build.gradle.kts ./
+COPY gradlew settings.gradle.kts ./
 COPY gradle gradle
 COPY buildSrc buildSrc
+COPY app-api/build.gradle.kts app-api/
 COPY common/build.gradle.kts common/
-COPY exposed-postgis/build.gradle.kts exposed-postgis/
 COPY domain-rds/build.gradle.kts domain-rds/
 COPY domain-search/build.gradle.kts domain-search/
 COPY core-web/build.gradle.kts core-web/
@@ -17,8 +17,16 @@ COPY client-oauth/build.gradle.kts client-oauth/
 COPY client-s3/build.gradle.kts client-s3/
 RUN chmod +x gradlew && ./gradlew dependencies --no-daemon > /dev/null 2>&1 || true
 
-COPY src src
-RUN ./gradlew bootJar --no-daemon
+COPY app-api/src app-api/src
+COPY common/src common/src
+COPY domain-rds/src domain-rds/src
+COPY domain-search/src domain-search/src
+COPY core-web/src core-web/src
+COPY client-tmap/src client-tmap/src
+COPY client-kakao/src client-kakao/src
+COPY client-oauth/src client-oauth/src
+COPY client-s3/src client-s3/src
+RUN ./gradlew :app-api:bootJar --no-daemon
 
 # ── runtime stage ──
 FROM eclipse-temurin:21-jre
@@ -30,7 +38,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends curl && rm -rf 
     rm -f /usr/bin/pebble && \
     useradd -r -u 1001 appuser
 # bootJar 산출물(단일). 버전 문자열에 결합하지 않도록 *.jar 사용.
-COPY --from=build /workspace/build/libs/*.jar app.jar
+COPY --from=build /workspace/app-api/build/libs/*.jar app.jar
 USER appuser
 
 EXPOSE 8080
