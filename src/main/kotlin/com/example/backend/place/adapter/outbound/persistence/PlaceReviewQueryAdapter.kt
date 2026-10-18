@@ -2,6 +2,7 @@ package com.example.backend.place.adapter.outbound.persistence
 
 import com.example.backend.place.adapter.outbound.persistence.exposed.repository.PlaceReviewQueryRepository
 import com.example.backend.place.application.port.inbound.dto.PlaceReviewSortKey
+import com.example.backend.place.application.port.outbound.PlaceReviewCounters
 import com.example.backend.place.application.port.outbound.PlaceReviewCursor
 import com.example.backend.place.application.port.outbound.PlaceReviewQueryPort
 import com.example.backend.place.application.port.outbound.PlaceReviewRow
@@ -30,8 +31,5 @@ class PlaceReviewQueryAdapter(
     override fun findTags(reviewIds: List<Long>): Map<Long, List<PlaceReviewTag>> =
         placeReviewQueryRepository.findTags(reviewIds)
 
-    override fun countReviewsByRating(placeId: Long): Map<Int, Long> =
-        placeReviewQueryRepository.countReviewsByRating(placeId)
-
-    override fun countPhotosByPlace(placeId: Long): Long = placeReviewQueryRepository.countPhotosByPlace(placeId)
+    override fun findCounters(placeId: Long): PlaceReviewCounters? = placeReviewQueryRepository.findCounters(placeId)
 }

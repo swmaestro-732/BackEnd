@@ -1,11 +1,13 @@
 package com.example.backend.bootstrap.search
 
+import com.example.backend.bootstrap.config.OpenSearchConfig
 import com.example.backend.bootstrap.config.OpenSearchProperties
 import com.example.backend.course.application.port.inbound.CourseReindexUseCase
 import com.example.backend.place.application.port.inbound.PlaceReindexUseCase
 import io.github.oshai.kotlinlogging.KotlinLogging
 import org.opensearch.client.opensearch.OpenSearchClient
 import org.springframework.beans.factory.ObjectProvider
+import org.springframework.beans.factory.annotation.Qualifier
 import org.springframework.boot.ApplicationArguments
 import org.springframework.boot.ApplicationRunner
 import org.springframework.core.annotation.Order
@@ -18,7 +20,7 @@ import org.springframework.stereotype.Component
 @Component
 @Order(1)
 class OpenSearchReindexRunner(
-    private val clientProvider: ObjectProvider<OpenSearchClient>,
+    @Qualifier(OpenSearchConfig.INDEX_CLIENT) private val clientProvider: ObjectProvider<OpenSearchClient>,
     private val properties: OpenSearchProperties,
     private val placeReindexUseCase: PlaceReindexUseCase,
     private val courseReindexUseCase: CourseReindexUseCase,
@@ -34,8 +36,8 @@ class OpenSearchReindexRunner(
         val client = clientProvider.ifAvailable ?: return // endpoint 미설정(로컬/CI) → no-op
 
         listOf(
-            Target("place", placeReindexUseCase::reindexAll),
-            Target("course", courseReindexUseCase::reindexAll),
+            Target(properties.withPrefix("place"), placeReindexUseCase::reindexAll),
+            Target(properties.withPrefix("course"), courseReindexUseCase::reindexAll),
         ).forEach { t ->
             try {
                 val empty = client.count { c -> c.index(t.alias) }.count() == 0L
@@ -45,7 +47,7 @@ class OpenSearchReindexRunner(
                     log.info { "OpenSearch 재색인: ${t.alias} ${n}건 ($reason)" }
                 }
             } catch (e: Exception) {
-                log.warn { "OpenSearch 재색인 실패(무시): ${t.alias} — ${e.message}" }
+                log.error(e) { "OpenSearch 재색인 실패(무시): ${t.alias} — ${e.message}" }
             }
         }
     }

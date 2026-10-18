@@ -3,7 +3,6 @@ package com.example.backend.place.application.service
 import com.example.backend.place.application.port.inbound.PlaceReviewQueryUseCase
 import com.example.backend.place.application.port.inbound.dto.PlaceReviewsQuery
 import com.example.backend.place.application.port.inbound.dto.PlaceReviewsResult
-import com.example.backend.place.application.port.outbound.PlaceQueryPort
 import com.example.backend.place.application.port.outbound.PlaceReviewCursor
 import com.example.backend.place.application.port.outbound.PlaceReviewQueryPort
 import com.example.backend.place.application.port.outbound.PlaceReviewRow
@@ -19,7 +18,6 @@ private val RATING_RANGE = 5 downTo 1
 @Transactional(readOnly = true)
 class PlaceReviewQueryService(
     private val placeReviewQueryPort: PlaceReviewQueryPort,
-    private val placeQueryPort: PlaceQueryPort,
 ) : PlaceReviewQueryUseCase {
     override fun getReviews(query: PlaceReviewsQuery): PlaceReviewsResult {
         val cursor = PlaceReviewCursorCodec.decode(query.sort, query.descending, query.cursor)
@@ -39,9 +37,7 @@ class PlaceReviewQueryService(
         val reviewIds = page.map { it.id }
         val photoUrls = placeReviewQueryPort.findPhotoUrls(reviewIds)
         val tags = placeReviewQueryPort.findTags(reviewIds)
-        val ratingCounts = placeReviewQueryPort.countReviewsByRating(query.placeId)
-        val photoCount = placeReviewQueryPort.countPhotosByPlace(query.placeId)
-        val place = placeQueryPort.findPlaceById(query.placeId)
+        val counters = placeReviewQueryPort.findCounters(query.placeId)
         val nextCursor =
             if (hasNext) {
                 page.lastOrNull()?.let { PlaceReviewCursorCodec.encode(query.sort, query.descending, it.toCursor()) }
@@ -50,10 +46,10 @@ class PlaceReviewQueryService(
             }
 
         return PlaceReviewsResult(
-            averageRating = place?.averageRating ?: 0.0,
-            totalCount = place?.ratingCnt ?: 0,
-            ratingDistribution = ratingCounts.toRatingDistribution(),
-            photoCount = photoCount.toInt(),
+            averageRating = counters?.averageRating ?: 0.0,
+            totalCount = counters?.ratingCnt ?: 0,
+            ratingDistribution = (counters?.ratingCounts ?: emptyMap()).toRatingDistribution(),
+            photoCount = counters?.reviewPhotoCnt ?: 0,
             nextCursor = nextCursor,
             hasNext = hasNext,
             reviews =
@@ -79,13 +75,8 @@ class PlaceReviewQueryService(
         tags = tags.map { it.toTag() },
     )
 
-    private fun Map<Int, Long>.toRatingDistribution(): List<PlaceReviewsResult.RatingCount> =
-        RATING_RANGE.map { rating ->
-            PlaceReviewsResult.RatingCount(
-                rating = rating,
-                count = (this[rating] ?: 0L).toInt(),
-            )
-        }
+    private fun Map<Int, Int>.toRatingDistribution(): List<PlaceReviewsResult.RatingCount> =
+        RATING_RANGE.map { rating -> PlaceReviewsResult.RatingCount(rating = rating, count = this[rating] ?: 0) }
 
     private fun PlaceReviewRow.toCursor() = PlaceReviewCursor(rating = rating, createdAt = createdAt, id = id)
 

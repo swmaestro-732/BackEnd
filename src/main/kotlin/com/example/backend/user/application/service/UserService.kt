@@ -114,19 +114,23 @@ class UserService(
         // 1) 저장 코스: 원저자 saves_cnt 를 먼저 보정한 뒤 저장 레코드·폴더를 지운다.
         courseCleanupPort.decreaseSavesCounts(savedCoursePersistencePort.findAliveSavedCourseIds(userId))
         savedCoursePersistencePort.deleteAllByUser(userId)
+        // 1-1) 코스 좋아요: 좋아요 레코드를 지우고 대상 코스 likes_cnt 를 보정한다.
+        courseCleanupPort.purgeLikesByUser(userId)
+        // 1-2) 코스 따라가기: 세션·체크인(위치 이력)을 지운다. tracings_cnt 는 누적 통계라 되돌리지 않는다.
+        courseCleanupPort.purgeTracesByUser(userId)
         // 2) 팔로우: 양방향 삭제 + 상대 카운터 보정.
         followPersistencePort.purgeFollowsOf(userId)
         // 3) 관심 지역·테마: 빈 목록으로 전체 치환(=전부 삭제).
         userAreaPersistencePort.replaceAreas(userId, emptyList())
         userLikeThemePort.replaceLikeThemes(userId, emptyList())
-        // 4) 작성 코스: 전부 소프트 삭제(피드·프로필에서 사라짐).
+        // 4) 작성 코스·계획: 전부 소프트 삭제(피드·프로필·내 계획 목록에서 사라짐).
         courseCleanupPort.softDeleteCoursesByAuthor(userId)
+        courseCleanupPort.softDeletePlansByOwner(userId)
         // 5) users 행: 탈퇴 스탬프 + 핸들 해제 + bio·프로필이미지·카운터 리셋.
         userPersistencePort.softDelete(user.withdraw())
         // 6) 리프레시 토큰 폐기.
         refreshTokenPort.revokeAllByUser(userId)
-        // TODO(추후): 저장 장소(saved_places)·코스 따라가기/완주 기록(tracing_courses)·추가 장소(added_places)·
-        //  리뷰(course_reviews/place_reviews) 는 아직 쓰기 경로가 없어(스텁) 정리 대상에서 제외했다.
+        // TODO(추후): 저장 장소(saved_places)·리뷰(course_reviews/place_reviews)는 아직 정리 대상에서 제외했다.
         //  각 기능이 실제로 저장되기 시작하면 이 정리 단계에 함께 추가해 "처음 계정처럼" 불변식을 유지할 것.
     }
 

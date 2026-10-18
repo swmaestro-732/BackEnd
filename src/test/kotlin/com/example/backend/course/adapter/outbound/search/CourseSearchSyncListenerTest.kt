@@ -107,7 +107,7 @@ class CourseSearchSyncListenerTest {
             commentsCnt = 0,
             savesCnt = 0,
             tracingsCnt = 0,
-            forkedFromId = null,
+            duplicatedFromId = null,
             createdAt = null,
             updatedAt = null,
             deletedAt = null,

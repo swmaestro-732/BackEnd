@@ -2,7 +2,7 @@ package com.example.backend.course.application.service
 
 import com.example.backend.course.application.port.inbound.dto.CourseReviewSortKey
 import com.example.backend.course.application.port.inbound.dto.CourseReviewsQuery
-import com.example.backend.course.application.port.outbound.CourseRatingCounters
+import com.example.backend.course.application.port.outbound.CourseReviewCounters
 import com.example.backend.course.application.port.outbound.CourseReviewCursor
 import com.example.backend.course.application.port.outbound.CourseReviewQueryPort
 import com.example.backend.course.application.port.outbound.CourseReviewRow
@@ -48,19 +48,29 @@ class CourseReviewQueryServiceTest {
             .thenReturn(mapOf(3L to listOf("https://cdn.example.com/3-1.jpg")))
         `when`(queryPort.findTags(listOf(3L, 2L)))
             .thenReturn(mapOf(3L to listOf(CourseReviewTag.PACKED)))
-        `when`(queryPort.countReviewsByRating(COURSE_ID)).thenReturn(mapOf(5 to 1L, 4 to 1L, 3 to 1L))
-        `when`(queryPort.countPhotosByCourse(COURSE_ID)).thenReturn(4L)
-        `when`(queryPort.findRatingCounters(COURSE_ID))
-            .thenReturn(CourseRatingCounters(ratingSum = 12, ratingCnt = 3))
+        `when`(queryPort.findCounters(COURSE_ID))
+            .thenReturn(
+                CourseReviewCounters(
+                    ratingSum = 12,
+                    ratingCnt = 3,
+                    reviewPhotoCnt = 4,
+                    ratingCounts =
+                        mapOf(
+                            5 to 1,
+                            4 to 1,
+                            3 to 1,
+                        ),
+                ),
+            )
 
         val result = service.getReviews(CourseReviewsQuery(courseId = COURSE_ID, size = 2))
 
         assertEquals(4.0, result.averageRating) // 12 / 3 — 카운터 기반이라 페이지와 무관
         assertEquals(3, result.totalCount)
-        assertEquals(4, result.photoCount)
+        assertEquals(4, result.photoCount) // 사진 수도 카운터(review_photo_cnt)에서 읽는다
         assertTrue(result.hasNext)
         assertEquals(listOf(3L, 2L), result.reviews.map { it.id }) // size 만큼만 잘린다
-        // 분포는 5~1점 다섯 칸을 항상 채운다(없는 별점은 0).
+        // 분포는 카운터(rating_N_cnt)에서 읽어 5~1점 다섯 칸을 항상 채운다(없는 별점은 0).
         assertEquals(
             listOf(5 to 1, 4 to 1, 3 to 1, 2 to 0, 1 to 0),
             result.ratingDistribution.map {
@@ -91,8 +101,16 @@ class CourseReviewQueryServiceTest {
                 limit = 11,
             ),
         ).thenReturn(listOf(row(id = 1, rating = 5, createdAt = "2026-09-01T00:00:00Z")))
-        `when`(queryPort.findRatingCounters(COURSE_ID))
-            .thenReturn(CourseRatingCounters(ratingSum = 5, ratingCnt = 1))
+        `when`(queryPort.findCounters(COURSE_ID))
+            .thenReturn(
+                CourseReviewCounters(
+                    ratingSum = 5,
+                    ratingCnt = 1,
+                    reviewPhotoCnt = 0,
+                    ratingCounts =
+                        mapOf(5 to 1),
+                ),
+            )
 
         val result = service.getReviews(CourseReviewsQuery(courseId = COURSE_ID))
 
@@ -103,7 +121,7 @@ class CourseReviewQueryServiceTest {
 
     @Test
     fun `없는 코스는 404 가 아니라 빈 목록과 집계 0 이다`() {
-        // findRatingCounters 가 null(삭제·부재 코스)이어도 예외 없이 0 으로 채운다 — 존재 판정은 상세 화면 몫.
+        // findCounters 가 null(삭제·부재 코스)이어도 예외 없이 0 으로 채운다 — 존재 판정은 상세 화면 몫.
         val result = service.getReviews(CourseReviewsQuery(courseId = 999999L))
 
         assertEquals(0.0, result.averageRating)

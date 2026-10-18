@@ -10,7 +10,6 @@ import org.mockito.Mockito.mock
 import org.mockito.Mockito.verify
 import org.mockito.Mockito.verifyNoInteractions
 import org.mockito.Mockito.`when`
-import java.time.Instant
 
 class CourseInteractionServiceTest {
     private val interactionPort = mock(CourseInteractionPort::class.java)
@@ -28,7 +27,6 @@ class CourseInteractionServiceTest {
     @Test
     fun `저장된 코스는 hasSaved=true, 미저장은 false 다`() {
         `when`(interactionPort.findSavedCourseIds(1L, listOf(10L, 20L))).thenReturn(setOf(10L))
-        `when`(interactionPort.findCompletedAt(1L, listOf(10L, 20L))).thenReturn(emptyMap())
 
         val result = service.getViewerStates(1L, listOf(10L, 20L))
 
@@ -37,17 +35,6 @@ class CourseInteractionServiceTest {
         val notSaved = result.first { it.courseId == 20L }
         assertTrue(saved.hasSaved)
         assertFalse(notSaved.hasSaved)
-    }
-
-    @Test
-    fun `완주한 코스는 completedAt 이 채워진다`() {
-        val completedTime = Instant.parse("2026-08-01T00:00:00Z")
-        `when`(interactionPort.findSavedCourseIds(1L, listOf(10L))).thenReturn(setOf(10L))
-        `when`(interactionPort.findCompletedAt(1L, listOf(10L))).thenReturn(mapOf(10L to completedTime))
-
-        val result = service.getViewerStates(1L, listOf(10L))
-
-        assertEquals(completedTime, result.first().completedAt)
     }
 
     @Test

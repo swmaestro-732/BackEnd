@@ -189,7 +189,16 @@ class PlaceReviewPersistenceTest
         fun `소프트 삭제는 상태·deleted_at 을 스탬프하고 카운터를 되돌린다`() {
             transaction {
                 val placeId = insertPlace("삭제 장소")
-                val saved = port.save(review(placeId, rating = 4))
+                val saved =
+                    port.save(
+                        review(
+                            placeId,
+                            rating = 4,
+                            photoUrls = listOf("https://cdn.example.com/1.jpg", "https://cdn.example.com/2.jpg"),
+                        ),
+                    )
+                assertEquals(2, photoCounter(placeId)) // 작성 시 review_photo_cnt +사진 수
+                assertEquals(1, ratingCount(placeId, 4)) // 작성 시 rating_4_cnt +1
 
                 val deleted = port.softDelete(reviewId = saved.id!!, placeId = placeId, userId = USER_ID)
 
@@ -198,6 +207,8 @@ class PlaceReviewPersistenceTest
                 assertEquals(PlaceReviewStatus.DELETED, row[PlaceReviewTable.status])
                 assertNotNull(row[PlaceReviewTable.deletedAt])
                 assertEquals(0L to 0, ratingCounters(placeId))
+                assertEquals(0, photoCounter(placeId)) // 삭제 시 review_photo_cnt -사진 수
+                assertEquals(0, ratingCount(placeId, 4)) // 삭제 시 rating_4_cnt -1
                 rollback()
             }
         }
@@ -243,6 +254,15 @@ class PlaceReviewPersistenceTest
             val row = PlaceTable.selectAll().where { PlaceTable.id eq placeId }.single()
             return row[PlaceTable.ratingSum] to row[PlaceTable.ratingCnt]
         }
+
+        private fun photoCounter(placeId: Long): Int =
+            PlaceTable.selectAll().where { PlaceTable.id eq placeId }.single()[PlaceTable.reviewPhotoCnt]
+
+        private fun ratingCount(
+            placeId: Long,
+            rating: Int,
+        ): Int =
+            PlaceTable.selectAll().where { PlaceTable.id eq placeId }.single()[PlaceTable.ratingCountColumn(rating)]
 
         /** place_reviews.place_id 에는 FK 가 있어 리뷰마다 실제 장소 행이 필요하다. */
         private fun insertPlace(name: String): Long =

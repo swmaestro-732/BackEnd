@@ -12,6 +12,7 @@ import com.example.backend.course.application.port.inbound.dto.CourseSummary
 import com.example.backend.course.application.port.inbound.dto.CourseSummaryPage
 import com.example.backend.course.application.port.inbound.dto.FeedCursor
 import com.example.backend.course.application.port.outbound.CoursePersistencePort
+import com.example.backend.course.application.port.outbound.CoursePlaceStats
 import com.example.backend.course.application.port.outbound.CourseSummaryRow
 import com.example.backend.course.application.port.outbound.CourseTagQueryPort
 import com.example.backend.course.application.port.outbound.ViewerInteractionPort
@@ -32,6 +33,7 @@ class CourseQueryService(
     private val coursePersistencePort: CoursePersistencePort,
     private val courseTagQueryPort: CourseTagQueryPort,
     private val viewerInteractionPort: ViewerInteractionPort,
+    private val courseViewPolicy: CourseViewPolicy,
 ) : CourseQueryUseCase {
     override fun getDetail(
         courseId: Long,
@@ -53,8 +55,10 @@ class CourseQueryService(
         val viewableById =
             coursePersistencePort
                 .findCourseDetails(courseIds)
-                .filter { it.status == CourseStatus.ACTIVE && isViewable(it.visibility, it.userId, viewerId) }
-                .associateBy { it.id }
+                .filter {
+                    it.status == CourseStatus.ACTIVE &&
+                        courseViewPolicy.isViewable(it.visibility, it.userId, viewerId)
+                }.associateBy { it.id }
         if (viewableById.isEmpty()) return emptyList()
 
         val viewableIds = viewableById.keys.toList()
@@ -89,10 +93,12 @@ class CourseQueryService(
                 tags = emptyList(),
                 description = course.description.orEmpty(),
                 visibility = course.visibility,
+                isPublished = course.isPublished,
                 authorId = course.userId,
                 tracingsCnt = course.tracingsCnt,
                 places = places,
                 hasSaved = viewer?.hasSaved ?: false,
+                hasLiked = viewer?.hasLiked ?: false,
                 hasStartedCourse = viewer?.hasStartedCourse ?: false,
             )
         }
@@ -135,6 +141,7 @@ class CourseQueryService(
      * 정렬은 findPublishedPublic 이 SQL(saves_cnt DESC, created_at DESC, id DESC)로 수행한다.
      * 영속 포트가 [size]보다 한 건 더 조회한 결과로 hasNext를 판정하고 초과분을 잘라낸다.
      * 모두 PUBLIC 이라 공개범위(isViewable) 필터 없이 그대로 매핑한다.
+     * 카드 메타(장소 수, 총 도보 시간)는 페이지의 코스 id 로 한 번에 집계해 붙인다(장소 없는 코스는 0).
      */
     override fun listPublic(
         cursor: FeedCursor?,
@@ -142,8 +149,10 @@ class CourseQueryService(
     ): CourseSummaryPage {
         val effectiveSize = size.coerceAtLeast(1)
         val rows = coursePersistencePort.findPublishedPublic(cursor, effectiveSize)
+        val page = rows.take(effectiveSize)
+        val statsByCourse = coursePersistencePort.findPlaceStats(page.map { it.id })
         return CourseSummaryPage(
-            items = rows.take(effectiveSize).map(::toCourseSummary),
+            items = page.map { toCourseSummary(it, statsByCourse[it.id] ?: CoursePlaceStats(0, 0)) },
             hasNext = rows.size > effectiveSize,
         )
     }
@@ -167,35 +176,20 @@ class CourseQueryService(
             }
         }
 
-    private fun toCourseSummary(row: CourseSummaryRow) =
-        CourseSummary(
-            id = row.id,
-            authorId = row.userId,
-            title = row.title,
-            coverImageUrl = row.coverImageUrl,
-            theme = row.category?.name,
-            likesCnt = row.likesCnt,
-            savesCnt = row.savesCnt,
-            createdAt = row.createdAt,
-        )
-
-    private fun isViewable(
-        visibility: CourseVisibility,
-        ownerId: Long,
-        viewerId: Long?,
-    ): Boolean =
-        when (visibility) {
-            CourseVisibility.PUBLIC -> {
-                true
-            }
-
-            CourseVisibility.FOLLOWER -> {
-                viewerId == ownerId ||
-                    (viewerId != null && viewerInteractionPort.isFollowing(viewerId, ownerId))
-            }
-
-            CourseVisibility.PRIVATE -> {
-                viewerId == ownerId
-            }
-        }
+    private fun toCourseSummary(
+        row: CourseSummaryRow,
+        stats: CoursePlaceStats? = null,
+    ) = CourseSummary(
+        id = row.id,
+        authorId = row.userId,
+        title = row.title,
+        coverImageUrl = row.coverImageUrl,
+        theme = row.category?.name,
+        area = row.area,
+        likesCnt = row.likesCnt,
+        savesCnt = row.savesCnt,
+        createdAt = row.createdAt,
+        placeCount = stats?.placeCount,
+        walkingMinutes = stats?.walkingMinutes,
+    )
 }

@@ -11,9 +11,14 @@ import com.example.backend.course.application.port.outbound.CourseDetailRow
 import com.example.backend.course.application.port.outbound.CourseSummaryRow
 import com.example.backend.course.domain.model.Course
 import com.example.backend.course.domain.model.CourseStatus
+import org.jetbrains.exposed.v1.core.Expression
+import org.jetbrains.exposed.v1.core.LessOp
+import org.jetbrains.exposed.v1.core.QueryBuilder
+import org.jetbrains.exposed.v1.core.QueryParameter
 import org.jetbrains.exposed.v1.core.ResultRow
 import org.jetbrains.exposed.v1.core.SortOrder
 import org.jetbrains.exposed.v1.core.and
+import org.jetbrains.exposed.v1.core.dao.id.EntityID
 import org.jetbrains.exposed.v1.core.eq
 import org.jetbrains.exposed.v1.core.greater
 import org.jetbrains.exposed.v1.core.inList
@@ -25,6 +30,7 @@ import org.jetbrains.exposed.v1.core.plus
 import org.jetbrains.exposed.v1.jdbc.select
 import org.jetbrains.exposed.v1.jdbc.selectAll
 import org.jetbrains.exposed.v1.jdbc.update
+import org.jetbrains.exposed.v1.jdbc.updateReturning
 import org.springframework.stereotype.Repository
 import kotlin.time.Clock
 import kotlin.time.toJavaInstant
@@ -51,7 +57,7 @@ class CourseRepository {
                 areaCode = course.areaCode
                 isPublished = course.isPublished
                 visibility = course.visibility
-                forkedFromId = course.forkedFromId
+                duplicatedFromId = course.duplicatedFromId
             }.also { it.refresh(flush = true) }
 
     /**
@@ -74,6 +80,7 @@ class CourseRepository {
                 it[areaCode] = course.areaCode
                 it[isPublished] = course.isPublished
                 it[visibility] = course.visibility
+                it[duplicatedFromId] = course.duplicatedFromId
                 it[updatedAt] = now
             }
         // 서비스가 존재·소유권을 사전 검증하므로 0행은 동시 소프트 삭제가 이긴 경우 — 500 대신 404 로 드러낸다.
@@ -119,7 +126,69 @@ class CourseRepository {
             it[savesCnt] = savesCnt - 1
         }
 
-    /** deleted_at IS NULL 인 코스가 존재하는지만 확인한다(fork 원본 검증 등, 본문 미적재). */
+    /** deleted_at IS NULL 인 행의 comments_cnt 를 1 증가시킨다. 반환은 영향받은 행 수(0 또는 1). */
+    fun increaseCommentsCount(courseId: Long): Int =
+        CourseTable.update({ (CourseTable.id eq courseId) and CourseTable.deletedAt.isNull() }) {
+            it[commentsCnt] = commentsCnt + 1
+        }
+
+    /** deleted_at IS NULL 인 행의 comments_cnt 를 1 감소시킨다. 반환은 영향받은 행 수(0 또는 1). */
+    fun decreaseCommentsCount(courseId: Long): Int =
+        CourseTable.update({ (CourseTable.id eq courseId) and CourseTable.deletedAt.isNull() }) {
+            it[commentsCnt] = commentsCnt - 1
+        }
+
+    /** deleted_at IS NULL 인 행의 tracings_cnt 를 1 증가시킨다. 반환은 영향받은 행 수(0 또는 1). */
+    fun increaseTracingsCount(courseId: Long): Int =
+        CourseTable.update({ (CourseTable.id eq courseId) and CourseTable.deletedAt.isNull() }) {
+            it[tracingsCnt] = tracingsCnt + 1
+        }
+
+    /**
+     * 좋아요 원자적 증가 — deleted_at IS NULL 인 행의 likes_cnt 를 UPDATE … RETURNING 으로 1 증가시키고
+     * 증가된 새 likes_cnt 를 반환한다. 활성 코스가 없어 0행이면 null(비관락 없이 유니크+원자연산으로 정합성 확보).
+     */
+    fun incrementLikesCntReturning(courseId: Long): Int? =
+        CourseTable
+            .updateReturning(
+                returning = listOf(CourseTable.likesCnt),
+                where = { (CourseTable.id eq courseId) and CourseTable.deletedAt.isNull() },
+            ) {
+                it[likesCnt] = likesCnt + 1
+            }.singleOrNull()
+            ?.get(CourseTable.likesCnt)
+
+    /**
+     * 좋아요 v2 원자적 감소 — deleted_at IS NULL 인 행의 likes_cnt 를 UPDATE … RETURNING 으로 1 감소시키고
+     * 감소된 새 likes_cnt 를 반환한다. 활성 코스가 없어 0행이면 null.
+     */
+    fun decrementLikesCntReturning(courseId: Long): Int? =
+        CourseTable
+            .updateReturning(
+                returning = listOf(CourseTable.likesCnt),
+                where = { (CourseTable.id eq courseId) and CourseTable.deletedAt.isNull() },
+            ) {
+                it[likesCnt] = likesCnt - 1
+            }.singleOrNull()
+            ?.get(CourseTable.likesCnt)
+
+    /** deleted_at IS NULL 인 코스의 현재 likes_cnt 만 읽는다(v2 멱등 취소 no-op 경로). 활성 코스가 없으면 null. */
+    fun readLikesCnt(courseId: Long): Int? =
+        CourseTable
+            .select(CourseTable.likesCnt)
+            .where { (CourseTable.id eq courseId) and CourseTable.deletedAt.isNull() }
+            .singleOrNull()
+            ?.get(CourseTable.likesCnt)
+
+    /** 여러 코스의 likes_cnt 를 한 번의 UPDATE 로 1씩 감소시킨다(탈퇴 정리 배치). deleted_at IS NULL 행만. */
+    fun decrementLikesCntBatch(courseIds: List<Long>) {
+        if (courseIds.isEmpty()) return
+        CourseTable.update({ (CourseTable.id inList courseIds) and CourseTable.deletedAt.isNull() }) {
+            it[likesCnt] = likesCnt - 1
+        }
+    }
+
+    /** deleted_at IS NULL 인 코스가 존재하는지만 확인한다(duplicate 원본 검증 등, 본문 미적재). */
     fun existsById(courseId: Long): Boolean =
         !CourseTable
             .selectAll()
@@ -158,6 +227,7 @@ class CourseRepository {
             status = it[CourseTable.status],
             visibility = it[CourseTable.visibility],
             isPublished = it[CourseTable.isPublished],
+            duplicatedFromId = it[CourseTable.duplicatedFromId],
         )
 
     /**
@@ -224,16 +294,17 @@ class CourseRepository {
                 (CourseTable.visibility eq CourseVisibility.PUBLIC)
 
         cursor?.let {
-            val cursorCreatedAt = it.createdAt.toKotlinInstant()
+            // 행 비교 (saves_cnt, created_at, id) < (?, ?, ?) — 세 키가 모두 DESC 라 정렬과 방향이 같고,
+            // 부분 인덱스(idx_courses_public_feed)의 탐색 조건이 된다. OR 로 풀어 쓰면 인덱스 앞부분부터 읽고 버려 깊은 페이지일수록 느려진다.
             val afterCursor =
-                (CourseTable.savesCnt less it.savesCnt) or
-                    (
-                        (CourseTable.savesCnt eq it.savesCnt) and
-                            (
-                                (CourseTable.createdAt less cursorCreatedAt) or
-                                    ((CourseTable.createdAt eq cursorCreatedAt) and (CourseTable.id less it.id))
-                            )
-                    )
+                LessOp(
+                    RowExpression(CourseTable.savesCnt, CourseTable.createdAt, CourseTable.id),
+                    RowExpression(
+                        QueryParameter(it.savesCnt, CourseTable.savesCnt.columnType),
+                        QueryParameter(it.createdAt.toKotlinInstant(), CourseTable.createdAt.columnType),
+                        QueryParameter(EntityID(it.id, CourseTable), CourseTable.id.columnType),
+                    ),
+                )
             condition = condition and afterCursor
         }
 
@@ -269,10 +340,26 @@ class CourseRepository {
             title = it[CourseTable.title],
             coverImageUrl = it[CourseTable.coverImageUrl],
             category = it[CourseTable.category],
+            area = it[CourseTable.area],
             visibility = it[CourseTable.visibility],
             isPublished = it[CourseTable.isPublished],
             likesCnt = it[CourseTable.likesCnt],
             savesCnt = it[CourseTable.savesCnt],
             createdAt = it[CourseTable.createdAt].toJavaInstant(),
         )
+}
+
+/** SQL 행 값 `(a, b, c)` — 복합 키셋 비교용. Exposed 에 행 비교 연산자가 없어 [LessOp] 와 함께 쓴다. */
+private class RowExpression(
+    private vararg val parts: Expression<*>,
+) : Expression<Any>() {
+    override fun toQueryBuilder(queryBuilder: QueryBuilder) =
+        queryBuilder {
+            append("(")
+            parts.forEachIndexed { i, part ->
+                if (i > 0) append(", ")
+                append(part)
+            }
+            append(")")
+        }
 }

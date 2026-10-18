@@ -22,6 +22,8 @@ extra["tomcat.version"] = "11.0.25" // CVE-2026-65182/65905/68525 (CRITICAL)
 extra["netty.version"] = "4.2.17.Final" // CVE-2026-59901/55831/55833/56745/56819 (HIGH) + GHSA-fccg-mwvh-qqg4
 extra["httpcore5.version"] = "5.4.3" // CVE-2026-54399/54428 (HIGH)
 extra["postgresql.version"] = "42.7.12" // CVE-2026-54291 (HIGH)
+// CVE-2026-47884 (CRITICAL) — spring-webmvc XsltView RCE. Boot 4.1.0 번들 7.0.8 오버라이드.
+extra["spring-framework.version"] = "7.0.9"
 
 repositories {
     mavenCentral()
@@ -58,6 +60,10 @@ dependencies {
     implementation("org.flywaydb:flyway-database-postgresql")
     implementation("org.jetbrains.kotlin:kotlin-reflect")
     implementation("tools.jackson.module:jackson-module-kotlin")
+    // opensearch-java 의 JacksonJsonpMapper 는 Jackson 2(com.fasterxml)를 쓴다 — 검색 응답을 Kotlin data class
+    // (CourseDocument)로 역직렬화하려면 Jackson 2 용 kotlin 모듈이 필요하다(색인=직렬화는 없이도 되지만 읽기는 불가).
+    // 버전은 opensearch-java 2.25.0 이 끌어오는 jackson-databind 2.21.4 에 맞춘다.
+    implementation("com.fasterxml.jackson.module:jackson-module-kotlin:2.21.4")
     // 로깅 파사드 — SLF4J 위 얇은 래퍼. 코틀린 람다(지연) 로깅 `log.info { "$var" }`. logback/MDC/traceId 그대로.
     implementation("io.github.oshai:kotlin-logging-jvm:7.0.3")
     developmentOnly("org.springframework.boot:spring-boot-devtools")
@@ -67,13 +73,14 @@ dependencies {
     // AWS SDK v2 (raw) — S3Presigner 는 s3 모듈 소속. 보안 패치용 버전은 위 extra[] 가 관리한다.
     implementation(platform("software.amazon.awssdk:bom:2.49.0"))
     implementation("software.amazon.awssdk:s3")
+    // OpenSearch IAM/SigV4 전송에 필요한 동기 SdkHttpClient. 버전은 위 AWS SDK BOM 관리.
+    implementation("software.amazon.awssdk:apache-client")
     // SQS — 코스 개수 폴백 큐(course 이벤트 동기 반영 실패 시 재시도). spring-cloud-aws 4.0.x = Spring Boot 4 + Jackson 3.
     // @SqsListener(수신)·SqsTemplate(발행)을 자동 배선한다. 큐 미설정 시 리스너 비활성·발행 no-op(fail-soft).
     implementation(platform("io.awspring.cloud:spring-cloud-aws-dependencies:4.0.2"))
     implementation("io.awspring.cloud:spring-cloud-aws-starter-sqs")
-    // OpenSearch(AWS) 연결 — VPC 도메인에 HTTPS + FGAC basic auth. ApacheHttpClient5 전송.
-    // httpclient5 기반 ApacheHttpClient5 전송만 쓰므로, 구형 RestClient 전송(opensearch-rest-client)이
-    // 끌고 오는 httpclient 4.x 스택(httpclient/httpcore/httpasyncclient)은 제외한다 — 안 쓰는 중복 무게 제거.
+    // OpenSearch(AWS) 연결 — 기본 FGAC basic auth(ApacheHttpClient5), 선택 IAM/SigV4(AwsSdk2Transport).
+    // 사용하지 않는 구형 RestClient 전송(opensearch-rest-client)은 제외한다.
     implementation("org.opensearch.client:opensearch-java:2.25.0") {
         exclude(group = "org.opensearch.client", module = "opensearch-rest-client")
     }

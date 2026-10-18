@@ -10,6 +10,7 @@ import com.example.backend.course.application.port.inbound.dto.FeedCursor
 import com.example.backend.course.application.port.outbound.CourseDetailRow
 import com.example.backend.course.application.port.outbound.CoursePersistencePort
 import com.example.backend.course.application.port.outbound.CoursePlaceRow
+import com.example.backend.course.application.port.outbound.CoursePlaceStats
 import com.example.backend.course.application.port.outbound.CourseSummaryRow
 import com.example.backend.course.domain.model.Course
 import org.springframework.stereotype.Component
@@ -55,6 +56,9 @@ class CoursePersistenceAdapter(
     override fun findPlacesByCourseIds(courseIds: List<Long>): Map<Long, List<CoursePlaceRow>> =
         coursePlaceRepository.findByCourseIds(courseIds)
 
+    override fun findPlaceStats(courseIds: List<Long>): Map<Long, CoursePlaceStats> =
+        coursePlaceRepository.findStatsByCourseIds(courseIds)
+
     override fun save(course: Course): Course {
         val courseEntity = courseRepository.insert(course)
         insertChildren(courseEntity.id.value, course)
@@ -81,10 +85,32 @@ class CoursePersistenceAdapter(
 
     override fun decreaseSavesCount(courseId: Long): Int = courseRepository.decreaseSavesCount(courseId)
 
+    override fun increaseCommentsCount(courseId: Long): Int = courseRepository.increaseCommentsCount(courseId)
+
+    override fun decreaseCommentsCount(courseId: Long): Int = courseRepository.decreaseCommentsCount(courseId)
+
+    override fun increaseTracingsCount(courseId: Long): Int = courseRepository.increaseTracingsCount(courseId)
+
+    override fun increaseLikesCountReturning(courseId: Long): Int? =
+        courseRepository.incrementLikesCntReturning(courseId)
+
+    override fun decreaseLikesCountReturning(courseId: Long): Int? =
+        courseRepository.decrementLikesCntReturning(courseId)
+
+    override fun readLikesCount(courseId: Long): Int? = courseRepository.readLikesCnt(courseId)
+
+    override fun decreaseLikesCounts(courseIds: List<Long>) = courseRepository.decrementLikesCntBatch(courseIds)
+
     override fun findForIndex(
         afterId: Long?,
         limit: Int,
-    ): List<Course> = courseRepository.findForIndex(afterId, limit).map { it.toDomain(emptyList(), emptyList()) }
+    ): List<Course> {
+        val entities = courseRepository.findForIndex(afterId, limit)
+        // 재색인 문서도 태그 검색 대상이 되도록 태그를 채운다(태그를 비우면 재색인분이 태그 필터에서 누락).
+        // 페이지의 코스 id 를 모아 태그를 배치로 읽어 N+1 을 피한다. 장소는 색인 문서에 쓰지 않아 비운다.
+        val tagsByCourse = courseTagRepository.findNamesByCourseIds(entities.map { it.id.value })
+        return entities.map { it.toDomain(tagsByCourse[it.id.value] ?: emptyList(), emptyList()) }
+    }
 
     /** 코스에 담긴 장소·이미지와 태그 연결을 심는다(생성·편집 공용) — 테이블별 배치 insert 로 왕복을 줄인다. */
     private fun insertChildren(

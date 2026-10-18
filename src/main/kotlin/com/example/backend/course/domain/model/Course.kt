@@ -28,7 +28,7 @@ data class Course private constructor(
     val commentsCnt: Int,
     val savesCnt: Int,
     val tracingsCnt: Int,
-    val forkedFromId: Long?,
+    val duplicatedFromId: Long?,
     val createdAt: Instant?,
     val updatedAt: Instant?,
     val deletedAt: Instant?,
@@ -42,21 +42,26 @@ data class Course private constructor(
         /** 코스가 담아야 하는 최소 장소 수 — 발행·임시저장 공통. */
         private const val MIN_PLACES = 2
 
-        /** 포크 시 원본 장소를 **전부** 유지해야 하는 원본 크기의 상한 — 이보다 크면 절반 이상만 유지하면 된다. */
-        private const val FORK_FULL_KEEP_LIMIT = 4
+        /** 코스 복제 시 원본에서 유지해야 하는 서로 다른 장소의 최소 개수. */
+        const val MIN_SHARED_PLACES = 2
 
         /**
-         * 포크한 코스가 원본에서 **그대로 담아야 하는 최소 장소 수**. 장소 추가는 언제나 자유롭고,
-         * 원본 장소를 빼는 것만 제한한다 — 포크가 원본과 다른 코스가 되어 버리는 것을 막는 규칙이다.
-         * - 원본이 4곳 이하: 전부 유지(한 곳도 뺄 수 없다)
-         * - 원본이 5곳 이상: 절반 이상 유지(올림 — 5곳이면 3곳, 6곳이면 3곳, 7곳이면 4곳)
+         * 복제 코스 불변식 — 원본과 서로 다른 장소가 [MIN_SHARED_PLACES] 곳 이상 겹쳐야 한다(생성·초안 편집 공통).
+         * placeId 집합 기준이라 순서 변경·장소 추가는 자유고, 같은 장소를 여러 번 담아도 한 곳으로 센다.
          */
-        fun requiredKeptPlaceCount(originPlaceCount: Int): Int =
-            if (originPlaceCount <= FORK_FULL_KEEP_LIMIT) {
-                originPlaceCount
-            } else {
-                (originPlaceCount + 1) / 2
+        fun ensureDuplicatePlacesKept(
+            originPlaceIds: Collection<Long>,
+            places: List<CoursePlace>,
+        ) {
+            val originIds = originPlaceIds.toSet()
+            val sharedCount = places.map { it.placeId }.toSet().count { it in originIds }
+            if (sharedCount < MIN_SHARED_PLACES) {
+                throw BusinessException(
+                    CourseErrorCode.DUPLICATE_PLACES_NOT_KEPT,
+                    "원본 장소 ${originIds.size}곳 중 ${MIN_SHARED_PLACES}곳 이상을 그대로 담아야 합니다(현재 ${sharedCount}곳).",
+                )
             }
+        }
 
         /**
          * 작성자 코스 개수에 "잡히는" 공개범위 — 발행·활성 코스만 카운트 대상이라 발행이면 [visibility], 임시저장이면 null.
@@ -114,7 +119,7 @@ data class Course private constructor(
             coverImageUrl: String?,
             visibility: CourseVisibility,
             isPublished: Boolean,
-            forkedFromId: Long?,
+            duplicatedFromId: Long?,
             tags: List<String>,
             places: List<CoursePlace>,
             placeCategoryByPlaceId: Map<Long, String>,
@@ -130,7 +135,7 @@ data class Course private constructor(
                 coverImageUrl = coverImageUrl,
                 visibility = visibility,
                 isPublished = isPublished,
-                forkedFromId = forkedFromId,
+                duplicatedFromId = duplicatedFromId,
                 tags = tags,
                 places = places,
                 category = category,
@@ -147,6 +152,7 @@ data class Course private constructor(
             coverImageUrl: String?,
             visibility: CourseVisibility,
             isPublished: Boolean,
+            duplicatedFromId: Long?,
             tags: List<String>,
             places: List<CoursePlace>,
             wasPublished: Boolean,
@@ -170,8 +176,7 @@ data class Course private constructor(
                 coverImageUrl = coverImageUrl,
                 visibility = visibility,
                 isPublished = isPublished,
-                // 편집은 fork 원본을 바꾸지 않는다(update 도 forked_from_id 를 쓰지 않음) — 재구성용으로 null.
-                forkedFromId = null,
+                duplicatedFromId = duplicatedFromId,
                 tags = tags,
                 places = places,
                 category = category,
@@ -190,7 +195,7 @@ data class Course private constructor(
             coverImageUrl: String?,
             visibility: CourseVisibility,
             isPublished: Boolean,
-            forkedFromId: Long?,
+            duplicatedFromId: Long?,
             tags: List<String>,
             places: List<CoursePlace>,
             category: CourseCategory?,
@@ -232,7 +237,7 @@ data class Course private constructor(
                 commentsCnt = 0,
                 savesCnt = 0,
                 tracingsCnt = 0,
-                forkedFromId = forkedFromId,
+                duplicatedFromId = duplicatedFromId,
                 createdAt = null,
                 updatedAt = null,
                 deletedAt = null,
@@ -264,7 +269,7 @@ data class Course private constructor(
             commentsCnt: Int,
             savesCnt: Int,
             tracingsCnt: Int,
-            forkedFromId: Long?,
+            duplicatedFromId: Long?,
             createdAt: Instant?,
             updatedAt: Instant?,
             deletedAt: Instant?,
@@ -288,7 +293,7 @@ data class Course private constructor(
                 commentsCnt = commentsCnt,
                 savesCnt = savesCnt,
                 tracingsCnt = tracingsCnt,
-                forkedFromId = forkedFromId,
+                duplicatedFromId = duplicatedFromId,
                 createdAt = createdAt,
                 updatedAt = updatedAt,
                 deletedAt = deletedAt,

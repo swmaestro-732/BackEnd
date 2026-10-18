@@ -1,5 +1,6 @@
 package com.example.backend.user.application.port.outbound
 
+import com.example.backend.user.application.port.inbound.dto.SavedPlaceRef
 import com.example.backend.user.domain.model.SavedPlace
 import com.example.backend.user.domain.model.SavedPlaceCategory
 import java.time.Instant
@@ -54,6 +55,9 @@ interface SavedPlacePersistencePort {
         cursorId: Long?,
         limit: Int,
     ): List<SavedPlaceRow>
+
+    /** 살아있는 저장 레코드 전체의 (placeId, visited). 순서는 보장하지 않는다. */
+    fun findAllRefs(userId: Long): List<SavedPlaceRef>
 }
 
 /** 저장 레코드 읽기 모델 — 조회 전용. */

@@ -1,22 +1,29 @@
 package com.example.backend.place.adapter.outbound.search
 
+import com.example.backend.bootstrap.config.OpenSearchProperties
 import com.example.backend.common.geo.Coordinate
 import com.example.backend.place.domain.model.Place
 import com.example.backend.place.domain.model.PlaceBusinessStatus
 import com.example.backend.place.domain.model.PlaceCategory
 import com.example.backend.place.domain.model.PlaceStatus
+import org.assertj.core.api.Assertions.assertThat
+import org.assertj.core.api.Assertions.assertThatCode
 import org.junit.jupiter.api.Test
+import org.mockito.Mockito.doAnswer
 import org.mockito.Mockito.mock
 import org.mockito.Mockito.never
 import org.mockito.Mockito.verify
 import org.opensearch.client.opensearch.OpenSearchClient
+import org.opensearch.client.opensearch._types.ErrorCause
 import org.opensearch.client.opensearch.core.BulkRequest
+import org.opensearch.client.opensearch.core.BulkResponse
+import org.opensearch.client.opensearch.core.bulk.BulkResponseItem
 import org.opensearch.client.util.ObjectBuilder
 import org.springframework.beans.factory.ObjectProvider
 
 class OpenSearchPlaceIndexAdapterTest {
     private val clientProvider = mock(ObjectProvider::class.java) as ObjectProvider<OpenSearchClient>
-    private val adapter = OpenSearchPlaceIndexAdapter(clientProvider)
+    private val adapter = OpenSearchPlaceIndexAdapter(clientProvider, OpenSearchProperties())
 
     private fun placeWithId(id: Long): Place =
         Place.reconstitute(
@@ -95,6 +102,56 @@ class OpenSearchPlaceIndexAdapterTest {
             .thenReturn(client)
 
         adapter.save(listOf(placeWithId(1L), placeWithNullId(), placeWithId(2L))) // no exception
+    }
+
+    @Test
+    fun `save(List) 는 indexAlias 로 alias 필수 bulk 색인을 보낸다`() {
+        val client = mock(OpenSearchClient::class.java)
+        org.mockito.Mockito
+            .`when`(clientProvider.ifAvailable)
+            .thenReturn(client)
+        var capturedRequest: BulkRequest? = null
+        doAnswer { inv ->
+            @Suppress("UNCHECKED_CAST")
+            val fn = inv.arguments[0] as java.util.function.Function<BulkRequest.Builder, ObjectBuilder<BulkRequest>>
+            capturedRequest = fn.apply(BulkRequest.Builder()).build()
+            null
+        }.`when`(client).bulk(anyArg<java.util.function.Function<BulkRequest.Builder, ObjectBuilder<BulkRequest>>>())
+
+        adapter.save(listOf(placeWithId(1L)))
+
+        assertThat(capturedRequest).isNotNull()
+        assertThat(capturedRequest!!.operations()).isNotEmpty()
+        @Suppress("UNCHECKED_CAST")
+        assertThat(capturedRequest!!.operations()[0].index<Any>()!!.index()).isEqualTo("place")
+        // alias 가 없으면 같은 이름 인덱스를 자동 생성하지 않고 실패하도록 alias 필수로 보낸다
+        assertThat(capturedRequest!!.requireAlias()).isTrue()
+    }
+
+    @Test
+    fun `bulk 부분 실패는 실패 건수를 집계하고 예외를 전파하지 않는다`() {
+        val client = mock(OpenSearchClient::class.java)
+        org.mockito.Mockito
+            .`when`(clientProvider.ifAvailable)
+            .thenReturn(client)
+        val okItem = mock(BulkResponseItem::class.java)
+        val failedItem = mock(BulkResponseItem::class.java)
+        org.mockito.Mockito
+            .`when`(failedItem.error())
+            .thenReturn(mock(ErrorCause::class.java))
+        val response = mock(BulkResponse::class.java)
+        org.mockito.Mockito
+            .`when`(response.errors())
+            .thenReturn(true)
+        org.mockito.Mockito
+            .`when`(response.items())
+            .thenReturn(listOf(okItem, failedItem))
+        doAnswer { response }
+            .`when`(client)
+            .bulk(anyArg<java.util.function.Function<BulkRequest.Builder, ObjectBuilder<BulkRequest>>>())
+
+        assertThatCode { adapter.save(listOf(placeWithId(1L), placeWithId(2L))) }.doesNotThrowAnyException()
+        verify(response).items()
     }
 }
 

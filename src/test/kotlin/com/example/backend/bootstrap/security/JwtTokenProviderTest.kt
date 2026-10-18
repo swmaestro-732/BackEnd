@@ -6,6 +6,8 @@ import com.example.backend.user.domain.model.SocialProvider
 import com.nimbusds.jose.jwk.source.ImmutableSecret
 import com.nimbusds.jose.proc.SecurityContext
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.params.ParameterizedTest
+import org.junit.jupiter.params.provider.EnumSource
 import org.springframework.security.oauth2.jose.jws.MacAlgorithm
 import org.springframework.security.oauth2.jwt.JwtDecoder
 import org.springframework.security.oauth2.jwt.JwtEncoder
@@ -33,13 +35,14 @@ class JwtTokenProviderTest {
         assertEquals(USER_ID.toString(), decoded.subject)
     }
 
-    @Test
-    fun `registration token에서 provider와 socialId를 복원한다`() {
-        val token = provider.issueRegistrationToken(SocialProvider.KAKAO, SOCIAL_ID)
+    @ParameterizedTest
+    @EnumSource(value = SocialProvider::class, names = ["KAKAO", "NAVER"])
+    fun `registration token에서 provider와 socialId를 복원한다`(socialProvider: SocialProvider) {
+        val token = provider.issueRegistrationToken(socialProvider, SOCIAL_ID)
 
         val identity = provider.parseRegistrationToken(token)
 
-        assertEquals(SocialProvider.KAKAO, identity.provider)
+        assertEquals(socialProvider, identity.provider)
         assertEquals(SOCIAL_ID, identity.socialId)
     }
 

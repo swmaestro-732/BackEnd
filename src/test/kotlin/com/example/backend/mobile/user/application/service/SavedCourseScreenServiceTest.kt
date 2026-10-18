@@ -2,15 +2,14 @@ package com.example.backend.mobile.user.application.service
 
 import com.example.backend.common.domain.CourseVisibility
 import com.example.backend.course.application.port.inbound.CourseQueryUseCase
+import com.example.backend.course.application.port.inbound.CourseTraceUseCase
 import com.example.backend.course.application.port.inbound.dto.CourseDetailResult
 import com.example.backend.course.application.port.inbound.dto.CoursePlaceResult
 import com.example.backend.mobile.user.application.port.inbound.SavedCourseScreenCommand
 import com.example.backend.place.application.port.inbound.PlaceQueryUseCase
 import com.example.backend.place.application.port.inbound.dto.PlaceSummary
-import com.example.backend.user.application.port.inbound.CourseInteractionUseCase
 import com.example.backend.user.application.port.inbound.SavedCourseUseCase
 import com.example.backend.user.application.port.inbound.UserUseCase
-import com.example.backend.user.application.port.inbound.dto.CourseViewerState
 import com.example.backend.user.application.port.inbound.dto.SavedCourseFolderCount
 import com.example.backend.user.application.port.inbound.dto.SavedCourseFolderCounts
 import com.example.backend.user.application.port.inbound.dto.SavedCoursesCommand
@@ -29,14 +28,14 @@ class SavedCourseScreenServiceTest {
     private val courseQueryUseCase = mock(CourseQueryUseCase::class.java)
     private val userUseCase = mock(UserUseCase::class.java)
     private val placeQueryUseCase = mock(PlaceQueryUseCase::class.java)
-    private val interactionUseCase = mock(CourseInteractionUseCase::class.java)
+    private val courseTraceUseCase = mock(CourseTraceUseCase::class.java)
     private val service =
         SavedCourseScreenService(
             savedCourseUseCase,
             courseQueryUseCase,
             userUseCase,
             placeQueryUseCase,
-            interactionUseCase,
+            courseTraceUseCase,
         )
 
     @Test
@@ -53,9 +52,7 @@ class SavedCourseScreenServiceTest {
         `when`(savedCourseUseCase.getSavedCourses(SavedCoursesCommand(7L, 4L, true, "cursor", 20))).thenReturn(saved)
         `when`(savedCourseUseCase.getFolderCounts(7L)).thenReturn(folders)
         `when`(courseQueryUseCase.getDetails(listOf(10L), 7L)).thenReturn(listOf(course))
-        `when`(
-            interactionUseCase.getViewerStates(7L, listOf(10L)),
-        ).thenReturn(listOf(CourseViewerState(10L, true, completedAt)))
+        `when`(courseTraceUseCase.findCompletedAt(7L, listOf(10L))).thenReturn(mapOf(10L to completedAt))
         `when`(userUseCase.getProfiles(listOf(3L), 7L)).thenReturn(listOf(author))
         `when`(placeQueryUseCase.findPlacesById(listOf(30L))).thenReturn(listOf(place))
 
@@ -89,7 +86,7 @@ class SavedCourseScreenServiceTest {
             .thenReturn(SavedCoursesResult(2, 0, null, false, records))
         `when`(savedCourseUseCase.getFolderCounts(7L)).thenReturn(SavedCourseFolderCounts(emptyList(), 2))
         `when`(courseQueryUseCase.getDetails(listOf(10L, 20L), 7L)).thenReturn(listOf(course(10L, 3L, emptyList())))
-        `when`(interactionUseCase.getViewerStates(7L, listOf(10L))).thenReturn(emptyList())
+        `when`(courseTraceUseCase.findCompletedAt(7L, listOf(10L))).thenReturn(emptyMap())
         `when`(userUseCase.getProfiles(listOf(3L), 7L)).thenReturn(emptyList())
         `when`(placeQueryUseCase.findPlacesById(emptyList())).thenReturn(emptyList())
 
@@ -119,6 +116,7 @@ class SavedCourseScreenServiceTest {
         emptyList(),
         "설명",
         CourseVisibility.PUBLIC,
+        true,
         authorId,
         0,
         placeIds.mapIndexed {
@@ -127,6 +125,7 @@ class SavedCourseScreenServiceTest {
             ->
             CoursePlaceResult(index.toLong(), placeId, index, null, null, emptyList())
         },
+        false,
         false,
         false,
     )

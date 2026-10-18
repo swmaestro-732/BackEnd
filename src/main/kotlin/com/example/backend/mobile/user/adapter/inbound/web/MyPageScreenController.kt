@@ -2,7 +2,6 @@ package com.example.backend.mobile.user.adapter.inbound.web
 
 import com.example.backend.bootstrap.appversion.AppFeature
 import com.example.backend.bootstrap.appversion.RequiresAppFeature
-import com.example.backend.bootstrap.mock.MockGuard
 import com.example.backend.bootstrap.security.AccessTokenRequired
 import com.example.backend.bootstrap.security.CurrentUserId
 import com.example.backend.common.response.ApiResponse
@@ -28,7 +27,6 @@ import org.springframework.web.bind.annotation.RestController
 @RequestMapping("/service/v1")
 class MyPageScreenController(
     private val myPageUseCase: MyPageUseCase,
-    private val mockGuard: MockGuard,
 ) {
     /** 내 마이페이지 — 내 프로필 + 내 발행 코스 전체. */
     @GetMapping("/mypage")
@@ -42,7 +40,7 @@ class MyPageScreenController(
         size: Int = DEFAULT_SIZE,
         @RequestParam(required = false) mock: Boolean = false,
     ): ApiResponse<MyPageScreenResponse> {
-        if (mock && mockGuard.isMockAllowed()) return ApiResponse.success(MyPageScreenResponse.MOCK)
+        if (mock) return ApiResponse.success(MyPageScreenResponse.MOCK)
         return ApiResponse.success(
             MyPageScreenResponse.from(myPageUseCase.getMyPage(userId, cursor, size)),
         )
@@ -60,7 +58,7 @@ class MyPageScreenController(
         size: Int = DEFAULT_SIZE,
         @RequestParam(required = false) mock: Boolean = false,
     ): ApiResponse<MyPageScreenResponse> {
-        if (mock && mockGuard.isMockAllowed()) return ApiResponse.success(MyPageScreenResponse.MOCK)
+        if (mock) return ApiResponse.success(MyPageScreenResponse.MOCK)
         return ApiResponse.success(
             MyPageScreenResponse.from(myPageUseCase.getUserPage(handle, viewerId, cursor, size)),
         )

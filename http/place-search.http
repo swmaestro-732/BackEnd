@@ -1,0 +1,17 @@
+### 코스 생성 목록: 첫 번째 장소(뷰포트 없음)
+GET {{baseUrl}}/api/v1/places?q=성수%20카페&size=10
+
+### 코스 생성 목록: 첫 장소를 기준으로 거리 가산점(실제 장소 ID로 교체)
+GET {{baseUrl}}/api/v1/places?q=카페&anchorPlaceId=1&size=10
+
+### 다음 페이지: q와 anchorPlaceId는 유지하고 응답의 nextCursor를 그대로 전달
+GET {{baseUrl}}/api/v1/places?q=카페&anchorPlaceId=1&size=10&cursor={{placeCursor}}
+
+### 지도 검색: 키워드 없는 카테고리 탐색
+GET {{baseUrl}}/api/v1/places/map?swLat=37.53&swLng=127.02&neLat=37.56&neLng=127.07&category=CAFE
+
+### 지도 검색: 뷰포트 + 키워드
+GET {{baseUrl}}/api/v1/places/map?swLat=37.53&swLng=127.02&neLat=37.56&neLng=127.07&q=블루보틀
+
+### 지도 검색: 거리순(사용자 위치 기준, 없으면 뷰포트 중심)
+GET {{baseUrl}}/api/v1/places/map?swLat=37.53&swLng=127.02&neLat=37.56&neLng=127.07&q=카페&sort=DISTANCE&userLat=37.544&userLng=127.056

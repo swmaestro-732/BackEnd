@@ -3,6 +3,7 @@ package com.example.backend.bootstrap.exception
 import com.example.backend.common.exception.BusinessException
 import com.example.backend.common.response.CommonErrorCode
 import com.example.backend.common.response.PlaceErrorCode
+import com.example.backend.common.response.ReportErrorCode
 import com.example.backend.common.response.UserErrorCode
 import org.jetbrains.exposed.v1.exceptions.ExposedSQLException
 import org.junit.jupiter.api.Assertions.assertEquals
@@ -197,6 +198,18 @@ class GlobalExceptionHandlerTest {
 
         assertEquals(409, response.statusCode.value())
         assertEquals(UserErrorCode.FOLDER_NAME_ALREADY_TAKEN.code, response.body?.code)
+    }
+
+    @Test
+    fun `handleSqlException — UNIQUE 위반 uq_reports_reporter_target 인덱스는 409 REPORT_ALREADY_EXISTS 를 내려준다`() {
+        val e = mock(ExposedSQLException::class.java)
+        `when`(e.sqlState).thenReturn("23505")
+        `when`(e.message).thenReturn("duplicate key value violates unique constraint \"uq_reports_reporter_target\"")
+
+        val response = handler.handleSqlException(e)
+
+        assertEquals(409, response.statusCode.value())
+        assertEquals(ReportErrorCode.REPORT_ALREADY_EXISTS.code, response.body?.code)
     }
 
     @Test

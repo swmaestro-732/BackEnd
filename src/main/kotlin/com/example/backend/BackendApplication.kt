@@ -5,6 +5,8 @@ import com.example.backend.bootstrap.config.MediaProperties
 import com.example.backend.bootstrap.config.OpenSearchProperties
 import com.example.backend.bootstrap.config.SqsProperties
 import com.example.backend.bootstrap.config.TmapProperties
+import com.example.backend.bootstrap.security.AppleOauthProperties
+import com.example.backend.bootstrap.security.GoogleOauthProperties
 import com.example.backend.bootstrap.security.JwtProperties
 import com.example.backend.bootstrap.security.KakaoOauthProperties
 import org.springframework.boot.autoconfigure.SpringBootApplication
@@ -15,6 +17,8 @@ import org.springframework.boot.runApplication
 @EnableConfigurationProperties(
     JwtProperties::class,
     KakaoOauthProperties::class,
+    GoogleOauthProperties::class,
+    AppleOauthProperties::class,
     MediaProperties::class,
     KakaoLocalProperties::class,
     TmapProperties::class,

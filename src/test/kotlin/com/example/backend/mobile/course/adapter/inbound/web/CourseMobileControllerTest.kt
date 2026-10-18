@@ -9,6 +9,7 @@ import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc
 import org.springframework.http.HttpHeaders
 import org.springframework.http.MediaType
 import org.springframework.test.context.jdbc.Sql
+import org.springframework.test.context.jdbc.SqlMergeMode
 import org.springframework.test.web.servlet.MockMvc
 import org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get
 import org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post
@@ -162,6 +163,21 @@ class CourseMobileControllerTest
                 .andExpect(jsonPath("$.data.course.title").value("비 오는 날 성수 감성 카페 코스"))
                 .andExpect(jsonPath("$.data.course.stats.tracingCount").value(1200))
                 .andExpect(jsonPath("$.data.reviewSummary.totalCount").value(6))
+        }
+
+        @Test
+        @Sql(scripts = ["/sql/course-like-fixture.sql"])
+        @SqlMergeMode(SqlMergeMode.MergeMode.OVERRIDE)
+        fun `좋아요한 코스를 모바일 상세 조회하면 viewer_hasLiked 가 true 다`() {
+            // course-like-fixture: user 1이 course 2를 좋아요한 상태
+            mockMvc
+                .perform(
+                    get("/service/v1/courses/2")
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer ${tokenFor(OWNER_ID)}"),
+                ).andExpect(status().isOk)
+                .andExpect(jsonPath("$.code").value(2000))
+                .andExpect(jsonPath("$.data.course.viewer.hasLiked").value(true))
+                .andExpect(jsonPath("$.data.course.viewer.hasSaved").value(false))
         }
 
         @Test

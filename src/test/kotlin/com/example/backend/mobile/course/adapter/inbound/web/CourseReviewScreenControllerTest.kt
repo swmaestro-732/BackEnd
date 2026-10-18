@@ -102,8 +102,12 @@ class CourseReviewScreenControllerTest
         }
 
         @Test
-        fun `로그인 조회자도 완주 여부는 스텁 false 다`() {
+        fun `로그인 조회자가 이 코스를 완주한 적 없으면 hasCompletedCourse 는 false 다`() {
             seedReviews()
+            // 진행 중 세션만 있는 경우도 완주가 아니다.
+            jdbcTemplate.update(
+                "INSERT INTO tracing_courses (user_id, course_id, status, created_at) VALUES ($AUTHOR_A, $COURSE_ID, 'IN_PROGRESS', now())",
+            )
 
             mockMvc
                 .perform(
@@ -111,6 +115,22 @@ class CourseReviewScreenControllerTest
                         .header(HttpHeaders.AUTHORIZATION, "Bearer ${jwtTokenProvider.issueAccessToken(AUTHOR_A)}"),
                 ).andExpect(status().isOk)
                 .andExpect(jsonPath("$.data.hasCompletedCourse").value(false))
+        }
+
+        @Test
+        fun `로그인 조회자가 이 코스를 완주했으면 hasCompletedCourse 는 true 다`() {
+            seedReviews()
+            jdbcTemplate.update(
+                "INSERT INTO tracing_courses (user_id, course_id, status, created_at, ended_at) " +
+                    "VALUES ($AUTHOR_A, $COURSE_ID, 'COMPLETED', now(), now())",
+            )
+
+            mockMvc
+                .perform(
+                    get("/service/v1/courses/$COURSE_ID/reviews")
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer ${jwtTokenProvider.issueAccessToken(AUTHOR_A)}"),
+                ).andExpect(status().isOk)
+                .andExpect(jsonPath("$.data.hasCompletedCourse").value(true))
         }
 
         @Test
@@ -164,9 +184,11 @@ class CourseReviewScreenControllerTest
             jdbcTemplate.update(
                 "INSERT INTO course_review_tag_links (course_review_id, tag) VALUES (1, 'PACKED'), (1, 'SMOOTH')",
             )
-            // totalCount·averageRating 은 행 집계가 아니라 비정규화 카운터에서 읽는다 — 쓰기 경로가 유지하는 값을 그대로 맞춰 둔다.
-            // 5+3+5 / 3건(삭제 제외)
-            jdbcTemplate.update("UPDATE courses SET rating_sum = 13, rating_cnt = 3 WHERE id = $COURSE_ID")
+            // totalCount·averageRating·photoCount·ratingDistribution 은 행 집계가 아니라 비정규화 카운터에서 읽는다 —
+            // 쓰기 경로가 유지하는 값을 그대로 맞춰 둔다. 5+3+5 / 3건(삭제 제외) / 사진 2장(리뷰 1) / 5점 2·3점 1
+            jdbcTemplate.update(
+                "UPDATE courses SET rating_sum = 13, rating_cnt = 3, review_photo_cnt = 2, rating_5_cnt = 2, rating_3_cnt = 1 WHERE id = $COURSE_ID",
+            )
         }
 
         private fun fetch(query: String): Map<String, Any?> {

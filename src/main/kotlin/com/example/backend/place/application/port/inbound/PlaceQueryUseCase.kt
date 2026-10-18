@@ -1,5 +1,7 @@
 package com.example.backend.place.application.port.inbound
 
+import com.example.backend.common.geo.Coordinate
+import com.example.backend.place.application.port.inbound.dto.NearbyPlaceSummary
 import com.example.backend.place.application.port.inbound.dto.PlaceSummary
 import com.example.backend.place.application.port.inbound.dto.PlaceSummaryPage
 
@@ -11,9 +13,21 @@ interface PlaceQueryUseCase {
     /** placeIds 에 해당하는 장소 요약들. 존재하지 않거나 삭제된 장소는 결과에서 빠진다. */
     fun findPlacesById(placeIds: List<Long>): List<PlaceSummary>
 
+    /** 코스 생성 목록 검색. 기준 장소가 있으면 거리 가산점을 적용한다. 매 페이지 같은 검색어·기준 장소를 보낸다. */
     fun searchByName(
         query: String,
         cursor: String?,
         size: Int,
+        anchorPlaceId: Long? = null,
     ): PlaceSummaryPage
+
+    /**
+     * [placeIds] 중 [origin] 에서 가까운 순으로 최대 [limit] 개. 삭제된 장소는 빠지고, 빈 목록이면 엔진을 부르지 않는다.
+     * 검색엔진 미가용이나 실패는 `PLACE_SEARCH_UNAVAILABLE`(503).
+     */
+    fun findNearest(
+        placeIds: List<Long>,
+        origin: Coordinate,
+        limit: Int,
+    ): List<NearbyPlaceSummary>
 }

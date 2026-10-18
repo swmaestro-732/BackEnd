@@ -10,6 +10,8 @@ enum class AppFeature(
     COURSE_DETAIL("course-detail"),
     COURSE_CREATE("course-create"),
     COURSE_REVIEW("course-review"),
+    PLAN("plan"),
+    COURSE_TRACING("course-tracing"),
     PLACE_DETAIL("place-detail"),
     PLACE_SEARCH("place-search"),
     PLACE_REVIEW("place-review"),

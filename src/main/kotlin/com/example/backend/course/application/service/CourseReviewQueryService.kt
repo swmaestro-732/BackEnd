@@ -40,9 +40,7 @@ class CourseReviewQueryService(
         val reviewIds = page.map { it.id }
         val photoUrls = courseReviewQueryPort.findPhotoUrls(reviewIds)
         val tags = courseReviewQueryPort.findTags(reviewIds)
-        val ratingCounts = courseReviewQueryPort.countReviewsByRating(query.courseId)
-        val photoCount = courseReviewQueryPort.countPhotosByCourse(query.courseId)
-        val counters = courseReviewQueryPort.findRatingCounters(query.courseId)
+        val counters = courseReviewQueryPort.findCounters(query.courseId)
         val nextCursor =
             if (hasNext) {
                 page.lastOrNull()?.let { CourseReviewCursorCodec.encode(query.sort, query.descending, it.toCursor()) }
@@ -53,8 +51,8 @@ class CourseReviewQueryService(
         return CourseReviewsResult(
             averageRating = counters?.averageRating ?: 0.0,
             totalCount = counters?.ratingCnt ?: 0,
-            ratingDistribution = ratingCounts.toRatingDistribution(),
-            photoCount = photoCount.toInt(),
+            ratingDistribution = (counters?.ratingCounts ?: emptyMap()).toRatingDistribution(),
+            photoCount = counters?.reviewPhotoCnt ?: 0,
             nextCursor = nextCursor,
             hasNext = hasNext,
             reviews =
@@ -80,13 +78,8 @@ class CourseReviewQueryService(
         tags = tags.map { it.toTag() },
     )
 
-    private fun Map<Int, Long>.toRatingDistribution(): List<CourseReviewsResult.RatingCount> =
-        RATING_RANGE.map { rating ->
-            CourseReviewsResult.RatingCount(
-                rating = rating,
-                count = (this[rating] ?: 0L).toInt(),
-            )
-        }
+    private fun Map<Int, Int>.toRatingDistribution(): List<CourseReviewsResult.RatingCount> =
+        RATING_RANGE.map { rating -> CourseReviewsResult.RatingCount(rating = rating, count = this[rating] ?: 0) }
 
     private fun CourseReviewRow.toCursor() = CourseReviewCursor(rating = rating, createdAt = createdAt, id = id)
 

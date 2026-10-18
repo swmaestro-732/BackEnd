@@ -1,16 +1,17 @@
 package com.example.backend.course.application.port.outbound
 
-/** 조회자의 코스 관점 상태 — 저장 여부·완주(따라가기) 여부. user 도메인 상태를 course 경계 안으로 복사한 DTO. */
+/** 조회자의 코스 관점 상태 — 저장·좋아요·완주(따라가기) 여부. 저장은 user 도메인 상태를 course 경계 안으로 복사한 값이다. */
 data class ViewerCourseState(
     val courseId: Long,
     val hasSaved: Boolean,
+    val hasLiked: Boolean,
     val hasStartedCourse: Boolean,
 )
 
 /**
- * 아웃바운드 포트 — 조회자와 코스/작성자 간 상호작용 조회(저장·완주 상태, 팔로우 여부).
- * 이 데이터(saved_courses·tracing_courses·follows)는 user 도메인 소유라, course 애플리케이션은 이 포트로만 접근하고
- * 어댑터가 user 인바운드 포트에 위임한다(크로스 도메인 격리). MSA 분리 시 어댑터만 user 서비스 클라이언트로 교체한다.
+ * 아웃바운드 포트 — 조회자와 코스/작성자 간 상호작용 조회(저장·좋아요·완주 상태, 팔로우 여부).
+ * 저장·팔로우(saved_courses·follows)는 user 도메인 소유라 어댑터가 user 인바운드 포트에 위임하고(크로스 도메인 격리),
+ * 좋아요·완주(course_likes·tracing_courses)는 course 로컬에서 읽어 합친다. MSA 분리 시 어댑터의 user 위임만 서비스 클라이언트로 교체한다.
  */
 interface ViewerInteractionPort {
     /** 여러 코스에 대한 조회자 상태를 코스별로 반환한다(상세·목록 조합용). */

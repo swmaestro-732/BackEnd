@@ -120,7 +120,7 @@ data class CourseDetailScreenResponse(
                                         ),
                                 ),
                             ),
-                        viewer = CourseViewerResponse(hasSaved = false, hasStartedCourse = false),
+                        viewer = CourseViewerResponse(hasSaved = false, hasLiked = false, hasStartedCourse = false),
                     ),
                 reviewSummary =
                     ReviewSummaryResponse(
@@ -209,7 +209,7 @@ data class CourseScreenResponse(
                 stats = CourseStatsResponse.from(course),
                 author = AuthorResponse.from(author),
                 places = course.places.map { CoursePlaceScreenResponse.from(it, placesById[it.placeId]) },
-                viewer = CourseViewerResponse(course.hasSaved, course.hasStartedCourse),
+                viewer = CourseViewerResponse(course.hasSaved, course.hasLiked, course.hasStartedCourse),
             )
         }
     }
@@ -307,6 +307,7 @@ data class CoursePlaceImageResponse(
 
 data class CourseViewerResponse(
     val hasSaved: Boolean,
+    val hasLiked: Boolean,
     val hasStartedCourse: Boolean,
 )
 

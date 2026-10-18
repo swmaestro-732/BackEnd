@@ -24,6 +24,8 @@ import javax.crypto.spec.SecretKeySpec
 class JwtConfig(
     private val jwtProperties: JwtProperties,
     private val kakaoOauthProperties: KakaoOauthProperties,
+    private val googleOauthProperties: GoogleOauthProperties,
+    private val appleOauthProperties: AppleOauthProperties,
 ) {
     private val secretKey = SecretKeySpec(jwtProperties.secret.toByteArray(), "HmacSHA256")
 
@@ -63,6 +65,75 @@ class JwtConfig(
         return decoder
     }
 
+    @Bean
+    @Qualifier("googleJwtDecoder")
+    fun googleJwtDecoder(): JwtDecoder {
+        val decoder =
+            NimbusJwtDecoder
+                .withJwkSetUri(googleOauthProperties.jwksUri)
+                .jwsAlgorithm(SignatureAlgorithm.RS256)
+                .build()
+
+        // Google 은 iss 를 "https://accounts.google.com" 또는 "accounts.google.com" 두 형태로 발급한다 — 둘 다 허용.
+        val allowedIssuers =
+            setOf(
+                googleOauthProperties.issuer,
+                googleOauthProperties.issuer.removePrefix("https://"),
+            )
+        // aud 는 플랫폼(web/android/ios)마다 다른 client-id. 설정된 값(빈 값 제외) 중 하나라도 있으면 통과.
+        val allowedAudiences =
+            listOf(
+                googleOauthProperties.clientId,
+                googleOauthProperties.androidClientId,
+                googleOauthProperties.iosClientId,
+            ).filter { it.isNotBlank() }.toSet()
+        // createDefault() 를 반드시 포함한다 — setJwtValidator 는 기본 검증기를 통째로 대체하므로
+        // 빠뜨리면 exp(만료)·nbf 검증이 사라진다(만료된 토큰 통과). issuer/aud 는 그 위에 얹는다.
+        val validator =
+            DelegatingOAuth2TokenValidator(
+                JwtValidators.createDefault(),
+                issuerValidator(allowedIssuers),
+                audienceValidator(allowedAudiences),
+            )
+        decoder.setJwtValidator(validator)
+        return decoder
+    }
+
+    @Bean
+    @Qualifier("appleJwtDecoder")
+    fun appleJwtDecoder(): JwtDecoder {
+        val decoder =
+            NimbusJwtDecoder
+                .withJwkSetUri(appleOauthProperties.jwksUri)
+                .jwsAlgorithm(SignatureAlgorithm.RS256)
+                .build()
+
+        // aud 는 플랫폼마다 다르다 — iOS 네이티브=앱 Bundle ID, 웹/안드로이드=Services ID. 설정된 값 중 하나라도 있으면 통과.
+        val allowedAudiences =
+            listOf(appleOauthProperties.clientId, appleOauthProperties.serviceId)
+                .filter { it.isNotBlank() }
+                .toSet()
+        val validator =
+            DelegatingOAuth2TokenValidator(
+                JwtValidators.createDefault(),
+                issuerValidator(setOf(appleOauthProperties.issuer)),
+                audienceValidator(allowedAudiences),
+            )
+        decoder.setJwtValidator(validator)
+        return decoder
+    }
+
+    private fun issuerValidator(allowedIssuers: Set<String>): OAuth2TokenValidator<Jwt> =
+        OAuth2TokenValidator { jwt ->
+            if (jwt.issuer?.toString() in allowedIssuers) {
+                OAuth2TokenValidatorResult.success()
+            } else {
+                OAuth2TokenValidatorResult.failure(
+                    OAuth2Error("invalid_token", "ID token issuer is not an allowed issuer.", null),
+                )
+            }
+        }
+
     private fun audienceValidator(allowedAudiences: Set<String>): OAuth2TokenValidator<Jwt> =
         OAuth2TokenValidator { jwt ->
             if (jwt.audience.orEmpty().any { it in allowedAudiences }) {
@@ -71,7 +142,7 @@ class JwtConfig(
                 OAuth2TokenValidatorResult.failure(
                     OAuth2Error(
                         "invalid_token",
-                        "Kakao ID token audience does not match a configured Kakao app key.",
+                        "ID token audience does not match a configured client id.",
                         null,
                     ),
                 )

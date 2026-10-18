@@ -2,7 +2,6 @@ package com.example.backend.user.adapter.inbound.web
 
 import com.example.backend.bootstrap.appversion.AppFeature
 import com.example.backend.bootstrap.appversion.RequiresAppFeature
-import com.example.backend.bootstrap.mock.MockGuard
 import com.example.backend.bootstrap.security.AccessTokenRequired
 import com.example.backend.bootstrap.security.CurrentUserId
 import com.example.backend.common.response.ApiResponse
@@ -38,7 +37,6 @@ class UserController(
     private val userUseCase: UserUseCase,
     private val accountUseCase: AccountUseCase,
     private val followQueryUseCase: FollowQueryUseCase,
-    private val mockGuard: MockGuard,
 ) {
     /**
      * 내 프로필 조회 — **프로필 편집 화면**이 폼을 채우는 데 쓴다. `GET /api/v1/users`.
@@ -52,7 +50,7 @@ class UserController(
         @CurrentUserId userId: Long,
         @RequestParam(required = false) mock: Boolean = false,
     ): ApiResponse<AccountProfileResponse> {
-        if (mock && mockGuard.isMockAllowed()) return ApiResponse.success(AccountProfileResponse.mock())
+        if (mock) return ApiResponse.success(AccountProfileResponse.mock())
         return ApiResponse.success(AccountProfileResponse.from(accountUseCase.getProfile(userId)))
     }
 
@@ -64,7 +62,7 @@ class UserController(
         @Valid @RequestBody request: UpdateProfileRequest,
         @RequestParam(required = false) mock: Boolean = false,
     ): ApiResponse<AccountProfileResponse> {
-        if (mock && mockGuard.isMockAllowed()) {
+        if (mock) {
             return ApiResponse.success(
                 AccountProfileResponse.mock(
                     nickname = request.nickname,
@@ -112,7 +110,7 @@ class UserController(
         @RequestParam(required = false) @Min(1) @Max(50) size: Int = 10,
         @RequestParam(required = false) mock: Boolean = false,
     ): ApiResponse<FollowListResponse> {
-        if (mock && mockGuard.isMockAllowed()) return ApiResponse.success(FollowListResponse.mock())
+        if (mock) return ApiResponse.success(FollowListResponse.mock())
 
         return ApiResponse.success(
             FollowListResponse.from(
@@ -129,7 +127,7 @@ class UserController(
         @RequestParam(required = false) @Min(1) @Max(50) size: Int = 10,
         @RequestParam(required = false) mock: Boolean = false,
     ): ApiResponse<FollowListResponse> {
-        if (mock && mockGuard.isMockAllowed()) return ApiResponse.success(FollowListResponse.mock())
+        if (mock) return ApiResponse.success(FollowListResponse.mock())
 
         return ApiResponse.success(
             FollowListResponse.from(

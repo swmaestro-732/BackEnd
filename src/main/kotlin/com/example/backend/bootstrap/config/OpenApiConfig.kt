@@ -79,5 +79,8 @@ class OpenApiConfig {
     fun directionApi(): GroupedOpenApi = group("direction", "com.example.backend.direction")
 
     @Bean
+    fun reportApi(): GroupedOpenApi = group("report", "com.example.backend.report")
+
+    @Bean
     fun mobileApi(): GroupedOpenApi = group("mobile", "com.example.backend.mobile")
 }

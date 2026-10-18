@@ -54,15 +54,18 @@ class SavedCoursePersistenceAdapter(
         userId: Long,
         folderId: Long?,
         completed: Boolean?,
-    ): Long = savedCourseRepository.count(userId, folderId, completed)
+        tracedCourseIds: Set<Long>,
+    ): Long = savedCourseRepository.count(userId, folderId, completed, tracedCourseIds)
 
     override fun findPage(
         userId: Long,
         folderId: Long?,
         completed: Boolean?,
+        tracedCourseIds: Set<Long>,
         cursorId: Long?,
         limit: Int,
-    ): List<SavedCourseRow> = savedCourseRepository.findPage(userId, folderId, completed, cursorId, limit)
+    ): List<SavedCourseRow> =
+        savedCourseRepository.findPage(userId, folderId, completed, tracedCourseIds, cursorId, limit)
 
     override fun existsFolderName(
         userId: Long,

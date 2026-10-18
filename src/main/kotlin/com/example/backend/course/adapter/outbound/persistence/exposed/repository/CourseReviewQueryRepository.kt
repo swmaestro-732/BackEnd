@@ -5,16 +5,14 @@ import com.example.backend.course.adapter.outbound.persistence.exposed.CourseRev
 import com.example.backend.course.adapter.outbound.persistence.exposed.CourseReviewTagLinkTable
 import com.example.backend.course.adapter.outbound.persistence.exposed.CourseTable
 import com.example.backend.course.application.port.inbound.dto.CourseReviewSortKey
-import com.example.backend.course.application.port.outbound.CourseRatingCounters
+import com.example.backend.course.application.port.outbound.CourseReviewCounters
 import com.example.backend.course.application.port.outbound.CourseReviewCursor
 import com.example.backend.course.application.port.outbound.CourseReviewRow
 import com.example.backend.course.domain.model.CourseReviewStatus
 import com.example.backend.course.domain.model.CourseReviewTag
-import org.jetbrains.exposed.v1.core.JoinType
 import org.jetbrains.exposed.v1.core.Op
 import org.jetbrains.exposed.v1.core.SortOrder
 import org.jetbrains.exposed.v1.core.and
-import org.jetbrains.exposed.v1.core.count
 import org.jetbrains.exposed.v1.core.eq
 import org.jetbrains.exposed.v1.core.greater
 import org.jetbrains.exposed.v1.core.inList
@@ -86,38 +84,26 @@ class CourseReviewQueryRepository {
             .groupBy({ it[CourseReviewTagLinkTable.courseReviewId] }, { it[CourseReviewTagLinkTable.tag] })
     }
 
-    /** 코스 전체의 살아있는 리뷰를 별점별로 센다. */
-    fun countReviewsByRating(courseId: Long): Map<Int, Long> {
-        val reviewCount = CourseReviewTable.id.count()
-        return CourseReviewTable
-            .select(CourseReviewTable.rating, reviewCount)
-            .where(alive(courseId))
-            .groupBy(CourseReviewTable.rating)
-            .associate { it[CourseReviewTable.rating].toInt() to it[reviewCount] }
-    }
-
-    /** 코스 전체의 살아있는 리뷰에 달린 사진을 센다. */
-    fun countPhotosByCourse(courseId: Long): Long =
-        CourseReviewPhotoTable
-            .join(
-                CourseReviewTable,
-                JoinType.INNER,
-                CourseReviewPhotoTable.courseReviewId,
-                CourseReviewTable.id,
-            ).selectAll()
-            .where(alive(courseId))
-            .count()
-
-    /** courses 별점 카운터(V6) 단건 조회 — 삭제된 코스는 제외한다. */
-    fun findRatingCounters(courseId: Long): CourseRatingCounters? =
+    /** courses 리뷰 카운터(V6·V13) 단건 조회 — 삭제된 코스는 제외한다. */
+    fun findCounters(courseId: Long): CourseReviewCounters? =
         CourseTable
-            .select(CourseTable.ratingSum, CourseTable.ratingCnt)
-            .where { (CourseTable.id eq courseId) and CourseTable.deletedAt.isNull() }
+            .select(
+                CourseTable.ratingSum,
+                CourseTable.ratingCnt,
+                CourseTable.reviewPhotoCnt,
+                CourseTable.rating1Cnt,
+                CourseTable.rating2Cnt,
+                CourseTable.rating3Cnt,
+                CourseTable.rating4Cnt,
+                CourseTable.rating5Cnt,
+            ).where { (CourseTable.id eq courseId) and CourseTable.deletedAt.isNull() }
             .singleOrNull()
-            ?.let {
-                CourseRatingCounters(
-                    ratingSum = it[CourseTable.ratingSum],
-                    ratingCnt = it[CourseTable.ratingCnt],
+            ?.let { row ->
+                CourseReviewCounters(
+                    ratingSum = row[CourseTable.ratingSum],
+                    ratingCnt = row[CourseTable.ratingCnt],
+                    reviewPhotoCnt = row[CourseTable.reviewPhotoCnt],
+                    ratingCounts = (1..5).associateWith { row[CourseTable.ratingCountColumn(it)] },
                 )
             }
 

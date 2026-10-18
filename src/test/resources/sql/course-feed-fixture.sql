@@ -3,7 +3,7 @@
 -- created_at 을 명시로 박아 최신순(동률 방지)을 결정적으로 만든다.
 -- 피드 정렬 기준은 course 도메인이 소유·유지하는 denormalized courses.saves_cnt 이므로 그 값을 직접 시딩한다
 -- (saved_courses 행은 정합성 위해 함께 두되, 피드 랭킹의 소스는 아니다).
-TRUNCATE TABLE users, courses, saved_courses RESTART IDENTITY CASCADE;
+TRUNCATE TABLE users, courses, saved_courses, saved_places RESTART IDENTITY CASCADE;
 
 -- 저장(save)을 흩뿌릴 사용자 5명.
 INSERT INTO users (nickname)
@@ -14,8 +14,8 @@ INSERT INTO courses (user_id, title, cover_image_url, category, is_published, vi
 VALUES (1, '공개 최신 코스', 'https://img/c1.jpg', 'CAFETOUR', true, 'PUBLIC', 1, '2026-07-30T00:00:00Z');
 
 -- course 2: PUBLIC 발행, 두 번째로 최신이지만 저장 5건 → 피드 1위(저장수 우선).
-INSERT INTO courses (user_id, title, cover_image_url, category, is_published, visibility, saves_cnt, created_at)
-VALUES (1, '공개 인기 코스', 'https://img/c2.jpg', 'CAFETOUR', true, 'PUBLIC', 5, '2026-07-29T00:00:00Z');
+INSERT INTO courses (user_id, title, cover_image_url, category, area, is_published, visibility, saves_cnt, created_at)
+VALUES (1, '공개 인기 코스', 'https://img/c2.jpg', 'CAFETOUR', '성수', true, 'PUBLIC', 5, '2026-07-29T00:00:00Z');
 
 -- course 3: PRIVATE 발행 → 피드 제외.
 INSERT INTO courses (user_id, title, is_published, visibility, created_at)
@@ -42,3 +42,12 @@ VALUES
     (4, 2, '2026-07-29T04:00:00Z'),
     (5, 2, '2026-07-29T05:00:00Z'),
     (1, 1, '2026-07-30T01:00:00Z');
+
+-- 코스 카드 메타(장소 수, 총 도보 시간): course 2 는 장소 3곳(도보 5+7, 마지막 구간 NULL → 12분).
+-- course 1, 6 은 장소가 없어 0곳, 0분이다. place_id 는 cross-domain 이라 FK 없이 임의 값.
+INSERT INTO course_places (course_id, place_id, order_no, walking_minutes)
+VALUES (2, 101, 0, 5), (2, 102, 1, 7), (2, 103, 2, NULL);
+
+-- 근처 저장 장소: 사용자 1 이 장소 2곳을 저장(하나는 방문). 테스트 환경엔 검색엔진이 없어 섹션은 fail-soft 로 비어야 한다.
+INSERT INTO saved_places (user_id, place_id, category, visited)
+VALUES (1, 101, 'CAFE', false), (1, 102, 'CAFE', true);

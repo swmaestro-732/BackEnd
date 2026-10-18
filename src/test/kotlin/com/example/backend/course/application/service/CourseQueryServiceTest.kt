@@ -6,6 +6,7 @@ import com.example.backend.common.response.CourseErrorCode
 import com.example.backend.course.application.port.outbound.CoursePersistencePort
 import com.example.backend.course.application.port.outbound.CoursePlaceImageRow
 import com.example.backend.course.application.port.outbound.CoursePlaceRow
+import com.example.backend.course.application.port.outbound.CoursePlaceStats
 import com.example.backend.course.application.port.outbound.CourseSummaryRow
 import com.example.backend.course.application.port.outbound.CourseTagQueryPort
 import com.example.backend.course.application.port.outbound.ViewerCourseState
@@ -27,7 +28,7 @@ class CourseQueryServiceTest {
     private val persistence = mock(CoursePersistencePort::class.java)
     private val tags = mock(CourseTagQueryPort::class.java)
     private val interactions = mock(ViewerInteractionPort::class.java)
-    private val service = CourseQueryService(persistence, tags, interactions)
+    private val service = CourseQueryService(persistence, tags, interactions, CourseViewPolicy(interactions))
 
     @Test
     fun `단건 상세는 장소 조회자 상태 태그를 조립한다`() {
@@ -35,7 +36,9 @@ class CourseQueryServiceTest {
         val place = CoursePlaceRow(1L, 30L, 0, "첫 장소", 5, listOf(CoursePlaceImageRow("image", 0)))
         `when`(persistence.findCourseDetails(listOf(10L))).thenReturn(listOf(row))
         `when`(persistence.findPlacesByCourseIds(listOf(10L))).thenReturn(mapOf(10L to listOf(place)))
-        `when`(interactions.getViewerStates(7L, listOf(10L))).thenReturn(listOf(ViewerCourseState(10L, true, true)))
+        `when`(
+            interactions.getViewerStates(7L, listOf(10L)),
+        ).thenReturn(listOf(ViewerCourseState(10L, true, false, true)))
         `when`(tags.findTagNamesByCourseId(10L)).thenReturn(listOf("데이트"))
 
         val result = service.getDetail(10L, 7L)
@@ -111,6 +114,21 @@ class CourseQueryServiceTest {
         verify(persistence).findPublishedPublic(null, 1)
     }
 
+    @Test
+    fun `공개 목록은 페이지 코스들의 장소 집계를 한 번에 붙이고 장소 없는 코스는 0 이다`() {
+        `when`(persistence.findPublishedPublic(null, 2)).thenReturn(listOf(summary(1L), summary(2L), summary(3L)))
+        `when`(persistence.findPlaceStats(listOf(1L, 2L))).thenReturn(mapOf(1L to CoursePlaceStats(3, 12)))
+
+        val result = service.listPublic(null, 2)
+
+        // 초과분(3)은 hasNext 판정용이라 집계 대상에서 빠진다.
+        verify(persistence).findPlaceStats(listOf(1L, 2L))
+        assertEquals(listOf(3, 0), result.items.map { it.placeCount })
+        assertEquals(listOf(12, 0), result.items.map { it.walkingMinutes })
+        assertEquals("성수", result.items.first().area)
+        assertTrue(result.hasNext)
+    }
+
     private fun detail(
         id: Long,
         visibility: CourseVisibility,
@@ -128,6 +146,7 @@ class CourseQueryServiceTest {
         status = status,
         visibility = visibility,
         isPublished = true,
+        duplicatedFromId = null,
     )
 
     private fun summary(id: Long) =
@@ -137,6 +156,7 @@ class CourseQueryServiceTest {
             "코스 $id",
             null,
             CourseCategory.CAFETOUR,
+            "성수",
             CourseVisibility.PUBLIC,
             true,
             1,

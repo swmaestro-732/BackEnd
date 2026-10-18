@@ -37,9 +37,9 @@ class AuthService(
     @Transactional
     override fun socialLogin(
         provider: SocialProvider,
-        idToken: String,
+        token: String,
     ): LoginResult {
-        val identity = socialVerificationPort.verify(provider, idToken)
+        val identity = socialVerificationPort.verify(provider, token)
         val user =
             userPersistencePort.findBySocial(identity.provider, identity.socialId)
                 ?: return LoginResult(
