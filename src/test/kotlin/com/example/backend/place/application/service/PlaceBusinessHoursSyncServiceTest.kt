@@ -1,6 +1,7 @@
 package com.example.backend.place.application.service
 
 import com.example.backend.common.geo.Coordinate
+import com.example.backend.place.application.event.PlaceBusinessHoursSyncRequestedEvent
 import com.example.backend.place.application.port.outbound.BusinessHoursLookupPort
 import com.example.backend.place.application.port.outbound.PlaceBusinessHourPersistencePort
 import com.example.backend.place.domain.model.Place
@@ -11,6 +12,7 @@ import com.example.backend.place.domain.model.PlaceStatus
 import kotlinx.datetime.LocalTime
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.Test
+import org.springframework.context.ApplicationEventPublisher
 import org.springframework.transaction.PlatformTransactionManager
 import org.springframework.transaction.TransactionDefinition
 import org.springframework.transaction.TransactionStatus
@@ -18,10 +20,13 @@ import org.springframework.transaction.support.SimpleTransactionStatus
 
 /**
  * 영업시간 동기화 — 미동기화 선별, 조회 실패 시 시각 미기록(재시도), 저장 실패 격리,
- * 잠금을 못 얻은 장소 건너뛰기를 검증한다. 실 DB·HTTP 대신 페이크로 서비스 로직만 좁혀 본다(행 잠금 자체는 리포지토리 테스트).
+ * 잠금을 못 얻은 장소 건너뛰기, 동기화 요청 이벤트 발행을 검증한다.
+ * 실 DB·HTTP 대신 페이크로 서비스 로직만 좁혀 본다(행 잠금 자체는 리포지토리 테스트).
  */
 class PlaceBusinessHoursSyncServiceTest {
     private val hours = listOf(PlaceBusinessHour(1, LocalTime(9, 0), LocalTime(22, 0)))
+    private val published = mutableListOf<Any>()
+    private val eventPublisher = ApplicationEventPublisher { published += it }
 
     @Test
     fun `미동기화 장소만 조회해 저장한다`() {
@@ -77,10 +82,29 @@ class PlaceBusinessHoursSyncServiceTest {
         assertThat(persistence.saved.keys).containsExactly(1L)
     }
 
+    @Test
+    fun `requestSync 는 미동기화 장소만 이벤트로 발행하고 외부를 부르지 않는다`() {
+        val persistence = FakePersistence(unsynced = listOf(place(1)))
+        val lookup = FakeLookup { hours }
+
+        service(lookup, persistence).requestSync(listOf(1L, 3L))
+
+        assertThat(published).containsExactly(PlaceBusinessHoursSyncRequestedEvent(listOf(1L)))
+        assertThat(lookup.calls).isEmpty()
+        assertThat(persistence.saved).isEmpty()
+    }
+
+    @Test
+    fun `requestSync 는 모두 동기화된 장소면 이벤트를 발행하지 않는다`() {
+        service(FakeLookup { hours }, FakePersistence()).requestSync(listOf(3L))
+
+        assertThat(published).isEmpty()
+    }
+
     private fun service(
         lookup: BusinessHoursLookupPort,
         persistence: PlaceBusinessHourPersistencePort,
-    ) = PlaceBusinessHoursSyncService(lookup, persistence, NoopTransactionManager())
+    ) = PlaceBusinessHoursSyncService(lookup, persistence, eventPublisher, NoopTransactionManager())
 
     private fun place(id: Long) =
         Place.reconstitute(

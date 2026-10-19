@@ -1,6 +1,7 @@
 package com.example.backend.place.adapter.outbound.search
 
 import com.example.backend.common.geo.Coordinate
+import com.example.backend.place.application.event.PlaceBusinessHoursSyncRequestedEvent
 import com.example.backend.place.application.event.PlacesSavedEvent
 import com.example.backend.place.application.port.inbound.PlaceBusinessHoursSyncUseCase
 import com.example.backend.place.domain.model.Place
@@ -11,7 +12,7 @@ import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.Test
 
 /**
- * AFTER_COMMIT 리스너가 저장된 장소 id 를 동기화 유스케이스로 넘기는지 검증한다.
+ * AFTER_COMMIT 리스너가 저장된 장소 id·동기화 요청 id 를 동기화 유스케이스로 넘기는지 검증한다.
  * 비동기·트랜잭션 없이 메서드를 직접 호출해 위임만 확인한다.
  */
 class PlaceBusinessHoursSyncListenerTest {
@@ -23,6 +24,8 @@ class PlaceBusinessHoursSyncListenerTest {
                 requested += placeIds
                 return placeIds.size
             }
+
+            override fun requestSync(placeIds: List<Long>) = error("리스너는 requestSync 를 부르지 않는다")
         }
 
     private val listener = PlaceBusinessHoursSyncListener(useCase)
@@ -32,6 +35,13 @@ class PlaceBusinessHoursSyncListenerTest {
         listener.onPlacesSaved(PlacesSavedEvent(listOf(place(1), place(2))))
 
         assertThat(requested).containsExactly(listOf(1L, 2L))
+    }
+
+    @Test
+    fun `onSyncRequested 는 요청된 장소 id 를 동기화로 넘긴다`() {
+        listener.onSyncRequested(PlaceBusinessHoursSyncRequestedEvent(listOf(7L)))
+
+        assertThat(requested).containsExactly(listOf(7L))
     }
 
     @Test
