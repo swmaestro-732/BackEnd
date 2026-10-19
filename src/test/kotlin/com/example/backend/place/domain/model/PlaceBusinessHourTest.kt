@@ -68,4 +68,24 @@ class PlaceBusinessHourTest {
         assertThatThrownBy { PlaceBusinessHour(dayOfWeek = 3, openTime = null, closeTime = LocalTime(22, 0)) }
             .isInstanceOf(IllegalArgumentException::class.java)
     }
+
+    @Test
+    fun `00시부터 23시 59분까지는 24시간 영업이다`() {
+        val allDay = PlaceBusinessHour(dayOfWeek = 3, openTime = LocalTime(0, 0), closeTime = LocalTime(23, 59))
+        val regular = PlaceBusinessHour(dayOfWeek = 3, openTime = LocalTime(9, 0), closeTime = LocalTime(23, 59))
+
+        assertThat(allDay.isAllDay).isTrue()
+        assertThat(regular.isAllDay).isFalse()
+        assertThat(PlaceBusinessHour(dayOfWeek = 3, openTime = null, closeTime = null).isAllDay).isFalse()
+    }
+
+    @Test
+    fun `폐점이 개점보다 이르면 자정을 넘기는 영업이다`() {
+        val lateNight = PlaceBusinessHour(dayOfWeek = 5, openTime = LocalTime(18, 0), closeTime = LocalTime(2, 0))
+        val regular = PlaceBusinessHour(dayOfWeek = 5, openTime = LocalTime(9, 0), closeTime = LocalTime(22, 0))
+
+        assertThat(lateNight.crossesMidnight).isTrue()
+        assertThat(regular.crossesMidnight).isFalse()
+        assertThat(PlaceBusinessHour(dayOfWeek = 5, openTime = null, closeTime = null).crossesMidnight).isFalse()
+    }
 }

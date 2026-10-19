@@ -1,5 +1,6 @@
 package com.example.backend.place.adapter.outbound.persistence.exposed
 
+import com.example.backend.place.domain.model.PlaceBusinessHour
 import org.jetbrains.exposed.v1.core.dao.id.EntityID
 import org.jetbrains.exposed.v1.core.dao.id.LongIdTable
 import org.jetbrains.exposed.v1.dao.LongEntity
@@ -30,4 +31,13 @@ internal class PlaceBusinessHourEntity(
     var closeTime by PlaceBusinessHourTable.closeTime
     var breakStart by PlaceBusinessHourTable.breakStart
     var breakEnd by PlaceBusinessHourTable.breakEnd
+
+    fun toDomain(): PlaceBusinessHour =
+        PlaceBusinessHour(
+            dayOfWeek = dayOfWeek.toInt(),
+            openTime = openTime,
+            closeTime = closeTime,
+            breakStart = breakStart,
+            breakEnd = breakEnd,
+        )
 }

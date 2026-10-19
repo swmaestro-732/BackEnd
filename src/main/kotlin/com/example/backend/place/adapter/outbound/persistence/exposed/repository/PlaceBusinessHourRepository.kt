@@ -1,5 +1,6 @@
 package com.example.backend.place.adapter.outbound.persistence.exposed.repository
 
+import com.example.backend.place.adapter.outbound.persistence.exposed.PlaceBusinessHourEntity
 import com.example.backend.place.adapter.outbound.persistence.exposed.PlaceBusinessHourTable
 import com.example.backend.place.adapter.outbound.persistence.exposed.PlaceEntity
 import com.example.backend.place.adapter.outbound.persistence.exposed.PlaceTable
@@ -31,6 +32,11 @@ class PlaceBusinessHourRepository {
             .find { (PlaceTable.id eq placeId) and unsynced() }
             .forUpdate(ForUpdateOption.PostgreSQL.ForUpdate(ForUpdateOption.PostgreSQL.MODE.SKIP_LOCKED))
             .singleOrNull()
+
+    internal fun findByPlaceId(placeId: Long): List<PlaceBusinessHourEntity> =
+        PlaceBusinessHourEntity
+            .find { PlaceBusinessHourTable.placeId eq placeId }
+            .sortedBy { it.dayOfWeek }
 
     /**
      * 요일별 행을 넣고 동기화 시각을 같은 트랜잭션에서 기록한다 — 둘은 항상 함께 남는다.
