@@ -173,6 +173,16 @@ class GooglePlacesBusinessHoursClientTest {
     }
 
     @Test
+    fun `필드가 빠진 period 는 휴무로 저장하지 않고 null 을 반환해 재시도된다`() {
+        expectSearch(placeBody(periods("""{"open":{"day":1,"hour":9}}""", """{"close":{"day":2,"hour":18}}""")))
+
+        val hours = client.findBusinessHours("깨진 응답", "서울 어딘가", seoul)
+
+        server.verify()
+        assertThat(hours).isNull()
+    }
+
+    @Test
     fun `검색 결과가 없으면 빈 목록을 반환한다(동기화 완료로 기록)`() {
         expectSearch("""{"places":[]}""")
 
