@@ -12,17 +12,20 @@ import com.example.backend.support.IntegrationTestBase
 import kotlinx.datetime.LocalTime
 import org.assertj.core.api.Assertions.assertThat
 import org.jetbrains.exposed.v1.core.eq
+import org.jetbrains.exposed.v1.jdbc.deleteWhere
 import org.jetbrains.exposed.v1.jdbc.selectAll
 import org.jetbrains.exposed.v1.jdbc.transactions.transaction
 import org.junit.jupiter.api.Test
 import org.springframework.beans.factory.annotation.Autowired
+import java.util.concurrent.Executors
+import java.util.concurrent.TimeUnit
 import kotlin.time.Clock
 
 /**
  * [PlaceBusinessHourRepository] 영속성 통합 테스트(실제 PostgreSQL, [IntegrationTestBase]).
  *
- * 행 교체·동기화 시각 기록과 미동기화 대상 선별(동기화 완료·소프트 삭제 제외)을 검증한다.
- * 각 테스트는 transaction { ... rollback() } 로 격리한다.
+ * 행 저장·동기화 시각 기록, 미동기화 대상 선별(동기화 완료·소프트 삭제 제외), 행 잠금(SKIP LOCKED)을 검증한다.
+ * 각 테스트는 transaction { ... rollback() } 로 격리한다(잠금 테스트만 다른 커넥션이 봐야 해서 커밋 후 지운다).
  */
 class PlaceBusinessHourRepositoryTest
     @Autowired
@@ -107,6 +110,30 @@ class PlaceBusinessHourRepositoryTest
             transaction {
                 assertThat(repository.findUnsynced(emptyList())).isEmpty()
                 rollback()
+            }
+        }
+
+        @Test
+        fun `lockUnsynced 는 다른 트랜잭션이 잠근 장소를 기다리지 않고 건너뛴다`() {
+            // 다른 커넥션이 보려면 커밋돼 있어야 한다
+            val placeId = transaction { insertPlace() }
+            val other = Executors.newSingleThreadExecutor()
+            try {
+                transaction {
+                    assertThat(repository.lockUnsynced(placeId)?.id?.value).isEqualTo(placeId)
+
+                    // Long? 로 받아야 AssertJ 가 원시 long 오버로드로 언박싱하지 않는다
+                    val seenByOther: Long? =
+                        other
+                            .submit<Long?> { transaction { repository.lockUnsynced(placeId)?.id?.value } }
+                            .get(10, TimeUnit.SECONDS)
+
+                    assertThat(seenByOther).isNull()
+                    rollback()
+                }
+            } finally {
+                other.shutdownNow()
+                transaction { PlaceTable.deleteWhere { PlaceTable.id eq placeId } }
             }
         }
 

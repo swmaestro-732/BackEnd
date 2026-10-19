@@ -8,6 +8,7 @@ import org.jetbrains.exposed.v1.core.and
 import org.jetbrains.exposed.v1.core.eq
 import org.jetbrains.exposed.v1.core.inList
 import org.jetbrains.exposed.v1.core.isNull
+import org.jetbrains.exposed.v1.core.vendors.ForUpdateOption
 import org.jetbrains.exposed.v1.jdbc.batchInsert
 import org.jetbrains.exposed.v1.jdbc.update
 import org.springframework.stereotype.Repository
@@ -24,9 +25,16 @@ class PlaceBusinessHourRepository {
             .toList()
     }
 
+    /** 미동기화 활성 장소를 FOR UPDATE SKIP LOCKED 로 잠근다 — 다른 트랜잭션(다른 서버 포함)이 잡고 있으면 null. */
+    internal fun lockUnsynced(placeId: Long): PlaceEntity? =
+        PlaceEntity
+            .find { (PlaceTable.id eq placeId) and unsynced() }
+            .forUpdate(ForUpdateOption.PostgreSQL.ForUpdate(ForUpdateOption.PostgreSQL.MODE.SKIP_LOCKED))
+            .singleOrNull()
+
     /**
      * 요일별 행을 넣고 동기화 시각을 같은 트랜잭션에서 기록한다 — 둘은 항상 함께 남는다.
-     * 호출부가 미동기화(`business_hours_synced_at IS NULL`) 장소만 넘기므로 기존 행은 없다.
+     * 호출부가 [lockUnsynced] 로 잠근 미동기화 장소만 넘기므로 기존 행은 없다.
      */
     fun saveBusinessHours(
         placeId: Long,
