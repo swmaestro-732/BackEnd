@@ -91,6 +91,23 @@ class PlaceBusinessHourRepositoryTest
         }
 
         @Test
+        fun `findByPlaceId 는 저장한 행을 요일 순 도메인 모델로 되돌려 준다`() {
+            transaction {
+                val placeId = insertPlace()
+                val saturday = PlaceBusinessHour(6, LocalTime(10, 0), LocalTime(23, 0))
+                val monday = PlaceBusinessHour(1, LocalTime(9, 0), LocalTime(22, 0), LocalTime(15, 0), LocalTime(17, 0))
+                val sunday = PlaceBusinessHour(7, null, null)
+                repository.saveBusinessHours(placeId, listOf(saturday, monday, sunday))
+
+                val found = repository.findByPlaceId(placeId).map { it.toDomain() }
+
+                assertThat(found).containsExactly(monday, saturday, sunday)
+                assertThat(repository.findByPlaceId(insertPlace())).isEmpty()
+                rollback()
+            }
+        }
+
+        @Test
         fun `findUnsynced 는 동기화된 장소와 삭제된 장소를 뺀다`() {
             transaction {
                 val pending = insertPlace()
