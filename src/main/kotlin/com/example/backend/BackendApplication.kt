@@ -1,5 +1,6 @@
 package com.example.backend
 
+import com.example.backend.bootstrap.config.GooglePlacesProperties
 import com.example.backend.bootstrap.config.KakaoLocalProperties
 import com.example.backend.bootstrap.config.MediaProperties
 import com.example.backend.bootstrap.config.OpenSearchProperties
@@ -22,6 +23,7 @@ import org.springframework.boot.runApplication
     MediaProperties::class,
     KakaoLocalProperties::class,
     TmapProperties::class,
+    GooglePlacesProperties::class,
     OpenSearchProperties::class,
     SqsProperties::class,
 )

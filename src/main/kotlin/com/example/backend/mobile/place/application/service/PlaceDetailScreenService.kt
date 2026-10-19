@@ -6,6 +6,7 @@ import com.example.backend.mobile.place.application.port.inbound.PlaceDetailScre
 import com.example.backend.mobile.place.application.port.inbound.dto.PlaceDetailScreenResult
 import com.example.backend.mobile.place.application.port.inbound.dto.PlaceReviewScreenResult
 import com.example.backend.mobile.place.application.port.outbound.ScreenPlacePort
+import com.example.backend.place.application.port.inbound.PlaceBusinessHoursSyncUseCase
 import com.example.backend.place.application.port.inbound.PlaceReviewQueryUseCase
 import com.example.backend.place.application.port.inbound.dto.PlaceReviewsQuery
 import com.example.backend.user.application.port.inbound.UserSummaryUseCase
@@ -23,12 +24,17 @@ import org.springframework.transaction.annotation.Transactional
 class PlaceDetailScreenService(
     private val screenPlacePort: ScreenPlacePort,
     private val placeReviewQueryUseCase: PlaceReviewQueryUseCase,
+    private val placeBusinessHoursSyncUseCase: PlaceBusinessHoursSyncUseCase,
     private val userSummaryUseCase: UserSummaryUseCase,
 ) : PlaceDetailScreenUseCase {
     override fun getScreen(placeId: Long): PlaceDetailScreenResult {
         val place =
             screenPlacePort.findById(placeId)
                 ?: throw BusinessException(PlaceErrorCode.PLACE_NOT_FOUND, "장소를 찾을 수 없습니다: id=$placeId")
+        // 기능 도입 전 장소와 저장 시점 조회가 실패한 장소를 이 경로에서 메운다.
+        // 미동기화(business_hours_synced_at IS NULL)일 때만 이벤트가 나가고, 실제 외부 호출은 커밋 후 비동기라
+        // 이번 응답에는 반영되지 않는다(다음 조회부터).
+        placeBusinessHoursSyncUseCase.requestSync(listOf(placeId))
         val reviewPage =
             placeReviewQueryUseCase.getReviews(PlaceReviewsQuery(placeId = placeId, size = REVIEW_PREVIEW_SIZE))
         val reviewAuthors =
