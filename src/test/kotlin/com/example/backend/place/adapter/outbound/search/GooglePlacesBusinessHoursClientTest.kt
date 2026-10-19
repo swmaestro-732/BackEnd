@@ -9,6 +9,7 @@ import org.junit.jupiter.api.Test
 import org.springframework.http.MediaType
 import org.springframework.test.web.client.MockRestServiceServer
 import org.springframework.test.web.client.match.MockRestRequestMatchers.header
+import org.springframework.test.web.client.match.MockRestRequestMatchers.jsonPath
 import org.springframework.test.web.client.match.MockRestRequestMatchers.requestTo
 import org.springframework.test.web.client.response.MockRestResponseCreators.withServerError
 import org.springframework.test.web.client.response.MockRestResponseCreators.withSuccess
@@ -45,6 +46,19 @@ class GooglePlacesBusinessHoursClientTest {
 
     private fun periods(vararg json: String): String =
         ""","regularOpeningHours":{"periods":[${json.joinToString(",")}]}"""
+
+    @Test
+    fun `같은 이름의 다른 지점이 잡히지 않도록 질의에 주소를 붙인다`() {
+        server
+            .expect(requestTo(containsString("/v1/places:searchText")))
+            .andExpect(jsonPath("$.textQuery").value("스타벅스 성수역점 서울 성동구 성수이로 94"))
+            .andExpect(jsonPath("$.locationBias.circle.center.latitude").value(seoul.latitude))
+            .andRespond(withSuccess(placeBody(""), MediaType.APPLICATION_JSON))
+
+        client.findBusinessHours("스타벅스 성수역점", "서울 성동구 성수이로 94", seoul)
+
+        server.verify()
+    }
 
     @Test
     fun `period 를 요일별 행으로 바꾸고 없는 요일은 휴무로 채운다`() {
@@ -109,6 +123,28 @@ class GooglePlacesBusinessHoursClientTest {
     }
 
     @Test
+    fun `00시 개점에 다음 날 00시 폐점이면 그 요일만 24시간 영업으로 담는다`() {
+        // 평일(월)은 24시간, 토요일은 09:00~자정(다음 날 00:00 폐점 → 자정 넘김 표기 유지)
+        expectSearch(
+            placeBody(
+                periods(
+                    """{"open":{"day":1,"hour":0,"minute":0},"close":{"day":2,"hour":0,"minute":0}}""",
+                    """{"open":{"day":6,"hour":9,"minute":0},"close":{"day":0,"hour":0,"minute":0}}""",
+                ),
+            ),
+        )
+
+        val byDay = client.findBusinessHours("평일 24시 편의점", "서울 어딘가", seoul)!!.associateBy { it.dayOfWeek }
+
+        server.verify()
+        assertThat(byDay[1]!!.openTime).isEqualTo(LocalTime(0, 0))
+        assertThat(byDay[1]!!.closeTime).isEqualTo(LocalTime(23, 59))
+        assertThat(byDay[6]!!.openTime).isEqualTo(LocalTime(9, 0))
+        assertThat(byDay[6]!!.closeTime).isEqualTo(LocalTime(0, 0))
+        assertThat(byDay[7]!!.openTime).isNull()
+    }
+
+    @Test
     fun `close 없는 단일 period 는 24시간 영업으로 본다`() {
         expectSearch(placeBody(periods("""{"open":{"day":0,"hour":0,"minute":0}}""")))
 
@@ -134,6 +170,16 @@ class GooglePlacesBusinessHoursClientTest {
 
         server.verify()
         assertThat(hours).isEmpty()
+    }
+
+    @Test
+    fun `필드가 빠진 period 는 휴무로 저장하지 않고 null 을 반환해 재시도된다`() {
+        expectSearch(placeBody(periods("""{"open":{"day":1,"hour":9}}""", """{"close":{"day":2,"hour":18}}""")))
+
+        val hours = client.findBusinessHours("깨진 응답", "서울 어딘가", seoul)
+
+        server.verify()
+        assertThat(hours).isNull()
     }
 
     @Test

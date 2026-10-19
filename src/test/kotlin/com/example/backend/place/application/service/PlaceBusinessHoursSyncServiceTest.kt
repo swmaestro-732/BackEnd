@@ -1,6 +1,7 @@
 package com.example.backend.place.application.service
 
 import com.example.backend.common.geo.Coordinate
+import com.example.backend.place.application.event.PlaceBusinessHoursSyncRequestedEvent
 import com.example.backend.place.application.port.outbound.BusinessHoursLookupPort
 import com.example.backend.place.application.port.outbound.PlaceBusinessHourPersistencePort
 import com.example.backend.place.domain.model.Place
@@ -11,20 +12,21 @@ import com.example.backend.place.domain.model.PlaceStatus
 import kotlinx.datetime.LocalTime
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.Test
+import org.springframework.context.ApplicationEventPublisher
 import org.springframework.transaction.PlatformTransactionManager
 import org.springframework.transaction.TransactionDefinition
 import org.springframework.transaction.TransactionStatus
 import org.springframework.transaction.support.SimpleTransactionStatus
-import java.util.concurrent.CountDownLatch
-import java.util.concurrent.Executors
-import java.util.concurrent.TimeUnit
 
 /**
  * 영업시간 동기화 — 미동기화 선별, 조회 실패 시 시각 미기록(재시도), 저장 실패 격리,
- * 같은 장소 동시 요청의 중복 외부 호출 차단을 검증한다. 실 DB·HTTP 대신 페이크로 서비스 로직만 좁혀 본다.
+ * 잠금을 못 얻은 장소 건너뛰기, 동기화 요청 이벤트 발행을 검증한다.
+ * 실 DB·HTTP 대신 페이크로 서비스 로직만 좁혀 본다(행 잠금 자체는 리포지토리 테스트).
  */
 class PlaceBusinessHoursSyncServiceTest {
     private val hours = listOf(PlaceBusinessHour(1, LocalTime(9, 0), LocalTime(22, 0)))
+    private val published = mutableListOf<Any>()
+    private val eventPublisher = ApplicationEventPublisher { published += it }
 
     @Test
     fun `미동기화 장소만 조회해 저장한다`() {
@@ -70,37 +72,39 @@ class PlaceBusinessHoursSyncServiceTest {
     }
 
     @Test
-    fun `같은 장소를 동시에 요청해도 외부 호출은 한 번만 나간다`() {
+    fun `잠금을 얻지 못한 장소는 외부를 부르지 않고 건너뛴다`() {
+        // 2 는 다른 서버가 잠근 상태 — 미동기화 목록에는 있지만 잠금이 null 로 돌아온다
+        val persistence = FakePersistence(unsynced = listOf(place(1), place(2)), lockedElsewhere = setOf(2L))
+        val lookup = FakeLookup { hours }
+
+        assertThat(service(lookup, persistence).sync(listOf(1L, 2L))).isEqualTo(1)
+        assertThat(lookup.calls).containsExactly("장소1")
+        assertThat(persistence.saved.keys).containsExactly(1L)
+    }
+
+    @Test
+    fun `requestSync 는 미동기화 장소만 이벤트로 발행하고 외부를 부르지 않는다`() {
         val persistence = FakePersistence(unsynced = listOf(place(1)))
-        val started = CountDownLatch(1)
-        // 첫 호출이 잠금을 쥔 채 머무는 동안 다른 스레드가 같은 장소로 들어오게 한다.
-        val lookup =
-            FakeLookup {
-                started.countDown()
-                Thread.sleep(300)
-                hours
-            }
-        val svc = service(lookup, persistence)
+        val lookup = FakeLookup { hours }
 
-        val pool = Executors.newFixedThreadPool(4)
-        try {
-            val tasks = (1..4).map { pool.submit<Int> { svc.sync(listOf(1L)) } }
-            assertThat(started.await(5, TimeUnit.SECONDS)).isTrue()
-            val synced = tasks.sumOf { it.get(10, TimeUnit.SECONDS) }
+        service(lookup, persistence).requestSync(listOf(1L, 3L))
 
-            // 잠금을 얻은 한 스레드만 외부를 부르고, 나머지는 재확인에서 이미 채워진 것을 보고 건너뛴다.
-            assertThat(lookup.calls).hasSize(1)
-            assertThat(synced).isEqualTo(1)
-            assertThat(persistence.saved.keys).containsExactly(1L)
-        } finally {
-            pool.shutdownNow()
-        }
+        assertThat(published).containsExactly(PlaceBusinessHoursSyncRequestedEvent(listOf(1L)))
+        assertThat(lookup.calls).isEmpty()
+        assertThat(persistence.saved).isEmpty()
+    }
+
+    @Test
+    fun `requestSync 는 모두 동기화된 장소면 이벤트를 발행하지 않는다`() {
+        service(FakeLookup { hours }, FakePersistence()).requestSync(listOf(3L))
+
+        assertThat(published).isEmpty()
     }
 
     private fun service(
         lookup: BusinessHoursLookupPort,
         persistence: PlaceBusinessHourPersistencePort,
-    ) = PlaceBusinessHoursSyncService(lookup, persistence, NoopTransactionManager())
+    ) = PlaceBusinessHoursSyncService(lookup, persistence, eventPublisher, NoopTransactionManager())
 
     private fun place(id: Long) =
         Place.reconstitute(
@@ -144,9 +148,13 @@ class PlaceBusinessHoursSyncServiceTest {
         }
     }
 
-    /** 저장되면 동기화된 것으로 보고 이후 findUnsynced 대상에서 빠진다. failOn 의 장소는 저장에서 예외를 던진다. */
+    /**
+     * 저장되면 동기화된 것으로 보고 이후 findUnsynced·lockUnsynced 대상에서 빠진다.
+     * lockedElsewhere 의 장소는 잠금에 실패(null)하고, failOn 의 장소는 저장에서 예외를 던진다.
+     */
     private class FakePersistence(
         unsynced: List<Place> = emptyList(),
+        private val lockedElsewhere: Set<Long> = emptySet(),
         private val failOn: Set<Long> = emptySet(),
     ) : PlaceBusinessHourPersistencePort {
         private val pending = unsynced.associateBy { it.id!! }.toMutableMap()
@@ -160,6 +168,9 @@ class PlaceBusinessHoursSyncServiceTest {
                 unsyncedCalls++
                 placeIds.mapNotNull { pending[it] }
             }
+
+        override fun lockUnsynced(placeId: Long): Place? =
+            synchronized(this) { pending[placeId]?.takeUnless { placeId in lockedElsewhere } }
 
         override fun saveBusinessHours(
             placeId: Long,

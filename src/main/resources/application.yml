@@ -81,7 +81,7 @@ kakao:
     rest-key: ${KAKAO_REST_API_KEY:}
 tmap:
   app-key: ${TMAP_APP_KEY:}
-# 장소 운영시간(SCRUM-544). Places API(New) 텍스트 검색(ID 전용) + 장소 상세(regularOpeningHours). 키가 비면 동기화 no-op.
+# 장소 운영시간(SCRUM-544). Places API(New) 텍스트 검색 1회로 좌표·regularOpeningHours 를 받는다. 키가 비면 동기화 no-op.
 google:
   places:
     api-key: ${GOOGLE_PLACES_API_KEY:}
