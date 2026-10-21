@@ -54,31 +54,33 @@ class ChatReadControllerTest
         }
 
         @Test
-        fun `새로 참여하면 이미 쌓인 메시지는 읽은 것으로 시작한다`() {
-            join(SENDER_ID, roomId)
-            sendAll(SENDER_ID, 3)
-            join(READER_ID, roomId)
+        fun `새로 참여하면 이미 쌓인 메시지와 자기 입장 메시지는 읽은 것으로 시작한다`() {
+            join(SENDER_ID, roomId) // seq 1
+            sendAll(SENDER_ID, 3) // seq 2~4
+            join(READER_ID, roomId) // seq 5
 
             myRooms(READER_ID)
                 .andExpect(jsonPath("$.data.rooms[0].unreadCount").value(0))
-                .andExpect(jsonPath("$.data.rooms[0].lastMessage.seq").value(3))
-                .andExpect(jsonPath("$.data.rooms[0].lastMessage.body").value("메시지 3"))
+                .andExpect(jsonPath("$.data.rooms[0].lastMessage.seq").value(5))
+                .andExpect(jsonPath("$.data.rooms[0].lastMessage.type").value("SYSTEM"))
+                .andExpect(jsonPath("$.data.rooms[0].lastMessage.system.event").value("JOIN"))
+                .andExpect(jsonPath("$.data.rooms[0].lastMessage.system.userId").value(READER_ID))
         }
 
         @Test
         fun `읽음 번호는 올라가기만 하고 방의 마지막 seq 를 넘지 않는다`() {
-            join(SENDER_ID, roomId)
-            join(READER_ID, roomId)
-            sendAll(SENDER_ID, 5)
+            join(SENDER_ID, roomId) // seq 1
+            join(READER_ID, roomId) // seq 2
+            sendAll(SENDER_ID, 5) // seq 3~7
             myRooms(READER_ID).andExpect(jsonPath("$.data.rooms[0].unreadCount").value(5))
 
-            markRead(READER_ID, roomId, 4)
+            markRead(READER_ID, roomId, 6)
                 .andExpect(status().isOk)
-                .andExpect(jsonPath("$.data.lastReadSeq").value(4))
+                .andExpect(jsonPath("$.data.lastReadSeq").value(6))
             myRooms(READER_ID).andExpect(jsonPath("$.data.rooms[0].unreadCount").value(1))
 
-            markRead(READER_ID, roomId, 2).andExpect(jsonPath("$.data.lastReadSeq").value(4))
-            markRead(READER_ID, roomId, 999).andExpect(jsonPath("$.data.lastReadSeq").value(5))
+            markRead(READER_ID, roomId, 2).andExpect(jsonPath("$.data.lastReadSeq").value(6))
+            markRead(READER_ID, roomId, 999).andExpect(jsonPath("$.data.lastReadSeq").value(7))
             myRooms(READER_ID).andExpect(jsonPath("$.data.rooms[0].unreadCount").value(0))
         }
 
@@ -95,7 +97,7 @@ class ChatReadControllerTest
         }
 
         @Test
-        fun `내 방 목록은 최근 메시지가 온 방부터, 메시지가 없으면 참여 시각으로 정렬한다`() {
+        fun `내 방 목록은 최근 메시지가 온 방부터 정렬한다`() {
             join(SENDER_ID, roomId)
             sendAll(SENDER_ID, 1)
             join(SENDER_ID, nearbyRoomId)
@@ -105,7 +107,7 @@ class ChatReadControllerTest
             sendAll(SENDER_ID, 1, from = 2)
             myRooms(SENDER_ID)
                 .andExpect(jsonPath("$.data.rooms[0].roomId").value(roomId))
-                .andExpect(jsonPath("$.data.rooms[1].lastMessage").doesNotExist())
+                .andExpect(jsonPath("$.data.rooms[1].lastMessage.type").value("SYSTEM"))
         }
 
         @Test

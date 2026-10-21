@@ -31,15 +31,12 @@ class ChatMemberPersistenceAdapter(
         userId: Long,
         type: ChatMemberType,
         lastReadSeq: Long,
-    ): ChatMember {
-        chatMemberRepository.insertIgnore(roomId, userId, type, lastReadSeq)
-        return checkNotNull(chatMemberRepository.find(roomId, userId))
-    }
+    ): Boolean = chatMemberRepository.insertIgnore(roomId, userId, type, lastReadSeq) > 0
 
     override fun delete(
         roomId: Long,
         userId: Long,
-    ) = chatMemberRepository.delete(roomId, userId)
+    ): Boolean = chatMemberRepository.delete(roomId, userId) > 0
 
     override fun findJoinedRooms(userId: Long): List<JoinedChatRoom> = chatMemberRepository.findJoinedRooms(userId)
 

@@ -2,8 +2,10 @@ package com.example.backend.chat.adapter.inbound.web.response
 
 import com.example.backend.chat.application.port.inbound.dto.ChatMessageSummary
 import com.example.backend.chat.application.port.inbound.dto.ChatMessageSummaryPage
+import com.example.backend.chat.application.port.inbound.dto.ChatSender
 import com.example.backend.chat.domain.model.ChatMessageStatus
 import com.example.backend.chat.domain.model.ChatMessageType
+import com.example.backend.chat.domain.model.ChatSystemEvent
 import java.time.Instant
 
 data class ChatMessageListResponse(
@@ -22,6 +24,7 @@ data class ChatMessageListResponse(
         val card: ChatCardResponse?,
         val replyTo: Reply?,
         val mentions: List<Long>,
+        val system: System?,
         val status: ChatMessageStatus,
         val createdAt: Instant,
     )
@@ -31,6 +34,13 @@ data class ChatMessageListResponse(
         val seq: Long,
         val senderId: Long,
         val preview: String,
+    )
+
+    /** [user] 가 null 이면 탈퇴한 사용자다. */
+    data class System(
+        val event: ChatSystemEvent,
+        val userId: Long,
+        val user: Sender?,
     )
 
     data class Sender(
@@ -47,24 +57,21 @@ data class ChatMessageListResponse(
                 throughSeq = page.throughSeq,
             )
 
+        private fun ChatSender.toSender() =
+            Sender(userId = userId, nickname = nickname, profileImageUrl = profileImageUrl)
+
         private fun ChatMessageSummary.toMessage(): Message {
             val visible = message.status == ChatMessageStatus.VISIBLE
             return Message(
                 seq = message.seq,
                 type = message.type,
-                sender =
-                    sender?.let {
-                        Sender(
-                            userId = it.userId,
-                            nickname = it.nickname,
-                            profileImageUrl = it.profileImageUrl,
-                        )
-                    },
+                sender = sender?.toSender(),
                 clientMessageId = message.clientMessageId,
                 body = message.body.takeIf { visible },
                 card = message.card?.takeIf { visible }?.let(ChatCardResponse::from),
                 replyTo = message.replyTo?.takeIf { visible }?.let { Reply(it.seq, it.senderId, it.preview) },
                 mentions = if (visible) message.mentions else emptyList(),
+                system = message.system?.let { System(it.event, it.userId, systemUser?.toSender()) },
                 status = message.status,
                 createdAt = message.createdAt,
             )

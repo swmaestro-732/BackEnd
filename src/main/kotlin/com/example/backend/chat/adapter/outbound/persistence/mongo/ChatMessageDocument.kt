@@ -6,6 +6,7 @@ import com.example.backend.chat.domain.model.ChatMessage
 import com.example.backend.chat.domain.model.ChatMessageStatus
 import com.example.backend.chat.domain.model.ChatMessageType
 import com.example.backend.chat.domain.model.ChatReply
+import com.example.backend.chat.domain.model.ChatSystem
 import org.bson.types.ObjectId
 import org.springframework.data.annotation.Id
 import org.springframework.data.mongodb.core.mapping.Document
@@ -29,6 +30,7 @@ data class ChatMessageDocument(
     val card: ChatCard? = null,
     val replyTo: ChatReply? = null,
     val mentions: List<Long>? = null,
+    val system: ChatSystem? = null,
 ) {
     fun toDomain() =
         ChatMessage(
@@ -43,6 +45,7 @@ data class ChatMessageDocument(
             card = card,
             replyTo = replyTo,
             mentions = mentions.orEmpty(),
+            system = system,
         )
 
     companion object {
@@ -63,6 +66,7 @@ data class ChatMessageDocument(
             card = message.card,
             replyTo = message.replyTo,
             mentions = message.mentions.ifEmpty { null },
+            system = message.system,
         )
     }
 }

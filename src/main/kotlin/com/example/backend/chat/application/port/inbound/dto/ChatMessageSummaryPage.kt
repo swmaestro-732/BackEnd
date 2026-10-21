@@ -9,10 +9,11 @@ data class ChatMessageSummaryPage(
     val throughSeq: Long?,
 )
 
-/** [sender] 가 null 이면 시스템 메시지이거나 탈퇴한 사용자다. */
+/** [sender] 가 null 이면 시스템 메시지이거나 탈퇴한 사용자다. [systemUser] 는 시스템 메시지의 대상(들어오거나 나간 사람). */
 data class ChatMessageSummary(
     val message: ChatMessage,
     val sender: ChatSender?,
+    val systemUser: ChatSender? = null,
 )
 
 data class ChatSender(

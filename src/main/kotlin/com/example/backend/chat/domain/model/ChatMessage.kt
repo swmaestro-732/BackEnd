@@ -15,6 +15,7 @@ data class ChatMessage(
     val card: ChatCard? = null,
     val replyTo: ChatReply? = null,
     val mentions: List<Long> = emptyList(),
+    val system: ChatSystem? = null,
 ) {
     companion object {
         const val MAX_BODY_LENGTH = 1000

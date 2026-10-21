@@ -20,18 +20,19 @@ interface ChatMemberPersistencePort {
         type: ChatMemberType,
     ): Long
 
-    /** 동시 요청으로 이미 행이 생겼으면 그 행을 돌려준다. */
+    /** 새로 넣었으면 true. 동시 요청으로 이미 행이 생겼으면 아무것도 하지 않고 false. */
     fun insertIfAbsent(
         roomId: Long,
         userId: Long,
         type: ChatMemberType,
         lastReadSeq: Long,
-    ): ChatMember
+    ): Boolean
 
+    /** 지웠으면 true. 이미 없었으면 false. */
     fun delete(
         roomId: Long,
         userId: Long,
-    )
+    ): Boolean
 
     fun findJoinedRooms(userId: Long): List<JoinedChatRoom>
 

@@ -15,11 +15,14 @@ import com.example.backend.chat.domain.model.ChatMessage
 import com.example.backend.chat.domain.model.ChatMessageStatus
 import com.example.backend.chat.domain.model.ChatMessageType
 import com.example.backend.chat.domain.model.ChatReply
+import com.example.backend.chat.domain.model.ChatSystem
+import com.example.backend.chat.domain.model.ChatSystemEvent
 import com.example.backend.common.exception.BusinessException
 import com.example.backend.common.response.ChatErrorCode
 import com.example.backend.common.response.CommonErrorCode
 import org.springframework.context.ApplicationEventPublisher
 import org.springframework.stereotype.Service
+import org.springframework.transaction.annotation.Propagation
 import org.springframework.transaction.annotation.Transactional
 import java.time.Clock
 import java.time.Instant
@@ -63,6 +66,35 @@ class ChatMessageService(
             ) ?: return findSent(command)
 
         // MongoDB 트랜잭션은 위에서 이미 커밋됐다. 재전송 중복은 발행하지 않는다.
+        eventPublisher.publishEvent(ChatMessageSentEvent(saved))
+        return saved
+    }
+
+    // 멤버 변경 커밋 후(AFTER_COMMIT) 호출돼 원래 트랜잭션은 끝났다. 읽음 갱신이 반영되려면 새 트랜잭션이 필요하다.
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
+    override fun sendSystem(
+        roomId: Long,
+        system: ChatSystem,
+    ): ChatMessage {
+        // clientMessageId 가 없어 중복으로 걸리지 않는다.
+        val saved =
+            checkNotNull(
+                chatMessagePersistencePort.insertWithNextSeq(
+                    NewChatMessage(
+                        roomId = roomId,
+                        type = ChatMessageType.SYSTEM,
+                        senderId = null,
+                        clientMessageId = null,
+                        body = null,
+                        status = ChatMessageStatus.VISIBLE,
+                        createdAt = Instant.now(clock),
+                        system = system,
+                    ),
+                ),
+            )
+        if (system.event == ChatSystemEvent.JOIN) {
+            chatMemberPersistencePort.advanceLastReadSeq(roomId, system.userId, saved.seq)
+        }
         eventPublisher.publishEvent(ChatMessageSentEvent(saved))
         return saved
     }
@@ -128,9 +160,17 @@ class ChatMessageService(
                 else -> maxOf(lastSeq, page.lastOrNull()?.seq ?: 0)
             }
 
-        val senders = chatSenderPort.findSenders(page.mapNotNull { it.senderId }.toSet()).associateBy { it.userId }
+        val userIds = page.flatMap { listOfNotNull(it.senderId, it.system?.userId) }.toSet()
+        val users = chatSenderPort.findSenders(userIds).associateBy { it.userId }
         return ChatMessageSummaryPage(
-            messages = page.map { ChatMessageSummary(message = it, sender = it.senderId?.let(senders::get)) },
+            messages =
+                page.map {
+                    ChatMessageSummary(
+                        message = it,
+                        sender = it.senderId?.let(users::get),
+                        systemUser = it.system?.userId?.let(users::get),
+                    )
+                },
             hasMore = hasMore,
             throughSeq = throughSeq,
         )

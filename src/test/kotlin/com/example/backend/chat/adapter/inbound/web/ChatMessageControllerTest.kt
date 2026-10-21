@@ -67,13 +67,13 @@ class ChatMessageControllerTest
         }
 
         @Test
-        fun `보낸 순서대로 seq 를 1부터 매기고 같은 clientMessageId 재전송은 기존 메시지를 돌려준다`() {
-            join()
+        fun `보낸 순서대로 입장 메시지 다음 seq 를 매기고 같은 clientMessageId 재전송은 기존 메시지를 돌려준다`() {
+            join() // 입장 메시지가 seq 1
 
-            send("m-1", "첫 번째").andExpect(status().isCreated).andExpect(jsonPath("$.data.seq").value(1))
-            send("m-2", "두 번째").andExpect(jsonPath("$.data.seq").value(2))
+            send("m-1", "첫 번째").andExpect(status().isCreated).andExpect(jsonPath("$.data.seq").value(2))
+            send("m-2", "두 번째").andExpect(jsonPath("$.data.seq").value(3))
             send("m-1", "첫 번째")
-                .andExpect(jsonPath("$.data.seq").value(1))
+                .andExpect(jsonPath("$.data.seq").value(2))
                 .andExpect(jsonPath("$.data.clientMessageId").value("m-1"))
         }
 
@@ -84,12 +84,12 @@ class ChatMessageControllerTest
 
             list("size" to "2")
                 .andExpect(status().isOk)
-                .andExpect(jsonPath("$.data.messages[*].seq", contains(2, 3)))
+                .andExpect(jsonPath("$.data.messages[*].seq", contains(3, 4)))
                 .andExpect(jsonPath("$.data.messages[0].type").value("TEXT"))
                 .andExpect(jsonPath("$.data.messages[0].body").value("메시지 2"))
                 .andExpect(jsonPath("$.data.messages[0].sender.nickname").value("채팅주체"))
                 .andExpect(jsonPath("$.data.hasMore").value(true))
-                .andExpect(jsonPath("$.data.throughSeq").value(3))
+                .andExpect(jsonPath("$.data.throughSeq").value(4))
         }
 
         @Test
@@ -113,9 +113,9 @@ class ChatMessageControllerTest
                 .andExpect(jsonPath("$.data.hasMore").value(true))
                 .andExpect(jsonPath("$.data.throughSeq").value(2))
             list("afterSeq" to "2")
-                .andExpect(jsonPath("$.data.messages[*].seq", contains(3)))
+                .andExpect(jsonPath("$.data.messages[*].seq", contains(3, 4)))
                 .andExpect(jsonPath("$.data.hasMore").value(false))
-                .andExpect(jsonPath("$.data.throughSeq").value(3))
+                .andExpect(jsonPath("$.data.throughSeq").value(4))
         }
 
         @Test
@@ -126,9 +126,9 @@ class ChatMessageControllerTest
             )
 
             list()
-                .andExpect(jsonPath("$.data.messages[0].status").value("DELETED"))
-                .andExpect(jsonPath("$.data.messages[0].body").doesNotExist())
-                .andExpect(jsonPath("$.data.messages[0].sender").doesNotExist())
+                .andExpect(jsonPath("$.data.messages[1].status").value("DELETED"))
+                .andExpect(jsonPath("$.data.messages[1].body").doesNotExist())
+                .andExpect(jsonPath("$.data.messages[1].sender").doesNotExist())
         }
 
         @Test
@@ -166,8 +166,9 @@ class ChatMessageControllerTest
                         Map::class.java,
                         "chat_messages",
                     ).map { (it["seq"] as Number).toLong() }
-            assertEquals((1L..CONCURRENCY).toList(), seqs)
-            assertEquals(CONCURRENCY.toLong(), chatMessagePersistencePort.findLastSeq(roomId))
+            // 입장 메시지(seq 1) 다음부터 이어진다.
+            assertEquals((1L..CONCURRENCY + 1).toList(), seqs)
+            assertEquals(CONCURRENCY + 1L, chatMessagePersistencePort.findLastSeq(roomId))
         }
 
         @Test

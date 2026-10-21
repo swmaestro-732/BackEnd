@@ -1,5 +1,7 @@
 package com.example.backend.chat.application.service
 
+import com.example.backend.chat.application.event.ChatMemberJoinedEvent
+import com.example.backend.chat.application.event.ChatMemberLeftEvent
 import com.example.backend.chat.application.port.inbound.ChatRoomUseCase
 import com.example.backend.chat.application.port.inbound.dto.ChatRoomsAtResult
 import com.example.backend.chat.application.port.inbound.dto.JoinChatRoomCommand
@@ -14,6 +16,7 @@ import com.example.backend.common.exception.BusinessException
 import com.example.backend.common.geo.Coordinate
 import com.example.backend.common.response.ChatErrorCode
 import com.example.backend.common.response.CommonErrorCode
+import org.springframework.context.ApplicationEventPublisher
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
 
@@ -24,6 +27,7 @@ class ChatRoomService(
     private val chatRoomPersistencePort: ChatRoomPersistencePort,
     private val chatMemberPersistencePort: ChatMemberPersistencePort,
     private val chatMessagePersistencePort: ChatMessagePersistencePort,
+    private val eventPublisher: ApplicationEventPublisher,
 ) : ChatRoomUseCase {
     @Transactional(readOnly = true)
     override fun findRoomsAt(coordinate: Coordinate): ChatRoomsAtResult {
@@ -52,18 +56,25 @@ class ChatRoomService(
             throw BusinessException(ChatErrorCode.CHAT_NEARBY_ROOM_LIMIT_EXCEEDED)
         }
         // 들어온 시점까지는 읽은 것으로 둔다. 안 그러면 쌓여 있던 메시지가 전부 안 읽음으로 잡힌다.
-        return chatMemberPersistencePort.insertIfAbsent(
-            command.roomId,
-            command.userId,
-            type,
-            lastReadSeq = chatMessagePersistencePort.findLastSeq(command.roomId),
-        )
+        val inserted =
+            chatMemberPersistencePort.insertIfAbsent(
+                command.roomId,
+                command.userId,
+                type,
+                lastReadSeq = chatMessagePersistencePort.findLastSeq(command.roomId),
+            )
+        if (inserted) eventPublisher.publishEvent(ChatMemberJoinedEvent(command.roomId, command.userId))
+        return checkNotNull(chatMemberPersistencePort.find(command.roomId, command.userId))
     }
 
     override fun leave(
         userId: Long,
         roomId: Long,
-    ) = chatMemberPersistencePort.delete(roomId, userId)
+    ) {
+        if (chatMemberPersistencePort.delete(roomId, userId)) {
+            eventPublisher.publishEvent(ChatMemberLeftEvent(roomId, userId))
+        }
+    }
 
     @Transactional(readOnly = true)
     override fun findMyRooms(userId: Long): List<MyChatRoomSummary> {

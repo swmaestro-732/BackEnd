@@ -55,23 +55,22 @@ class ChatMemberRepository {
         userId: Long,
         type: ChatMemberType,
         lastReadSeq: Long,
-    ) {
-        ChatMemberTable.insertIgnore {
-            it[ChatMemberTable.roomId] = roomId
-            it[ChatMemberTable.userId] = userId
-            it[ChatMemberTable.type] = type
-            it[ChatMemberTable.lastReadSeq] = lastReadSeq
-        }
-    }
+    ): Int =
+        ChatMemberTable
+            .insertIgnore {
+                it[ChatMemberTable.roomId] = roomId
+                it[ChatMemberTable.userId] = userId
+                it[ChatMemberTable.type] = type
+                it[ChatMemberTable.lastReadSeq] = lastReadSeq
+            }.insertedCount
 
     fun delete(
         roomId: Long,
         userId: Long,
-    ) {
+    ): Int =
         ChatMemberTable.deleteWhere {
             (ChatMemberTable.roomId eq roomId) and (ChatMemberTable.userId eq userId)
         }
-    }
 
     fun findJoinedRooms(userId: Long): List<JoinedChatRoom> =
         ChatMemberTable
