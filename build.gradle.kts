@@ -42,6 +42,7 @@ dependencies {
 
     implementation("org.springframework.boot:spring-boot-starter-flyway")
     implementation("org.springframework.boot:spring-boot-starter-jdbc") // HikariCP 포함
+    implementation("org.springframework.boot:spring-boot-starter-data-mongodb") // 채팅 메시지
     implementation("org.springframework.boot:spring-boot-starter-oauth2-resource-server")
     implementation("org.springframework.boot:spring-boot-starter-security")
     implementation("org.springframework.boot:spring-boot-starter-validation")

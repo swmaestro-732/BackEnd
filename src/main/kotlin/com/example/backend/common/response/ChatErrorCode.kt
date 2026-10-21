@@ -11,4 +11,5 @@ enum class ChatErrorCode(
 
     // 403 은 4031(ACCOUNT_INACTIVE)까지 선점.
     CHAT_ROOM_OUT_OF_RANGE(403, 4032, "현재 위치에서 참여할 수 없는 채팅방입니다."),
+    CHAT_ROOM_NOT_JOINED(403, 4033, "참여하지 않은 채팅방입니다."),
 }
