@@ -14,6 +14,9 @@ spring:
     # baseline-on-migrate 는 켜지 않는다: 기존 스키마가 있는(비어있지 않은) DB 를 자동 baseline 하면 V1 을
     # 실행 안 함으로만 표시할 뿐, 이미 V1~V15 이력을 가진 기존 prod/dev DB 에는 애초에 적용되지 않는다.
     # 기존 prod/dev DB 는 배포 전 flyway_schema_history 를 version=1 BASELINE 행으로 교체해 V1 을 스킵한다(런북 참고).
+  # 채팅 메시지 저장소. 운영은 MONGODB_URI(Secrets Manager)로 주입, 로컬 기본값은 docker-compose.
+  mongodb:
+    uri: ${MONGODB_URI:mongodb://localhost:27017/chilsami}
   # spring-cloud-aws — 코스 개수 폴백 큐(SQS) 자동 배선. region.static 을 항상 줘 CI(로컬)에서 AWS_REGION 없이도
   # 클라이언트가 빌드되게 한다(실제 네트워크는 송수신 때만 탄다 → 큐 미설정이면 발행 no-op·리스너 미생성).
   # LocalStack 등 엔드포인트 오버라이드는 SPRING_CLOUD_AWS_SQS_ENDPOINT env 로 준다.
@@ -31,6 +34,10 @@ management:
   endpoint:
     health:
       show-details: never
+  # 채팅 저장소 하나가 내려가도 ALB 헬스체크(앱 전체)가 실패하지 않게 MongoDB 는 health 에서 뺀다.
+  health:
+    mongodb:
+      enabled: false
   # 분산 트레이싱(OTLP → Tempo). 기본 비활성 — 앱 EC2가 모니터링 호스트를 찾으면
   # MANAGEMENT_TRACING_EXPORT_ENABLED=true + MANAGEMENT_OTLP_TRACING_ENDPOINT env 로 활성화(fail-soft).
   # Spring Boot 4: export/propagation 토글은 management.tracing.export.enabled(management.tracing.enabled 는 4.0 deprecated),
