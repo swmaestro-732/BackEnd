@@ -13,6 +13,7 @@ import com.example.backend.common.geo.Coordinate
 import com.example.backend.support.IntegrationTestBase
 import org.hamcrest.Matchers.contains
 import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import org.springframework.beans.factory.annotation.Autowired
@@ -170,17 +171,14 @@ class ChatMessageControllerTest
         }
 
         @Test
-        fun `같은 clientMessageId 를 다시 저장하면 먼저 저장된 메시지를 돌려주고 번호를 쓰지 않는다`() {
-            val first =
-                chatMessagePersistencePort.insertWithNextSeq(
-                    newMessage(senderId = USER_ID, clientMessageId = "dup"),
-                )
+        fun `같은 clientMessageId 를 다시 저장하면 저장하지 않고 번호도 쓰지 않는다`() {
+            chatMessagePersistencePort.insertWithNextSeq(newMessage(senderId = USER_ID, clientMessageId = "dup"))
             val second =
                 chatMessagePersistencePort.insertWithNextSeq(
                     newMessage(senderId = USER_ID, clientMessageId = "dup"),
                 )
 
-            assertEquals(first.seq, second.seq)
+            assertNull(second)
             assertEquals(1L, chatMessagePersistencePort.findLastSeq(roomId))
         }
 

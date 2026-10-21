@@ -1,5 +1,6 @@
 package com.example.backend.chat.application.service
 
+import com.example.backend.chat.application.event.ChatMessageSentEvent
 import com.example.backend.chat.application.port.inbound.ChatMessageUseCase
 import com.example.backend.chat.application.port.inbound.dto.ChatMessageSummary
 import com.example.backend.chat.application.port.inbound.dto.ChatMessageSummaryPage
@@ -14,6 +15,7 @@ import com.example.backend.chat.domain.model.ChatMessageStatus
 import com.example.backend.chat.domain.model.ChatMessageType
 import com.example.backend.common.exception.BusinessException
 import com.example.backend.common.response.ChatErrorCode
+import org.springframework.context.ApplicationEventPublisher
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
 import java.time.Clock
@@ -26,6 +28,7 @@ class ChatMessageService(
     private val chatMemberPersistencePort: ChatMemberPersistencePort,
     private val chatMessagePersistencePort: ChatMessagePersistencePort,
     private val chatSenderPort: ChatSenderPort,
+    private val eventPublisher: ApplicationEventPublisher,
     private val clock: Clock,
 ) : ChatMessageUseCase {
     override fun send(command: SendChatMessageCommand): ChatMessage {
@@ -34,18 +37,29 @@ class ChatMessageService(
             .findByClientMessageId(command.roomId, command.senderId, command.clientMessageId)
             ?.let { return it }
 
-        return chatMessagePersistencePort.insertWithNextSeq(
-            NewChatMessage(
-                roomId = command.roomId,
-                type = ChatMessageType.TEXT,
-                senderId = command.senderId,
-                clientMessageId = command.clientMessageId,
-                body = command.body,
-                status = ChatMessageStatus.VISIBLE,
-                createdAt = Instant.now(clock),
-            ),
-        )
+        val saved =
+            chatMessagePersistencePort.insertWithNextSeq(
+                NewChatMessage(
+                    roomId = command.roomId,
+                    type = ChatMessageType.TEXT,
+                    senderId = command.senderId,
+                    clientMessageId = command.clientMessageId,
+                    body = command.body,
+                    status = ChatMessageStatus.VISIBLE,
+                    createdAt = Instant.now(clock),
+                ),
+            ) ?: return findSent(command)
+
+        // MongoDB 트랜잭션은 위에서 이미 커밋됐다. 재전송 중복은 발행하지 않는다.
+        eventPublisher.publishEvent(ChatMessageSentEvent(saved))
+        return saved
     }
+
+    /** 같은 재전송이 동시에 들어와 먼저 저장된 쪽. 중복 키는 커밋된 문서와 부딪칠 때만 나서 항상 있다. */
+    private fun findSent(command: SendChatMessageCommand): ChatMessage =
+        checkNotNull(
+            chatMessagePersistencePort.findByClientMessageId(command.roomId, command.senderId, command.clientMessageId),
+        )
 
     override fun list(
         roomId: Long,
