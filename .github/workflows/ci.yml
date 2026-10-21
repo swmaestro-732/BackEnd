@@ -67,10 +67,6 @@ jobs:
           --health-interval 10s
           --health-timeout 5s
           --health-retries 5
-      mongo:
-        image: mongo:8.0
-        ports:
-          - 27017:27017
     steps:
       - uses: actions/checkout@v4
         with:
@@ -80,6 +76,13 @@ jobs:
           distribution: temurin
           java-version: "21"
       - uses: gradle/actions/setup-gradle@v4
+
+      - name: MongoDB 기동 (서버 1대짜리 레플리카셋, 트랜잭션용)
+        run: |
+          docker run -d --name mongo -p 27017:27017 mongo:8.0 --replSet rs0 --bind_ip_all
+          for i in $(seq 1 30); do docker exec mongo mongosh --quiet --eval 'db.runCommand({ping: 1}).ok' && break; sleep 1; done
+          docker exec mongo mongosh --quiet --eval "rs.initiate({_id: 'rs0', members: [{_id: 0, host: 'localhost:27017'}]})"
+          for i in $(seq 1 30); do [ "$(docker exec mongo mongosh --quiet --eval 'db.hello().isWritablePrimary')" = "true" ] && break; sleep 1; done
 
       - name: Build & test (+ coverage)
         run: ./gradlew build jacocoTestReport --no-daemon

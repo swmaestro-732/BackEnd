@@ -15,11 +15,19 @@ services:
 
   mongo:
     image: mongo:8.0
+    # 트랜잭션(seq 발급 + 저장)은 레플리카셋에서만 동작한다. 서버 1대짜리 레플리카셋으로 띄운다.
+    command: [ "--replSet", "rs0", "--bind_ip_all" ]
     ports:
       - "27017:27017"
     environment:
       # bootRun 시 spring-boot-docker-compose 가 이 값으로 DB 이름을 정한다(없으면 test).
       MONGO_INITDB_DATABASE: chilsami
+    # 처음 한 번 레플리카셋을 초기화한다. 앱이 호스트에서 붙으므로 멤버 주소는 localhost 로 둔다.
+    healthcheck:
+      test: [ "CMD", "mongosh", "--quiet", "--eval", "try { rs.status().ok } catch (e) { rs.initiate({_id: 'rs0', members: [{_id: 0, host: 'localhost:27017'}]}).ok }" ]
+      interval: 5s
+      timeout: 10s
+      retries: 10
     volumes:
       - mongodata:/data/db
 

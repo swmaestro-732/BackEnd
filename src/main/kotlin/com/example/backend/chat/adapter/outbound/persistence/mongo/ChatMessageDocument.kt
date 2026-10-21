@@ -1,5 +1,6 @@
 package com.example.backend.chat.adapter.outbound.persistence.mongo
 
+import com.example.backend.chat.application.port.outbound.NewChatMessage
 import com.example.backend.chat.domain.model.ChatMessage
 import com.example.backend.chat.domain.model.ChatMessageStatus
 import com.example.backend.chat.domain.model.ChatMessageType
@@ -36,16 +37,18 @@ data class ChatMessageDocument(
     companion object {
         const val COLLECTION = "chat_messages"
 
-        fun from(message: ChatMessage) =
-            ChatMessageDocument(
-                roomId = message.roomId,
-                seq = message.seq,
-                type = message.type,
-                senderId = message.senderId,
-                clientMessageId = message.clientMessageId,
-                body = message.body,
-                status = message.status,
-                createdAt = message.createdAt,
-            )
+        fun from(
+            message: NewChatMessage,
+            seq: Long,
+        ) = ChatMessageDocument(
+            roomId = message.roomId,
+            seq = seq,
+            type = message.type,
+            senderId = message.senderId,
+            clientMessageId = message.clientMessageId,
+            body = message.body,
+            status = message.status,
+            createdAt = message.createdAt,
+        )
     }
 }
