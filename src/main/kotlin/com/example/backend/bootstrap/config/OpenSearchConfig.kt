@@ -87,7 +87,18 @@ class OpenSearchConfig(
             // assumeRoleArn 이 있으면 인스턴스 역할로 그 역할(prod 는 도메인 마스터)을 assume 해 서명한다(만료 전 자동 갱신).
             // 마스터가 IAM 역할이면 클러스터가 재생성돼도 비밀번호 불일치 없이 다시 붙는다(SCRUM-675). 빈 값이면 인스턴스 역할 그대로.
             val roleArn = properties.assumeRoleArn.trim()
-            val stsClient = if (roleArn.isEmpty()) null else StsClient.builder().region(region).build()
+            // STS 지연이 검색, 헬스체크 요청을 붙잡지 않게 호출 제한 시간을 두고, 갱신은 만료 전 백그라운드로 한다.
+            val stsClient =
+                if (roleArn.isEmpty()) {
+                    null
+                } else {
+                    StsClient
+                        .builder()
+                        .region(region)
+                        .overrideConfiguration {
+                            it.apiCallTimeout(Duration.ofSeconds(2)).apiCallAttemptTimeout(Duration.ofSeconds(1))
+                        }.build()
+                }
             val credentialsProvider =
                 if (stsClient == null) {
                     DefaultCredentialsProvider.builder().build()
@@ -95,6 +106,7 @@ class OpenSearchConfig(
                     StsAssumeRoleCredentialsProvider
                         .builder()
                         .stsClient(stsClient)
+                        .asyncCredentialUpdateEnabled(true)
                         .refreshRequest(
                             AssumeRoleRequest
                                 .builder()
