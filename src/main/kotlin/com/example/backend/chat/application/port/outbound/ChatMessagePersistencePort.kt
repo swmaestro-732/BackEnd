@@ -12,6 +12,9 @@ interface ChatMessagePersistencePort {
     /** 방 카운터의 마지막 seq. 메시지가 없으면 0. 이 값 이하의 메시지는 모두 저장돼 있다. */
     fun findLastSeq(roomId: Long): Long
 
+    /** 방별 마지막 seq. 메시지가 없는 방은 결과에서 빠진다. */
+    fun findLastSeqs(roomIds: Collection<Long>): Map<Long, Long>
+
     fun findByClientMessageId(
         roomId: Long,
         senderId: Long,

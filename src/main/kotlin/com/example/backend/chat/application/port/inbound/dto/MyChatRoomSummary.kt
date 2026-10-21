@@ -1,6 +1,7 @@
 package com.example.backend.chat.application.port.inbound.dto
 
 import com.example.backend.chat.domain.model.ChatMemberType
+import com.example.backend.chat.domain.model.ChatMessage
 import java.time.Instant
 
 data class MyChatRoomSummary(
@@ -9,4 +10,7 @@ data class MyChatRoomSummary(
     val type: ChatMemberType,
     val lastReadSeq: Long,
     val joinedAt: Instant,
+    val unreadCount: Long,
+    /** 메시지가 없는 방이면 null. */
+    val lastMessage: ChatMessage?,
 )

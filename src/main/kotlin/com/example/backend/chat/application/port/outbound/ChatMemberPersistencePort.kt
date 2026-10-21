@@ -1,6 +1,5 @@
 package com.example.backend.chat.application.port.outbound
 
-import com.example.backend.chat.application.port.inbound.dto.MyChatRoomSummary
 import com.example.backend.chat.domain.model.ChatMember
 import com.example.backend.chat.domain.model.ChatMemberType
 
@@ -20,6 +19,7 @@ interface ChatMemberPersistencePort {
         roomId: Long,
         userId: Long,
         type: ChatMemberType,
+        lastReadSeq: Long,
     ): ChatMember
 
     fun delete(
@@ -27,5 +27,12 @@ interface ChatMemberPersistencePort {
         userId: Long,
     )
 
-    fun findRoomsByUser(userId: Long): List<MyChatRoomSummary>
+    fun findJoinedRooms(userId: Long): List<JoinedChatRoom>
+
+    /** 읽음 번호를 [seq] 로 올린다. 이미 같거나 크면 바꾸지 않는다. */
+    fun advanceLastReadSeq(
+        roomId: Long,
+        userId: Long,
+        seq: Long,
+    )
 }

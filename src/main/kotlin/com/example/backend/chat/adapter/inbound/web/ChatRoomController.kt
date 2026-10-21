@@ -3,9 +3,12 @@ package com.example.backend.chat.adapter.inbound.web
 import com.example.backend.bootstrap.security.AccessTokenRequired
 import com.example.backend.bootstrap.security.CurrentUserId
 import com.example.backend.chat.adapter.inbound.web.request.JoinChatRoomRequest
+import com.example.backend.chat.adapter.inbound.web.request.ReadChatRoomRequest
 import com.example.backend.chat.adapter.inbound.web.response.ChatMemberResponse
+import com.example.backend.chat.adapter.inbound.web.response.ChatReadResponse
 import com.example.backend.chat.adapter.inbound.web.response.ChatRoomsAtResponse
 import com.example.backend.chat.adapter.inbound.web.response.MyChatRoomListResponse
+import com.example.backend.chat.application.port.inbound.ChatMessageUseCase
 import com.example.backend.chat.application.port.inbound.ChatRoomUseCase
 import com.example.backend.common.geo.Coordinate
 import com.example.backend.common.response.ApiResponse
@@ -15,6 +18,7 @@ import org.springframework.web.bind.annotation.DeleteMapping
 import org.springframework.web.bind.annotation.GetMapping
 import org.springframework.web.bind.annotation.PathVariable
 import org.springframework.web.bind.annotation.PostMapping
+import org.springframework.web.bind.annotation.PutMapping
 import org.springframework.web.bind.annotation.RequestBody
 import org.springframework.web.bind.annotation.RequestParam
 import org.springframework.web.bind.annotation.ResponseStatus
@@ -23,6 +27,7 @@ import org.springframework.web.bind.annotation.RestController
 @RestController
 class ChatRoomController(
     private val chatRoomUseCase: ChatRoomUseCase,
+    private val chatMessageUseCase: ChatMessageUseCase,
 ) {
     @GetMapping("/api/v1/chat-rooms")
     @AccessTokenRequired
@@ -57,4 +62,13 @@ class ChatRoomController(
         @CurrentUserId userId: Long,
     ): ApiResponse<MyChatRoomListResponse> =
         ApiResponse.success(MyChatRoomListResponse.from(chatRoomUseCase.findMyRooms(userId)))
+
+    @PutMapping("/api/v1/chat-rooms/{roomId}/members/me/read")
+    @AccessTokenRequired
+    fun markRead(
+        @PathVariable roomId: Long,
+        @CurrentUserId userId: Long,
+        @Valid @RequestBody request: ReadChatRoomRequest,
+    ): ApiResponse<ChatReadResponse> =
+        ApiResponse.success(ChatReadResponse(chatMessageUseCase.markRead(roomId, userId, request.seq)))
 }

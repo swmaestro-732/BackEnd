@@ -8,6 +8,7 @@ import com.example.backend.chat.application.port.outbound.ChatMemberPersistenceP
 import com.example.backend.chat.application.port.outbound.ChatMessagePersistencePort
 import com.example.backend.chat.application.port.outbound.ChatSenderPort
 import com.example.backend.chat.application.port.outbound.NewChatMessage
+import com.example.backend.chat.domain.model.ChatMember
 import com.example.backend.chat.domain.model.ChatMessage
 import com.example.backend.chat.domain.model.ChatMessageStatus
 import com.example.backend.chat.domain.model.ChatMessageType
@@ -89,11 +90,22 @@ class ChatMessageService(
         )
     }
 
+    @Transactional
+    override fun markRead(
+        roomId: Long,
+        userId: Long,
+        seq: Long,
+    ): Long {
+        val member = requireMember(roomId, userId)
+        val target = minOf(seq, chatMessagePersistencePort.findLastSeq(roomId))
+        if (target > member.lastReadSeq) chatMemberPersistencePort.advanceLastReadSeq(roomId, userId, target)
+        return maxOf(member.lastReadSeq, target)
+    }
+
     private fun requireMember(
         roomId: Long,
         userId: Long,
-    ) {
+    ): ChatMember =
         chatMemberPersistencePort.find(roomId, userId)
             ?: throw BusinessException(ChatErrorCode.CHAT_ROOM_NOT_JOINED)
-    }
 }

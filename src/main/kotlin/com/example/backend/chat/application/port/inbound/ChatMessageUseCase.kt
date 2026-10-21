@@ -19,4 +19,11 @@ interface ChatMessageUseCase {
         afterSeq: Long?,
         size: Int,
     ): ChatMessageSummaryPage
+
+    /** 읽음 번호를 올리고 결과를 돌려준다. 방의 마지막 seq 를 넘지 않고 되돌아가지 않는다. 참여하지 않은 방이면 4033. */
+    fun markRead(
+        roomId: Long,
+        userId: Long,
+        seq: Long,
+    ): Long
 }

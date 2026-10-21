@@ -25,6 +25,9 @@ class ChatMessagePersistenceAdapter(
 
     override fun findLastSeq(roomId: Long): Long = chatMessageMongoRepository.findLastSeq(roomId)
 
+    override fun findLastSeqs(roomIds: Collection<Long>): Map<Long, Long> =
+        if (roomIds.isEmpty()) emptyMap() else chatMessageMongoRepository.findLastSeqs(roomIds)
+
     override fun findByClientMessageId(
         roomId: Long,
         senderId: Long,

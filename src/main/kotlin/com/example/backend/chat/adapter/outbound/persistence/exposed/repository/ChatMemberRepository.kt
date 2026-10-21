@@ -2,17 +2,18 @@ package com.example.backend.chat.adapter.outbound.persistence.exposed.repository
 
 import com.example.backend.chat.adapter.outbound.persistence.exposed.ChatMemberTable
 import com.example.backend.chat.adapter.outbound.persistence.exposed.ChatRoomTable
-import com.example.backend.chat.application.port.inbound.dto.MyChatRoomSummary
+import com.example.backend.chat.application.port.outbound.JoinedChatRoom
 import com.example.backend.chat.domain.model.ChatMember
 import com.example.backend.chat.domain.model.ChatMemberType
 import org.jetbrains.exposed.v1.core.JoinType
 import org.jetbrains.exposed.v1.core.ResultRow
-import org.jetbrains.exposed.v1.core.SortOrder
 import org.jetbrains.exposed.v1.core.and
 import org.jetbrains.exposed.v1.core.eq
+import org.jetbrains.exposed.v1.core.less
 import org.jetbrains.exposed.v1.jdbc.deleteWhere
 import org.jetbrains.exposed.v1.jdbc.insertIgnore
 import org.jetbrains.exposed.v1.jdbc.selectAll
+import org.jetbrains.exposed.v1.jdbc.update
 import org.springframework.stereotype.Repository
 import kotlin.time.toJavaInstant
 
@@ -42,11 +43,13 @@ class ChatMemberRepository {
         roomId: Long,
         userId: Long,
         type: ChatMemberType,
+        lastReadSeq: Long,
     ) {
         ChatMemberTable.insertIgnore {
             it[ChatMemberTable.roomId] = roomId
             it[ChatMemberTable.userId] = userId
             it[ChatMemberTable.type] = type
+            it[ChatMemberTable.lastReadSeq] = lastReadSeq
         }
     }
 
@@ -59,14 +62,13 @@ class ChatMemberRepository {
         }
     }
 
-    fun findRoomsByUser(userId: Long): List<MyChatRoomSummary> =
+    fun findJoinedRooms(userId: Long): List<JoinedChatRoom> =
         ChatMemberTable
             .join(ChatRoomTable, JoinType.INNER, ChatMemberTable.roomId, ChatRoomTable.id)
             .selectAll()
             .where { ChatMemberTable.userId eq userId }
-            .orderBy(ChatMemberTable.joinedAt to SortOrder.DESC)
             .map {
-                MyChatRoomSummary(
+                JoinedChatRoom(
                     roomId = it[ChatRoomTable.id].value,
                     name = it[ChatRoomTable.name],
                     type = it[ChatMemberTable.type],
@@ -74,6 +76,21 @@ class ChatMemberRepository {
                     joinedAt = it[ChatMemberTable.joinedAt].toJavaInstant(),
                 )
             }
+
+    /** 더 작을 때만 갱신해 읽음 번호가 되돌아가지 않는다(동시 요청도 안전). */
+    fun advanceLastReadSeq(
+        roomId: Long,
+        userId: Long,
+        seq: Long,
+    ) {
+        ChatMemberTable.update({
+            (ChatMemberTable.roomId eq roomId) and
+                (ChatMemberTable.userId eq userId) and
+                (ChatMemberTable.lastReadSeq less seq)
+        }) {
+            it[lastReadSeq] = seq
+        }
+    }
 
     private fun ResultRow.toDomain() =
         ChatMember(

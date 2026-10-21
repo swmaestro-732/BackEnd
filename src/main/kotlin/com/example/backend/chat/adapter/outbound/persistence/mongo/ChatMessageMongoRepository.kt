@@ -47,6 +47,11 @@ class ChatMessageMongoRepository(
     fun findLastSeq(roomId: Long): Long =
         mongoTemplate.findById(roomId, ChatRoomCounterDocument::class.java)?.lastSeq ?: 0
 
+    fun findLastSeqs(roomIds: Collection<Long>): Map<Long, Long> =
+        mongoTemplate
+            .find(Query(Criteria.where("_id").`in`(roomIds)), ChatRoomCounterDocument::class.java)
+            .associate { it.roomId to it.lastSeq }
+
     fun findByClientMessageId(
         roomId: Long,
         senderId: Long,
