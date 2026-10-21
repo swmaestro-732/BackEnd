@@ -5,6 +5,7 @@ import com.example.backend.chat.application.port.inbound.ChatMessageUseCase
 import com.example.backend.chat.application.port.inbound.dto.ChatMessageSummary
 import com.example.backend.chat.application.port.inbound.dto.ChatMessageSummaryPage
 import com.example.backend.chat.application.port.inbound.dto.SendChatMessageCommand
+import com.example.backend.chat.application.port.outbound.ChatCardPort
 import com.example.backend.chat.application.port.outbound.ChatMemberPersistencePort
 import com.example.backend.chat.application.port.outbound.ChatMessagePersistencePort
 import com.example.backend.chat.application.port.outbound.ChatSenderPort
@@ -13,8 +14,10 @@ import com.example.backend.chat.domain.model.ChatMember
 import com.example.backend.chat.domain.model.ChatMessage
 import com.example.backend.chat.domain.model.ChatMessageStatus
 import com.example.backend.chat.domain.model.ChatMessageType
+import com.example.backend.chat.domain.model.ChatReply
 import com.example.backend.common.exception.BusinessException
 import com.example.backend.common.response.ChatErrorCode
+import com.example.backend.common.response.CommonErrorCode
 import org.springframework.context.ApplicationEventPublisher
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
@@ -28,6 +31,7 @@ class ChatMessageService(
     private val chatMemberPersistencePort: ChatMemberPersistencePort,
     private val chatMessagePersistencePort: ChatMessagePersistencePort,
     private val chatSenderPort: ChatSenderPort,
+    private val chatCardPort: ChatCardPort,
     private val eventPublisher: ApplicationEventPublisher,
     private val clock: Clock,
 ) : ChatMessageUseCase {
@@ -37,22 +41,50 @@ class ChatMessageService(
             .findByClientMessageId(command.roomId, command.senderId, command.clientMessageId)
             ?.let { return it }
 
+        val card =
+            command.card?.let {
+                chatCardPort.findCard(it.type, it.refId, command.senderId)
+                    ?: throw BusinessException(CommonErrorCode.NOT_FOUND)
+            }
         val saved =
             chatMessagePersistencePort.insertWithNextSeq(
                 NewChatMessage(
                     roomId = command.roomId,
-                    type = ChatMessageType.TEXT,
+                    type = card?.type?.messageType ?: ChatMessageType.TEXT,
                     senderId = command.senderId,
                     clientMessageId = command.clientMessageId,
-                    body = command.body,
+                    body = command.body?.takeIf { it.isNotBlank() },
                     status = ChatMessageStatus.VISIBLE,
                     createdAt = Instant.now(clock),
+                    card = card,
+                    replyTo = command.replyToSeq?.let { findReplyTarget(command.roomId, it) },
+                    mentions = findMentions(command),
                 ),
             ) ?: return findSent(command)
 
         // MongoDB 트랜잭션은 위에서 이미 커밋됐다. 재전송 중복은 발행하지 않는다.
         eventPublisher.publishEvent(ChatMessageSentEvent(saved))
         return saved
+    }
+
+    /** 삭제·숨김 메시지와 시스템 메시지에는 답글을 달 수 없다. */
+    private fun findReplyTarget(
+        roomId: Long,
+        seq: Long,
+    ): ChatReply {
+        val original = chatMessagePersistencePort.findBySeq(roomId, seq)
+        if (original == null || original.status != ChatMessageStatus.VISIBLE || original.senderId == null) {
+            throw BusinessException(CommonErrorCode.NOT_FOUND)
+        }
+        val preview = (original.body ?: original.card?.title).orEmpty().take(ChatMessage.REPLY_PREVIEW_LENGTH)
+        return ChatReply(seq = original.seq, senderId = original.senderId, preview = preview)
+    }
+
+    /** 자기 자신과 방 멤버가 아닌 사용자는 조용히 뺀다(그사이 나갔을 수 있다). */
+    private fun findMentions(command: SendChatMessageCommand): List<Long> {
+        val candidates = command.mentionUserIds.distinct() - command.senderId
+        val members = chatMemberPersistencePort.findMemberUserIds(command.roomId, candidates)
+        return candidates.filter { it in members }
     }
 
     /** 같은 재전송이 동시에 들어와 먼저 저장된 쪽. 중복 키는 커밋된 문서와 부딪칠 때만 나서 항상 있다. */

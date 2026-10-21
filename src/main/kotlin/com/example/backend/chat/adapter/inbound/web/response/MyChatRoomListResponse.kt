@@ -19,11 +19,12 @@ data class MyChatRoomListResponse(
         val lastMessage: LastMessage?,
     )
 
-    /** 삭제·숨김 메시지는 body 를 내리지 않는다. */
+    /** 삭제·숨김 메시지는 body·card 를 내리지 않는다. */
     data class LastMessage(
         val seq: Long,
         val type: ChatMessageType,
         val body: String?,
+        val card: ChatCardResponse?,
         val status: ChatMessageStatus,
         val createdAt: Instant,
     )
@@ -48,6 +49,7 @@ data class MyChatRoomListResponse(
                 seq = seq,
                 type = type,
                 body = body.takeIf { status == ChatMessageStatus.VISIBLE },
+                card = card?.takeIf { status == ChatMessageStatus.VISIBLE }?.let(ChatCardResponse::from),
                 status = status,
                 createdAt = createdAt,
             )

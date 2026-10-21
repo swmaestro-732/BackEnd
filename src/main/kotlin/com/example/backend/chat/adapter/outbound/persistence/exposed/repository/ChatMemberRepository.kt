@@ -9,9 +9,11 @@ import org.jetbrains.exposed.v1.core.JoinType
 import org.jetbrains.exposed.v1.core.ResultRow
 import org.jetbrains.exposed.v1.core.and
 import org.jetbrains.exposed.v1.core.eq
+import org.jetbrains.exposed.v1.core.inList
 import org.jetbrains.exposed.v1.core.less
 import org.jetbrains.exposed.v1.jdbc.deleteWhere
 import org.jetbrains.exposed.v1.jdbc.insertIgnore
+import org.jetbrains.exposed.v1.jdbc.select
 import org.jetbrains.exposed.v1.jdbc.selectAll
 import org.jetbrains.exposed.v1.jdbc.update
 import org.springframework.stereotype.Repository
@@ -28,6 +30,15 @@ class ChatMemberRepository {
             .where { (ChatMemberTable.roomId eq roomId) and (ChatMemberTable.userId eq userId) }
             .firstOrNull()
             ?.toDomain()
+
+    fun findMemberUserIds(
+        roomId: Long,
+        userIds: Collection<Long>,
+    ): Set<Long> =
+        ChatMemberTable
+            .select(ChatMemberTable.userId)
+            .where { (ChatMemberTable.roomId eq roomId) and (ChatMemberTable.userId inList userIds) }
+            .mapTo(mutableSetOf()) { it[ChatMemberTable.userId] }
 
     fun countByUserAndType(
         userId: Long,

@@ -16,6 +16,11 @@ class ChatMemberPersistenceAdapter(
         userId: Long,
     ): ChatMember? = chatMemberRepository.find(roomId, userId)
 
+    override fun findMemberUserIds(
+        roomId: Long,
+        userIds: Collection<Long>,
+    ): Set<Long> = if (userIds.isEmpty()) emptySet() else chatMemberRepository.findMemberUserIds(roomId, userIds)
+
     override fun countByUserAndType(
         userId: Long,
         type: ChatMemberType,

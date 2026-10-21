@@ -21,6 +21,11 @@ interface ChatMessagePersistencePort {
         clientMessageId: String,
     ): ChatMessage?
 
+    fun findBySeq(
+        roomId: Long,
+        seq: Long,
+    ): ChatMessage?
+
     /** seq 내림차순. [beforeSeq] 가 null 이면 최신부터. */
     fun findBefore(
         roomId: Long,

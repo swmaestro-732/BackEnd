@@ -84,6 +84,21 @@ class ChatMessageMongoRepository(
         )
     }
 
+    fun findBySeq(
+        roomId: Long,
+        seq: Long,
+    ): ChatMessageDocument? =
+        mongoTemplate.findOne(
+            Query(
+                Criteria
+                    .where("roomId")
+                    .`is`(roomId)
+                    .and("seq")
+                    .`is`(seq),
+            ),
+            ChatMessageDocument::class.java,
+        )
+
     fun findAfter(
         roomId: Long,
         afterSeq: Long,

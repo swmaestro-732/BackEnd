@@ -32,6 +32,11 @@ class ChatMessagePersistenceAdapter(
         clientMessageId: String,
     ): ChatMessage? = chatMessageMongoRepository.findByClientMessageId(roomId, senderId, clientMessageId)?.toDomain()
 
+    override fun findBySeq(
+        roomId: Long,
+        seq: Long,
+    ): ChatMessage? = chatMessageMongoRepository.findBySeq(roomId, seq)?.toDomain()
+
     override fun findBefore(
         roomId: Long,
         beforeSeq: Long?,

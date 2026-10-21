@@ -9,6 +9,12 @@ interface ChatMemberPersistencePort {
         userId: Long,
     ): ChatMember?
 
+    /** [userIds] 중 이 방 멤버인 사용자. */
+    fun findMemberUserIds(
+        roomId: Long,
+        userIds: Collection<Long>,
+    ): Set<Long>
+
     fun countByUserAndType(
         userId: Long,
         type: ChatMemberType,
