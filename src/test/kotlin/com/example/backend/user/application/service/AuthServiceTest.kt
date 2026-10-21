@@ -3,6 +3,7 @@ package com.example.backend.user.application.service
 import com.example.backend.area.application.port.inbound.AreaQueryUseCase
 import com.example.backend.area.application.port.inbound.dto.AreaDescriptor
 import com.example.backend.common.exception.BusinessException
+import com.example.backend.common.geo.Coordinate
 import com.example.backend.common.response.CommonErrorCode
 import com.example.backend.common.response.UserErrorCode
 import com.example.backend.user.application.port.inbound.dto.SignupCommand
@@ -156,6 +157,10 @@ class AuthServiceTest {
             override fun resolveSearchPrefixes(keyword: String): List<String> = emptyList()
 
             override fun findAreaByCode(code: String): AreaDescriptor? = null
+
+            override fun findSigunguCodeAt(coordinate: Coordinate): String? = null
+
+            override fun findAdjacentSigunguCodes(sigunguCode: String): List<String> = emptyList()
         }
 
     private val userLikeThemePort =
