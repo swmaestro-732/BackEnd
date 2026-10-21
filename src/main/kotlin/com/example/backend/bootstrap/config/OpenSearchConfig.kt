@@ -24,6 +24,9 @@ import org.springframework.context.annotation.Primary
 import software.amazon.awssdk.auth.credentials.DefaultCredentialsProvider
 import software.amazon.awssdk.http.apache.ApacheHttpClient
 import software.amazon.awssdk.regions.Region
+import software.amazon.awssdk.services.sts.StsClient
+import software.amazon.awssdk.services.sts.auth.StsAssumeRoleCredentialsProvider
+import software.amazon.awssdk.services.sts.model.AssumeRoleRequest
 import java.time.Duration
 
 /**
@@ -81,7 +84,25 @@ class OpenSearchConfig(
                     .socketTimeout(responseTimeout)
                     .connectionAcquisitionTimeout(Duration.ofSeconds(2))
                     .build()
-            val credentialsProvider = DefaultCredentialsProvider.builder().build()
+            // assumeRoleArn 이 있으면 인스턴스 역할로 그 역할(prod 는 도메인 마스터)을 assume 해 서명한다(만료 전 자동 갱신).
+            // 마스터가 IAM 역할이면 클러스터가 재생성돼도 비밀번호 불일치 없이 다시 붙는다(SCRUM-675). 빈 값이면 인스턴스 역할 그대로.
+            val roleArn = properties.assumeRoleArn.trim()
+            val stsClient = if (roleArn.isEmpty()) null else StsClient.builder().region(region).build()
+            val credentialsProvider =
+                if (stsClient == null) {
+                    DefaultCredentialsProvider.builder().build()
+                } else {
+                    StsAssumeRoleCredentialsProvider
+                        .builder()
+                        .stsClient(stsClient)
+                        .refreshRequest(
+                            AssumeRoleRequest
+                                .builder()
+                                .roleArn(roleArn)
+                                .roleSessionName("chilsami-app")
+                                .build(),
+                        ).build()
+                }
             val options =
                 AwsSdk2TransportOptions
                     .builder()
@@ -96,6 +117,7 @@ class OpenSearchConfig(
                         httpClient.close()
                     } finally {
                         credentialsProvider.close()
+                        stsClient?.close()
                     }
                 }
             }

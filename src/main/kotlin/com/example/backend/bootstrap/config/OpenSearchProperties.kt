@@ -24,6 +24,11 @@ data class OpenSearchProperties(
     val authMode: String = "basic",
     /** IAM/SigV4 서명 리전(예: ap-northeast-2). iam 모드에서 빈 값이면 설정 오류로 기동을 중단한다. */
     val region: String = "",
+    /**
+     * iam 모드에서 이 역할을 assume 해 서명한다(env OPENSEARCH_ASSUME_ROLE_ARN). prod 는 도메인 마스터 역할을 넣는다.
+     * 빈 값이면 EC2 인스턴스 역할로 직접 서명한다(dev 현행 동작).
+     */
+    val assumeRoleArn: String = "",
 ) {
     /** 인덱스·alias 이름에 [indexPrefix] 를 붙인다. prefix="" 면 인자 그대로(prod 무영향). */
     fun withPrefix(name: String): String = "$indexPrefix$name"

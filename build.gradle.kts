@@ -75,6 +75,8 @@ dependencies {
     implementation("software.amazon.awssdk:s3")
     // OpenSearch IAM/SigV4 전송에 필요한 동기 SdkHttpClient. 버전은 위 AWS SDK BOM 관리.
     implementation("software.amazon.awssdk:apache-client")
+    // OpenSearch 마스터 역할 assume(opensearch.assume-role-arn). 버전은 위 AWS SDK BOM 관리.
+    implementation("software.amazon.awssdk:sts")
     // SQS — 코스 개수 폴백 큐(course 이벤트 동기 반영 실패 시 재시도). spring-cloud-aws 4.0.x = Spring Boot 4 + Jackson 3.
     // @SqsListener(수신)·SqsTemplate(발행)을 자동 배선한다. 큐 미설정 시 리스너 비활성·발행 no-op(fail-soft).
     implementation(platform("io.awspring.cloud:spring-cloud-aws-dependencies:4.0.2"))
