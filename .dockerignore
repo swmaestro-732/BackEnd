@@ -3,6 +3,8 @@
 .github
 .gradle
 build
+buildSrc/build
+buildSrc/.gradle
 .idea
 .omc
 .remember
