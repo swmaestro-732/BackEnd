@@ -103,7 +103,7 @@ redis:
   port: ${REDIS_PORT:6379}
   user: ${REDIS_USER:}
   cache-name: ${REDIS_CACHE_NAME:}
-  region: ${REDIS_REGION:${AWS_REGION:}}
+  region: ${REDIS_REGION:${aws.region}}   # 미지정 시 aws.region(기본 ap-northeast-2) — IAM 토큰 서명 리전 누락 방지
 
 # Sentry 에러 트래킹. DSN 이 비면 SDK 가 no-op(로컬/테스트 자동 비활성) — OTLP 엔드포인트와 동일한 fail-soft 관례.
 # prod/dev 는 Infra 가 SENTRY_DSN·SENTRY_ENVIRONMENT 를 env 로 주입한다(app_config 시크릿 경유).
