@@ -54,4 +54,12 @@ class OpenSearchConfigTest
                 .andExpect(status().isOk)
                 .andExpect(jsonPath("$.status").value("UP"))
         }
+
+        @Test
+        fun `OpenSearch 불통이어도 liveness 는 인증 없이 UP(200)을 반환한다`() {
+            mockMvc
+                .perform(get("/actuator/health/liveness"))
+                .andExpect(status().isOk)
+                .andExpect(jsonPath("$.status").value("UP"))
+        }
     }
