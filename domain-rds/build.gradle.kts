@@ -16,6 +16,8 @@ dependencies {
     implementation(libs.exposed.dao)
     implementation(libs.exposed.kotlin.datetime)
     implementation(libs.kotlinx.datetime)
+    // 로깅 파사드(SLF4J 위 얇은 래퍼). 영업시간 동기화 서비스 등이 사용
+    implementation(libs.kotlin.logging)
     // PostGIS geography 바인딩(PGobject)
     implementation("org.postgresql:postgresql")
 }

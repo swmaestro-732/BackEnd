@@ -6,6 +6,8 @@ import com.example.backend.mobile.place.application.port.inbound.PlaceDetailScre
 import com.example.backend.mobile.place.application.port.inbound.dto.PlaceDetailScreenResult
 import com.example.backend.mobile.place.application.port.inbound.dto.PlaceReviewScreenResult
 import com.example.backend.mobile.place.application.port.outbound.ScreenPlacePort
+import com.example.backend.place.application.port.inbound.PlaceBusinessHoursQueryUseCase
+import com.example.backend.place.application.port.inbound.PlaceBusinessHoursSyncUseCase
 import com.example.backend.place.application.port.inbound.PlaceReviewQueryUseCase
 import com.example.backend.place.application.port.inbound.dto.PlaceReviewsQuery
 import com.example.backend.user.application.port.inbound.UserSummaryUseCase
@@ -14,6 +16,7 @@ import org.springframework.transaction.annotation.Transactional
 
 /**
  * 장소 상세 화면 조합 서비스 (BFF). 장소는 자신의 아웃바운드 포트([ScreenPlacePort])로 조회하고,
+ * 영업 상태·요일별 영업시간 문구는 저장된 영업시간([PlaceBusinessHoursQueryUseCase])으로 채운다.
  * 리뷰 요약은 도메인 리뷰 조회([PlaceReviewQueryUseCase]) 첫 페이지에 작성자 프로필을 병합해 채운다.
  *
  * 이 근처 코스·저장 여부는 아직 백엔드가 없어 웹 응답에서 빈/false 스텁으로 채운다(MVP 범위).
@@ -23,12 +26,19 @@ import org.springframework.transaction.annotation.Transactional
 class PlaceDetailScreenService(
     private val screenPlacePort: ScreenPlacePort,
     private val placeReviewQueryUseCase: PlaceReviewQueryUseCase,
+    private val placeBusinessHoursSyncUseCase: PlaceBusinessHoursSyncUseCase,
+    private val placeBusinessHoursQueryUseCase: PlaceBusinessHoursQueryUseCase,
     private val userSummaryUseCase: UserSummaryUseCase,
 ) : PlaceDetailScreenUseCase {
     override fun getScreen(placeId: Long): PlaceDetailScreenResult {
         val place =
             screenPlacePort.findById(placeId)
                 ?: throw BusinessException(PlaceErrorCode.PLACE_NOT_FOUND, "장소를 찾을 수 없습니다: id=$placeId")
+        // 기능 도입 전 장소와 저장 시점 조회가 실패한 장소를 이 경로에서 메운다.
+        // 미동기화(business_hours_synced_at IS NULL)일 때만 이벤트가 나가고, 실제 외부 호출은 커밋 후 비동기라
+        // 이번 응답의 영업시간은 비어 있고(UNKNOWN) 다음 조회부터 채워진다.
+        placeBusinessHoursSyncUseCase.requestSync(listOf(placeId))
+        val openingHours = placeBusinessHoursQueryUseCase.getOpeningHours(placeId)
         val reviewPage =
             placeReviewQueryUseCase.getReviews(PlaceReviewsQuery(placeId = placeId, size = REVIEW_PREVIEW_SIZE))
         val reviewAuthors =
@@ -49,6 +59,8 @@ class PlaceDetailScreenService(
             latitude = place.latitude,
             longitude = place.longitude,
             address = place.address,
+            openStatus = openingHours.openStatus,
+            openingHoursText = PlaceOpeningHoursText.of(openingHours.hours),
             reviewSummary = reviewSummary,
         )
     }

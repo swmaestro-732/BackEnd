@@ -1,9 +1,10 @@
 package com.example.backend.mobile.place.application.port.inbound.dto
 
 /**
- * 장소 상세 화면 조합 결과 (BFF) — 장소(place) 정보 + 리뷰 요약.
+ * 장소 상세 화면 조합 결과 (BFF) — 장소(place) 정보 + 영업 상태 + 리뷰 요약.
  * 이 근처 코스·저장 여부는 백엔드가 생기면 이 결과에 확장한다(MVP 범위: 웹 응답에서 빈/false 스텁).
  *
+ * [openStatus] 는 OPEN·BREAK·CLOSED·UNKNOWN, [openingHoursText] 는 월~일 한 줄씩 줄바꿈으로 이은 문구(정보 없으면 null)다.
  * [reviewSummary] 는 후기 전체보기 화면 조합([PlaceReviewScreenResult])의 첫 페이지(최신순 미리보기)다.
  */
 data class PlaceDetailScreenResult(
@@ -14,5 +15,7 @@ data class PlaceDetailScreenResult(
     val latitude: Double,
     val longitude: Double,
     val address: String,
+    val openStatus: String,
+    val openingHoursText: String?,
     val reviewSummary: PlaceReviewScreenResult,
 )
