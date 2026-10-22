@@ -47,6 +47,17 @@ management:
       export:
         otlp:
           endpoint: ${MANAGEMENT_OTLP_TRACING_ENDPOINT:}
+  # HTTP 요청 지연 p95/p99 산출용 히스토그램 버킷 노출. 분위수 직접계산(percentiles)은 인스턴스별이라
+  # ASG 다중 인스턴스에서 합산이 안 되므로, Prometheus 가 버킷을 집계해 분위수를 내도록 percentiles-histogram 사용.
+  # 버킷 범위를 10ms~10s 로 제한해 le 버킷 수(카디널리티)를 억제한다.
+  metrics:
+    distribution:
+      percentiles-histogram:
+        http.server.requests: true
+      minimum-expected-value:
+        http.server.requests: 10ms
+      maximum-expected-value:
+        http.server.requests: 10s
 
 jwt:
   # 서명 시크릿은 반드시 env(JWT_SECRET, 32바이트+)로 주입한다. 코드에 사용 가능한 기본값을 두지 않는다(fail-fast).
