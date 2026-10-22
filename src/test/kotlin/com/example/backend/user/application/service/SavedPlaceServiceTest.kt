@@ -1,8 +1,11 @@
 package com.example.backend.user.application.service
 
 import com.example.backend.common.exception.BusinessException
+import com.example.backend.common.geo.Coordinate
 import com.example.backend.common.response.CommonErrorCode
 import com.example.backend.common.response.PlaceErrorCode
+import com.example.backend.user.application.event.SavedPlaceIndexedEvent
+import com.example.backend.user.application.event.SavedPlaceRemovedEvent
 import com.example.backend.user.application.port.inbound.dto.SavedPlaceRef
 import com.example.backend.user.application.port.inbound.dto.SavedPlacesCommand
 import com.example.backend.user.application.port.outbound.PlaceAccessPort
@@ -18,14 +21,19 @@ import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
+import org.springframework.context.ApplicationEventPublisher
 import java.time.Instant
 
 /**
- * [SavedPlaceService] 단위 테스트 — 포트를 페이크로 대체해 서비스 규칙만 검증한다([SavedCourseServiceTest] 와 같은 형식).
- * 검증 대상: 저장 시 장소 존재 검증(ACL 포트)·중복 차단·카테고리 스냅샷 매핑, 취소 위임(멱등),
- * 조회의 커서 파싱·hasNext 판정(size+1 조회)·필터와 무관한 배지 카운트.
+ * [SavedPlaceService] 단위 테스트 - 포트를 페이크로 대체해 서비스 규칙만 검증한다([SavedCourseServiceTest] 와 같은 형식).
+ * 검증 대상: 저장 시 장소 존재 검증(ACL 포트), 중복 차단, 카테고리 스냅샷 매핑, 취소 위임(멱등),
+ * 조회의 커서 파싱, hasNext 판정(size+1 조회), 필터와 무관한 배지 카운트.
  */
 class SavedPlaceServiceTest {
+    private val location = Coordinate(latitude = 37.5, longitude = 127.0)
+    private val publishedEvents = mutableListOf<Any>()
+    private val eventPublisher = ApplicationEventPublisher { publishedEvents += it }
+
     private val fakePlaceAccess =
         object : PlaceAccessPort {
             /** placeId → 장소 카테고리 코드. 없는 키는 삭제/부재 장소로 취급한다. */
@@ -34,8 +42,20 @@ class SavedPlaceServiceTest {
 
             override fun findPlace(placeId: Long): PlaceRef? {
                 requestedPlaceIds += placeId
-                return places[placeId]?.let { PlaceRef(id = placeId, category = it) }
+                return places[placeId]?.let {
+                    PlaceRef(
+                        id = placeId,
+                        name = "장소 $placeId",
+                        category = it,
+                        imageUrl = null,
+                        location = location,
+                        rating = 0.0,
+                        ratingCount = 0,
+                    )
+                }
             }
+
+            override fun findPlaces(placeIds: List<Long>): List<PlaceRef> = placeIds.mapNotNull(::findPlace)
         }
 
     private val fakePort =
@@ -44,8 +64,12 @@ class SavedPlaceServiceTest {
             var pageRows: List<SavedPlaceRow> = emptyList()
             var refs: List<SavedPlaceRef> = emptyList()
             var categoryCounts: List<SavedPlaceCategoryCountRow> = emptyList()
+            var insertResult: SavedPlace? = null
+            var insertFailure: RuntimeException? = null
+            var deleteResult = true
+            var deleteFailure: RuntimeException? = null
 
-            /** visited 별 카운트 — 배지가 필터와 무관한 전체 기준임을 검증하려고 값을 따로 둔다. */
+            /** visited 별 카운트 - 배지가 필터와 무관한 전체 기준임을 검증하려고 값을 따로 둔다. */
             var unvisitedCount: Long = 0
             var visitedCount: Long = 0
 
@@ -65,7 +89,8 @@ class SavedPlaceServiceTest {
                 category: SavedPlaceCategory?,
             ): SavedPlace {
                 insertArgs = Triple(userId, placeId, category)
-                return SavedPlace(
+                insertFailure?.let { throw it }
+                return insertResult ?: SavedPlace(
                     id = 100L,
                     userId = userId,
                     placeId = placeId,
@@ -80,7 +105,8 @@ class SavedPlaceServiceTest {
                 placeId: Long,
             ): Boolean {
                 deleteArgs = userId to placeId
-                return true
+                deleteFailure?.let { throw it }
+                return deleteResult
             }
 
             override fun countByVisited(
@@ -102,6 +128,11 @@ class SavedPlaceServiceTest {
             }
 
             override fun findAllRefs(userId: Long): List<SavedPlaceRef> = refs
+
+            override fun findForIndex(
+                afterId: Long?,
+                limit: Int,
+            ): List<SavedPlace> = emptyList()
         }
 
     private data class FindPageArgs(
@@ -112,7 +143,7 @@ class SavedPlaceServiceTest {
         val limit: Int,
     )
 
-    private val service = SavedPlaceService(fakePort, fakePlaceAccess)
+    private val service = SavedPlaceService(fakePort, fakePlaceAccess, eventPublisher)
 
     private fun row(
         id: Long,
@@ -129,6 +160,7 @@ class SavedPlaceServiceTest {
 
         assertEquals(PlaceErrorCode.PLACE_NOT_FOUND, ex.errorCode)
         assertNull(fakePort.insertArgs)
+        assertTrue(publishedEvents.isEmpty())
     }
 
     @Test
@@ -140,6 +172,7 @@ class SavedPlaceServiceTest {
 
         assertEquals(PlaceErrorCode.PLACE_ALREADY_SAVED, ex.errorCode)
         assertNull(fakePort.insertArgs)
+        assertTrue(publishedEvents.isEmpty())
     }
 
     @Test
@@ -152,6 +185,60 @@ class SavedPlaceServiceTest {
         assertEquals(42L, result.placeId)
         assertEquals(SavedPlaceCategory.RESTAURANT, result.category)
         assertFalse(result.visited) // 저장 직후는 미방문
+        assertEquals(
+            listOf(
+                SavedPlaceIndexedEvent(
+                    userId = 1L,
+                    placeId = 42L,
+                    location = location,
+                    savedAt = Instant.parse("2026-08-13T00:00:00Z"),
+                    visited = false,
+                    name = "장소 42",
+                    category = "RESTAURANT",
+                    imageUrl = null,
+                    rating = 0.0,
+                    ratingCount = 0,
+                ),
+            ),
+            publishedEvents,
+        )
+    }
+
+    @Test
+    fun `색인 이벤트는 DB 저장 시각과 미방문 상태를 사용한다`() {
+        fakePlaceAccess.places = mapOf(42L to "CAFE")
+        val savedAt = Instant.parse("2026-10-11T08:00:00Z")
+        fakePort.insertResult = SavedPlace(100L, 1L, 42L, SavedPlaceCategory.CAFE, true, savedAt)
+
+        service.save(userId = 1L, placeId = 42L)
+
+        assertEquals(
+            listOf(
+                SavedPlaceIndexedEvent(
+                    userId = 1L,
+                    placeId = 42L,
+                    location = location,
+                    savedAt = savedAt,
+                    visited = false,
+                    name = "장소 42",
+                    category = "CAFE",
+                    imageUrl = null,
+                    rating = 0.0,
+                    ratingCount = 0,
+                ),
+            ),
+            publishedEvents,
+        )
+    }
+
+    @Test
+    fun `DB 저장이 실패하면 색인 이벤트를 발행하지 않는다`() {
+        fakePlaceAccess.places = mapOf(42L to "CAFE")
+        fakePort.insertFailure = IllegalStateException("DB unavailable")
+
+        assertThrows<IllegalStateException> { service.save(userId = 1L, placeId = 42L) }
+
+        assertTrue(publishedEvents.isEmpty())
     }
 
     @Test
@@ -180,6 +267,25 @@ class SavedPlaceServiceTest {
         service.unsave(userId = 1L, placeId = 42L)
 
         assertEquals(1L to 42L, fakePort.deleteArgs)
+        assertEquals(listOf(SavedPlaceRemovedEvent(1L, 42L)), publishedEvents)
+    }
+
+    @Test
+    fun `이미 취소된 저장도 잔여 색인을 정리하도록 삭제 이벤트를 발행한다`() {
+        fakePort.deleteResult = false
+
+        service.unsave(userId = 1L, placeId = 42L)
+
+        assertEquals(listOf(SavedPlaceRemovedEvent(1L, 42L)), publishedEvents)
+    }
+
+    @Test
+    fun `DB 삭제가 실패하면 색인 삭제 이벤트를 발행하지 않는다`() {
+        fakePort.deleteFailure = IllegalStateException("DB unavailable")
+
+        assertThrows<IllegalStateException> { service.unsave(userId = 1L, placeId = 42L) }
+
+        assertTrue(publishedEvents.isEmpty())
     }
 
     // --- getSavedPlaces ---

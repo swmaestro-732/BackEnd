@@ -179,5 +179,7 @@ class PlaceQueryService(
             longitude = location.longitude,
             address = address,
             areaCode = areaCode,
+            rating = averageRating,
+            ratingCount = ratingCnt,
         )
 }

@@ -241,6 +241,58 @@ class SavedPlacePersistenceTest
             }
         }
 
+        // --- 재색인 ---
+
+        @Test
+        fun `findForIndex 는 살아있는 저장을 id 오름차순으로 제한하고 마지막 id 다음부터 조회한다`() {
+            transaction {
+                val userId = insertUser("재색인러1")
+                val first = port.insert(userId, placeId = 910L, category = SavedPlaceCategory.CAFE)
+                port.insert(userId, placeId = 911L, category = null)
+                port.deleteByUserAndPlace(userId, 911L)
+                val second = port.insert(userId, placeId = 912L, category = SavedPlaceCategory.BAR)
+                val third = port.insert(userId, placeId = 913L, category = null)
+
+                val firstPage = port.findForIndex(afterId = first.id - 1, limit = 2)
+                val secondPage = port.findForIndex(afterId = second.id, limit = 2)
+
+                assertEquals(listOf(first.id, second.id), firstPage.map { it.id })
+                assertEquals(listOf(third.id), secondPage.map { it.id })
+                assertTrue(port.findForIndex(afterId = third.id, limit = 2).isEmpty())
+                rollback()
+            }
+        }
+
+        @Test
+        fun `findForIndex 첫 페이지는 사용자 제한 없이 방문 여부와 저장 시각을 복원한다`() {
+            transaction {
+                val me = insertUser("재색인러2")
+                val other = insertUser("재색인러3")
+                val mine = port.insert(me, placeId = 914L, category = SavedPlaceCategory.NATURE)
+                val theirs = port.insert(other, placeId = 915L, category = null)
+                markVisited(mine.id)
+
+                val rows = port.findForIndex(afterId = null, limit = Int.MAX_VALUE)
+                val indexedMine = rows.single { it.id == mine.id }
+                val indexedTheirs = rows.single { it.id == theirs.id }
+
+                assertEquals(rows.map { it.id }.sorted(), rows.map { it.id })
+                assertEquals(me, indexedMine.userId)
+                assertEquals(914L, indexedMine.placeId)
+                assertEquals(SavedPlaceCategory.NATURE, indexedMine.category)
+                assertTrue(indexedMine.visited)
+                assertEquals(
+                    mine.savedAt.truncatedTo(ChronoUnit.MILLIS),
+                    indexedMine.savedAt.truncatedTo(ChronoUnit.MILLIS),
+                )
+                assertNull(indexedMine.deletedAt)
+                assertEquals(other, indexedTheirs.userId)
+                assertNull(indexedTheirs.category)
+                assertFalse(indexedTheirs.visited)
+                rollback()
+            }
+        }
+
         // --- 카운트 ---
 
         @Test

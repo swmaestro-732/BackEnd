@@ -56,6 +56,15 @@ class PlaceQueryServiceTest {
     private val service = PlaceQueryService(db, engine, PlaceSearchQueryPlanner(areas))
 
     @Test
+    fun `PK 상세 조회는 DB 의 최신 평점과 평점수를 포함한다`() {
+        val result = service.findPlacesById(listOf(1L)).single()
+
+        assertEquals(place(1).averageRating, result.rating)
+        assertEquals(place(1).ratingCnt, result.ratingCount)
+        assertTrue(criteria.isEmpty())
+    }
+
+    @Test
     fun `첫 장소 검색에는 거리 기준과 뷰포트가 없다`() {
         val result = service.searchByName("블루보틀", null, 10, null)
 

@@ -1,54 +1,38 @@
 package com.example.backend.mobile.home.adapter.outbound
 
-import com.example.backend.common.exception.BusinessException
 import com.example.backend.common.geo.Coordinate
-import com.example.backend.common.response.PlaceErrorCode
 import com.example.backend.mobile.home.application.port.outbound.HomeNearbyPlacePort
 import com.example.backend.mobile.home.application.port.outbound.dto.HomeNearbyPlace
-import com.example.backend.place.application.port.inbound.PlaceQueryUseCase
-import com.example.backend.user.application.port.inbound.SavedPlaceUseCase
-import io.github.oshai.kotlinlogging.KotlinLogging
+import com.example.backend.user.application.port.inbound.SavedPlaceSearchQueryPort
 import org.springframework.stereotype.Component
 
 /**
- * BFF 아웃바운드 어댑터 — 내 저장 장소(user, [SavedPlaceUseCase])를 거리순 조회(place, [PlaceQueryUseCase])에 넘기고
- * 방문 여부를 합쳐 BFF 격리 DTO 로 매핑한다.
- * 검색엔진 장애(`PLACE_SEARCH_UNAVAILABLE`)는 경고 로그만 남기고 빈 목록으로 흡수한다(홈 섹션 fail-soft).
+ * OS 에서 사용자와 반경 내 저장 장소를 거리순으로 조회한다.
+ * 표시용 정보(이름/카테고리/이미지/평점)와 방문 여부(visited) 모두 색인에서 읽어 DB 왕복을 완전히 제거한다.
+ * 방문 기능 구현 시 DB 변경과 함께 색인 visited 동기화가 필요하다.
+ * 평점은 저장/재색인 시점 스냅샷이라 잠깐 스테일할 수 있다(실시간 신선도는 후속 Redis 트랙). 삭제된 장소는 재색인/저장 취소로 정리된다.
  */
 @Component
 class HomeNearbyPlaceAdapter(
-    private val savedPlaceUseCase: SavedPlaceUseCase,
-    private val placeQueryUseCase: PlaceQueryUseCase,
+    private val savedPlaceSearchQueryPort: SavedPlaceSearchQueryPort,
 ) : HomeNearbyPlacePort {
-    private val log = KotlinLogging.logger {}
-
     override fun findNearbySavedPlaces(
         userId: Long,
         origin: Coordinate,
+        radiusMeters: Double,
         limit: Int,
     ): List<HomeNearbyPlace> {
-        val refs = savedPlaceUseCase.listSavedPlaceRefs(userId)
-        if (refs.isEmpty()) return emptyList()
-        val visitedByPlace = refs.associate { it.placeId to it.visited }
-
-        val nearest =
-            try {
-                placeQueryUseCase.findNearest(refs.map { it.placeId }, origin, limit)
-            } catch (e: BusinessException) {
-                if (e.errorCode != PlaceErrorCode.PLACE_SEARCH_UNAVAILABLE) throw e
-                log.warn { "홈 근처 저장 장소 조회 실패 — 빈 목록으로 대체: userId=$userId" }
-                return emptyList()
-            }
-        return nearest.map {
+        val hits = savedPlaceSearchQueryPort.nearestSaved(userId, origin, radiusMeters, limit)
+        return hits.map { hit ->
             HomeNearbyPlace(
-                placeId = it.id,
-                name = it.name,
-                imageUrl = it.imageUrl,
-                category = it.category,
-                rating = it.rating,
-                ratingCount = it.ratingCount,
-                distanceMeters = it.distanceMeters,
-                visited = visitedByPlace[it.id] ?: false,
+                placeId = hit.placeId,
+                name = hit.name,
+                imageUrl = hit.imageUrl,
+                category = hit.category,
+                rating = hit.rating,
+                ratingCount = hit.ratingCount,
+                distanceMeters = hit.distanceMeters,
+                visited = hit.visited,
             )
         }
     }
