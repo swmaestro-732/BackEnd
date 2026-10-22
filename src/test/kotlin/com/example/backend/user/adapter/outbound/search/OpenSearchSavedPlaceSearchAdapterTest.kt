@@ -2,6 +2,7 @@ package com.example.backend.user.adapter.outbound.search
 
 import com.example.backend.bootstrap.config.OpenSearchProperties
 import com.example.backend.common.geo.Coordinate
+import com.fasterxml.jackson.databind.ObjectMapper
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.Test
 import org.mockito.ArgumentCaptor
@@ -44,7 +45,7 @@ class OpenSearchSavedPlaceSearchAdapterTest {
         assertThat(request.index()).containsExactly("dev-saved_place")
         assertThat(request.size()).isEqualTo(2)
         assertThat(request.source()!!.filter().includes())
-            .containsExactly("placeId", "name", "category", "imageUrl", "rating", "ratingCount")
+            .containsExactly("placeId", "visited", "name", "category", "imageUrl", "rating", "ratingCount")
         val filters = request.query()!!.bool().filter()
         assertThat(filters).hasSize(2)
         val userFilter = filters.single { it.isTerm }.term()
@@ -86,12 +87,13 @@ class OpenSearchSavedPlaceSearchAdapterTest {
 
     @Test
     fun `검색 순서를 유지하고 source 의 장소와 sort 의 미터 거리를 반환한다`() {
-        stub(response(listOf(hit(20L, "152.7"), hit(10L, "830.1"))))
+        stub(response(listOf(hit(20L, "152.7", visited = true), hit(10L, "830.1", visited = false))))
 
         val hits = adapter.nearestSaved(7L, origin, 2010.0, 2)
 
         assertThat(hits.map { it.placeId }).containsExactly(20L, 10L)
         assertThat(hits.map { it.distanceMeters }).containsExactly(152.7, 830.1)
+        assertThat(hits.map { it.visited }).containsExactly(true, false)
         assertThat(hits.map { it.name }).containsExactly("장소 20", "장소 10")
         assertThat(hits.map { it.category }).containsExactly("CAFE", "CAFE")
         assertThat(hits.map { it.imageUrl }).containsExactly("https://img/20.jpg", "https://img/10.jpg")
@@ -104,6 +106,30 @@ class OpenSearchSavedPlaceSearchAdapterTest {
         stub(response(emptyList()))
 
         assertThat(adapter.nearestSaved(7L, origin, 2010.0, 2)).isEmpty()
+    }
+
+    @Test
+    fun `visited 가 없거나 null 인 기존 문서는 미방문으로 반환한다`() {
+        val sources =
+            listOf(
+                """{"placeId":10,"name":"장소 10","category":"CAFE","rating":4.8,"ratingCount":212}""",
+                """{"placeId":20,"visited":null,"name":"장소 20","category":"CAFE","rating":4.8,"ratingCount":212}""",
+            )
+        val legacyHits =
+            sources.map { source ->
+                Hit
+                    .Builder<JsonData>()
+                    .index("saved_place")
+                    .source(JsonData.of(ObjectMapper().readTree(source), JacksonJsonpMapper()))
+                    .sort(listOf("100.0", "0"))
+                    .build()
+            }
+        stub(response(legacyHits))
+
+        val hits = adapter.nearestSaved(7L, origin, 2010.0, 2)
+
+        assertThat(hits.map { it.placeId }).containsExactly(10L, 20L)
+        assertThat(hits.map { it.visited }).containsExactly(false, false)
     }
 
     @Test
@@ -169,6 +195,7 @@ class OpenSearchSavedPlaceSearchAdapterTest {
     private fun hit(
         placeId: Long,
         distance: String,
+        visited: Boolean = false,
     ): Hit<JsonData> =
         Hit
             .Builder<JsonData>()
@@ -178,6 +205,7 @@ class OpenSearchSavedPlaceSearchAdapterTest {
                 JsonData.of(
                     mapOf(
                         "placeId" to placeId,
+                        "visited" to visited,
                         "name" to "장소 $placeId",
                         "category" to "CAFE",
                         "imageUrl" to "https://img/$placeId.jpg",

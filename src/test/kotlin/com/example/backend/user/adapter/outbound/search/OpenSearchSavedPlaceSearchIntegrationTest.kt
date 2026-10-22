@@ -17,7 +17,7 @@ import org.springframework.test.context.DynamicPropertyRegistry
 import org.springframework.test.context.DynamicPropertySource
 import java.time.Instant
 
-/** 실제 매핑·alias 와 색인/조회 어댑터의 왕복을 검증한다. `opensearchIt` 에서만 실행한다. */
+/** 실제 매핑, alias 와 색인/조회 어댑터의 왕복을 검증한다. `opensearchIt` 에서만 실행한다. */
 class OpenSearchSavedPlaceSearchIntegrationTest
     @Autowired
     constructor(
@@ -52,6 +52,7 @@ class OpenSearchSavedPlaceSearchIntegrationTest
                 "placeId",
                 "location",
                 "savedAt",
+                "visited",
                 "name",
                 "category",
                 "imageUrl",
@@ -60,6 +61,8 @@ class OpenSearchSavedPlaceSearchIntegrationTest
             )
             assertThat(fields.getValue("location").isGeoPoint).isTrue()
             assertThat(fields.getValue("savedAt").isDate).isTrue()
+            assertThat(fields.getValue("visited").isBoolean).isTrue()
+            assertThat(fields.getValue("visited").boolean_().index()).isFalse()
         }
 
         @Test
@@ -69,12 +72,13 @@ class OpenSearchSavedPlaceSearchIntegrationTest
                 document(7L, 40L, latitude = 37.563),
                 document(8L, 50L, latitude = origin.latitude),
                 document(7L, 10L, latitude = 37.549),
-                document(7L, 20L, latitude = 37.545),
+                document(7L, 20L, latitude = 37.545, visited = true),
             )
 
             val nearest = queryPort.nearestSaved(7L, origin, radiusMeters = 2000.0, size = 2)
 
             assertThat(nearest.map { it.placeId }).containsExactly(20L, 10L)
+            assertThat(nearest.map { it.visited }).containsExactly(true, false)
             assertThat(nearest.map { it.distanceMeters }).isSorted()
             assertThat(nearest.first().distanceMeters).isBetween(100.0, 120.0)
             assertThat(nearest.last().distanceMeters).isBetween(540.0, 570.0)
@@ -108,15 +112,17 @@ class OpenSearchSavedPlaceSearchIntegrationTest
         }
 
         @Test
-        fun `같은 사용자 장소 재색인은 중복 없이 좌표를 갱신한다`() {
-            index(document(7L, 10L, latitude = 37.58))
+        fun `같은 사용자 장소 재색인은 중복 없이 좌표와 방문 여부를 갱신한다`() {
+            indexPort.index(document(7L, 10L, latitude = 37.58))
+            indexClient.indices().refresh { it.index(ALIAS) }
             assertThat(queryPort.nearestSaved(7L, origin, 2000.0, 2)).isEmpty()
 
-            index(document(7L, 10L, latitude = 37.545))
+            index(document(7L, 10L, latitude = 37.545, visited = true))
 
             val nearest = queryPort.nearestSaved(7L, origin, 2000.0, 2)
             assertThat(nearest).hasSize(1)
             assertThat(nearest.single().placeId).isEqualTo(10L)
+            assertThat(nearest.single().visited).isTrue()
             assertThat(indexClient.count { it.index(ALIAS) }.count()).isEqualTo(1L)
         }
 
@@ -140,11 +146,13 @@ class OpenSearchSavedPlaceSearchIntegrationTest
             userId: Long,
             placeId: Long,
             latitude: Double,
+            visited: Boolean = false,
         ) = SavedPlaceIndexDocument(
             userId = userId,
             placeId = placeId,
             location = Coordinate(latitude, origin.longitude),
             savedAt = Instant.parse("2026-10-11T08:00:00Z"),
+            visited = visited,
             name = "장소 $placeId",
             category = "CAFE",
             imageUrl = "https://img/$placeId.jpg",

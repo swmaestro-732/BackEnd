@@ -5,18 +5,23 @@ import com.example.backend.user.adapter.messaging.SavedPlaceIndexMessage
 import com.example.backend.user.application.port.outbound.SavedPlaceIndexDocument
 import com.example.backend.user.application.port.outbound.SavedPlaceSearchIndexPort
 import org.junit.jupiter.api.Assertions.assertDoesNotThrow
+import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.params.ParameterizedTest
+import org.junit.jupiter.params.provider.ValueSource
 import org.mockito.Mockito.mock
 import org.mockito.Mockito.verify
 import org.mockito.Mockito.verifyNoInteractions
+import tools.jackson.module.kotlin.jacksonObjectMapper
 import java.time.Instant
 
 class SavedPlaceIndexSqsConsumerTest {
     private val port = mock(SavedPlaceSearchIndexPort::class.java)
     private val consumer = SavedPlaceIndexSqsConsumer(port)
 
-    @Test
-    fun `INDEX 메시지는 문서를 재구성해 색인 포트로 재처리한다`() {
+    @ParameterizedTest
+    @ValueSource(booleans = [true, false])
+    fun `INDEX 메시지는 방문 여부를 보존해 색인 포트로 재처리한다`(visited: Boolean) {
         consumer.onMessage(
             SavedPlaceIndexMessage(
                 op = SavedPlaceIndexMessage.OP_INDEX,
@@ -25,6 +30,7 @@ class SavedPlaceIndexSqsConsumerTest {
                 lat = 37.51,
                 lon = 127.02,
                 savedAtEpochMs = Instant.parse("2026-10-11T08:00:00Z").toEpochMilli(),
+                visited = visited,
                 name = "어니언 성수",
                 category = "CAFE",
                 imageUrl = "https://img/42.jpg",
@@ -39,6 +45,7 @@ class SavedPlaceIndexSqsConsumerTest {
                 placeId = 42L,
                 location = Coordinate(37.51, 127.02),
                 savedAt = Instant.parse("2026-10-11T08:00:00Z"),
+                visited = visited,
                 name = "어니언 성수",
                 category = "CAFE",
                 imageUrl = "https://img/42.jpg",
@@ -46,6 +53,17 @@ class SavedPlaceIndexSqsConsumerTest {
                 ratingCount = 212,
             ),
         )
+    }
+
+    @Test
+    fun `visited 가 없는 기존 메시지는 미방문으로 역직렬화한다`() {
+        val message =
+            jacksonObjectMapper().readValue(
+                """{"op":"INDEX","userId":7,"placeId":42}""",
+                SavedPlaceIndexMessage::class.java,
+            )
+
+        assertFalse(message.visited)
     }
 
     @Test

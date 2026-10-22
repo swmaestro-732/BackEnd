@@ -14,6 +14,7 @@ data class SavedPlaceIndexMessage(
     val lat: Double? = null,
     val lon: Double? = null,
     val savedAtEpochMs: Long? = null,
+    val visited: Boolean = false, // 기존 큐 메시지에는 visited 가 없으며 저장 당시 미방문 상태다.
     val name: String? = null,
     val category: String? = null,
     val imageUrl: String? = null,

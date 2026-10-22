@@ -30,13 +30,4 @@ interface SavedPlaceUseCase {
 
     /** 사용자가 저장한 모든 장소의 id 와 방문 여부(페이지 없이 전체). */
     fun listSavedPlaceRefs(userId: Long): List<SavedPlaceRef>
-
-    /**
-     * 주어진 placeId 들에 대한 방문 여부(placeId → visited). 저장돼 있지 않은 placeId 는 결과에 없다.
-     * 홈 근처 저장 장소가 거리 랭킹(OS) 결과 소수 건의 방문 여부만 DB 에서 신선하게 읽을 때 쓴다.
-     */
-    fun findVisited(
-        userId: Long,
-        placeIds: List<Long>,
-    ): Map<Long, Boolean>
 }

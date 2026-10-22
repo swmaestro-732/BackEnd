@@ -31,6 +31,7 @@ class SavedPlaceSearchSyncListener(
                 placeId = event.placeId,
                 location = event.location,
                 savedAt = event.savedAt,
+                visited = event.visited,
                 name = event.name,
                 category = event.category,
                 imageUrl = event.imageUrl,

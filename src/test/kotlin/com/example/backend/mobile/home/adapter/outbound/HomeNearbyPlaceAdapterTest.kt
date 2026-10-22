@@ -2,35 +2,33 @@ package com.example.backend.mobile.home.adapter.outbound
 
 import com.example.backend.common.geo.Coordinate
 import com.example.backend.user.application.port.inbound.SavedPlaceSearchQueryPort
-import com.example.backend.user.application.port.inbound.SavedPlaceUseCase
 import com.example.backend.user.application.port.inbound.dto.NearbySavedHit
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import org.mockito.Mockito.mock
 import org.mockito.Mockito.verify
-import org.mockito.Mockito.verifyNoInteractions
+import org.mockito.Mockito.verifyNoMoreInteractions
 import org.mockito.Mockito.`when`
 
 class HomeNearbyPlaceAdapterTest {
     private val search = mock(SavedPlaceSearchQueryPort::class.java)
-    private val savedPlaces = mock(SavedPlaceUseCase::class.java)
-    private val adapter = HomeNearbyPlaceAdapter(search, savedPlaces)
+    private val adapter = HomeNearbyPlaceAdapter(search)
     private val origin = Coordinate(37.544, 127.056)
 
     @Test
-    fun `검색 결과가 없으면 방문 여부도 조회하지 않는다`() {
+    fun `검색 결과가 없으면 빈 목록을 반환한다`() {
         `when`(search.nearestSaved(7, origin, 2010.0, 2)).thenReturn(emptyList())
 
         assertTrue(adapter.findNearbySavedPlaces(7, origin, 2010.0, 2).isEmpty())
-        verifyNoInteractions(savedPlaces)
+        verify(search).nearestSaved(7, origin, 2010.0, 2)
+        verifyNoMoreInteractions(search)
     }
 
     @Test
-    fun `표시 정보는 ES 결과를 그대로 쓰고 방문 여부만 DB 로 합쳐 거리순을 보존한다`() {
+    fun `표시 정보와 방문 여부는 색인 결과를 그대로 쓰고 거리순을 보존한다`() {
         `when`(search.nearestSaved(7, origin, 2010.0, 2))
-            .thenReturn(listOf(hit(20, 150.0), hit(10, 820.0)))
-        `when`(savedPlaces.findVisited(7, listOf(20L, 10L))).thenReturn(mapOf(20L to true, 10L to false))
+            .thenReturn(listOf(hit(20, 150.0, visited = true), hit(10, 820.0, visited = false)))
 
         val result = adapter.findNearbySavedPlaces(7, origin, 2010.0, 2)
 
@@ -42,23 +40,18 @@ class HomeNearbyPlaceAdapterTest {
         assertEquals("CAFE", result.first().category)
         assertEquals(4.8, result.first().rating)
         assertEquals(212, result.first().ratingCount)
-        verify(savedPlaces).findVisited(7, listOf(20L, 10L))
-    }
-
-    @Test
-    fun `저장 레코드에 없는 placeId 의 방문 여부는 false 로 둔다`() {
-        `when`(search.nearestSaved(7, origin, 2010.0, 2)).thenReturn(listOf(hit(20, 150.0)))
-        `when`(savedPlaces.findVisited(7, listOf(20L))).thenReturn(emptyMap())
-
-        assertEquals(false, adapter.findNearbySavedPlaces(7, origin, 2010.0, 2).single().visited)
+        verify(search).nearestSaved(7, origin, 2010.0, 2)
+        verifyNoMoreInteractions(search)
     }
 
     private fun hit(
         placeId: Long,
         distanceMeters: Double,
+        visited: Boolean,
     ) = NearbySavedHit(
         placeId = placeId,
         distanceMeters = distanceMeters,
+        visited = visited,
         name = "장소 $placeId",
         category = "CAFE",
         imageUrl = "https://img/$placeId.jpg",

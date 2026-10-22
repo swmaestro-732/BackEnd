@@ -50,7 +50,7 @@ class SavedPlaceReindexServiceTest {
     }
 
     @Test
-    fun `저장 관계를 페이지 단위로 좌표와 결합하고 마지막 행 id로 다음 페이지를 조회한다`() {
+    fun `저장 관계의 방문 여부를 좌표와 결합하고 마지막 행 id로 다음 페이지를 조회한다`() {
         val first = (1L..100L).map(::savedPlace)
         val second = listOf(savedPlace(101L), savedPlace(102L))
         `when`(persistence.findForIndex(null, 100)).thenReturn(first)
@@ -62,6 +62,7 @@ class SavedPlaceReindexServiceTest {
 
         assertEquals(listOf(100, 2), batches.map { it.size })
         assertEquals((1L..102L).toList(), batches.flatten().map { it.placeId })
+        assertEquals((first + second).map { it.visited }, batches.flatten().map { it.visited })
         assertEquals(
             listOf(
                 doc(101L),
@@ -120,6 +121,7 @@ class SavedPlaceReindexServiceTest {
         assertEquals(2, service.reindexAll())
 
         assertEquals(listOf(7L to 1L, 8L to 1L), batches.single().map { it.userId to it.placeId })
+        assertEquals(listOf(false, true), batches.single().map { it.visited })
         verify(places).findPlaces(listOf(1L))
         verifyNoMoreInteractions(places)
     }
@@ -151,6 +153,7 @@ class SavedPlaceReindexServiceTest {
             placeId = placeId,
             location = location,
             savedAt = savedAt,
+            visited = placeId % 2 == 0L,
             name = "장소 $placeId",
             category = "CAFE",
             imageUrl = null,

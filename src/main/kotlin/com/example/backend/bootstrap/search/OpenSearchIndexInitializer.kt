@@ -28,6 +28,9 @@ import java.io.StringReader
  * v2 = 한글 형태소 검색 정확도(복합어)용 커스텀 `korean` analyzer 도입(SCRUM-552, nori_tokenizer decompound_mode=mixed
  * + 사용자 사전). analyzer 는 인덱스 settings 라 기존 인덱스에 putMapping 으로 못 바꾸므로 새 버전 인덱스로 만든다.
  * 신규 환경·CI 는 v2 를 바로 만들고, 기존 alias(v1)가 있는 환경은 v2 backfill 후 런북대로 alias 를 스위칭한다.
+ *
+ * saved_place.json 의 visited 는 저장 시점 스냅샷이며 표시용이라 index=false 로 매핑한다.
+ * 방문 기능 구현 시 동기화와 재색인으로 갱신해야 한다.
  */
 @Component
 @Order(0)

@@ -43,7 +43,7 @@ class OpenSearchSavedPlaceSearchAdapter(
                     .size(size)
                     .source {
                         it.filter { f ->
-                            f.includes("placeId", "name", "category", "imageUrl", "rating", "ratingCount")
+                            f.includes("placeId", "visited", "name", "category", "imageUrl", "rating", "ratingCount")
                         }
                     }.query { q ->
                         q.bool { b ->
@@ -78,6 +78,7 @@ class OpenSearchSavedPlaceSearchAdapter(
                 NearbySavedHit(
                     placeId = source.getJsonNumber("placeId").longValue(),
                     distanceMeters = hit.sort().first().toDouble(),
+                    visited = source.getBoolean("visited", false),
                     name = source.getString("name"),
                     category = source.getString("category"),
                     imageUrl =

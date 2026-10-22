@@ -48,7 +48,7 @@ class OpenSearchSavedPlaceIndexAdapterTest {
     }
 
     @Test
-    fun `단건 색인은 prefix alias 와 복합 문서 ID 및 좌표 방문 상태 저장 시각을 보낸다`() {
+    fun `단건 색인은 prefix alias 와 복합 문서 ID, 좌표, 표시정보, 방문 상태, 저장 시각을 보낸다`() {
         `when`(provider.ifAvailable).thenReturn(client)
         var request: BulkRequest? = null
         captureBulk { request = it }
@@ -66,7 +66,9 @@ class OpenSearchSavedPlaceIndexAdapterTest {
         assertThat(payload["userId"]).isEqualTo(7L)
         assertThat(payload["placeId"]).isEqualTo(10L)
         assertThat(payload["location"]).isEqualTo(mapOf("lat" to 37.544, "lon" to 127.056))
-        assertThat(payload).doesNotContainKey("visited")
+        assertThat(payload["name"]).isEqualTo("어니언 성수")
+        assertThat(payload["rating"]).isEqualTo(4.8)
+        assertThat(payload["visited"]).isEqualTo(true)
         assertThat(payload["savedAt"]).isEqualTo(saved.savedAt.toEpochMilli())
     }
 
@@ -76,12 +78,14 @@ class OpenSearchSavedPlaceIndexAdapterTest {
         var request: BulkRequest? = null
         captureBulk { request = it }
 
-        adapter.index(listOf(document(), document(userId = 8L), document(placeId = 20L)))
+        adapter.index(listOf(document(), document(userId = 8L, visited = false), document(placeId = 20L)))
 
         val bulk = requireNotNull(request)
         assertThat(bulk.requireAlias()).isTrue()
         assertThat(bulk.operations().map { it.index<Any>().id() }).containsExactly("7:10", "8:10", "7:20")
         assertThat(bulk.operations().map { it.index<Any>().index() }).containsOnly("dev-saved_place")
+        assertThat(bulk.operations().map { (it.index<Any>().document() as Map<*, *>)["visited"] })
+            .containsExactly(true, false, true)
     }
 
     @Test
@@ -164,11 +168,13 @@ class OpenSearchSavedPlaceIndexAdapterTest {
     private fun document(
         userId: Long = 7L,
         placeId: Long = 10L,
+        visited: Boolean = true,
     ) = SavedPlaceIndexDocument(
         userId = userId,
         placeId = placeId,
         location = Coordinate(37.544, 127.056),
         savedAt = Instant.parse("2026-10-11T08:00:00Z"),
+        visited = visited,
         name = "어니언 성수",
         category = "CAFE",
         imageUrl = "https://img/$placeId.jpg",

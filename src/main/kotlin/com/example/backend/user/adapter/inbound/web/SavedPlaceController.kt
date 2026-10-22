@@ -57,6 +57,11 @@ class SavedPlaceController(
         return ApiResponse.ok("장소 저장을 취소했습니다.")
     }
 
+    /**
+     * 모킹 API, 방문 상태를 저장하지 않고 성공 응답만 반환한다.
+     * 방문 처리를 실제 구현할 때 saved_places.visited UPDATE와 함께 OS 색인 visited를
+     * partial update + 실패 시 SQS 폴백으로 갱신해야 한다(안 하면 홈 근처 표시가 스테일).
+     */
     @PatchMapping("/api/v1/saved-places/{placeId}")
     fun visit(
         @PathVariable placeId: Long,

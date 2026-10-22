@@ -53,6 +53,7 @@ class OpenSearchSavedPlaceIndexAdapter(
                                                     "lon" to document.location.longitude,
                                                 ),
                                             "savedAt" to document.savedAt.toEpochMilli(),
+                                            "visited" to document.visited,
                                             "name" to document.name,
                                             "category" to document.category,
                                             "imageUrl" to document.imageUrl,

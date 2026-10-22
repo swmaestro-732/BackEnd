@@ -34,6 +34,7 @@ class SavedPlaceReindexService(
                             placeId = saved.placeId,
                             location = place.location,
                             savedAt = saved.savedAt,
+                            visited = saved.visited,
                             name = place.name,
                             category = place.category,
                             imageUrl = place.imageUrl,

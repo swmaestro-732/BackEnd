@@ -31,6 +31,7 @@ class SavedPlaceIndexFallbackAdapter(
                 lat = document.location.latitude,
                 lon = document.location.longitude,
                 savedAtEpochMs = document.savedAt.toEpochMilli(),
+                visited = document.visited,
                 name = document.name,
                 category = document.category,
                 imageUrl = document.imageUrl,

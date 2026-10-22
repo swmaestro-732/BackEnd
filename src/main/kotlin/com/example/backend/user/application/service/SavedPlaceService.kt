@@ -59,6 +59,7 @@ class SavedPlaceService(
                 placeId = saved.placeId,
                 location = place.location,
                 savedAt = saved.savedAt,
+                visited = false,
                 name = place.name,
                 category = place.category,
                 imageUrl = place.imageUrl,
@@ -66,8 +67,6 @@ class SavedPlaceService(
                 ratingCount = place.ratingCount,
             ),
         )
-        // visited 는 색인하지 않고 조회 시 DB 에서 읽는다. 이름/카테고리/이미지/평점은 저장 시점 스냅샷으로 색인에 중복 저장한다
-        //  — 홈 근처 조회가 ES 결과만으로 카드를 그려 DB 왕복을 없앤다. 평점은 가변이지만 지금은 스냅샷(실시간 신선도는 후속 Redis).
         return saved
     }
 
@@ -126,12 +125,6 @@ class SavedPlaceService(
     }
 
     override fun listSavedPlaceRefs(userId: Long): List<SavedPlaceRef> = savedPlacePersistencePort.findAllRefs(userId)
-
-    override fun findVisited(
-        userId: Long,
-        placeIds: List<Long>,
-    ): Map<Long, Boolean> =
-        if (placeIds.isEmpty()) emptyMap() else savedPlacePersistencePort.findVisitedByPlaceIds(userId, placeIds)
 
     /** 커서(=저장 레코드 id)를 파싱한다. 형식이 잘못되면 400. */
     private fun decodeCursor(cursor: String): Long =

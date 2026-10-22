@@ -25,9 +25,9 @@ import org.springframework.context.ApplicationEventPublisher
 import java.time.Instant
 
 /**
- * [SavedPlaceService] 단위 테스트 — 포트를 페이크로 대체해 서비스 규칙만 검증한다([SavedCourseServiceTest] 와 같은 형식).
- * 검증 대상: 저장 시 장소 존재 검증(ACL 포트)·중복 차단·카테고리 스냅샷 매핑, 취소 위임(멱등),
- * 조회의 커서 파싱·hasNext 판정(size+1 조회)·필터와 무관한 배지 카운트.
+ * [SavedPlaceService] 단위 테스트 - 포트를 페이크로 대체해 서비스 규칙만 검증한다([SavedCourseServiceTest] 와 같은 형식).
+ * 검증 대상: 저장 시 장소 존재 검증(ACL 포트), 중복 차단, 카테고리 스냅샷 매핑, 취소 위임(멱등),
+ * 조회의 커서 파싱, hasNext 판정(size+1 조회), 필터와 무관한 배지 카운트.
  */
 class SavedPlaceServiceTest {
     private val location = Coordinate(latitude = 37.5, longitude = 127.0)
@@ -69,7 +69,7 @@ class SavedPlaceServiceTest {
             var deleteResult = true
             var deleteFailure: RuntimeException? = null
 
-            /** visited 별 카운트 — 배지가 필터와 무관한 전체 기준임을 검증하려고 값을 따로 둔다. */
+            /** visited 별 카운트 - 배지가 필터와 무관한 전체 기준임을 검증하려고 값을 따로 둔다. */
             var unvisitedCount: Long = 0
             var visitedCount: Long = 0
 
@@ -128,13 +128,6 @@ class SavedPlaceServiceTest {
             }
 
             override fun findAllRefs(userId: Long): List<SavedPlaceRef> = refs
-
-            var visitedByPlaceIds: Map<Long, Boolean> = emptyMap()
-
-            override fun findVisitedByPlaceIds(
-                userId: Long,
-                placeIds: List<Long>,
-            ): Map<Long, Boolean> = visitedByPlaceIds.filterKeys { it in placeIds }
 
             override fun findForIndex(
                 afterId: Long?,
@@ -199,6 +192,7 @@ class SavedPlaceServiceTest {
                     placeId = 42L,
                     location = location,
                     savedAt = Instant.parse("2026-08-13T00:00:00Z"),
+                    visited = false,
                     name = "장소 42",
                     category = "RESTAURANT",
                     imageUrl = null,
@@ -211,7 +205,7 @@ class SavedPlaceServiceTest {
     }
 
     @Test
-    fun `색인 이벤트의 저장 시각은 DB 저장 결과를 사용한다`() {
+    fun `색인 이벤트는 DB 저장 시각과 미방문 상태를 사용한다`() {
         fakePlaceAccess.places = mapOf(42L to "CAFE")
         val savedAt = Instant.parse("2026-10-11T08:00:00Z")
         fakePort.insertResult = SavedPlace(100L, 1L, 42L, SavedPlaceCategory.CAFE, true, savedAt)
@@ -225,6 +219,7 @@ class SavedPlaceServiceTest {
                     placeId = 42L,
                     location = location,
                     savedAt = savedAt,
+                    visited = false,
                     name = "장소 42",
                     category = "CAFE",
                     imageUrl = null,
