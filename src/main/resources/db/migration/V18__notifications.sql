@@ -19,6 +19,8 @@ CREATE TABLE notifications (
 
 CREATE INDEX idx_notifications_user_id ON notifications (user_id, id DESC);
 CREATE INDEX idx_notifications_unread ON notifications (user_id) WHERE read_at IS NULL;
+-- 탈퇴 정리(받는 사람 또는 마지막 행위자 기준 삭제)가 전체 스캔하지 않도록 행위자 쪽 인덱스를 둔다.
+CREATE INDEX idx_notifications_last_actor_id ON notifications (last_actor_id);
 
 -- 설정 행이 없으면 모든 활동 알림을 허용하며 가입 시에는 행을 만들지 않는다.
 CREATE TABLE notification_settings (
