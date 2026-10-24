@@ -2,6 +2,7 @@ package com.example.backend.course.application.port.outbound
 
 import com.example.backend.common.domain.CourseVisibility
 import com.example.backend.course.application.port.inbound.dto.AuthorCourseCursor
+import com.example.backend.course.application.port.inbound.dto.CourseOwnerSummary
 import com.example.backend.course.application.port.inbound.dto.FeedCursor
 import com.example.backend.course.domain.model.Course
 import com.example.backend.course.domain.model.CourseCategory
@@ -76,6 +77,8 @@ data class CoursePlaceImageRow(
  * 한 포트에서 읽기·쓰기를 함께 다루고, 저장은 도메인 애그리거트([Course])를 받는다.
  */
 interface CoursePersistencePort {
+    fun findOwnerSummaries(courseIds: Collection<Long>): Map<Long, CourseOwnerSummary>
+
     fun findCourseDetail(courseId: Long): CourseDetailRow?
 
     /** 여러 코스 본문을 한 번에 읽는다(deleted_at IS NULL). 없는 id 는 결과에서 빠진다 — 목록 화면 배치 조회용. */

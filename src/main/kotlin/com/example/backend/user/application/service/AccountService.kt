@@ -3,7 +3,9 @@ package com.example.backend.user.application.service
 import com.example.backend.common.exception.BusinessException
 import com.example.backend.common.response.UserErrorCode
 import com.example.backend.media.application.port.inbound.MediaCleanupUseCase
+import com.example.backend.user.application.event.UserActivityEvent
 import com.example.backend.user.application.port.inbound.AccountUseCase
+import com.example.backend.user.application.port.inbound.UserActivityKind
 import com.example.backend.user.application.port.inbound.dto.FollowResult
 import com.example.backend.user.application.port.inbound.dto.UpdateProfileCommand
 import com.example.backend.user.application.port.inbound.dto.UserProfileResult
@@ -11,8 +13,10 @@ import com.example.backend.user.application.port.outbound.FollowPersistencePort
 import com.example.backend.user.application.port.outbound.UserAreaPersistencePort
 import com.example.backend.user.application.port.outbound.UserLikeThemePort
 import com.example.backend.user.application.port.outbound.UserPersistencePort
+import org.springframework.context.ApplicationEventPublisher
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
+import java.time.Clock
 
 @Service
 @Transactional(readOnly = true)
@@ -24,6 +28,8 @@ class AccountService(
     private val mediaCleanupUseCase: MediaCleanupUseCase,
     private val userAreaResolver: UserAreaResolver,
     private val userLikeThemeResolver: UserLikeThemeResolver,
+    private val eventPublisher: ApplicationEventPublisher,
+    private val clock: Clock,
 ) : AccountUseCase {
     override fun getProfile(userId: Long): UserProfileResult {
         val row =
@@ -113,8 +119,13 @@ class AccountService(
         if (followerId !in active) {
             throw BusinessException(UserErrorCode.USER_NOT_FOUND, "사용자를 찾을 수 없습니다: id=$followerId")
         }
-        followPersistencePort.follow(followerId, targetId)
+        val created = followPersistencePort.follow(followerId, targetId)
         val followersCnt = userPersistencePort.findProfile(targetId)!!.followersCnt
+        if (created) {
+            eventPublisher.publishEvent(
+                UserActivityEvent(UserActivityKind.FOLLOWED, followerId, targetId, clock.instant()),
+            )
+        }
         return FollowResult(isFollowing = true, followersCnt = followersCnt)
     }
 

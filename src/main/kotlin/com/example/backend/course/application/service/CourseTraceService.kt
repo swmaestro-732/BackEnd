@@ -2,6 +2,8 @@ package com.example.backend.course.application.service
 
 import com.example.backend.common.exception.BusinessException
 import com.example.backend.common.response.CourseErrorCode
+import com.example.backend.course.application.event.CourseActivityEvent
+import com.example.backend.course.application.port.inbound.CourseActivityKind
 import com.example.backend.course.application.port.inbound.CourseTraceUseCase
 import com.example.backend.course.application.port.inbound.dto.CheckInPlaceCommand
 import com.example.backend.course.application.port.inbound.dto.CourseTraceResult
@@ -11,8 +13,10 @@ import com.example.backend.course.application.port.outbound.CourseTracePersisten
 import com.example.backend.course.application.port.outbound.CourseTraceRow
 import com.example.backend.course.domain.model.CourseStatus
 import com.example.backend.course.domain.model.CourseTraceStatus
+import org.springframework.context.ApplicationEventPublisher
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
+import java.time.Clock
 import java.time.Instant
 
 /**
@@ -25,6 +29,8 @@ class CourseTraceService(
     private val courseTracePersistencePort: CourseTracePersistencePort,
     private val coursePersistencePort: CoursePersistencePort,
     private val courseViewPolicy: CourseViewPolicy,
+    private val eventPublisher: ApplicationEventPublisher,
+    private val clock: Clock,
 ) : CourseTraceUseCase {
     @Transactional
     override fun start(
@@ -82,6 +88,9 @@ class CourseTraceService(
                 "따라가기를 종료할 코스를 찾을 수 없습니다: courseId=${trace.courseId}",
             )
         }
+        eventPublisher.publishEvent(
+            CourseActivityEvent(CourseActivityKind.TRACE_COMPLETED, trace.userId, trace.courseId, clock.instant()),
+        )
     }
 
     override fun findCompletedAt(

@@ -6,6 +6,7 @@ import com.example.backend.course.adapter.outbound.persistence.exposed.repositor
 import com.example.backend.course.adapter.outbound.persistence.exposed.repository.CourseTagRepository
 import com.example.backend.course.adapter.outbound.persistence.exposed.repository.TagRepository
 import com.example.backend.course.application.port.inbound.dto.AuthorCourseCursor
+import com.example.backend.course.application.port.inbound.dto.CourseOwnerSummary
 import com.example.backend.course.application.port.inbound.dto.FeedCursor
 import com.example.backend.course.application.port.outbound.CourseDetailRow
 import com.example.backend.course.application.port.outbound.CoursePersistencePort
@@ -29,6 +30,9 @@ class CoursePersistenceAdapter(
     private val tagRepository: TagRepository,
     private val courseTagRepository: CourseTagRepository,
 ) : CoursePersistencePort {
+    override fun findOwnerSummaries(courseIds: Collection<Long>): Map<Long, CourseOwnerSummary> =
+        courseRepository.findOwnerSummaries(courseIds)
+
     override fun findCourseDetail(courseId: Long): CourseDetailRow? = courseRepository.findDetail(courseId)
 
     override fun findCourseDetails(courseIds: List<Long>): List<CourseDetailRow> =

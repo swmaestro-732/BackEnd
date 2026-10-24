@@ -2,13 +2,17 @@ package com.example.backend.course.application.service
 
 import com.example.backend.common.exception.BusinessException
 import com.example.backend.common.response.CourseErrorCode
+import com.example.backend.course.application.event.CourseActivityEvent
+import com.example.backend.course.application.port.inbound.CourseActivityKind
 import com.example.backend.course.application.port.inbound.CourseReviewUseCase
 import com.example.backend.course.application.port.inbound.dto.CreateCourseReviewCommand
 import com.example.backend.course.application.port.outbound.CoursePersistencePort
 import com.example.backend.course.application.port.outbound.CourseReviewPersistencePort
 import com.example.backend.course.domain.model.CourseReview
+import org.springframework.context.ApplicationEventPublisher
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
+import java.time.Clock
 
 /** 코스 리뷰 작성·삭제 유스케이스. */
 @Service
@@ -16,21 +20,28 @@ import org.springframework.transaction.annotation.Transactional
 class CourseReviewService(
     private val coursePersistencePort: CoursePersistencePort,
     private val courseReviewPersistencePort: CourseReviewPersistencePort,
+    private val eventPublisher: ApplicationEventPublisher,
+    private val clock: Clock,
 ) : CourseReviewUseCase {
     override fun create(command: CreateCourseReviewCommand): CourseReview {
         requireCourseExist(command.courseId)
         requireNoExistingReview(command.courseId, command.userId)
 
-        return courseReviewPersistencePort.save(
-            CourseReview.create(
-                courseId = command.courseId,
-                userId = command.userId,
-                rating = command.rating,
-                content = command.content,
-                photoUrls = command.photoUrls,
-                tags = command.tags,
-            ),
+        val saved =
+            courseReviewPersistencePort.save(
+                CourseReview.create(
+                    courseId = command.courseId,
+                    userId = command.userId,
+                    rating = command.rating,
+                    content = command.content,
+                    photoUrls = command.photoUrls,
+                    tags = command.tags,
+                ),
+            )
+        eventPublisher.publishEvent(
+            CourseActivityEvent(CourseActivityKind.REVIEWED, saved.userId, saved.courseId, clock.instant()),
         )
+        return saved
     }
 
     override fun delete(
