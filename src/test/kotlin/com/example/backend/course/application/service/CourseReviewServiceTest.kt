@@ -2,6 +2,8 @@ package com.example.backend.course.application.service
 
 import com.example.backend.common.exception.BusinessException
 import com.example.backend.common.response.CourseErrorCode
+import com.example.backend.course.application.event.CourseActivityEvent
+import com.example.backend.course.application.port.inbound.CourseActivityKind
 import com.example.backend.course.application.port.inbound.dto.CreateCourseReviewCommand
 import com.example.backend.course.application.port.outbound.CoursePersistencePort
 import com.example.backend.course.application.port.outbound.CourseReviewPersistencePort
@@ -10,11 +12,17 @@ import com.example.backend.course.domain.model.CourseReviewTag
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
+import org.mockito.Mockito.inOrder
 import org.mockito.Mockito.mock
+import org.mockito.Mockito.never
 import org.mockito.Mockito.verify
 import org.mockito.Mockito.verifyNoInteractions
+import org.mockito.Mockito.verifyNoMoreInteractions
 import org.mockito.Mockito.`when`
-import kotlin.time.Clock
+import org.springframework.context.ApplicationEventPublisher
+import java.time.Clock
+import java.time.Instant
+import java.time.ZoneOffset
 
 /**
  * [CourseReviewService] 단위 테스트 — 포트를 목으로 대체해 서비스 규칙만 검증한다.
@@ -25,7 +33,10 @@ import kotlin.time.Clock
 class CourseReviewServiceTest {
     private val coursePersistencePort = mock(CoursePersistencePort::class.java)
     private val reviewPersistencePort = mock(CourseReviewPersistencePort::class.java)
-    private val service = CourseReviewService(coursePersistencePort, reviewPersistencePort)
+    private val eventPublisher = mock(ApplicationEventPublisher::class.java)
+    private val occurredAt = Instant.parse("2026-10-24T10:09:59Z")
+    private val clock = Clock.fixed(occurredAt, ZoneOffset.UTC)
+    private val service = CourseReviewService(coursePersistencePort, reviewPersistencePort, eventPublisher, clock)
 
     @Test
     fun `리뷰를 저장하고 생성된 id 를 담은 도메인을 돌려준다`() {
@@ -51,7 +62,13 @@ class CourseReviewServiceTest {
 
         assertEquals(SAVED_REVIEW_ID, created.id)
         assertEquals("동선이 편했어요", created.content)
-        verify(reviewPersistencePort).save(expected) // 커맨드가 도메인으로 그대로 조립돼 위임됐다
+        val order = inOrder(reviewPersistencePort, eventPublisher)
+        order.verify(reviewPersistencePort).save(expected)
+        order
+            .verify(
+                eventPublisher,
+            ).publishEvent(CourseActivityEvent(CourseActivityKind.REVIEWED, USER_ID, COURSE_ID, occurredAt))
+        verifyNoMoreInteractions(eventPublisher)
     }
 
     @Test
@@ -72,7 +89,41 @@ class CourseReviewServiceTest {
         val exception = assertThrows<BusinessException> { service.create(command()) }
 
         assertEquals(CourseErrorCode.COURSE_NOT_FOUND, exception.errorCode)
-        verifyNoInteractions(reviewPersistencePort) // 저장까지 가지 않는다
+        verifyNoInteractions(reviewPersistencePort, eventPublisher)
+    }
+
+    @Test
+    fun `리뷰 이벤트의 사용자와 코스는 저장 결과를 따른다`() {
+        `when`(coursePersistencePort.existsById(COURSE_ID)).thenReturn(true)
+        val expected = review()
+        `when`(reviewPersistencePort.save(expected)).thenReturn(saved(expected, courseId = 702L, userId = 2L))
+
+        service.create(command())
+
+        verify(eventPublisher).publishEvent(CourseActivityEvent(CourseActivityKind.REVIEWED, 2L, 702L, occurredAt))
+        verifyNoMoreInteractions(eventPublisher)
+    }
+
+    @Test
+    fun `이미 작성한 리뷰가 있으면 저장하거나 이벤트를 발행하지 않는다`() {
+        `when`(coursePersistencePort.existsById(COURSE_ID)).thenReturn(true)
+        `when`(reviewPersistencePort.existsActiveReview(COURSE_ID, USER_ID)).thenReturn(true)
+
+        val exception = assertThrows<BusinessException> { service.create(command()) }
+
+        assertEquals(CourseErrorCode.COURSE_REVIEW_ALREADY_EXISTS, exception.errorCode)
+        verify(reviewPersistencePort, never()).save(review())
+        verifyNoInteractions(eventPublisher)
+    }
+
+    @Test
+    fun `리뷰 저장에 실패하면 이벤트를 발행하지 않는다`() {
+        `when`(coursePersistencePort.existsById(COURSE_ID)).thenReturn(true)
+        `when`(reviewPersistencePort.save(review())).thenThrow(IllegalStateException("저장 실패"))
+
+        assertThrows<IllegalStateException> { service.create(command()) }
+
+        verifyNoInteractions(eventPublisher)
     }
 
     @Test
@@ -83,6 +134,7 @@ class CourseReviewServiceTest {
         service.delete(userId = USER_ID, courseId = COURSE_ID, reviewId = REVIEW_ID)
 
         verify(reviewPersistencePort).softDelete(reviewId = REVIEW_ID, courseId = COURSE_ID, userId = USER_ID)
+        verifyNoInteractions(eventPublisher)
     }
 
     @Test
@@ -127,18 +179,21 @@ class CourseReviewServiceTest {
         tags = tags,
     )
 
-    private fun saved(review: CourseReview) =
-        CourseReview.reconstitute(
-            id = SAVED_REVIEW_ID,
-            courseId = review.courseId,
-            userId = review.userId,
-            status = review.status,
-            rating = review.rating,
-            content = review.content,
-            photoUrls = review.photoUrls,
-            tags = review.tags,
-            createdAt = Clock.System.now(),
-        )
+    private fun saved(
+        review: CourseReview,
+        courseId: Long = review.courseId,
+        userId: Long = review.userId,
+    ) = CourseReview.reconstitute(
+        id = SAVED_REVIEW_ID,
+        courseId = courseId,
+        userId = userId,
+        status = review.status,
+        rating = review.rating,
+        content = review.content,
+        photoUrls = review.photoUrls,
+        tags = review.tags,
+        createdAt = kotlin.time.Instant.parse("2026-10-24T10:09:59Z"),
+    )
 
     private companion object {
         const val COURSE_ID = 701L

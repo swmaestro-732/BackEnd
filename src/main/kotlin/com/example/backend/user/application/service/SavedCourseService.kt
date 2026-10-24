@@ -4,7 +4,9 @@ import com.example.backend.common.exception.BusinessException
 import com.example.backend.common.response.CommonErrorCode
 import com.example.backend.common.response.CourseErrorCode
 import com.example.backend.common.response.UserErrorCode
+import com.example.backend.user.application.event.UserActivityEvent
 import com.example.backend.user.application.port.inbound.SavedCourseUseCase
+import com.example.backend.user.application.port.inbound.UserActivityKind
 import com.example.backend.user.application.port.inbound.dto.CourseFolderSummary
 import com.example.backend.user.application.port.inbound.dto.SavedCourseFolderCount
 import com.example.backend.user.application.port.inbound.dto.SavedCourseFolderCounts
@@ -15,8 +17,10 @@ import com.example.backend.user.application.port.outbound.SavedCoursePersistence
 import com.example.backend.user.application.port.outbound.UserPersistencePort
 import com.example.backend.user.domain.model.CourseFolder
 import com.example.backend.user.domain.model.SavedCourse
+import org.springframework.context.ApplicationEventPublisher
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
+import java.time.Clock
 
 /**
  * 코스 저장 유스케이스 — 저장·저장 코스 조회·저장 폴더를 함께 담당한다.
@@ -35,6 +39,8 @@ class SavedCourseService(
     private val savedCoursePersistencePort: SavedCoursePersistencePort,
     private val courseAccessPort: CourseAccessPort,
     private val userPersistencePort: UserPersistencePort,
+    private val eventPublisher: ApplicationEventPublisher,
+    private val clock: Clock,
 ) : SavedCourseUseCase {
     @Transactional
     override fun save(
@@ -66,6 +72,9 @@ class SavedCourseService(
         if (courseAccessPort.increaseSavesCount(courseId) == 0) {
             throw BusinessException(CourseErrorCode.COURSE_NOT_FOUND, "저장할 코스를 찾을 수 없습니다: courseId=$courseId")
         }
+        eventPublisher.publishEvent(
+            UserActivityEvent(UserActivityKind.COURSE_BOOKMARKED, saved.userId, saved.courseId, clock.instant()),
+        )
         return saved
     }
 
