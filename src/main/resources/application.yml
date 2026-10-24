@@ -31,8 +31,9 @@ spring:
 # Actuator: health + prometheus 메트릭 노출. (스크레이프 소스는 SG로 모니터링 호스트만 허용)
 management:
   # DocumentDB 장애가 ALB 의 집계 health 로 전파되지 않게 기본 Mongo 헬스 체크를 끈다.
+  # Spring Boot 4 는 management.health.mongodb.enabled 사용(mongo 키는 4.0.0 부터 deprecated=error).
   health:
-    mongo:
+    mongodb:
       enabled: false
   endpoints:
     web:
