@@ -42,6 +42,7 @@ dependencies {
 
     implementation("org.springframework.boot:spring-boot-starter-flyway")
     implementation("org.springframework.boot:spring-boot-starter-jdbc") // HikariCP 포함
+    implementation("org.springframework.boot:spring-boot-starter-data-mongodb")
     implementation("org.springframework.boot:spring-boot-starter-oauth2-resource-server")
     implementation("org.springframework.boot:spring-boot-starter-security")
     implementation("org.springframework.boot:spring-boot-starter-validation")
@@ -72,6 +73,8 @@ dependencies {
     implementation("org.postgresql:postgresql")
     // AWS SDK v2 (raw) — S3Presigner 는 s3 모듈 소속. 보안 패치용 버전은 위 extra[] 가 관리한다.
     implementation(platform("software.amazon.awssdk:bom:2.49.0"))
+    // MONGODB-AWS 는 SDK v2 기본 자격증명 체인으로 EC2 인스턴스 역할을 사용한다.
+    implementation("software.amazon.awssdk:auth")
     implementation("software.amazon.awssdk:s3")
     // OpenSearch IAM/SigV4 전송에 필요한 동기 SdkHttpClient. 버전은 위 AWS SDK BOM 관리.
     implementation("software.amazon.awssdk:apache-client")
