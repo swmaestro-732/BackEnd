@@ -71,6 +71,14 @@ class CrawlImportsPersistenceTest
                                 )
                             }
                         statement.execute("RESET ROLE")
+                        statement
+                            .executeQuery(
+                                "SELECT 'default_transaction_read_only=on' = ANY(setconfig) FROM pg_db_role_setting " +
+                                    "WHERE setrole = 'crawler_ro'::regrole",
+                            ).use { rows ->
+                                rows.next()
+                                assertEquals(true, rows.getBoolean(1))
+                            }
                         val duplicate =
                             assertThrows(SQLException::class.java) {
                                 statement.execute(

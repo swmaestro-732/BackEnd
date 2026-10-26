@@ -79,3 +79,7 @@ $$;
 -- 원본 테이블 접근이나 쓰기 권한 없이 두 뷰만 읽는다.
 GRANT USAGE ON SCHEMA public TO crawler_ro;
 GRANT SELECT ON public.crawler_known_posts, public.crawler_known_places TO crawler_ro;
+
+-- 크롤러 SG 는 RDS SG 를 writer 와 함께 쓰므로 네트워크상 writer 에도 닿는다. 권한(뷰 SELECT)에 더해
+-- 세션 기본값도 읽기 전용으로 고정해 실수로 쓰기 트랜잭션을 열지 못하게 한다.
+ALTER ROLE crawler_ro SET default_transaction_read_only = on;
