@@ -12,6 +12,7 @@ import com.example.backend.user.application.port.outbound.UserAreaPersistencePor
 import com.example.backend.user.application.port.outbound.UserLikeThemePort
 import com.example.backend.user.application.port.outbound.UserPersistencePort
 import com.example.backend.user.application.port.outbound.UserProfileRow
+import com.example.backend.user.domain.model.UserStatus
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
 
@@ -31,6 +32,8 @@ class UserService(
     private val userLikeThemePort: UserLikeThemePort,
     private val courseCleanupPort: CourseCleanupPort,
 ) : UserUseCase {
+    override fun isActive(userId: Long): Boolean = userPersistencePort.findById(userId)?.status == UserStatus.ACTIVE
+
     override fun getProfile(
         userId: Long,
         viewerId: Long?,

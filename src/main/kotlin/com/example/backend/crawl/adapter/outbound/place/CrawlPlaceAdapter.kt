@@ -26,5 +26,5 @@ class CrawlPlaceAdapter(
                         imageUrl = place.imageUrls.firstOrNull { it.isNotBlank() },
                     )
                 },
-            ).map { ResolvedCrawlPlace(it.kakaoPlaceId, it.id, it.coordinate) }
+            ).map { ResolvedCrawlPlace(it.kakaoPlaceId, it.id, it.coordinate, it.imageUrl) }
 }

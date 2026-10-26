@@ -11,4 +11,5 @@ data class ResolvedCrawlPlace(
     val kakaoPlaceId: String,
     val id: Long,
     val coordinate: Coordinate,
+    val imageUrl: String? = null,
 )

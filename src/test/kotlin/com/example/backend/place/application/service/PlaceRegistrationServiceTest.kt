@@ -1,6 +1,8 @@
 package com.example.backend.place.application.service
 
+import com.example.backend.common.exception.BusinessException
 import com.example.backend.common.geo.Coordinate
+import com.example.backend.common.response.CommonErrorCode
 import com.example.backend.place.application.event.PlacesSavedEvent
 import com.example.backend.place.application.port.inbound.dto.RegisterPlaceCommand
 import com.example.backend.place.application.port.outbound.AreaCodeLookupPort
@@ -9,6 +11,7 @@ import com.example.backend.place.domain.model.Place
 import com.example.backend.place.domain.model.PlaceCategory
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertNull
+import org.junit.jupiter.api.Assertions.assertThrows
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import org.springframework.context.ApplicationEventPublisher
@@ -53,6 +56,7 @@ class PlaceRegistrationServiceTest {
 
         assertEquals(42L, result.id)
         assertEquals(Coordinate(37.6, 127.1), result.coordinate)
+        assertEquals(existing.imageUrl, result.imageUrl)
         assertEquals(existing, persistence.rows["k1"])
         assertTrue(persistence.inserted.isEmpty())
         assertTrue(areaRequests.isEmpty())
@@ -134,6 +138,20 @@ class PlaceRegistrationServiceTest {
         val saved = persistence.rows.getValue("k1")
         assertNull(saved.description)
         assertNull(saved.imageUrl)
+    }
+
+    @Test
+    fun `알 수 없는 카테고리는 조회나 등록 전에 INVALID_INPUT으로 거절한다`() {
+        val error =
+            assertThrows(BusinessException::class.java) {
+                service.register(listOf(command(), command().copy(kakaoPlaceId = "k2", category = "UNKNOWN")))
+            }
+
+        assertEquals(CommonErrorCode.INVALID_INPUT, error.errorCode)
+        assertEquals("unknown category: UNKNOWN", error.message)
+        assertTrue(persistence.rows.isEmpty())
+        assertTrue(areaRequests.isEmpty())
+        assertTrue(events.isEmpty())
     }
 
     private fun command() =

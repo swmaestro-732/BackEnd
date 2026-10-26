@@ -9,9 +9,14 @@ import com.example.backend.user.application.port.outbound.SavedCoursePersistence
 import com.example.backend.user.application.port.outbound.UserAreaPersistencePort
 import com.example.backend.user.application.port.outbound.UserLikeThemePort
 import com.example.backend.user.application.port.outbound.UserPersistencePort
+import com.example.backend.user.domain.model.User
+import com.example.backend.user.domain.model.UserStatus
 import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertThrows
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.params.ParameterizedTest
+import org.junit.jupiter.params.provider.EnumSource
 import org.mockito.Mockito.mock
 import org.mockito.Mockito.`when`
 
@@ -34,6 +39,21 @@ class UserServiceTest {
             userLikeThemePort = userLikeThemePort,
             courseCleanupPort = courseCleanupPort,
         )
+
+    @ParameterizedTest
+    @EnumSource(UserStatus::class)
+    fun `isActive - 삭제되지 않은 ACTIVE 사용자만 활성이다`(status: UserStatus) {
+        `when`(userPersistencePort.findById(2L)).thenReturn(User.reconstitute(2L, "큐레이터", status = status))
+
+        assertEquals(status == UserStatus.ACTIVE, service.isActive(2L))
+    }
+
+    @Test
+    fun `isActive - 존재하지 않거나 삭제된 사용자는 비활성이다`() {
+        `when`(userPersistencePort.findById(2L)).thenReturn(null)
+
+        assertFalse(service.isActive(2L))
+    }
 
     @Test
     fun `getProfile - 사용자를 찾을 수 없으면 USER_NOT_FOUND 를 던진다`() {

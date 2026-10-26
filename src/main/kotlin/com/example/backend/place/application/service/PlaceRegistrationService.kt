@@ -1,5 +1,7 @@
 package com.example.backend.place.application.service
 
+import com.example.backend.common.exception.BusinessException
+import com.example.backend.common.response.CommonErrorCode
 import com.example.backend.place.application.event.PlacesSavedEvent
 import com.example.backend.place.application.port.inbound.PlaceRegistrationUseCase
 import com.example.backend.place.application.port.inbound.dto.RegisterPlaceCommand
@@ -22,6 +24,11 @@ class PlaceRegistrationService(
 ) : PlaceRegistrationUseCase {
     override fun register(commands: List<RegisterPlaceCommand>): List<RegisteredPlaceResult> {
         if (commands.isEmpty()) return emptyList()
+        commands.forEach { command ->
+            if (PlaceCategory.entries.none { it.name == command.category }) {
+                throw BusinessException(CommonErrorCode.INVALID_INPUT, "unknown category: ${command.category}")
+            }
+        }
         val allKakaoIds = commands.map { it.kakaoPlaceId }
         val existingKakaoIds =
             transactionOperations
@@ -53,7 +60,13 @@ class PlaceRegistrationService(
                 // 재조회는 동시 insert ignore로 다른 요청이 저장한 행도 포함한다.
                 eventPublisher.publishEvent(PlacesSavedEvent(saved))
                 saved.map { place ->
-                    RegisteredPlaceResult(place.id!!, place.kakaoPlaceId!!, place.category.name, place.location)
+                    RegisteredPlaceResult(
+                        place.id!!,
+                        place.kakaoPlaceId!!,
+                        place.category.name,
+                        place.location,
+                        place.imageUrl,
+                    )
                 }
             }.orEmpty()
     }

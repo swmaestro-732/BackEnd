@@ -17,4 +17,5 @@ data class RegisteredPlaceResult(
     val kakaoPlaceId: String,
     val category: String,
     val coordinate: Coordinate,
+    val imageUrl: String? = null,
 )

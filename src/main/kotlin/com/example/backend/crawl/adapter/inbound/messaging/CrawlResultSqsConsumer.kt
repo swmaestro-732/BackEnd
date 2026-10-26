@@ -1,22 +1,37 @@
 package com.example.backend.crawl.adapter.inbound.messaging
 
+import com.example.backend.bootstrap.config.CrawlerProperties
 import com.example.backend.crawl.application.port.inbound.CrawlImportUseCase
 import com.example.backend.crawl.application.port.inbound.dto.CrawlResultCommand
+import com.example.backend.user.application.port.inbound.UserUseCase
 import io.awspring.cloud.sqs.annotation.SqsListener
+import jakarta.annotation.PostConstruct
 import org.springframework.boot.autoconfigure.condition.ConditionalOnExpression
+import org.springframework.boot.sql.init.dependency.DependsOnDatabaseInitialization
 import org.springframework.stereotype.Component
 
 /**
  * 크롤링 결과 큐 수신. 큐 URL과 큐레이터 사용자 ID가 모두 설정된 배포에서만 활성화한다 —
- * 하나라도 비면 빈을 만들지 않아(fail-soft) 인프라가 큐 URL만 먼저 주입해도 앱 기동이 깨지지 않는다.
+ * 큐레이터 누락은 별도 컴포넌트가 경고하며, 설정된 큐레이터가 비활성이면 기동을 중단한다.
  */
 @Component
+@DependsOnDatabaseInitialization
 @ConditionalOnExpression(
     "'\${aws.sqs.crawl-results-queue-url:}'.trim().length() > 0 && '\${crawler.curator-user-id:}'.trim().length() > 0",
 )
 class CrawlResultSqsConsumer(
     private val crawlImportUseCase: CrawlImportUseCase,
+    private val users: UserUseCase,
+    private val properties: CrawlerProperties,
 ) {
+    @PostConstruct
+    fun validateCurator() {
+        val curatorId = checkNotNull(properties.curatorUserId) { "crawler.curator-user-id must be configured" }
+        check(users.isActive(curatorId)) {
+            "crawler.curator-user-id=$curatorId must identify an existing active user"
+        }
+    }
+
     // 예외는 전파해 ack하지 않는다. DLQ의 maxReceiveCount=5는 큐의 redrive policy에서 설정한다.
     @SqsListener(
         value = ["\${aws.sqs.crawl-results-queue-url}"],

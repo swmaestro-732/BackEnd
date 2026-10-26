@@ -3,8 +3,10 @@ package com.example.backend.crawl.adapter.outbound.persistence
 import com.example.backend.bootstrap.config.CrawlerProperties
 import com.example.backend.common.geo.Coordinate
 import com.example.backend.course.application.port.inbound.CourseUseCase
+import com.example.backend.course.application.port.inbound.dto.CreateCourseCommand
 import com.example.backend.course.application.port.outbound.CourseSearchIndexPort
 import com.example.backend.crawl.adapter.outbound.course.CrawlCourseAdapter
+import com.example.backend.crawl.adapter.outbound.place.CrawlPlaceAdapter
 import com.example.backend.crawl.application.port.inbound.dto.CrawlResultCommand
 import com.example.backend.crawl.application.port.inbound.dto.CrawledPlaceCommand
 import com.example.backend.crawl.application.port.outbound.CrawlImportPersistencePort
@@ -14,11 +16,16 @@ import com.example.backend.crawl.application.port.outbound.ResolvedCrawlPlace
 import com.example.backend.crawl.application.service.CrawlImportService
 import com.example.backend.crawl.domain.model.CrawlImport
 import com.example.backend.crawl.domain.model.CrawlImportStatus
+import com.example.backend.place.application.port.inbound.PlaceBusinessHoursSyncUseCase
+import com.example.backend.place.application.port.inbound.PlaceRegistrationUseCase
+import com.example.backend.place.application.port.outbound.PlaceSearchIndexPort
 import com.example.backend.support.IntegrationTestBase
 import org.junit.jupiter.api.AfterEach
+import org.junit.jupiter.api.Assertions.assertDoesNotThrow
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Assertions.assertThrows
+import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import org.mockito.Mockito.mockingDetails
@@ -29,6 +36,10 @@ import org.springframework.test.context.TestPropertySource
 import org.springframework.test.context.bean.override.mockito.MockitoBean
 import org.springframework.transaction.PlatformTransactionManager
 import org.springframework.transaction.support.TransactionTemplate
+import java.util.concurrent.CountDownLatch
+import java.util.concurrent.Executors
+import java.util.concurrent.TimeUnit
+import java.util.concurrent.TimeoutException
 
 @TestPropertySource(properties = ["aws.sqs.crawl-results-queue-url=", "aws.sqs.course-count-queue-url="])
 class CrawlImportPersistenceIntegrationTest
@@ -37,12 +48,19 @@ class CrawlImportPersistenceIntegrationTest
         private val persistence: CrawlImportPersistencePort,
         private val courseUseCase: CourseUseCase,
         private val jdbc: JdbcTemplate,
-        transactionManager: PlatformTransactionManager,
+        private val registration: PlaceRegistrationUseCase,
+        private val transactionManager: PlatformTransactionManager,
     ) : IntegrationTestBase() {
         private val tx = TransactionTemplate(transactionManager)
 
         @MockitoBean
         private lateinit var index: CourseSearchIndexPort
+
+        @MockitoBean
+        private lateinit var placeIndex: PlaceSearchIndexPort
+
+        @MockitoBean
+        private lateinit var businessHours: PlaceBusinessHoursSyncUseCase
 
         @BeforeEach
         fun seed() {
@@ -50,9 +68,11 @@ class CrawlImportPersistenceIntegrationTest
                 jdbc.update("INSERT INTO users (id, nickname) VALUES (?, '크롤러 검증')", AUTHOR_ID)
                 listOf(-69501L, -69502L).forEach { id ->
                     jdbc.update(
-                        "INSERT INTO places (id, name, category, location, address) " +
-                            "VALUES (?, '크롤링 장소', 'CAFE', ST_GeogFromText('SRID=4326;POINT(127 37.5)'), '서울')",
+                        "INSERT INTO places (id, name, category, location, address, kakao_place_id, image_url) " +
+                            "VALUES (?, '크롤링 장소', 'CAFE', ST_GeogFromText('SRID=4326;POINT(127 37.5)'), '서울', ?, ?)",
                         id,
+                        "scrum-695-k${-69500L - id}",
+                        "https://cdn.example.com/existing${-69500L - id}.jpg",
                     )
                 }
             }
@@ -85,6 +105,7 @@ class CrawlImportPersistenceIntegrationTest
         fun `FAILED를 갱신한 REJECTED는 재전달에도 이력을 유지한다`() {
             val command = command().copy(isCourse = false)
             tx.executeWithoutResult {
+                persistence.claim(command.shortcode)
                 persistence.save(
                     CrawlImport(command.shortcode, "old-run", CrawlImportStatus.FAILED, reason = "timeout"),
                 )
@@ -98,6 +119,49 @@ class CrawlImportPersistenceIntegrationTest
                 tx.execute { persistence.findByShortcode(command.shortcode) },
             )
             assertEquals(0, courseCount())
+        }
+
+        @Test
+        fun `같은 게시물의 두 번째 claim은 첫 트랜잭션의 최종 결과를 기다린다`() {
+            val shortcode = "scrum-695-concurrent"
+            val completed = CrawlImport(shortcode, "first-run", CrawlImportStatus.REJECTED, reason = "not course")
+            val claimed = CountDownLatch(1)
+            val release = CountDownLatch(1)
+            val contenderStarted = CountDownLatch(1)
+            val executor = Executors.newFixedThreadPool(2)
+            try {
+                val first =
+                    executor.submit {
+                        tx.executeWithoutResult {
+                            assertNull(persistence.claim(shortcode))
+                            claimed.countDown()
+                            assertTrue(release.await(5, TimeUnit.SECONDS))
+                            persistence.save(completed)
+                        }
+                    }
+                assertTrue(claimed.await(5, TimeUnit.SECONDS))
+                assertNull(tx.execute { persistence.findByShortcode(shortcode) })
+                val second =
+                    executor.submit<CrawlImport?> {
+                        tx.execute {
+                            jdbc.execute("SET LOCAL lock_timeout = '5s'")
+                            contenderStarted.countDown()
+                            persistence.claim(shortcode)
+                        }
+                    }
+                assertTrue(contenderStarted.await(5, TimeUnit.SECONDS))
+                assertThrows(TimeoutException::class.java) { second.get(200, TimeUnit.MILLISECONDS) }
+
+                release.countDown()
+                first.get(5, TimeUnit.SECONDS)
+
+                assertEquals(completed, second.get(5, TimeUnit.SECONDS))
+                assertEquals(completed, tx.execute { persistence.findByShortcode(shortcode) })
+            } finally {
+                release.countDown()
+                executor.shutdownNow()
+                assertTrue(executor.awaitTermination(10, TimeUnit.SECONDS))
+            }
         }
 
         @Test
@@ -141,23 +205,119 @@ class CrawlImportPersistenceIntegrationTest
             )
         }
 
-        private fun service(port: CrawlImportPersistencePort = persistence) =
-            CrawlImportService(
-                persistence = port,
-                places =
-                    object : CrawlPlacePort {
-                        override fun resolve(places: List<CrawledPlaceCommand>) =
-                            places.map {
-                                ResolvedCrawlPlace(it.kakaoPlaceId, -69500L - it.order, Coordinate(it.lat, it.lng))
-                            }
-                    },
-                walking =
-                    object : CrawlWalkingPort {
-                        override fun walkingSegments(points: List<Coordinate>) = listOf(8)
-                    },
-                courses = CrawlCourseAdapter(courseUseCase, CrawlerProperties(curatorUserId = AUTHOR_ID)),
-                transactionOperations = tx,
+        @Test
+        fun `코스 도메인의 INVALID_INPUT은 롤백 후 별도 트랜잭션에 거절 이력을 커밋한다`() {
+            val invalidCourse =
+                object : CourseUseCase by courseUseCase {
+                    override fun create(command: CreateCourseCommand) =
+                        courseUseCase.create(command).let {
+                            // 저장·이벤트 발행 후 실제 REQUIRED 경계에서 도메인 예외를 일으킨다.
+                            assertEquals(1, courseCount())
+                            courseUseCase.create(command.copy(title = ""))
+                        }
+                }
+
+            assertDoesNotThrow {
+                tx.executeWithoutResult { status ->
+                    service(course = invalidCourse).importResult(command())
+                    status.setRollbackOnly()
+                }
+            }
+
+            assertEquals(0, courseCount())
+            assertEquals(
+                CrawlImport(
+                    command().shortcode,
+                    command().runId,
+                    CrawlImportStatus.REJECTED,
+                    reason = "invalid: 코스를 발행하려면 제목이 필요합니다.",
+                ),
+                tx.execute { persistence.findByShortcode(command().shortcode) },
             )
+            verifyNoInteractions(index)
+            assertEquals(
+                0,
+                jdbc.queryForObject("SELECT public_courses_cnt FROM users WHERE id = ?", Int::class.java, AUTHOR_ID),
+            )
+
+            service().importResult(command().copy(runId = "redelivery"))
+
+            assertEquals(0, courseCount())
+            assertEquals(command().runId, tx.execute { persistence.findByShortcode(command().shortcode) }?.runId)
+        }
+
+        @Test
+        fun `등록할 수 없는 장소 카테고리는 실제 등록 경로에서 거절 이력으로 남긴다`() {
+            val invalid =
+                command().copy(
+                    places = command().places.map { it.copy(category = "UNKNOWN") },
+                )
+
+            assertDoesNotThrow { service(placePort = CrawlPlaceAdapter(registration)).importResult(invalid) }
+
+            assertEquals(
+                CrawlImport(
+                    invalid.shortcode,
+                    invalid.runId,
+                    CrawlImportStatus.REJECTED,
+                    reason = "invalid: unknown category: UNKNOWN",
+                ),
+                tx.execute { persistence.findByShortcode(invalid.shortcode) },
+            )
+            assertEquals(0, courseCount())
+            verifyNoInteractions(index, placeIndex, businessHours)
+        }
+
+        @Test
+        fun `크롤러가 생략한 이미지는 실제 기존 장소 사진으로 보완해 발행한다`() {
+            val noImages = command().copy(places = command().places.map { it.copy(imageUrls = emptyList()) })
+
+            service(placePort = CrawlPlaceAdapter(registration)).importResult(noImages)
+
+            assertEquals(
+                CrawlImportStatus.IMPORTED,
+                tx.execute { persistence.findByShortcode(noImages.shortcode) }?.status,
+            )
+            assertEquals(1, courseCount())
+            assertEquals(
+                "https://cdn.example.com/existing1.jpg",
+                jdbc.queryForObject(
+                    "SELECT cover_image_url FROM courses WHERE user_id = ?",
+                    String::class.java,
+                    AUTHOR_ID,
+                ),
+            )
+            assertEquals(
+                listOf("https://cdn.example.com/existing1.jpg", "https://cdn.example.com/existing2.jpg"),
+                jdbc.queryForList(
+                    "SELECT i.image_url FROM course_place_images i JOIN course_places p ON p.id = i.course_place_id " +
+                        "JOIN courses c ON c.id = p.course_id WHERE c.user_id = ? ORDER BY p.order_no",
+                    String::class.java,
+                    AUTHOR_ID,
+                ),
+            )
+        }
+
+        private fun service(
+            port: CrawlImportPersistencePort = persistence,
+            course: CourseUseCase = courseUseCase,
+            placePort: CrawlPlacePort =
+                object : CrawlPlacePort {
+                    override fun resolve(places: List<CrawledPlaceCommand>) =
+                        places.map {
+                            ResolvedCrawlPlace(it.kakaoPlaceId, -69500L - it.order, Coordinate(it.lat, it.lng))
+                        }
+                },
+        ) = CrawlImportService(
+            persistence = port,
+            places = placePort,
+            walking =
+                object : CrawlWalkingPort {
+                    override fun walkingSegments(points: List<Coordinate>) = listOf(8)
+                },
+            courses = CrawlCourseAdapter(course, CrawlerProperties(curatorUserId = AUTHOR_ID)),
+            transactionManager = transactionManager,
+        )
 
         private fun courseCount() =
             jdbc.queryForObject("SELECT count(*) FROM courses WHERE user_id = ?", Int::class.java, AUTHOR_ID)!!
@@ -174,7 +334,7 @@ class CrawlImportPersistenceIntegrationTest
                     (1..2).map {
                         CrawledPlaceCommand(
                             it,
-                            "k$it",
+                            "scrum-695-k$it",
                             "카페 $it",
                             "CAFE",
                             37.5,
