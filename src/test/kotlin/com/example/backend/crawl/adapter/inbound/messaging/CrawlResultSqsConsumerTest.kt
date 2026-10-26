@@ -1,6 +1,5 @@
 package com.example.backend.crawl.adapter.inbound.messaging
 
-import com.example.backend.bootstrap.config.CrawlerProperties
 import com.example.backend.crawl.application.port.inbound.CrawlImportUseCase
 import com.example.backend.crawl.application.port.inbound.dto.CrawlResultCommand
 import org.junit.jupiter.api.Assertions.assertEquals
@@ -8,6 +7,7 @@ import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertSame
 import org.junit.jupiter.api.Assertions.assertThrows
 import org.junit.jupiter.api.Test
+import org.springframework.boot.test.context.runner.ApplicationContextRunner
 import tools.jackson.databind.json.JsonMapper
 import tools.jackson.module.kotlin.KotlinModule
 
@@ -30,7 +30,6 @@ class CrawlResultSqsConsumerTest {
                         received = command
                     }
                 },
-                CrawlerProperties(curatorUserId = 1),
             )
 
         consumer.onMessage(message)
@@ -48,7 +47,6 @@ class CrawlResultSqsConsumerTest {
                 object : CrawlImportUseCase {
                     override fun importResult(command: CrawlResultCommand): Unit = throw failure
                 },
-                CrawlerProperties(curatorUserId = 1),
             )
         val message = CrawlResultCommand("run", "post", "url", "account", false)
 
@@ -56,11 +54,27 @@ class CrawlResultSqsConsumerTest {
     }
 
     @Test
-    fun `활성 소비자는 큐레이터 ID가 없으면 시작하지 않는다`() {
-        val useCase =
-            object : CrawlImportUseCase {
-                override fun importResult(command: CrawlResultCommand) = Unit
-            }
-        assertThrows(IllegalArgumentException::class.java) { CrawlResultSqsConsumer(useCase, CrawlerProperties()) }
+    fun `큐 URL과 큐레이터 ID가 모두 있을 때만 소비자를 만든다`() {
+        val runner =
+            ApplicationContextRunner()
+                .withBean(
+                    CrawlImportUseCase::class.java,
+                    {
+                        object : CrawlImportUseCase {
+                            override fun importResult(command: CrawlResultCommand) = Unit
+                        }
+                    },
+                ).withUserConfiguration(CrawlResultSqsConsumer::class.java)
+        val queue = "aws.sqs.crawl-results-queue-url=https://sqs.example/crawl-results"
+
+        runner.withPropertyValues(queue, "crawler.curator-user-id=2").run {
+            assertEquals(1, it.getBeanNamesForType(CrawlResultSqsConsumer::class.java).size)
+        }
+        runner.withPropertyValues(queue).run {
+            assertEquals(0, it.getBeanNamesForType(CrawlResultSqsConsumer::class.java).size)
+        }
+        runner.withPropertyValues("crawler.curator-user-id=2").run {
+            assertEquals(0, it.getBeanNamesForType(CrawlResultSqsConsumer::class.java).size)
+        }
     }
 }
