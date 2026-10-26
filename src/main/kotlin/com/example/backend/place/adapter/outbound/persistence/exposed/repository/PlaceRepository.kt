@@ -51,9 +51,8 @@ class PlaceRepository {
     }
 
     /**
-     * 신규 장소들을 삽입한다. targetless insert ignore(ON CONFLICT DO NOTHING) — kakao_place_id 유니크 인덱스를 걸면
-     * 그때부터 동시 검색 경합의 중복 삽입을 무시하는 최종 방어선이 된다. 인덱스 전까지는 no-op 이고,
-     * dedup 은 앱 레벨 findByKakaoIds 조회로만 보장한다(동시 경합 시 중복 삽입 가능 — 인덱스 추가로 해소).
+     * 신규 장소들을 삽입한다. targetless insert ignore(ON CONFLICT DO NOTHING) — 활성 장소의 kakao_place_id 부분 유니크
+     * 인덱스(V18)가 findByKakaoIds 사전 조회 이후 동시 검색 경합으로 생기는 중복 삽입도 무시하게 한다.
      * created_at·updated_at 은 클라이언트 기본값이 채운다. 삽입 id 는 반환하지 않고 호출부가 findByKakaoIds 로 재조회해 확정한다.
      */
     fun insertIgnoringConflicts(places: List<Place>) {
