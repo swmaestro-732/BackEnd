@@ -11,15 +11,34 @@ CREATE TABLE public.crawl_imports (
     updated_at timestamptz DEFAULT now() NOT NULL
 );
 
+CREATE INDEX idx_crawl_imports_course_id ON public.crawl_imports (course_id);
+
 -- 유니크 인덱스 전에 기존 활성 중복을 정리한다. prod 기준 19쌍(2026-10-25 검색 경합으로 생성), 참조는 course_places 2행뿐이었다.
 -- 같은 kakao_place_id 중 가장 오래된(id 최소) 장소를 남기고, 나머지를 가리키는 행을 남길 장소로 옮긴 뒤 소프트 삭제한다.
+LOCK TABLE public.places IN SHARE ROW EXCLUSIVE MODE;
+
+-- 충돌 사전 정리는 남길 장소와 중복 장소 사이만 처리하므로, 3개 이상인 그룹은 중단한다(prod 확인 결과 0건).
+DO $$
+BEGIN
+    IF EXISTS (
+        SELECT kakao_place_id
+        FROM public.places
+        WHERE deleted_at IS NULL AND kakao_place_id IS NOT NULL AND kakao_place_id <> ''
+        GROUP BY kakao_place_id
+        HAVING count(*) > 2
+    ) THEN
+        RAISE EXCEPTION 'V18 dedup aborted: more than 2 active places share a kakao_place_id; resolve duplicates manually.';
+    END IF;
+END;
+$$;
+
 CREATE TEMP TABLE place_dedup ON COMMIT DROP AS
 SELECT p.id AS dup_id, k.keep_id
 FROM public.places p
 JOIN (
     SELECT kakao_place_id, min(id) AS keep_id
     FROM public.places
-    WHERE deleted_at IS NULL AND kakao_place_id IS NOT NULL
+    WHERE deleted_at IS NULL AND kakao_place_id IS NOT NULL AND kakao_place_id <> ''
     GROUP BY kakao_place_id
     HAVING count(*) > 1
 ) k ON k.kakao_place_id = p.kakao_place_id
@@ -52,7 +71,7 @@ UPDATE public.places p SET deleted_at = now(), updated_at = now() FROM place_ded
 -- 활성 장소만 카카오 ID로 중복 방지한다. 소프트 삭제된 장소는 다시 수집할 수 있다.
 CREATE UNIQUE INDEX uq_places_kakao_place_id
     ON public.places (kakao_place_id)
-    WHERE deleted_at IS NULL AND kakao_place_id IS NOT NULL;
+    WHERE deleted_at IS NULL AND kakao_place_id IS NOT NULL AND kakao_place_id <> '';
 
 -- FAILED는 재시도 대상이므로 이미 처리한 게시물 목록에서 제외한다.
 CREATE VIEW public.crawler_known_posts AS
@@ -64,7 +83,7 @@ WHERE status IN ('IMPORTED', 'REJECTED');
 CREATE VIEW public.crawler_known_places AS
 SELECT kakao_place_id, image_url IS NOT NULL AND image_url <> '' AS has_image
 FROM public.places
-WHERE deleted_at IS NULL AND kakao_place_id IS NOT NULL;
+WHERE deleted_at IS NULL AND kakao_place_id IS NOT NULL AND kakao_place_id <> '';
 
 -- 역할은 클러스터 공통이므로 다른 DB에서 이미 생성했으면 재사용한다.
 -- LOGIN + PASSWORD는 SCRUM-693 인프라 프로비저닝에서 Secrets Manager 값으로 설정한다.
@@ -80,6 +99,6 @@ $$;
 GRANT USAGE ON SCHEMA public TO crawler_ro;
 GRANT SELECT ON public.crawler_known_posts, public.crawler_known_places TO crawler_ro;
 
--- 크롤러 SG 는 RDS SG 를 writer 와 함께 쓰므로 네트워크상 writer 에도 닿는다. 권한(뷰 SELECT)에 더해
--- 세션 기본값도 읽기 전용으로 고정해 실수로 쓰기 트랜잭션을 열지 못하게 한다.
+-- 크롤러 SG 는 RDS SG 를 writer 와 함께 쓰므로 네트워크상 writer 에도 닿는다.
+-- 읽기 전용 기본값은 세션에서 덮어쓸 수 있는 심층 방어이며, 실제 권한 경계는 위 두 뷰에만 부여한 SELECT GRANT다.
 ALTER ROLE crawler_ro SET default_transaction_read_only = on;

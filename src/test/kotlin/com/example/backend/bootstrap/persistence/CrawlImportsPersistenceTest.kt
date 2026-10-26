@@ -29,7 +29,8 @@ class CrawlImportsPersistenceTest
                         )
                         statement.execute(
                             """
-                            INSERT INTO public.places (id, name, category, location, address, kakao_place_id, image_url, deleted_at)
+                            INSERT INTO public.places
+                                (id, name, category, location, address, kakao_place_id, image_url, deleted_at)
                             SELECT id, '크롤러 테스트 장소', 'CAFE', ST_GeogFromText('SRID=4326;POINT(127 37.5)'), '서울',
                                    kakao_place_id, image_url, deleted_at
                             FROM (VALUES
@@ -38,14 +39,17 @@ class CrawlImportsPersistenceTest
                                 (-6943, 'scrum-694-null', NULL, NULL::timestamptz),
                                 (-6944, 'scrum-694-null', 'https://example.com/deleted.jpg', now()),
                                 (-6945, NULL, NULL, NULL::timestamptz),
-                                (-6946, NULL, NULL, NULL::timestamptz)
+                                (-6946, NULL, NULL, NULL::timestamptz),
+                                (-6948, '', NULL, NULL::timestamptz),
+                                (-6949, '', NULL, NULL::timestamptz)
                             ) AS fixture(id, kakao_place_id, image_url, deleted_at)
                             """.trimIndent(),
                         )
                         statement.execute("SET LOCAL ROLE crawler_ro")
                         statement
                             .executeQuery(
-                                "SELECT shortcode FROM public.crawler_known_posts WHERE shortcode LIKE 'scrum-694-%' ORDER BY shortcode",
+                                "SELECT shortcode FROM public.crawler_known_posts " +
+                                    "WHERE shortcode LIKE 'scrum-694-%' ORDER BY shortcode",
                             ).use { rows ->
                                 val shortcodes = buildList { while (rows.next()) add(rows.getString("shortcode")) }
                                 assertEquals(listOf("scrum-694-imported", "scrum-694-rejected"), shortcodes)
@@ -53,7 +57,8 @@ class CrawlImportsPersistenceTest
                         statement
                             .executeQuery(
                                 "SELECT kakao_place_id, has_image FROM public.crawler_known_places " +
-                                    "WHERE kakao_place_id LIKE 'scrum-694-%' OR kakao_place_id IS NULL ORDER BY kakao_place_id",
+                                    "WHERE kakao_place_id LIKE 'scrum-694-%' OR kakao_place_id IS NULL " +
+                                    "OR kakao_place_id = '' ORDER BY kakao_place_id",
                             ).use { rows ->
                                 val places =
                                     buildList {
@@ -84,11 +89,31 @@ class CrawlImportsPersistenceTest
                                 statement.execute(
                                     """
                                     INSERT INTO public.places (id, name, category, location, address, kakao_place_id)
-                                    SELECT -6947, name, category, location, address, kakao_place_id FROM public.places WHERE id = -6941
+                                    SELECT -6947, name, category, location, address, kakao_place_id
+                                    FROM public.places WHERE id = -6941
                                     """.trimIndent(),
                                 )
                             }
                         assertEquals("23505", duplicate.sqlState)
+                    }
+                } finally {
+                    connection.rollback()
+                }
+            }
+        }
+
+        @Test
+        fun `크롤러 역할은 원본 장소 테이블을 조회할 수 없다`() {
+            dataSource.connection.use { connection ->
+                connection.autoCommit = false
+                try {
+                    connection.createStatement().use { statement ->
+                        statement.execute("SET LOCAL ROLE crawler_ro")
+                        val denied =
+                            assertThrows(SQLException::class.java) {
+                                statement.executeQuery("SELECT 1 FROM public.places").close()
+                            }
+                        assertEquals("42501", denied.sqlState)
                     }
                 } finally {
                     connection.rollback()
@@ -103,7 +128,7 @@ class CrawlImportsPersistenceTest
             val migration = javaClass.getResource("/db/migration/V18__crawl_imports.sql")!!.readText()
             val dedupSql =
                 migration.substring(
-                    migration.indexOf("CREATE TEMP TABLE place_dedup"),
+                    migration.indexOf("-- 유니크 인덱스 전에"),
                     migration.indexOf("-- 활성 장소만 카카오 ID로 중복 방지한다."),
                 )
             dataSource.connection.use { connection ->
@@ -114,8 +139,11 @@ class CrawlImportsPersistenceTest
                         statement.execute(
                             """
                             INSERT INTO public.places (id, name, category, location, address, kakao_place_id)
-                            SELECT id, '중복 장소', 'CAFE', ST_GeogFromText('SRID=4326;POINT(127 37.5)'), '서울', 'scrum-694-dup'
-                            FROM (VALUES (-6951), (-6952)) AS fixture(id)
+                            SELECT id, '중복 장소', 'CAFE', ST_GeogFromText('SRID=4326;POINT(127 37.5)'),
+                                   '서울', kakao_place_id
+                            FROM (VALUES
+                                (-6951, 'scrum-694-dup'), (-6952, 'scrum-694-dup'), (-6953, ''), (-6954, '')
+                            ) AS fixture(id, kakao_place_id)
                             """.trimIndent(),
                         )
                         statement.execute(
@@ -124,14 +152,25 @@ class CrawlImportsPersistenceTest
                                 (-6951, -6951, 1), (-6952, -6951, 2), (-6953, -6952, 1)
                             """.trimIndent(),
                         )
+                        statement.execute("INSERT INTO public.users (id, nickname) VALUES (-6951, '중복정리테스트')")
+                        statement.execute(
+                            "INSERT INTO public.courses (id, user_id, title) VALUES (-6951, -6951, '중복 정리 코스')",
+                        )
+                        statement.execute(
+                            "INSERT INTO public.course_places (id, course_id, place_id) VALUES (-6951, -6951, -6951)",
+                        )
                         statement.execute(dedupSql)
                         statement
                             .executeQuery(
-                                "SELECT id, deleted_at IS NOT NULL FROM public.places WHERE id IN (-6951, -6952) ORDER BY id DESC",
+                                "SELECT id, deleted_at IS NOT NULL FROM public.places " +
+                                    "WHERE id IN (-6951, -6952, -6953, -6954) ORDER BY id DESC",
                             ).use { rows ->
                                 val deleted =
                                     buildList { while (rows.next()) add(rows.getLong(1) to rows.getBoolean(2)) }
-                                assertEquals(listOf(-6951L to true, -6952L to false), deleted)
+                                assertEquals(
+                                    listOf(-6951L to true, -6952L to false, -6953L to false, -6954L to false),
+                                    deleted,
+                                )
                             }
                         statement
                             .executeQuery(
@@ -141,11 +180,50 @@ class CrawlImportsPersistenceTest
                                 val hours = buildList { while (rows.next()) add(rows.getLong(1) to rows.getInt(2)) }
                                 assertEquals(listOf(-6952L to 1, -6952L to 2), hours)
                             }
+                        statement
+                            .executeQuery("SELECT place_id FROM public.course_places WHERE id = -6951")
+                            .use { rows ->
+                                val placeIds = buildList { while (rows.next()) add(rows.getLong(1)) }
+                                assertEquals(listOf(-6952L), placeIds)
+                            }
                         val createIndex =
                             migration
                                 .substring(migration.indexOf("CREATE UNIQUE INDEX uq_places_kakao_place_id"))
                                 .substringBefore(";")
                         statement.execute(createIndex)
+                    }
+                } finally {
+                    connection.rollback()
+                }
+            }
+        }
+
+        @Test
+        fun `V18 중복 정리는 활성 카카오 ID가 세 개 이상이면 중단한다`() {
+            val migration = javaClass.getResource("/db/migration/V18__crawl_imports.sql")!!.readText()
+            val dedupSql =
+                migration.substring(
+                    migration.indexOf("-- 유니크 인덱스 전에"),
+                    migration.indexOf("-- 활성 장소만 카카오 ID로 중복 방지한다."),
+                )
+            dataSource.connection.use { connection ->
+                connection.autoCommit = false
+                try {
+                    connection.createStatement().use { statement ->
+                        statement.execute("DROP INDEX public.uq_places_kakao_place_id")
+                        statement.execute(
+                            """
+                            INSERT INTO public.places (id, name, category, location, address, kakao_place_id)
+                            SELECT id, '중복 장소', 'CAFE', ST_GeogFromText('SRID=4326;POINT(127 37.5)'),
+                                   '서울', 'scrum-694-triple'
+                            FROM (VALUES (-6961), (-6962), (-6963)) AS fixture(id)
+                            """.trimIndent(),
+                        )
+                        val unsupported =
+                            assertThrows(SQLException::class.java) {
+                                statement.execute(dedupSql)
+                            }
+                        assertEquals("P0001", unsupported.sqlState)
                     }
                 } finally {
                     connection.rollback()
