@@ -1,5 +1,11 @@
 -- 외부 크롤러의 게시물 처리 이력과 중복 수집 방지용 조회 뷰 (SCRUM-694).
 -- 결과 기록은 Backend가 SQS 수신 후 담당한다. 코스가 삭제돼도 처리 이력은 남긴다.
+
+-- 중복 정리 동안 장소 쓰기를 막는다. courses 등 다른 테이블보다 먼저 잡아 락 순서 역전을 피하고,
+-- 오래 걸리는 트랜잭션 뒤에서 무한 대기하지 않도록 락 대기 시간을 제한한다(실패하면 배포를 다시 시도).
+SET LOCAL lock_timeout = '5s';
+LOCK TABLE public.places IN SHARE ROW EXCLUSIVE MODE;
+
 CREATE TABLE public.crawl_imports (
     id bigserial PRIMARY KEY,
     shortcode varchar(64) NOT NULL UNIQUE,
@@ -15,7 +21,6 @@ CREATE INDEX idx_crawl_imports_course_id ON public.crawl_imports (course_id);
 
 -- 유니크 인덱스 전에 기존 활성 중복을 정리한다. prod 기준 19쌍(2026-10-25 검색 경합으로 생성), 참조는 course_places 2행뿐이었다.
 -- 같은 kakao_place_id 중 가장 오래된(id 최소) 장소를 남기고, 나머지를 가리키는 행을 남길 장소로 옮긴 뒤 소프트 삭제한다.
-LOCK TABLE public.places IN SHARE ROW EXCLUSIVE MODE;
 
 -- 충돌 사전 정리는 남길 장소와 중복 장소 사이만 처리하므로, 3개 이상인 그룹은 중단한다(prod 확인 결과 0건).
 DO $$
@@ -79,9 +84,9 @@ SELECT shortcode
 FROM public.crawl_imports
 WHERE status IN ('IMPORTED', 'REJECTED');
 
--- 이미 저장된 장소도 이미지가 없으면 크롤러가 보완할 수 있도록 여부를 함께 노출한다.
+-- 이미 저장된 장소도 이미지가 없으면 크롤러가 보완할 수 있도록 여부를 함께 노출한다. Backend가 https만 인정하므로 기준을 맞춘다.
 CREATE VIEW public.crawler_known_places AS
-SELECT kakao_place_id, image_url IS NOT NULL AND image_url <> '' AS has_image
+SELECT kakao_place_id, coalesce(image_url LIKE 'https://%', false) AS has_image
 FROM public.places
 WHERE deleted_at IS NULL AND kakao_place_id IS NOT NULL AND kakao_place_id <> '';
 
@@ -102,3 +107,5 @@ GRANT SELECT ON public.crawler_known_posts, public.crawler_known_places TO crawl
 -- 크롤러 SG 는 RDS SG 를 writer 와 함께 쓰므로 네트워크상 writer 에도 닿는다.
 -- 읽기 전용 기본값은 세션에서 덮어쓸 수 있는 심층 방어이며, 실제 권한 경계는 위 두 뷰에만 부여한 SELECT GRANT다.
 ALTER ROLE crawler_ro SET default_transaction_read_only = on;
+-- 세션에서 해제할 수 없는 연결 수 제한으로 writer 부하 위험을 줄인다(크롤러는 연결 1개면 충분하다).
+ALTER ROLE crawler_ro CONNECTION LIMIT 2;

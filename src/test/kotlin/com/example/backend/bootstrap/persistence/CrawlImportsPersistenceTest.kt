@@ -36,6 +36,7 @@ class CrawlImportsPersistenceTest
                             FROM (VALUES
                                 (-6941, 'scrum-694-image', 'https://example.com/image.jpg', NULL::timestamptz),
                                 (-6942, 'scrum-694-empty', '', NULL::timestamptz),
+                                (-6940, 'scrum-694-http', 'http://example.com/image.jpg', NULL::timestamptz),
                                 (-6943, 'scrum-694-null', NULL, NULL::timestamptz),
                                 (-6944, 'scrum-694-null', 'https://example.com/deleted.jpg', now()),
                                 (-6945, NULL, NULL, NULL::timestamptz),
@@ -69,6 +70,7 @@ class CrawlImportsPersistenceTest
                                 assertEquals(
                                     listOf(
                                         "scrum-694-empty" to false,
+                                        "scrum-694-http" to false,
                                         "scrum-694-image" to true,
                                         "scrum-694-null" to false,
                                     ),
@@ -83,6 +85,12 @@ class CrawlImportsPersistenceTest
                             ).use { rows ->
                                 rows.next()
                                 assertEquals(true, rows.getBoolean(1))
+                            }
+                        statement
+                            .executeQuery("SELECT rolconnlimit FROM pg_roles WHERE rolname = 'crawler_ro'")
+                            .use { rows ->
+                                rows.next()
+                                assertEquals(2, rows.getInt(1))
                             }
                         val duplicate =
                             assertThrows(SQLException::class.java) {
