@@ -1,5 +1,6 @@
 package com.example.backend.course.adapter.inbound.web.request
 
+import com.example.backend.common.domain.CourseLimits
 import com.example.backend.common.domain.CourseVisibility
 import com.example.backend.course.application.port.inbound.dto.CreateCourseCommand
 import com.example.backend.course.application.port.inbound.dto.CreateCoursePlaceCommand
@@ -10,9 +11,6 @@ import jakarta.validation.constraints.Size
 
 /** tags 테이블 name varchar(50) 과 동일한 제한. */
 private const val MAX_TAG_LENGTH = 50
-
-/** 코스 한 개에 담을 수 있는 장소 최대 개수. */
-private const val MAX_PLACES = 10
 
 /**
  * 코스 생성 요청(모킹 API) — 웹 어댑터 DTO. 디자인(코스 만들기 1단계: 코스 정보 → 장소 담기 → 공개 설정)과
@@ -47,7 +45,7 @@ data class CreateCourseRequest(
     @field:Positive
     val duplicatedFromId: Long? = null,
     @field:Valid
-    @field:Size(max = MAX_PLACES)
+    @field:Size(max = CourseLimits.MAX_PLACES)
     val places: List<CreateCoursePlaceRequest> = emptyList(),
 ) {
     fun toCommand(userId: Long): CreateCourseCommand =

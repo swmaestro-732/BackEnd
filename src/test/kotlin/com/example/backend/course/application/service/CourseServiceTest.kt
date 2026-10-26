@@ -60,7 +60,7 @@ class CourseServiceTest {
 
         val result = service.create(createCommand(isPublished = true))
 
-        assertEquals(CourseCategory.CAFETOUR, result.category)
+        assertEquals(CourseCategory.CAFETOUR.name, result.category)
         assertEquals(AREA_CODE, result.areaCode)
         assertEquals("성수동1가", result.area)
         assertNull(result.duplicatedFromId)
@@ -419,6 +419,20 @@ class CourseServiceTest {
     private fun stubEdit(existing: CourseDetailRow) {
         `when`(persistence.findCourseDetail(10L)).thenReturn(existing)
         `when`(persistence.findPlaces(10L)).thenReturn(storedPlaces())
+    }
+
+    @ParameterizedTest
+    @ValueSource(booleans = [true, false])
+    fun `일반 발행은 표지 또는 장소 이미지가 없으면 거절한다`(missingCover: Boolean) {
+        stubPlaces()
+        val images = if (missingCover) listOf("photo") else emptyList()
+        val command =
+            createCommand(true).copy(
+                coverImageUrl = if (missingCover) null else "cover",
+                places = commandPlaces().map { it.copy(imageUrls = images) },
+            )
+        assertThrows(BusinessException::class.java) { service.create(command) }
+        verify(persistence, never()).save(anyValue())
     }
 
     private fun createCommand(

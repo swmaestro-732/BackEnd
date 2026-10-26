@@ -7,6 +7,9 @@ import com.example.backend.user.application.port.inbound.dto.UserProfileResult
  * 입출력은 도메인이 아니라 애플리케이션 DTO(Command/Result)로 주고받는다.
  */
 interface UserUseCase {
+    /** 삭제되지 않고 ACTIVE 상태인 사용자인지 확인한다. */
+    fun isActive(userId: Long): Boolean
+
     /** 단건 프로필 조회 — 코스 상세의 작성자 카드 등에서 사용. */
     fun getProfile(
         userId: Long,

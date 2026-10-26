@@ -10,8 +10,12 @@ import org.jetbrains.exposed.v1.core.eq
 import org.jetbrains.exposed.v1.jdbc.transactions.transaction
 import org.jetbrains.exposed.v1.jdbc.update
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.params.ParameterizedTest
+import org.junit.jupiter.params.provider.NullAndEmptySource
+import org.junit.jupiter.params.provider.ValueSource
 import org.springframework.beans.factory.annotation.Autowired
 import kotlin.time.Clock
+import kotlin.time.Instant
 
 /**
  * [PlaceRepository] 영속성 통합 테스트(실제 PostgreSQL, [IntegrationTestBase]).
@@ -102,9 +106,49 @@ class PlaceRepositoryTest
             }
         }
 
+        @ParameterizedTest
+        @NullAndEmptySource
+        @ValueSource(strings = ["https://cdn.example.com/existing.jpg", "  "])
+        fun `이미지가 null이나 빈 문자열일 때만 이미지와 수정 시각을 갱신한다`(imageUrl: String?) {
+            transaction {
+                repository.insertIgnoringConflicts(
+                    listOf(place("이미지 대상", "image-target", imageUrl), place("다른 장소", "image-other")),
+                )
+                val targetId =
+                    repository
+                        .findByKakaoIds(listOf("image-target"))
+                        .single()
+                        .id.value
+                val previous = Instant.parse("2020-01-01T00:00:00Z")
+                PlaceTable.update({ PlaceTable.id eq targetId }) { it[updatedAt] = previous }
+
+                repository.fillImageIfEmpty(targetId, "https://cdn.example.com/new.jpg")
+
+                val saved = repository.findByKakaoIds(listOf("image-target")).single()
+                assertThat(saved.imageUrl)
+                    .isEqualTo(if (imageUrl.isNullOrEmpty()) "https://cdn.example.com/new.jpg" else imageUrl)
+                if (imageUrl.isNullOrEmpty()) {
+                    assertThat(saved.updatedAt).isGreaterThan(previous)
+                } else {
+                    assertThat(saved.updatedAt).isEqualTo(previous)
+                }
+                assertThat(repository.findByKakaoIds(listOf("image-other")).single().imageUrl).isNull()
+                val savedImage = saved.imageUrl
+                val savedUpdatedAt = saved.updatedAt
+
+                repository.fillImageIfEmpty(targetId, "https://cdn.example.com/replacement.jpg")
+
+                val unchanged = repository.findByKakaoIds(listOf("image-target")).single()
+                assertThat(unchanged.imageUrl).isEqualTo(savedImage)
+                assertThat(unchanged.updatedAt).isEqualTo(savedUpdatedAt)
+                rollback()
+            }
+        }
+
         private fun place(
             name: String,
             kakaoId: String?,
+            imageUrl: String? = null,
         ): Place =
             Place.create(
                 name = name,
@@ -112,7 +156,7 @@ class PlaceRepositoryTest
                 category = PlaceCategory.CAFE,
                 location = Coordinate(latitude = 37.5, longitude = 127.0),
                 address = "서울시 $name",
-                imageUrl = null,
+                imageUrl = imageUrl,
                 kakaoPlaceId = kakaoId,
             )
 

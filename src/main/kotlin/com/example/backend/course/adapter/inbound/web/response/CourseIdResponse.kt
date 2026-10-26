@@ -1,5 +1,6 @@
 package com.example.backend.course.adapter.inbound.web.response
 
+import com.example.backend.course.application.port.inbound.dto.CourseCreatedResult
 import com.example.backend.course.domain.model.Course
 
 /**
@@ -11,6 +12,8 @@ data class CourseIdResponse(
     val courseId: Long,
 ) {
     companion object {
+        fun from(course: CourseCreatedResult) = CourseIdResponse(courseId = requireNotNull(course.id))
+
         /**
          * 저장된 코스([Course])를 응답으로 옮긴다. 도메인의 id 는 insert 전 미정이라 nullable 이지만
          * 저장·갱신을 마친 코스에는 항상 채워져 있으므로, 여기서 한 번만 확정한다.

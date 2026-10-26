@@ -7,8 +7,10 @@ import org.springframework.boot.context.properties.ConfigurationProperties
  * [courseCountQueueUrl] 가 비면(로컬·CI) 폴백 발행([CourseCountFallbackAdapter])은 no-op,
  * 수신 리스너([CourseCountSqsConsumer])는 @ConditionalOnExpression 으로 생성되지 않는다(fail-soft).
  * 클라이언트·리전·자격증명은 spring-cloud-aws 가 `spring.cloud.aws.*` 로 자동 배선한다.
+ * [crawlResultsQueueUrl]도 비어 있으면 크롤링 결과 수신을 비활성화한다.
  */
 @ConfigurationProperties(prefix = "aws.sqs")
 data class SqsProperties(
     val courseCountQueueUrl: String = "",
+    val crawlResultsQueueUrl: String = "",
 )

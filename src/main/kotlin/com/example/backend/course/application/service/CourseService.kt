@@ -10,11 +10,13 @@ import com.example.backend.course.application.event.CourseDeletedEvent
 import com.example.backend.course.application.event.CourseSavedEvent
 import com.example.backend.course.application.port.inbound.CourseQueryUseCase
 import com.example.backend.course.application.port.inbound.CourseUseCase
+import com.example.backend.course.application.port.inbound.dto.CourseCreatedResult
 import com.example.backend.course.application.port.inbound.dto.CoursePlaceResult
 import com.example.backend.course.application.port.inbound.dto.CreateCourseCommand
 import com.example.backend.course.application.port.inbound.dto.EditCourseCommand
 import com.example.backend.course.application.port.inbound.dto.toCourse
 import com.example.backend.course.application.port.inbound.dto.toCoursePlaces
+import com.example.backend.course.application.port.inbound.dto.toCreatedResult
 import com.example.backend.course.application.port.outbound.CourseDetailRow
 import com.example.backend.course.application.port.outbound.CoursePersistencePort
 import com.example.backend.course.application.port.outbound.CoursePlaceImageRow
@@ -49,7 +51,7 @@ class CourseService(
      * 코스 생성(발행·임시저장 공통) — 장소 검증·지역코드 도출 후 저장하고 [CourseSavedEvent] 를 발행한다.
      * duplicatedFromId 가 있으면 코스 복제 — 원본이 발행 코스이고 볼 수 있어야 하며(아니면 404) 원본 장소 유지 규칙을 더 거친다.
      */
-    override fun create(command: CreateCourseCommand): Course {
+    override fun create(command: CreateCourseCommand): CourseCreatedResult {
         val places = command.places.toCoursePlaces()
         command.duplicatedFromId?.let { originId ->
             val origin =
@@ -77,7 +79,7 @@ class CourseService(
                 oldVisibility = null,
             ),
         )
-        return savedCourse
+        return savedCourse.toCreatedResult()
     }
 
     /** 코스 편집(전체 치환) — 소유·발행 불변식 검증 후 저장하고 [CourseSavedEvent] 를 발행한다. */

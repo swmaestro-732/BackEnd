@@ -1,5 +1,6 @@
 package com.example.backend.course.application.port.inbound
 
+import com.example.backend.course.application.port.inbound.dto.CourseCreatedResult
 import com.example.backend.course.application.port.inbound.dto.CreateCourseCommand
 import com.example.backend.course.application.port.inbound.dto.EditCourseCommand
 import com.example.backend.course.domain.model.Course
@@ -8,7 +9,7 @@ import com.example.backend.course.domain.model.Course
  * 인바운드 포트 — 코스 쓰기(커맨드) 유스케이스. 조회는 [CourseQueryUseCase] 가 담당한다.
  */
 interface CourseUseCase {
-    fun create(command: CreateCourseCommand): Course
+    fun create(command: CreateCourseCommand): CourseCreatedResult
 
     fun edit(command: EditCourseCommand): Course
 
