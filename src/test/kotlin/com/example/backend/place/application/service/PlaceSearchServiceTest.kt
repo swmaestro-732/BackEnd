@@ -50,10 +50,12 @@ class PlaceSearchServiceTest {
     private val service =
         PlaceSearchService(
             externalPort,
-            persistence,
-            areaCodeLookup,
-            TransactionOperations.withoutTransaction(),
-            publisher,
+            PlaceRegistrationService(
+                persistence,
+                areaCodeLookup,
+                TransactionOperations.withoutTransaction(),
+                publisher,
+            ),
         )
 
     @Test

@@ -1,5 +1,6 @@
 package com.example.backend
 
+import com.example.backend.bootstrap.config.CrawlerProperties
 import com.example.backend.bootstrap.config.GooglePlacesProperties
 import com.example.backend.bootstrap.config.KakaoLocalProperties
 import com.example.backend.bootstrap.config.MediaProperties
@@ -26,6 +27,7 @@ import org.springframework.boot.runApplication
     GooglePlacesProperties::class,
     OpenSearchProperties::class,
     SqsProperties::class,
+    CrawlerProperties::class,
 )
 class BackendApplication
 

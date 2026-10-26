@@ -1,0 +1,66 @@
+package com.example.backend.crawl.adapter.inbound.messaging
+
+import com.example.backend.bootstrap.config.CrawlerProperties
+import com.example.backend.crawl.application.port.inbound.CrawlImportUseCase
+import com.example.backend.crawl.application.port.inbound.dto.CrawlResultCommand
+import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertFalse
+import org.junit.jupiter.api.Assertions.assertSame
+import org.junit.jupiter.api.Assertions.assertThrows
+import org.junit.jupiter.api.Test
+import tools.jackson.databind.json.JsonMapper
+import tools.jackson.module.kotlin.KotlinModule
+
+class CrawlResultSqsConsumerTest {
+    private val mapper = JsonMapper.builder().addModule(KotlinModule.Builder().build()).build()
+
+    @Test
+    fun `크롤러 JSON의 isCourse와 빈 선택 필드를 읽어 유스케이스로 전달한다`() {
+        val message =
+            mapper.readValue(
+                """{"runId":"20261027-0400","shortcode":"C9xYz","sourceUrl":"https://www.instagram.com/p/C9xYz/",
+                "account":"eateat.mag","isCourse":false,"courseReason":"not course","places":[]}""",
+                CrawlResultCommand::class.java,
+            )
+        var received: CrawlResultCommand? = null
+        val consumer =
+            CrawlResultSqsConsumer(
+                object : CrawlImportUseCase {
+                    override fun importResult(command: CrawlResultCommand) {
+                        received = command
+                    }
+                },
+                CrawlerProperties(curatorUserId = 1),
+            )
+
+        consumer.onMessage(message)
+
+        assertFalse(received!!.isCourse)
+        assertEquals(emptyList<String>(), received!!.tags)
+        assertEquals("C9xYz", received!!.shortcode)
+    }
+
+    @Test
+    fun `처리 실패는 삼키지 않아 SQS가 재전달한다`() {
+        val failure = IllegalStateException("database unavailable")
+        val consumer =
+            CrawlResultSqsConsumer(
+                object : CrawlImportUseCase {
+                    override fun importResult(command: CrawlResultCommand): Unit = throw failure
+                },
+                CrawlerProperties(curatorUserId = 1),
+            )
+        val message = CrawlResultCommand("run", "post", "url", "account", false)
+
+        assertSame(failure, assertThrows(IllegalStateException::class.java) { consumer.onMessage(message) })
+    }
+
+    @Test
+    fun `활성 소비자는 큐레이터 ID가 없으면 시작하지 않는다`() {
+        val useCase =
+            object : CrawlImportUseCase {
+                override fun importResult(command: CrawlResultCommand) = Unit
+            }
+        assertThrows(IllegalArgumentException::class.java) { CrawlResultSqsConsumer(useCase, CrawlerProperties()) }
+    }
+}
