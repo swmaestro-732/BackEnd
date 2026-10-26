@@ -14,6 +14,9 @@ import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Assertions.assertThrows
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.params.ParameterizedTest
+import org.junit.jupiter.params.provider.NullAndEmptySource
+import org.junit.jupiter.params.provider.ValueSource
 import org.springframework.context.ApplicationEventPublisher
 import org.springframework.transaction.support.TransactionOperations
 
@@ -36,20 +39,10 @@ class PlaceRegistrationServiceTest {
             ApplicationEventPublisher { events += it },
         )
 
-    @Test
-    fun `기존 활성 장소는 새 정보로 덮어쓰지 않고 저장된 ID와 좌표를 반환한다`() {
-        val existing =
-            Place
-                .create(
-                    name = "기존 이름",
-                    description = "기존 설명",
-                    category = PlaceCategory.CAFE,
-                    location = Coordinate(37.6, 127.1),
-                    address = "기존 주소",
-                    areaCode = "1111010100",
-                    imageUrl = "https://cdn.example.com/existing.jpg",
-                    kakaoPlaceId = "k1",
-                ).persisted(42L)
+    @ParameterizedTest
+    @ValueSource(strings = ["https://cdn.example.com/existing.jpg", "  "])
+    fun `기존 활성 장소는 새 정보로 덮어쓰지 않고 저장된 ID와 좌표를 반환한다`(imageUrl: String) {
+        val existing = existingPlace(imageUrl)
         persistence.rows["k1"] = existing
 
         val result = service.register(listOf(command())).single()
@@ -60,6 +53,39 @@ class PlaceRegistrationServiceTest {
         assertEquals(existing, persistence.rows["k1"])
         assertTrue(persistence.inserted.isEmpty())
         assertTrue(areaRequests.isEmpty())
+    }
+
+    @ParameterizedTest
+    @NullAndEmptySource
+    fun `기존 장소의 없는 이미지만 채우고 응답과 색인 이벤트에도 반영한다`(imageUrl: String?) {
+        val existing = existingPlace(imageUrl)
+        persistence.rows["k1"] = existing
+
+        val result = service.register(listOf(command())).single()
+
+        val saved = persistence.rows.getValue("k1")
+        assertEquals(existing.persisted(42L, "https://cdn.example.com/new.jpg"), saved)
+        assertEquals(42L, result.id)
+        assertEquals("https://cdn.example.com/new.jpg", result.imageUrl)
+        assertEquals(listOf(saved), events.filterIsInstance<PlacesSavedEvent>().single().places)
+        assertTrue(persistence.inserted.isEmpty())
+        assertTrue(areaRequests.isEmpty())
+    }
+
+    @ParameterizedTest
+    @NullAndEmptySource
+    @ValueSource(
+        strings = ["  ", "http://cdn.example.com/a.jpg", "https://", "https://bad host/a.jpg", "javascript:alert(1)"],
+    )
+    fun `등록 이미지가 없거나 유효한 https가 아니면 기존 장소를 갱신하지 않는다`(imageUrl: String?) {
+        val existing = existingPlace(null)
+        persistence.rows["k1"] = existing
+
+        val result = service.register(listOf(command().copy(imageUrl = imageUrl))).single()
+
+        assertEquals(existing, persistence.rows["k1"])
+        assertNull(result.imageUrl)
+        assertEquals(listOf(existing), events.filterIsInstance<PlacesSavedEvent>().single().places)
     }
 
     @Test
@@ -115,6 +141,26 @@ class PlaceRegistrationServiceTest {
     }
 
     @Test
+    fun `삽입 경합에서 먼저 저장된 장소에 이미지가 없으면 채운다`() {
+        persistence.concurrentInsert = existingPlace(null).persisted(88L)
+
+        val result = service.register(listOf(command())).single()
+
+        assertEquals(88L, result.id)
+        assertEquals("https://cdn.example.com/new.jpg", result.imageUrl)
+        assertEquals(result.imageUrl, persistence.rows.getValue("k1").imageUrl)
+        assertEquals(
+            result.imageUrl,
+            events
+                .filterIsInstance<PlacesSavedEvent>()
+                .single()
+                .places
+                .single()
+                .imageUrl,
+        )
+    }
+
+    @Test
     fun `이름 주소 또는 카카오 ID가 빈 신규 장소는 제외한다`() {
         val result =
             service.register(
@@ -154,6 +200,19 @@ class PlaceRegistrationServiceTest {
         assertTrue(events.isEmpty())
     }
 
+    private fun existingPlace(imageUrl: String?) =
+        Place
+            .create(
+                name = "기존 이름",
+                description = "기존 설명",
+                category = PlaceCategory.CAFE,
+                location = Coordinate(37.6, 127.1),
+                address = "기존 주소",
+                areaCode = "1111010100",
+                imageUrl = imageUrl,
+                kakaoPlaceId = "k1",
+            ).persisted(42L)
+
     private fun command() =
         RegisterPlaceCommand(
             kakaoPlaceId = "k1",
@@ -181,6 +240,14 @@ class PlaceRegistrationServiceTest {
             }
         }
 
+        override fun fillImageIfEmpty(
+            placeId: Long,
+            imageUrl: String,
+        ) {
+            val place = rows.values.firstOrNull { it.id == placeId } ?: return
+            if (place.imageUrl.isNullOrEmpty()) rows[place.kakaoPlaceId!!] = place.persisted(placeId, imageUrl)
+        }
+
         override fun findForIndex(
             afterId: Long?,
             limit: Int,
@@ -188,7 +255,10 @@ class PlaceRegistrationServiceTest {
     }
 }
 
-private fun Place.persisted(id: Long): Place =
+private fun Place.persisted(
+    id: Long,
+    imageUrl: String? = this.imageUrl,
+): Place =
     Place.reconstitute(
         id = id,
         status = status,

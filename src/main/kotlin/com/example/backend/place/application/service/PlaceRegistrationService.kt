@@ -13,6 +13,8 @@ import com.example.backend.place.domain.model.PlaceCategory
 import org.springframework.context.ApplicationEventPublisher
 import org.springframework.stereotype.Service
 import org.springframework.transaction.support.TransactionOperations
+import java.net.URI
+import java.net.URISyntaxException
 
 /** 검색·크롤링 공통 등록 경로. 외부 지역 조회는 DB 커넥션을 점유하지 않는다. */
 @Service
@@ -53,10 +55,19 @@ class PlaceRegistrationService(
                         kakaoPlaceId = command.kakaoPlaceId,
                     )
                 }.toList()
+        val imagesByKakaoId =
+            commands
+                .filter { it.imageUrl?.let(::isHttpsImage) == true }
+                .associate { it.kakaoPlaceId to it.imageUrl!! }
         return transactionOperations
             .execute {
                 if (toInsert.isNotEmpty()) placePersistencePort.insertIgnoringConflicts(toInsert)
-                val saved = placePersistencePort.findByKakaoIds(allKakaoIds)
+                var saved = placePersistencePort.findByKakaoIds(allKakaoIds)
+                val missingImages = saved.filter { it.imageUrl.isNullOrEmpty() && it.kakaoPlaceId in imagesByKakaoId }
+                missingImages.forEach { place ->
+                    placePersistencePort.fillImageIfEmpty(place.id!!, imagesByKakaoId.getValue(place.kakaoPlaceId!!))
+                }
+                if (missingImages.isNotEmpty()) saved = placePersistencePort.findByKakaoIds(allKakaoIds)
                 // 재조회는 동시 insert ignore로 다른 요청이 저장한 행도 포함한다.
                 eventPublisher.publishEvent(PlacesSavedEvent(saved))
                 saved.map { place ->
@@ -70,4 +81,12 @@ class PlaceRegistrationService(
                 }
             }.orEmpty()
     }
+
+    private fun isHttpsImage(url: String): Boolean =
+        try {
+            val uri = URI(url)
+            uri.scheme.equals("https", ignoreCase = true) && !uri.host.isNullOrBlank()
+        } catch (_: URISyntaxException) {
+            false
+        }
 }

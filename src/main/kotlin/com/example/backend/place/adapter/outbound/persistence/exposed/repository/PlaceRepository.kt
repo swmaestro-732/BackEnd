@@ -9,7 +9,10 @@ import org.jetbrains.exposed.v1.core.eq
 import org.jetbrains.exposed.v1.core.greater
 import org.jetbrains.exposed.v1.core.inList
 import org.jetbrains.exposed.v1.core.isNull
+import org.jetbrains.exposed.v1.core.or
+import org.jetbrains.exposed.v1.datetime.CurrentTimestamp
 import org.jetbrains.exposed.v1.jdbc.batchInsert
+import org.jetbrains.exposed.v1.jdbc.update
 import org.springframework.stereotype.Repository
 
 /**
@@ -18,6 +21,18 @@ import org.springframework.stereotype.Repository
  */
 @Repository
 class PlaceRepository {
+    fun fillImageIfEmpty(
+        placeId: Long,
+        imageUrl: String,
+    ) {
+        PlaceTable.update({
+            (PlaceTable.id eq placeId) and (PlaceTable.imageUrl.isNull() or (PlaceTable.imageUrl eq ""))
+        }) {
+            it[PlaceTable.imageUrl] = imageUrl
+            it[updatedAt] = CurrentTimestamp
+        }
+    }
+
     /** deleted_at IS NULL 인 장소 한 건을 id 로 읽어 엔티티로 반환한다. 없거나 삭제됐으면 null. */
     internal fun findById(placeId: Long): PlaceEntity? =
         PlaceEntity

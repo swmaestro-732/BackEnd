@@ -42,6 +42,11 @@ class PlaceReindexServiceTest {
 
                 override fun insertIgnoringConflicts(places: List<Place>) = Unit
 
+                override fun fillImageIfEmpty(
+                    placeId: Long,
+                    imageUrl: String,
+                ) = Unit
+
                 override fun findForIndex(
                     afterId: Long?,
                     limit: Int,

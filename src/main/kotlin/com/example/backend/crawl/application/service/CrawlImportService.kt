@@ -1,5 +1,6 @@
 package com.example.backend.crawl.application.service
 
+import com.example.backend.common.domain.CourseLimits
 import com.example.backend.common.exception.BusinessException
 import com.example.backend.common.response.CommonErrorCode
 import com.example.backend.crawl.application.port.inbound.CrawlImportUseCase
@@ -49,6 +50,7 @@ class CrawlImportService(
             when {
                 !command.isCourse -> "not course"
                 validPlaces.size < 2 -> "fewer than 2 places"
+                validPlaces.size > CourseLimits.MAX_PLACES -> "too many places"
                 command.title.isBlank() -> "blank title"
                 command.title.length > 200 -> "title exceeds 200 characters"
                 validPlaces.map { it.order }.distinct().size != validPlaces.size -> "duplicate order"
@@ -117,7 +119,10 @@ class CrawlImportService(
             !place.lat.isFinite() || place.lat !in -90.0..90.0 -> "invalid latitude: ${place.kakaoPlaceId}"
             !place.lng.isFinite() || place.lng !in -180.0..180.0 -> "invalid longitude: ${place.kakaoPlaceId}"
             place.name.isBlank() -> "blank place name: ${place.kakaoPlaceId}"
+            place.name.length > 200 -> "place name exceeds 200 characters: ${place.kakaoPlaceId}"
             place.address.isBlank() -> "blank place address: ${place.kakaoPlaceId}"
+            place.address.length > 255 -> "place address exceeds 255 characters: ${place.kakaoPlaceId}"
+            place.kakaoPlaceId.length > 64 -> "kakao place ID exceeds 64 characters"
             else -> null
         }
 

@@ -159,7 +159,8 @@ class CrawlImportServiceTest {
     @ValueSource(
         strings = [
             "blank title", "long title", "duplicate order", "long tag", "latitude", "longitude",
-            "nan latitude", "infinite longitude", "blank name", "blank address",
+            "nan latitude", "infinite longitude", "blank name", "blank address", "long name", "long address",
+            "long kakao ID", "too many places",
         ],
     )
     fun `잘못된 입력은 장소 등록 전에 구체적인 사유로 거절한다`(input: String) {
@@ -207,9 +208,28 @@ class CrawlImportServiceTest {
                         "blank place name: k1"
                 }
 
-                else -> {
+                "blank address" -> {
                     original.copy(places = listOf(place(1).copy(address = "  "), place(2))) to
                         "blank place address: k1"
+                }
+
+                "long name" -> {
+                    original.copy(places = listOf(place(1).copy(name = "a".repeat(201)), place(2))) to
+                        "place name exceeds 200 characters: k1"
+                }
+
+                "long address" -> {
+                    original.copy(places = listOf(place(1).copy(address = "a".repeat(256)), place(2))) to
+                        "place address exceeds 255 characters: k1"
+                }
+
+                "long kakao ID" -> {
+                    original.copy(places = listOf(place(1).copy(kakaoPlaceId = "a".repeat(65)), place(2))) to
+                        "kakao place ID exceeds 64 characters"
+                }
+
+                else -> {
+                    original.copy(places = (1..11).map(::place)) to "too many places"
                 }
             }
 
@@ -230,6 +250,22 @@ class CrawlImportServiceTest {
         )
 
         assertEquals(CrawlImportStatus.IMPORTED, persistence.rows["C9xYz"]?.status)
+    }
+
+    @Test
+    fun `장소 필드 길이와 장소 수 경계값은 허용한다`() {
+        val first = place(1).copy(name = "a".repeat(200), address = "a".repeat(255), kakaoPlaceId = "a".repeat(64))
+
+        service.importResult(command().copy(places = listOf(first) + (2..10).map(::place)))
+
+        assertEquals(CrawlImportStatus.IMPORTED, persistence.rows["C9xYz"]?.status)
+        assertEquals(first, places.requests.single().first())
+        assertEquals(
+            10,
+            courses.commands
+                .single()
+                .places.size,
+        )
     }
 
     @Test
@@ -413,13 +449,13 @@ class CrawlImportServiceTest {
         override fun resolve(places: List<CrawledPlaceCommand>): List<ResolvedCrawlPlace> {
             requests += places
             failure?.let { throw it }
-            return places.map { place ->
+            return places.mapIndexed { index, place ->
                 ResolvedCrawlPlace(
                     kakaoPlaceId = place.kakaoPlaceId,
-                    id = 100L + place.kakaoPlaceId.removePrefix("k").toLong(),
+                    id = 101L + index,
                     coordinate =
                         Coordinate(
-                            listOf(37.61, 37.62, 37.63)[place.kakaoPlaceId.removePrefix("k").toInt() - 1],
+                            listOf(37.61, 37.62, 37.63).getOrElse(index) { 37.6 },
                             127.1,
                         ),
                     imageUrl = imageUrl,

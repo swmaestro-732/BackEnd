@@ -123,6 +123,11 @@ class PlaceSearchServiceTest {
             }
         }
 
+        override fun fillImageIfEmpty(
+            placeId: Long,
+            imageUrl: String,
+        ): Unit = error("이미지를 전달하지 않는 웹 검색은 기존 이미지를 갱신하지 않습니다.")
+
         override fun findForIndex(
             afterId: Long?,
             limit: Int,

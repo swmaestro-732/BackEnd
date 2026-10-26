@@ -18,6 +18,11 @@ class PlacePersistenceAdapter(
 
     override fun insertIgnoringConflicts(places: List<Place>) = placeRepository.insertIgnoringConflicts(places)
 
+    override fun fillImageIfEmpty(
+        placeId: Long,
+        imageUrl: String,
+    ) = placeRepository.fillImageIfEmpty(placeId, imageUrl)
+
     override fun findForIndex(
         afterId: Long?,
         limit: Int,

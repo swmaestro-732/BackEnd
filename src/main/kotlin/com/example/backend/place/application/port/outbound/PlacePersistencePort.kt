@@ -12,6 +12,11 @@ interface PlacePersistencePort {
      */
     fun insertIgnoringConflicts(places: List<Place>)
 
+    fun fillImageIfEmpty(
+        placeId: Long,
+        imageUrl: String,
+    )
+
     /** 재색인용 — 활성(deleted_at IS NULL) 장소를 id 오름차순으로 afterId 다음부터 limit개. */
     fun findForIndex(
         afterId: Long?,

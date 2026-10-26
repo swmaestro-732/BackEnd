@@ -5,6 +5,7 @@ import com.example.backend.crawl.application.port.inbound.CrawlImportUseCase
 import com.example.backend.crawl.application.port.inbound.dto.CrawlResultCommand
 import com.example.backend.user.application.port.inbound.UserUseCase
 import io.awspring.cloud.sqs.annotation.SqsListener
+import io.github.oshai.kotlinlogging.KotlinLogging
 import jakarta.annotation.PostConstruct
 import org.springframework.boot.autoconfigure.condition.ConditionalOnExpression
 import org.springframework.boot.sql.init.dependency.DependsOnDatabaseInitialization
@@ -12,7 +13,7 @@ import org.springframework.stereotype.Component
 
 /**
  * 크롤링 결과 큐 수신. 큐 URL과 큐레이터 사용자 ID가 모두 설정된 배포에서만 활성화한다 —
- * 큐레이터 누락은 별도 컴포넌트가 경고하며, 설정된 큐레이터가 비활성이면 기동을 중단한다.
+ * 큐레이터 누락은 별도 컴포넌트가 경고하며, 설정된 큐레이터가 비활성이면 소비자만 비활성화한다.
  */
 @Component
 @DependsOnDatabaseInitialization
@@ -24,11 +25,15 @@ class CrawlResultSqsConsumer(
     private val users: UserUseCase,
     private val properties: CrawlerProperties,
 ) {
+    private val log = KotlinLogging.logger {}
+    private var enabled = false
+
     @PostConstruct
     fun validateCurator() {
-        val curatorId = checkNotNull(properties.curatorUserId) { "crawler.curator-user-id must be configured" }
-        check(users.isActive(curatorId)) {
-            "crawler.curator-user-id=$curatorId must identify an existing active user"
+        val curatorId = properties.curatorUserId
+        enabled = curatorId != null && users.isActive(curatorId)
+        if (!enabled) {
+            log.error { "Crawl result consumer disabled: curator user $curatorId missing or inactive" }
         }
     }
 
@@ -39,6 +44,7 @@ class CrawlResultSqsConsumer(
         maxMessagesPerPoll = "1",
     )
     fun onMessage(message: CrawlResultCommand) {
+        check(enabled) { "Crawl result consumer disabled" }
         crawlImportUseCase.importResult(message)
     }
 }
