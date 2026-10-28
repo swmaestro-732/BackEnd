@@ -37,7 +37,9 @@ class TmapPedestrianAdapterTest {
         val body =
             """
             {"type":"FeatureCollection","features":[
-              {"type":"Feature","properties":{"totalTime":540,"totalDistance":720}}
+              {"type":"Feature","properties":{"totalTime":540,"totalDistance":720}},
+              {"type":"Feature","properties":{},
+               "geometry":{"type":"LineString","coordinates":[[127.0559,37.5446],[127.0561,37.5433]]}}
             ]}
             """.trimIndent()
         server
@@ -98,7 +100,7 @@ class TmapPedestrianAdapterTest {
             """
             {"type":"FeatureCollection","features":[
               {"type":"Feature","geometry":{"type":"Point","coordinates":[127.0559]},
-               "properties":{"totalTime":60,"description":"출발"}},
+               "properties":{"totalTime":60,"totalDistance":80,"description":"출발"}},
               {"type":"Feature","properties":{},
                "geometry":{"type":"LineString",
                 "coordinates":[[127.0559,37.5446],["x",1],[999,37.5433],[127.0561,37.5433]]}},
@@ -113,7 +115,7 @@ class TmapPedestrianAdapterTest {
         val route = adapter.walkingRoute(from, to) as PedestrianRoute.Reachable
 
         assertEquals(60, route.seconds)
-        assertEquals(0, route.distanceMeters) // totalDistance 없음 → 0
+        assertEquals(80, route.distanceMeters)
         assertEquals(
             listOf(
                 Coordinate(latitude = 37.5446, longitude = 127.0559),
@@ -128,6 +130,41 @@ class TmapPedestrianAdapterTest {
     fun `totalTime 이 없으면 Unknown 으로 반환한다`() {
         val (adapter, server) = adapterWith()
         val body = """{"type":"FeatureCollection","features":[{"type":"Feature","properties":{"totalDistance":720}}]}"""
+        server
+            .expect(requestTo(containsString("/tmap/routes/pedestrian")))
+            .andRespond(withSuccess(body, MediaType.APPLICATION_JSON))
+
+        assertEquals(PedestrianRoute.Unknown, adapter.walkingRoute(from, to))
+    }
+
+    @Test
+    fun `totalDistance 가 없으면 Unknown 으로 반환한다`() {
+        val (adapter, server) = adapterWith()
+        val body =
+            """
+            {"type":"FeatureCollection","features":[
+              {"type":"Feature","properties":{"totalTime":540}},
+              {"type":"Feature","properties":{},
+               "geometry":{"type":"LineString","coordinates":[[127.0559,37.5446],[127.0561,37.5433]]}}
+            ]}
+            """.trimIndent()
+        server
+            .expect(requestTo(containsString("/tmap/routes/pedestrian")))
+            .andRespond(withSuccess(body, MediaType.APPLICATION_JSON))
+
+        assertEquals(PedestrianRoute.Unknown, adapter.walkingRoute(from, to))
+    }
+
+    @Test
+    fun `그릴 경로 좌표가 없으면 Unknown 으로 반환한다`() {
+        val (adapter, server) = adapterWith()
+        val body =
+            """
+            {"type":"FeatureCollection","features":[
+              {"type":"Feature","geometry":{"type":"Point","coordinates":[127.0559,37.5446]},
+               "properties":{"totalTime":540,"totalDistance":720,"description":"출발"}}
+            ]}
+            """.trimIndent()
         server
             .expect(requestTo(containsString("/tmap/routes/pedestrian")))
             .andRespond(withSuccess(body, MediaType.APPLICATION_JSON))

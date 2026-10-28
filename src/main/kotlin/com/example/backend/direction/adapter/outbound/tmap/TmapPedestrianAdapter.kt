@@ -61,7 +61,7 @@ class TmapPedestrianAdapter(
                     .body(PedestrianResponse::class.java)
                     ?.features
                     .orEmpty()
-            // 200 이지만 경로/시간이 비면 판단 불가 → Unknown.
+            // 200 이지만 시간·거리·경로 중 하나라도 비면 판단 불가 → Unknown.
             toReachable(features) ?: PedestrianRoute.Unknown
         } catch (exception: RestClientResponseException) {
             // 4xx/5xx. NoServiceArea(3102)만 도보 불가로 확정하고, 나머지 오류는 Unknown(일시적 오류 가능).
@@ -89,6 +89,7 @@ class TmapPedestrianAdapter(
     private fun toReachable(features: List<PedestrianResponse.Feature>): PedestrianRoute.Reachable? {
         val summary = features.firstOrNull()?.properties ?: return null
         val seconds = summary.totalTime ?: return null
+        val distanceMeters = summary.totalDistance ?: return null
         val path = mutableListOf<Coordinate>()
         val guides = mutableListOf<PedestrianRoute.Guide>()
         features.forEach { feature ->
@@ -110,9 +111,11 @@ class TmapPedestrianAdapter(
                 }
             }
         }
+        // 그릴 선이 없으면 walkable=true 로 내보낼 수 없다 → Unknown(외부 지도 폴백).
+        if (path.isEmpty()) return null
         return PedestrianRoute.Reachable(
             seconds = seconds,
-            distanceMeters = summary.totalDistance ?: 0,
+            distanceMeters = distanceMeters,
             path = path,
             guides = guides,
         )
