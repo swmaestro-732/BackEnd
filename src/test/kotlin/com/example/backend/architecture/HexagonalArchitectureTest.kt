@@ -103,6 +103,7 @@ class HexagonalArchitectureTest {
                 "..place..",
                 "..course..",
                 "..mobile..",
+                "..chat..",
             ).check(classes)
     }
 
@@ -113,7 +114,7 @@ class HexagonalArchitectureTest {
      */
     @Test
     fun `BFF 는 도메인의 inbound 포트만 참조한다`() {
-        for (target in listOf("user", "place", "course")) {
+        for (target in listOf("user", "place", "course", "chat")) {
             val targetInternals =
                 resideInAnyPackage(
                     "com.example.backend.$target.domain..",
@@ -140,7 +141,7 @@ class HexagonalArchitectureTest {
      */
     @Test
     fun `도메인은 다른 도메인의 inbound 포트만 참조한다`() {
-        val domains = listOf("user", "place", "course")
+        val domains = listOf("user", "place", "course", "chat")
         for (dependent in domains) {
             for (target in domains) {
                 if (dependent == target) continue
@@ -169,7 +170,7 @@ class HexagonalArchitectureTest {
      */
     @Test
     fun `도메인 코어는 다른 도메인을 참조하지 않는다`() {
-        val domains = listOf("user", "place", "course")
+        val domains = listOf("user", "place", "course", "chat")
         for (dependent in domains) {
             for (target in domains) {
                 if (dependent == target) continue

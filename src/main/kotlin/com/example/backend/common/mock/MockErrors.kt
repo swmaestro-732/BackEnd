@@ -2,6 +2,7 @@ package com.example.backend.common.mock
 
 import com.example.backend.common.exception.BusinessException
 import com.example.backend.common.response.AreaErrorCode
+import com.example.backend.common.response.ChatErrorCode
 import com.example.backend.common.response.CommonErrorCode
 import com.example.backend.common.response.CourseErrorCode
 import com.example.backend.common.response.DirectionErrorCode
@@ -24,7 +25,8 @@ object MockErrors {
             PlaceErrorCode.entries +
             AreaErrorCode.entries +
             DirectionErrorCode.entries +
-            ReportErrorCode.entries
+            ReportErrorCode.entries +
+            ChatErrorCode.entries
 
     fun throwIfRequested(mockError: Int?) {
         if (mockError == null) return
