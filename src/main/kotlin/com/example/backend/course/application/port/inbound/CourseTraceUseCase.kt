@@ -3,6 +3,7 @@ package com.example.backend.course.application.port.inbound
 import com.example.backend.course.application.port.inbound.dto.CheckInPlaceCommand
 import com.example.backend.course.application.port.inbound.dto.CourseTraceResult
 import com.example.backend.course.application.port.inbound.dto.EndCourseTraceCommand
+import com.example.backend.course.application.port.inbound.dto.TraceRouteResult
 import java.time.Instant
 
 /**
@@ -24,6 +25,15 @@ interface CourseTraceUseCase {
 
     /** 따라가기 종료. 내 세션이 아니거나 없으면 404, 이미 종료된 세션이면 409, 병합할 장소가 코스에 없으면 400. 이때만 코스 tracings_cnt 를 올린다. */
     fun end(command: EndCourseTraceCommand)
+
+    /**
+     * 출발 장소 → 도착 장소 도보 경로(Tmap). 세션·코스 소속은 보지 않는다 — 따라가는 중 코스 밖 장소를 끼워 넣는 경우도 같은 API 로 조회한다.
+     * 같은 장소면 400, 장소가 없으면 404. 도보로 갈 수 없는 구간이면 route 가 null, 일시적 산출 불가는 503.
+     */
+    fun findRoute(
+        fromPlaceId: Long,
+        toPlaceId: Long,
+    ): TraceRouteResult
 
     /** 주어진 코스들 중 사용자가 완주한 코스의 완주 시각(가장 이른 종료)을 courseId 별로 반환한다. 완주하지 않은 코스는 결과에 없다. */
     fun findCompletedAt(

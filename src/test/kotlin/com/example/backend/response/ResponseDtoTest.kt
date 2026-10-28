@@ -40,6 +40,15 @@ class ResponseDtoTest {
     }
 
     @Test
+    fun `DirectionErrorCode - 따라가기 경로 실패 코드는 5033 이다`() {
+        val code = DirectionErrorCode.WALKING_ROUTE_UNAVAILABLE
+
+        assertEquals(503, code.status)
+        assertEquals(5033, code.code)
+        assertEquals("도보 경로를 불러오지 못했습니다. 외부 지도로 안내합니다.", code.message)
+    }
+
+    @Test
     fun `UserAreaResponse - from 은 code 와 name 을 올바르게 매핑한다`() {
         val result = UserAreaResult(code = "1168010100", name = "역삼동")
 
