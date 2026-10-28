@@ -3,6 +3,7 @@ package com.example.backend.course.application.service
 import com.example.backend.common.exception.BusinessException
 import com.example.backend.common.response.CourseErrorCode
 import com.example.backend.course.application.port.inbound.dto.CourseCommentRef
+import com.example.backend.course.application.port.outbound.CommentAuthorPort
 import com.example.backend.course.application.port.outbound.CourseCommentPersistencePort
 import com.example.backend.course.application.port.outbound.CourseCommentRow
 import org.junit.jupiter.api.Assertions.assertEquals
@@ -10,6 +11,7 @@ import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertThrows
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
+import org.mockito.ArgumentMatchers.anyCollection
 import org.mockito.Mockito.mock
 import org.mockito.Mockito.verify
 import org.mockito.Mockito.`when`
@@ -17,11 +19,13 @@ import java.time.Instant
 
 class CourseCommentQueryServiceTest {
     private val comments = mock(CourseCommentPersistencePort::class.java)
-    private val service = CourseCommentQueryService(comments)
+    private val authors = mock(CommentAuthorPort::class.java)
+    private val service = CourseCommentQueryService(comments, authors)
 
     @Test
     fun `추가 행이 있으면 요청 개수만 반환하고 다음 페이지를 표시한다`() {
         `when`(comments.findPage(10L, null, 2)).thenReturn(listOf(row(3L, 7L), row(2L, 8L), row(1L, 7L)))
+        `when`(authors.findNicknames(listOf(7L, 8L))).thenReturn(mapOf(7L to "작성자", 8L to "다른작성자"))
 
         val result = service.list(10L, 7L, null, 2)
 
@@ -30,6 +34,8 @@ class CourseCommentQueryServiceTest {
         assertTrue(result.items[0].isMine)
         assertFalse(result.items[1].isMine)
         assertEquals(7L, result.items[0].authorId)
+        assertEquals("작성자", result.items[0].authorNickname)
+        assertEquals("다른작성자", result.items[1].authorNickname)
         assertEquals("댓글 3", result.items[0].content)
         assertEquals(CREATED_AT, result.items[0].createdAt)
         assertEquals(UPDATED_AT, result.items[0].updatedAt)
@@ -45,6 +51,16 @@ class CourseCommentQueryServiceTest {
         assertFalse(result.hasNext)
         assertTrue(result.items.none { it.isMine })
         verify(comments).findPage(10L, 3L, 2)
+    }
+
+    @Test
+    fun `탈퇴했거나 없는 작성자는 대체 닉네임으로 채운다`() {
+        `when`(comments.findPage(10L, null, 20)).thenReturn(listOf(row(2L, 7L), row(1L, 9L)))
+        `when`(authors.findNicknames(anyCollection())).thenReturn(mapOf(7L to "작성자"))
+
+        val result = service.list(10L, null, null, 20)
+
+        assertEquals(listOf("작성자", "알 수 없음"), result.items.map { it.authorNickname })
     }
 
     @Test
