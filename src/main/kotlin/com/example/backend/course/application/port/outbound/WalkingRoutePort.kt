@@ -8,7 +8,7 @@ import com.example.backend.common.geo.Coordinate
  * 실제 direction 인바운드 포트 호출은 ACL 어댑터([com.example.backend.course.adapter.outbound.direction.WalkingRouteAdapter])가 담당한다.
  */
 interface WalkingRoutePort {
-    /** 도보로 갈 수 없는 구간이면 null. 산출 불가(일시적 오류)는 어댑터가 `DIRECTION_UNAVAILABLE`(503)로 올린다. */
+    /** 도보로 갈 수 없는 구간이면 null. 산출 불가(일시적 오류)는 `WALKING_ROUTE_UNAVAILABLE`(503/5033)로 실패한다. */
     fun findWalkingRoute(
         from: Coordinate,
         to: Coordinate,
