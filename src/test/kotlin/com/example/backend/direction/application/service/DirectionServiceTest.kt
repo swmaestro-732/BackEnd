@@ -23,7 +23,8 @@ class DirectionServiceTest {
         ): PedestrianRoute = routeByPair[from to to] ?: PedestrianRoute.Unknown
     }
 
-    private fun reachable(seconds: Int) = PedestrianRoute.Reachable(seconds)
+    private fun reachable(seconds: Int) =
+        PedestrianRoute.Reachable(seconds = seconds, distanceMeters = 0, path = emptyList(), guides = emptyList())
 
     @Test
     fun `초를 분으로 올림 변환한다`() {
@@ -85,5 +86,37 @@ class DirectionServiceTest {
         // Unknown = 산출 불가 → -1(불가)로 속이지 않고 에러(503)로 실패한다.
         val exception = assertThrows<BusinessException> { service.walkingSegments(listOf(a, b, c)) }
         assertEquals(DirectionErrorCode.DIRECTION_UNAVAILABLE, exception.errorCode)
+    }
+
+    @Test
+    fun `도보 경로는 거리·초·폴리라인·안내를 그대로 돌려준다`() {
+        val guide = PedestrianRoute.Guide(a, "출발")
+        val route =
+            PedestrianRoute.Reachable(seconds = 3601, distanceMeters = 420, path = listOf(a, b), guides = listOf(guide))
+        val service = DirectionService(FakePort(mapOf((a to b) to route)))
+
+        val result = service.walkingRoute(a, b)
+
+        // 따라가기 경로에는 코스 카드의 1시간 상한을 적용하지 않는다.
+        assertEquals(420, result?.distanceMeters)
+        assertEquals(3601, result?.seconds)
+        assertEquals(listOf(a, b), result?.path)
+        assertEquals(listOf(a to "출발"), result?.guides?.map { it.coordinate to it.description })
+    }
+
+    @Test
+    fun `도보 경로의 서비스 불가 구간(Unreachable)은 null 을 반환한다`() {
+        val service = DirectionService(FakePort(mapOf((a to b) to PedestrianRoute.Unreachable)))
+
+        assertEquals(null, service.walkingRoute(a, b))
+    }
+
+    @Test
+    fun `도보 경로 산출 불가(Unknown)면 WALKING_ROUTE_UNAVAILABLE 로 실패한다`() {
+        val service = DirectionService(FakePort(mapOf((a to b) to PedestrianRoute.Unknown)))
+
+        // 구간 계산(5030, 재시도)과 달리 외부 지도로 폴백하는 전용 코드(5033)다.
+        val exception = assertThrows<BusinessException> { service.walkingRoute(a, b) }
+        assertEquals(DirectionErrorCode.WALKING_ROUTE_UNAVAILABLE, exception.errorCode)
     }
 }

@@ -1,6 +1,7 @@
 package com.example.backend.course.application.service
 
 import com.example.backend.common.exception.BusinessException
+import com.example.backend.common.geo.Coordinate
 import com.example.backend.common.response.CourseErrorCode
 import com.example.backend.common.response.PlaceErrorCode
 import com.example.backend.course.application.port.inbound.dto.CreatePlanCommand
@@ -182,7 +183,14 @@ class PlanServiceTest {
         `when`(placeLookupPort.findPlacesByIds(placeIds.toList())).thenReturn(placeIds.map(::placeRef))
     }
 
-    private fun placeRef(id: Long) = PlaceRef(id = id, category = "CAFE", areaCode = AREA_CODE)
+    private fun placeRef(id: Long) =
+        PlaceRef(
+            id = id,
+            category = "CAFE",
+            areaCode = AREA_CODE,
+            name = "장소$id",
+            coordinate = Coordinate(latitude = 37.5445, longitude = 127.0578),
+        )
 
     private fun createCommand(
         sourceCourseId: Long? = null,

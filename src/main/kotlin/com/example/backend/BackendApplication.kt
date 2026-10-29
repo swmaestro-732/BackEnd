@@ -5,6 +5,7 @@ import com.example.backend.bootstrap.config.GooglePlacesProperties
 import com.example.backend.bootstrap.config.KakaoLocalProperties
 import com.example.backend.bootstrap.config.MediaProperties
 import com.example.backend.bootstrap.config.OpenSearchProperties
+import com.example.backend.bootstrap.config.RedisProperties
 import com.example.backend.bootstrap.config.SqsProperties
 import com.example.backend.bootstrap.config.TmapProperties
 import com.example.backend.bootstrap.security.AppleOauthProperties
@@ -27,6 +28,7 @@ import org.springframework.boot.runApplication
     GooglePlacesProperties::class,
     OpenSearchProperties::class,
     DocumentDbProperties::class,
+    RedisProperties::class,
     SqsProperties::class,
 )
 class BackendApplication
