@@ -26,14 +26,15 @@ class CourseCommentQueryService(
         val effectiveSize = size.coerceIn(1, 100)
         val rows = commentPersistencePort.findPage(courseId, cursor, effectiveSize)
         val pageRows = rows.take(effectiveSize)
-        val nicknames = commentAuthorPort.findNicknames(pageRows.map { it.authorId }.distinct())
+        val authors = commentAuthorPort.findAuthors(pageRows.map { it.authorId }.distinct())
         return CourseCommentPage(
             items =
                 pageRows.map {
                     CourseCommentResult(
                         id = it.id,
                         authorId = it.authorId,
-                        authorNickname = nicknames[it.authorId] ?: UNKNOWN_AUTHOR_NICKNAME,
+                        authorNickname = authors[it.authorId]?.nickname ?: UNKNOWN_AUTHOR_NICKNAME,
+                        authorProfileImageUrl = authors[it.authorId]?.profileImageUrl,
                         content = it.content,
                         createdAt = it.createdAt,
                         updatedAt = it.updatedAt,

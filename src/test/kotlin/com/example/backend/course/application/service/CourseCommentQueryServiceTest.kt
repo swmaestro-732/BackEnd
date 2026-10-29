@@ -3,11 +3,13 @@ package com.example.backend.course.application.service
 import com.example.backend.common.exception.BusinessException
 import com.example.backend.common.response.CourseErrorCode
 import com.example.backend.course.application.port.inbound.dto.CourseCommentRef
+import com.example.backend.course.application.port.outbound.CommentAuthor
 import com.example.backend.course.application.port.outbound.CommentAuthorPort
 import com.example.backend.course.application.port.outbound.CourseCommentPersistencePort
 import com.example.backend.course.application.port.outbound.CourseCommentRow
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
+import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Assertions.assertThrows
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
@@ -25,7 +27,8 @@ class CourseCommentQueryServiceTest {
     @Test
     fun `추가 행이 있으면 요청 개수만 반환하고 다음 페이지를 표시한다`() {
         `when`(comments.findPage(10L, null, 2)).thenReturn(listOf(row(3L, 7L), row(2L, 8L), row(1L, 7L)))
-        `when`(authors.findNicknames(listOf(7L, 8L))).thenReturn(mapOf(7L to "작성자", 8L to "다른작성자"))
+        `when`(authors.findAuthors(listOf(7L, 8L)))
+            .thenReturn(mapOf(7L to author(7L, "작성자", "https://cdn/7.png"), 8L to author(8L, "다른작성자", null)))
 
         val result = service.list(10L, 7L, null, 2)
 
@@ -36,6 +39,8 @@ class CourseCommentQueryServiceTest {
         assertEquals(7L, result.items[0].authorId)
         assertEquals("작성자", result.items[0].authorNickname)
         assertEquals("다른작성자", result.items[1].authorNickname)
+        assertEquals("https://cdn/7.png", result.items[0].authorProfileImageUrl)
+        assertNull(result.items[1].authorProfileImageUrl)
         assertEquals("댓글 3", result.items[0].content)
         assertEquals(CREATED_AT, result.items[0].createdAt)
         assertEquals(UPDATED_AT, result.items[0].updatedAt)
@@ -56,11 +61,12 @@ class CourseCommentQueryServiceTest {
     @Test
     fun `탈퇴했거나 없는 작성자는 대체 닉네임으로 채운다`() {
         `when`(comments.findPage(10L, null, 20)).thenReturn(listOf(row(2L, 7L), row(1L, 9L)))
-        `when`(authors.findNicknames(anyCollection())).thenReturn(mapOf(7L to "작성자"))
+        `when`(authors.findAuthors(anyCollection())).thenReturn(mapOf(7L to author(7L, "작성자", "https://cdn/7.png")))
 
         val result = service.list(10L, null, null, 20)
 
         assertEquals(listOf("작성자", "알 수 없음"), result.items.map { it.authorNickname })
+        assertEquals(listOf("https://cdn/7.png", null), result.items.map { it.authorProfileImageUrl })
     }
 
     @Test
@@ -113,6 +119,12 @@ class CourseCommentQueryServiceTest {
         id: Long,
         authorId: Long,
     ) = CourseCommentRow(id, authorId, "댓글 $id", CREATED_AT, UPDATED_AT)
+
+    private fun author(
+        id: Long,
+        nickname: String,
+        profileImageUrl: String?,
+    ) = CommentAuthor(id, nickname, profileImageUrl)
 
     private companion object {
         val CREATED_AT: Instant = Instant.parse("2026-09-01T00:00:00Z")

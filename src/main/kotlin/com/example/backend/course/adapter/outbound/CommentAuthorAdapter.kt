@@ -1,5 +1,6 @@
 package com.example.backend.course.adapter.outbound
 
+import com.example.backend.course.application.port.outbound.CommentAuthor
 import com.example.backend.course.application.port.outbound.CommentAuthorPort
 import com.example.backend.user.application.port.inbound.UserSummaryUseCase
 import org.springframework.stereotype.Component
@@ -9,6 +10,8 @@ import org.springframework.stereotype.Component
 class CommentAuthorAdapter(
     private val userSummaryUseCase: UserSummaryUseCase,
 ) : CommentAuthorPort {
-    override fun findNicknames(userIds: Collection<Long>): Map<Long, String> =
-        userSummaryUseCase.findSummaries(userIds).associate { it.id to it.nickname }
+    override fun findAuthors(userIds: Collection<Long>): Map<Long, CommentAuthor> =
+        userSummaryUseCase
+            .findSummaries(userIds)
+            .associate { it.id to CommentAuthor(it.id, it.nickname, it.profileImageUrl) }
 }

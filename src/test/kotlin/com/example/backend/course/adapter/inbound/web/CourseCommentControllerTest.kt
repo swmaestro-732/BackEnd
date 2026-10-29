@@ -2,6 +2,7 @@ package com.example.backend.course.adapter.inbound.web
 
 import com.example.backend.bootstrap.security.JwtTokenProvider
 import com.example.backend.support.IntegrationTestBase
+import org.hamcrest.Matchers.nullValue
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertNotNull
 import org.junit.jupiter.api.Assertions.assertTrue
@@ -103,6 +104,8 @@ class CourseCommentControllerTest
                 .andExpect(jsonPath("$.data.items[2].isMine").value(false))
                 .andExpect(jsonPath("$.data.items[0].authorNickname").value("댓글작성자"))
                 .andExpect(jsonPath("$.data.items[1].authorNickname").value("다른작성자"))
+                .andExpect(jsonPath("$.data.items[0].authorProfileImageUrl").value(OWNER_PROFILE_IMAGE_URL))
+                .andExpect(jsonPath("$.data.items[1].authorProfileImageUrl").value(nullValue()))
                 .andExpect(jsonPath("$.data.items[0].createdAt").value("2026-09-01T02:00:00Z"))
                 .andExpect(jsonPath("$.data.items[0].updatedAt").value("2026-09-01T02:00:00Z"))
                 .andExpect(jsonPath("$.data.hasNext").value(false))
@@ -387,6 +390,7 @@ class CourseCommentControllerTest
 
         private companion object {
             const val OWNER_ID = 1L
+            const val OWNER_PROFILE_IMAGE_URL = "https://cdn.example.com/profile/1.png"
             const val OTHER_ID = 2L
             const val COURSE_ID = 1L
             const val BASE_PATH = "/api/v1/courses/1/comments"
