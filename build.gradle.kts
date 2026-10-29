@@ -73,6 +73,8 @@ dependencies {
     // AWS SDK v2 (raw) — S3Presigner 는 s3 모듈 소속. 보안 패치용 버전은 위 extra[] 가 관리한다.
     implementation(platform("software.amazon.awssdk:bom:2.49.0"))
     implementation("software.amazon.awssdk:s3")
+    implementation("software.amazon.awssdk:auth")
+    implementation("io.lettuce:lettuce-core")
     // OpenSearch IAM/SigV4 전송에 필요한 동기 SdkHttpClient. 버전은 위 AWS SDK BOM 관리.
     implementation("software.amazon.awssdk:apache-client")
     // SQS — 코스 개수 폴백 큐(course 이벤트 동기 반영 실패 시 재시도). spring-cloud-aws 4.0.x = Spring Boot 4 + Jackson 3.
