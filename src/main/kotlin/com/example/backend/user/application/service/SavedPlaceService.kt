@@ -6,7 +6,6 @@ import com.example.backend.common.response.PlaceErrorCode
 import com.example.backend.user.application.event.SavedPlaceIndexedEvent
 import com.example.backend.user.application.event.SavedPlaceRemovedEvent
 import com.example.backend.user.application.port.inbound.SavedPlaceUseCase
-import com.example.backend.user.application.port.inbound.dto.SavedPlaceRef
 import com.example.backend.user.application.port.inbound.dto.SavedPlacesCommand
 import com.example.backend.user.application.port.inbound.dto.SavedPlacesResult
 import com.example.backend.user.application.port.outbound.PlaceAccessPort
@@ -123,8 +122,6 @@ class SavedPlaceService(
                 },
         )
     }
-
-    override fun listSavedPlaceRefs(userId: Long): List<SavedPlaceRef> = savedPlacePersistencePort.findAllRefs(userId)
 
     /** 커서(=저장 레코드 id)를 파싱한다. 형식이 잘못되면 400. */
     private fun decodeCursor(cursor: String): Long =
