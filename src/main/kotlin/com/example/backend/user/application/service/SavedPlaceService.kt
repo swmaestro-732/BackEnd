@@ -1,15 +1,18 @@
 package com.example.backend.user.application.service
 
 import com.example.backend.common.exception.BusinessException
+import com.example.backend.common.geo.Coordinate
 import com.example.backend.common.response.CommonErrorCode
 import com.example.backend.common.response.PlaceErrorCode
 import com.example.backend.user.application.event.SavedPlaceIndexedEvent
 import com.example.backend.user.application.event.SavedPlaceRemovedEvent
 import com.example.backend.user.application.port.inbound.SavedPlaceUseCase
+import com.example.backend.user.application.port.inbound.dto.NearbySavedHit
 import com.example.backend.user.application.port.inbound.dto.SavedPlacesCommand
 import com.example.backend.user.application.port.inbound.dto.SavedPlacesResult
 import com.example.backend.user.application.port.outbound.PlaceAccessPort
 import com.example.backend.user.application.port.outbound.SavedPlacePersistencePort
+import com.example.backend.user.application.port.outbound.SavedPlaceSearchQueryPort
 import com.example.backend.user.domain.model.SavedPlace
 import com.example.backend.user.domain.model.SavedPlaceCategory
 import org.springframework.context.ApplicationEventPublisher
@@ -34,6 +37,7 @@ class SavedPlaceService(
     private val savedPlacePersistencePort: SavedPlacePersistencePort,
     private val placeAccessPort: PlaceAccessPort,
     private val eventPublisher: ApplicationEventPublisher,
+    private val searchQueryPort: SavedPlaceSearchQueryPort,
 ) : SavedPlaceUseCase {
     @Transactional
     override fun save(
@@ -122,6 +126,13 @@ class SavedPlaceService(
                 },
         )
     }
+
+    override fun nearestSaved(
+        userId: Long,
+        origin: Coordinate,
+        radiusMeters: Double,
+        size: Int,
+    ): List<NearbySavedHit> = searchQueryPort.nearestSaved(userId, origin, radiusMeters, size)
 
     /** 커서(=저장 레코드 id)를 파싱한다. 형식이 잘못되면 400. */
     private fun decodeCursor(cursor: String): Long =

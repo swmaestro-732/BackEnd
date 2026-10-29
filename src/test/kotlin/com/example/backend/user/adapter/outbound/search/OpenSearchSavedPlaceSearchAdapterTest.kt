@@ -2,6 +2,7 @@ package com.example.backend.user.adapter.outbound.search
 
 import com.example.backend.bootstrap.config.OpenSearchProperties
 import com.example.backend.common.geo.Coordinate
+import com.example.backend.user.application.port.outbound.SavedPlaceSearchQueryPort
 import com.fasterxml.jackson.databind.ObjectMapper
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.Test
@@ -25,7 +26,7 @@ import org.springframework.beans.factory.ObjectProvider
 class OpenSearchSavedPlaceSearchAdapterTest {
     private val client = mock(OpenSearchClient::class.java)
     private val origin = Coordinate(37.544, 127.056)
-    private val adapter =
+    private val adapter: SavedPlaceSearchQueryPort =
         OpenSearchSavedPlaceSearchAdapter(providerOf(client), OpenSearchProperties(indexPrefix = "dev-"))
 
     @Test

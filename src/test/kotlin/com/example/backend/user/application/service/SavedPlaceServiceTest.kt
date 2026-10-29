@@ -12,6 +12,7 @@ import com.example.backend.user.application.port.outbound.PlaceRef
 import com.example.backend.user.application.port.outbound.SavedPlaceCategoryCountRow
 import com.example.backend.user.application.port.outbound.SavedPlacePersistencePort
 import com.example.backend.user.application.port.outbound.SavedPlaceRow
+import com.example.backend.user.application.port.outbound.SavedPlaceSearchQueryPort
 import com.example.backend.user.domain.model.SavedPlace
 import com.example.backend.user.domain.model.SavedPlaceCategory
 import org.junit.jupiter.api.Assertions.assertEquals
@@ -20,6 +21,7 @@ import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
+import org.mockito.Mockito.mock
 import org.springframework.context.ApplicationEventPublisher
 import java.time.Instant
 
@@ -139,7 +141,8 @@ class SavedPlaceServiceTest {
         val limit: Int,
     )
 
-    private val service = SavedPlaceService(fakePort, fakePlaceAccess, eventPublisher)
+    private val searchQueryPort = mock(SavedPlaceSearchQueryPort::class.java)
+    private val service = SavedPlaceService(fakePort, fakePlaceAccess, eventPublisher, searchQueryPort)
 
     private fun row(
         id: Long,

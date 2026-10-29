@@ -1,7 +1,7 @@
 package com.example.backend.mobile.home.adapter.outbound
 
 import com.example.backend.common.geo.Coordinate
-import com.example.backend.user.application.port.inbound.SavedPlaceSearchQueryPort
+import com.example.backend.user.application.port.inbound.SavedPlaceUseCase
 import com.example.backend.user.application.port.inbound.dto.NearbySavedHit
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertTrue
@@ -12,7 +12,7 @@ import org.mockito.Mockito.verifyNoMoreInteractions
 import org.mockito.Mockito.`when`
 
 class HomeNearbyPlaceAdapterTest {
-    private val search = mock(SavedPlaceSearchQueryPort::class.java)
+    private val search = mock(SavedPlaceUseCase::class.java)
     private val adapter = HomeNearbyPlaceAdapter(search)
     private val origin = Coordinate(37.544, 127.056)
 

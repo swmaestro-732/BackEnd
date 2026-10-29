@@ -3,7 +3,7 @@ package com.example.backend.mobile.home.adapter.outbound
 import com.example.backend.common.geo.Coordinate
 import com.example.backend.mobile.home.application.port.outbound.HomeNearbyPlacePort
 import com.example.backend.mobile.home.application.port.outbound.dto.HomeNearbyPlace
-import com.example.backend.user.application.port.inbound.SavedPlaceSearchQueryPort
+import com.example.backend.user.application.port.inbound.SavedPlaceUseCase
 import org.springframework.stereotype.Component
 
 /**
@@ -14,7 +14,7 @@ import org.springframework.stereotype.Component
  */
 @Component
 class HomeNearbyPlaceAdapter(
-    private val savedPlaceSearchQueryPort: SavedPlaceSearchQueryPort,
+    private val savedPlaceUseCase: SavedPlaceUseCase,
 ) : HomeNearbyPlacePort {
     override fun findNearbySavedPlaces(
         userId: Long,
@@ -22,7 +22,7 @@ class HomeNearbyPlaceAdapter(
         radiusMeters: Double,
         limit: Int,
     ): List<HomeNearbyPlace> {
-        val hits = savedPlaceSearchQueryPort.nearestSaved(userId, origin, radiusMeters, limit)
+        val hits = savedPlaceUseCase.nearestSaved(userId, origin, radiusMeters, limit)
         return hits.map { hit ->
             HomeNearbyPlace(
                 placeId = hit.placeId,

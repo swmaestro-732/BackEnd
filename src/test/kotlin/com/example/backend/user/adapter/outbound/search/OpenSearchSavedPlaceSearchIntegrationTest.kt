@@ -4,9 +4,9 @@ import com.example.backend.bootstrap.config.OpenSearchConfig
 import com.example.backend.common.geo.Coordinate
 import com.example.backend.support.IntegrationTestBase
 import com.example.backend.support.NoriOpenSearchContainer
-import com.example.backend.user.application.port.inbound.SavedPlaceSearchQueryPort
 import com.example.backend.user.application.port.outbound.SavedPlaceIndexDocument
 import com.example.backend.user.application.port.outbound.SavedPlaceSearchIndexPort
+import com.example.backend.user.application.port.outbound.SavedPlaceSearchQueryPort
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test

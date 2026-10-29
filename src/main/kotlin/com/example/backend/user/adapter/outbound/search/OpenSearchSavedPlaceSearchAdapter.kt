@@ -2,8 +2,8 @@ package com.example.backend.user.adapter.outbound.search
 
 import com.example.backend.bootstrap.config.OpenSearchProperties
 import com.example.backend.common.geo.Coordinate
-import com.example.backend.user.application.port.inbound.SavedPlaceSearchQueryPort
 import com.example.backend.user.application.port.inbound.dto.NearbySavedHit
+import com.example.backend.user.application.port.outbound.SavedPlaceSearchQueryPort
 import io.github.oshai.kotlinlogging.KotlinLogging
 import org.opensearch.client.json.JsonData
 import org.opensearch.client.opensearch.OpenSearchClient
