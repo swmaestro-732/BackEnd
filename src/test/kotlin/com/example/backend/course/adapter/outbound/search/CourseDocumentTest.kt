@@ -13,7 +13,7 @@ class CourseDocumentTest {
             title = "성수 카페 코스",
             description = "설명",
             area = "성수",
-            category = "CAFETOUR",
+            category = listOf("CAFETOUR"),
             tags = listOf("데이트", "힐링"),
             coverImageUrl = "https://img/1.jpg",
             visibility = "PUBLIC",
@@ -32,7 +32,7 @@ class CourseDocumentTest {
         assertThat(doc.title).isEqualTo("성수 카페 코스")
         assertThat(doc.description).isEqualTo("설명")
         assertThat(doc.area).isEqualTo("성수")
-        assertThat(doc.category).isEqualTo("CAFETOUR")
+        assertThat(doc.category).containsExactly("CAFETOUR")
         assertThat(doc.tags).containsExactly("데이트", "힐링")
         assertThat(doc.coverImageUrl).isEqualTo("https://img/1.jpg")
         assertThat(doc.visibility).isEqualTo("PUBLIC")

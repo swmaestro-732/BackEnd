@@ -43,6 +43,7 @@ class CourseControllerTest
                   "tags": ["감성카페", "데이트"],
                   "visibility": "PUBLIC",
                   "isPublished": true,
+                  "categories": ["CAFETOUR"],
                   "places": [
                     {"placeId": 1, "orderNo": 0, "caption": "카페A", "imageUrls": ["https://img/a.jpg"]},
                     {"placeId": 2, "orderNo": 1, "caption": "카페B", "imageUrls": ["https://img/b.jpg"]}
@@ -64,7 +65,7 @@ class CourseControllerTest
 
             val courseId = extractCourseId(response.response.contentAsString)
 
-            // 생성된 코스가 상세로 조회되고, 담은 장소(CAFE)들로 카테고리(CAFETOUR)가 도출된다.
+            // 생성된 코스가 상세로 조회되고, 고른 카테고리(CAFETOUR)가 담긴다.
             mockMvc
                 .perform(get("/api/v1/courses/$courseId"))
                 .andExpect(status().isOk)

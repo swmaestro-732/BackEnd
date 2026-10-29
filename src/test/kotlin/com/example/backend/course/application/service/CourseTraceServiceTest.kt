@@ -106,5 +106,5 @@ class CourseTraceServiceTest {
         id: Long,
         name: String,
         coordinate: Coordinate,
-    ) = PlaceRef(id = id, category = "CAFE", areaCode = null, name = name, coordinate = coordinate)
+    ) = PlaceRef(id = id, areaCode = null, name = name, coordinate = coordinate)
 }

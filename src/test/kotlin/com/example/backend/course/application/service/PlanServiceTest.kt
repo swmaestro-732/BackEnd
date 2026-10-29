@@ -186,7 +186,6 @@ class PlanServiceTest {
     private fun placeRef(id: Long) =
         PlaceRef(
             id = id,
-            category = "CAFE",
             areaCode = AREA_CODE,
             name = "장소$id",
             coordinate = Coordinate(latitude = 37.5445, longitude = 127.0578),

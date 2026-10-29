@@ -10,6 +10,7 @@ import com.example.backend.course.application.port.inbound.dto.FeedCursor
 import com.example.backend.course.application.port.outbound.CourseDetailRow
 import com.example.backend.course.application.port.outbound.CourseSummaryRow
 import com.example.backend.course.domain.model.Course
+import com.example.backend.course.domain.model.CourseCategory
 import com.example.backend.course.domain.model.CourseStatus
 import org.jetbrains.exposed.v1.core.Expression
 import org.jetbrains.exposed.v1.core.LessOp
@@ -37,12 +38,14 @@ import kotlin.time.toJavaInstant
 import kotlin.time.toKotlinInstant
 
 /**
- * courses 테이블 접근 리포지토리 — 코스 본문의 조회·삽입만 담당한다.
+ * courses 테이블 접근 리포지토리 — 코스 본문의 조회·삽입만 담당한다. 읽기 모델의 카테고리는 course_categories 에서 배치로 채운다.
  * 삽입은 DAO([CourseEntity])로 한다. created_at·updated_at·카운터는 [CourseTable] 의 클라이언트 기본값이 채우고
  * (DAO batch insert 는 DB 전용 DEFAULT 미지원), insert 후 [Entity.refresh] 로 확정 상태를 되읽는다.
  */
 @Repository
-class CourseRepository {
+class CourseRepository(
+    private val courseCategoryRepository: CourseCategoryRepository,
+) {
     /** 코스 본문을 삽입하고, 생성값(id·created_at·카운터 등)까지 적재된 엔티티를 반환한다(엔티티는 모듈 내부 구현이라 internal). */
     internal fun insert(course: Course): CourseEntity =
         CourseEntity
@@ -52,7 +55,6 @@ class CourseRepository {
                 title = course.title
                 description = course.description
                 coverImageUrl = course.coverImageUrl
-                category = course.category
                 area = course.area
                 areaCode = course.areaCode
                 isPublished = course.isPublished
@@ -75,7 +77,6 @@ class CourseRepository {
                 it[title] = course.title
                 it[description] = course.description
                 it[coverImageUrl] = course.coverImageUrl
-                it[category] = course.category
                 it[area] = course.area
                 it[areaCode] = course.areaCode
                 it[isPublished] = course.isPublished
@@ -202,7 +203,7 @@ class CourseRepository {
             .selectAll()
             .where { (CourseTable.id eq courseId) and CourseTable.deletedAt.isNull() }
             .singleOrNull()
-            ?.let(::toDetailRow)
+            ?.let { listOf(it).toDetailRows().single() }
 
     /** deleted_at IS NULL 인 코스 본문들을 id 목록으로 한 번에 읽는다(없는 id 는 빠짐). */
     fun findDetails(courseIds: List<Long>): List<CourseDetailRow> {
@@ -210,17 +211,26 @@ class CourseRepository {
         return CourseTable
             .selectAll()
             .where { (CourseTable.id inList courseIds) and CourseTable.deletedAt.isNull() }
-            .map(::toDetailRow)
+            .toList()
+            .toDetailRows()
     }
 
-    private fun toDetailRow(it: ResultRow): CourseDetailRow =
+    private fun List<ResultRow>.toDetailRows(): List<CourseDetailRow> {
+        val categoriesByCourse = courseCategoryRepository.findByCourseIds(map { it[CourseTable.id].value })
+        return map { toDetailRow(it, categoriesByCourse[it[CourseTable.id].value].orEmpty()) }
+    }
+
+    private fun toDetailRow(
+        it: ResultRow,
+        categories: List<CourseCategory>,
+    ): CourseDetailRow =
         CourseDetailRow(
             id = it[CourseTable.id].value,
             userId = it[CourseTable.userId],
             title = it[CourseTable.title],
             coverImageUrl = it[CourseTable.coverImageUrl],
             description = it[CourseTable.description],
-            category = it[CourseTable.category],
+            categories = categories,
             area = it[CourseTable.area],
             areaCode = it[CourseTable.areaCode],
             tracingsCnt = it[CourseTable.tracingsCnt],
@@ -262,7 +272,8 @@ class CourseRepository {
             .where(condition)
             .orderBy(CourseTable.createdAt to SortOrder.DESC, CourseTable.id to SortOrder.DESC)
             .limit(size + 1)
-            .map(::toSummaryRow)
+            .toList()
+            .toSummaryRows()
     }
 
     /** 작성자의 임시저장·활성 코스 요약을 updatedAt 내림차순으로 읽는다. */
@@ -275,7 +286,8 @@ class CourseRepository {
                     (CourseTable.status eq CourseStatus.ACTIVE) and
                     CourseTable.deletedAt.isNull()
             }.orderBy(CourseTable.updatedAt to SortOrder.DESC)
-            .map(::toSummaryRow)
+            .toList()
+            .toSummaryRows()
 
     /**
      * 전체 공개(visibility=PUBLIC)·발행·활성 코스 요약을
@@ -316,7 +328,8 @@ class CourseRepository {
                 CourseTable.createdAt to SortOrder.DESC,
                 CourseTable.id to SortOrder.DESC,
             ).limit(size + 1)
-            .map(::toSummaryRow)
+            .toList()
+            .toSummaryRows()
     }
 
     /**
@@ -332,14 +345,22 @@ class CourseRepository {
             .limit(limit)
             .toList()
 
-    /** 코스 목록 쿼리의 공통 컬럼을 범용 요약 읽기 모델로 변환한다. */
-    private fun toSummaryRow(it: ResultRow): CourseSummaryRow =
+    /** 코스 목록 쿼리의 공통 컬럼을 범용 요약 읽기 모델로 변환한다(카테고리는 페이지 단위 배치 조회). */
+    private fun List<ResultRow>.toSummaryRows(): List<CourseSummaryRow> {
+        val categoriesByCourse = courseCategoryRepository.findByCourseIds(map { it[CourseTable.id].value })
+        return map { toSummaryRow(it, categoriesByCourse[it[CourseTable.id].value].orEmpty()) }
+    }
+
+    private fun toSummaryRow(
+        it: ResultRow,
+        categories: List<CourseCategory>,
+    ): CourseSummaryRow =
         CourseSummaryRow(
             id = it[CourseTable.id].value,
             userId = it[CourseTable.userId],
             title = it[CourseTable.title],
             coverImageUrl = it[CourseTable.coverImageUrl],
-            category = it[CourseTable.category],
+            categories = categories,
             area = it[CourseTable.area],
             visibility = it[CourseTable.visibility],
             isPublished = it[CourseTable.isPublished],

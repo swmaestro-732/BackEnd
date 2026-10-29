@@ -21,7 +21,6 @@ class PlaceLookupAdapter(
             .map {
                 PlaceRef(
                     id = it.id,
-                    category = it.category,
                     areaCode = it.areaCode,
                     name = it.name,
                     coordinate = Coordinate(latitude = it.latitude, longitude = it.longitude),

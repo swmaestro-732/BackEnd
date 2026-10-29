@@ -67,7 +67,7 @@ class CourseService(
             )
         val savedCourse =
             coursePersistencePort.save(
-                command.toCourse(places, foundPlaces, areaCode, resolveAreaName(areaCode)),
+                command.toCourse(places, areaCode, resolveAreaName(areaCode)),
             )
 
         // 커밋 후(AFTER_COMMIT) 검색 색인 + 작성자 코스 개수 반영. 발행 코스만 개수에 잡힌다(임시저장 제외 → new=null).
@@ -120,10 +120,8 @@ class CourseService(
 
         return updateCourse(
             command.toCourse(
-                existingCourse,
                 duplicatedFromId,
                 newPlaces,
-                foundPlaces,
                 areaCode,
                 resolveAreaName(areaCode),
             ),

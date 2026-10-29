@@ -40,7 +40,7 @@ class OpenSearchCourseSearchAdapterTest {
         title = title,
         description = "설명",
         area = area,
-        category = category,
+        category = listOfNotNull(category),
         tags = listOf("데이트"),
         coverImageUrl = "https://img/$id.jpg",
         visibility = "PUBLIC",
@@ -138,7 +138,7 @@ class OpenSearchCourseSearchAdapterTest {
         val row = page.hits.first()
         assertThat(row.authorId).isEqualTo(7L)
         assertThat(row.title).isEqualTo("코스 1")
-        assertThat(row.theme).isEqualTo("CAFETOUR")
+        assertThat(row.themes).containsExactly("CAFETOUR")
         assertThat(row.area).isEqualTo("성수")
         assertThat(row.coverImageUrl).isEqualTo("https://img/1.jpg")
         assertThat(row.likesCnt).isEqualTo(3)

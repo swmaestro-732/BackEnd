@@ -59,7 +59,7 @@ class CourseMobileServiceTest {
             id = 10L,
             title = "코스",
             coverImageUrl = "cover",
-            theme = "CAFETOUR",
+            themes = listOf("CAFETOUR"),
             area = "성수동1가",
             tags = emptyList(),
             description = "설명",

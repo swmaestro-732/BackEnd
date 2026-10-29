@@ -111,7 +111,7 @@ class SavedCourseScreenServiceTest {
         id,
         "코스",
         "cover",
-        "CAFETOUR",
+        listOf("CAFETOUR"),
         "성수",
         emptyList(),
         "설명",

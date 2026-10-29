@@ -59,7 +59,6 @@ class CourseTagReindexPersistenceTest
                     title = "태그대상 코스"
                     coverImageUrl = null
                     description = null
-                    category = null
                     area = null
                     areaCode = null
                     visitDate = null

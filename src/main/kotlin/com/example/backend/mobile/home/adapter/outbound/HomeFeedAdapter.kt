@@ -40,7 +40,7 @@ class HomeFeedAdapter(
                         authorId = it.authorId,
                         title = it.title,
                         coverImageUrl = it.coverImageUrl,
-                        theme = it.theme,
+                        themes = it.themes,
                         area = it.area,
                         // listPublic 은 항상 채워 준다 — null 은 계약 밖이라 0 으로 둔다.
                         placeCount = it.placeCount ?: 0,

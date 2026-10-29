@@ -7,8 +7,10 @@ data class CourseResponse(
     val id: String,
     val title: String,
     val coverImageUrl: String,
-    /** 코스 테마 = 카테고리(단일). 미선택 draft 는 null. */
+    /** [themes] 의 첫 값 — 다중 카테고리 이전 앱 호환용. 미선택이면 null. */
     val theme: String?,
+    /** 코스 테마 = 작성자가 고른 카테고리들. 미선택이면 빈 배열. */
+    val themes: List<String>,
     /** 작성자가 단 해시태그. 테마(카테고리)와 별개이며, 순서는 보장하지 않고 없으면 빈 배열. */
     val tags: List<String>,
     val description: String,
@@ -25,7 +27,8 @@ data class CourseResponse(
                 id = result.id.toString(),
                 title = result.title,
                 coverImageUrl = result.coverImageUrl,
-                theme = result.theme,
+                theme = result.themes.firstOrNull(),
+                themes = result.themes,
                 tags = result.tags,
                 description = result.description,
                 visibility = result.visibility,
