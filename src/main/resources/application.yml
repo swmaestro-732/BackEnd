@@ -119,6 +119,7 @@ aws:
     endpoint: ${S3_ENDPOINT:}   # 비어있으면 기본 AWS, LocalStack 등은 값 설정
   sqs:
     course-count-queue-url: ${SQS_COURSE_COUNT_QUEUE_URL:}   # 비어있으면 폴백 리스너 비활성·발행 no-op(로컬·CI)
+    saved-place-queue-url: ${SQS_SAVED_PLACE_QUEUE_URL:}     # 저장 장소 색인 폴백. 비어있으면 리스너 비활성·발행 no-op(로컬·CI)
 
 docdb:
   endpoint: ${DOCDB_ENDPOINT:}
