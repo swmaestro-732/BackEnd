@@ -3,7 +3,7 @@ package com.example.backend.course.application.port.outbound
 import com.example.backend.common.geo.Coordinate
 
 /**
- * 아웃바운드 포트 — course 가 참조하는 place 들의 요약을 조회한다(발행 시 존재 검증 + 지역 도출 입력 + 따라가기 경로 좌표).
+ * 아웃바운드 포트 — course 가 참조하는 place 들의 요약을 조회한다(발행 시 존재 검증 + 카테고리·지역 도출 입력 + 따라가기 경로 좌표).
  *
  * course 코어는 place 를 직접 알지 않고 이 포트와 course 소유 DTO([PlaceRef])에만 의존한다(MSA 분리 대비).
  * 실제 place 인바운드 포트 호출은 ACL 어댑터([com.example.backend.course.adapter.outbound.place.PlaceLookupAdapter])가
@@ -16,11 +16,12 @@ interface PlaceLookupPort {
 
 /**
  * course 소유 DTO — place 도메인 타입(place 의 PlaceSummary)을 코어 경계 밖으로 새지 않게 한다.
- * course 가 실제로 쓰는 필드만 담는다: 존재 검증([id]) + 코스 지역 도출 입력([areaCode]) +
+ * course 가 실제로 쓰는 필드만 담는다: 존재 검증([id]) + 코스 카테고리·지역 도출 입력([category]·[areaCode]) +
  * 따라가기 경로의 출발·도착 표시([name]·[coordinate]).
  */
 data class PlaceRef(
     val id: Long,
+    val category: String,
     val areaCode: String?,
     val name: String,
     val coordinate: Coordinate,

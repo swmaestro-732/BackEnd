@@ -30,6 +30,7 @@ import com.example.backend.course.domain.model.CourseStatus
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Assertions.assertThrows
+import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.params.ParameterizedTest
 import org.junit.jupiter.params.provider.ValueSource
@@ -54,7 +55,7 @@ class CourseServiceTest {
     private val service = CourseService(persistence, query, places, areas, events)
 
     @Test
-    fun `발행 코스 생성 시 고른 카테고리를 담고 지역을 도출하며 공개범위 전이를 이벤트로 알린다`() {
+    fun `발행 코스 생성 시 카테고리 지역을 도출하고 공개범위 전이를 이벤트로 알린다`() {
         stubPlaces()
         `when`(areas.findAreaByCode(AREA_CODE)).thenReturn(area("성수동1가"))
         `when`(persistence.save(anyValue())).thenAnswer { it.arguments[0] as Course }
@@ -78,6 +79,7 @@ class CourseServiceTest {
 
         val result = service.create(createCommand(isPublished = false))
 
+        assertTrue(result.categories.isEmpty())
         assertNull(result.areaCode)
         assertNull(result.area)
         verifyNoInteractions(areas)
@@ -100,7 +102,8 @@ class CourseServiceTest {
                 duplicatedFromId = null,
                 tags = emptyList(),
                 places = listOf(CoursePlace(1L, 0, null, listOf("a")), CoursePlace(2L, 1, null, listOf("b"))),
-                categories = emptyList(),
+                categories = null,
+                placeCategoryByPlaceId = emptyMap(),
                 areaCode = null,
                 area = null,
             )
@@ -127,7 +130,7 @@ class CourseServiceTest {
 
     @Test
     fun `기존 발행 코스 수정 시 기존 지역 코드를 유지하고 이름은 다시 조회한다`() {
-        val existing = detail(isPublished = true, areaCode = AREA_CODE)
+        val existing = detail(isPublished = true, areaCode = AREA_CODE, categories = listOf(CourseCategory.CAFETOUR))
         stubEdit(existing)
         stubPlaces(areaCode = "1117013100")
         `when`(areas.findAreaByCode(AREA_CODE)).thenReturn(area("성수동1가"))
@@ -153,6 +156,7 @@ class CourseServiceTest {
 
         val result = service.edit(editCommand(isPublished = true))
 
+        assertEquals(listOf(CourseCategory.CAFETOUR), result.categories)
         assertEquals(AREA_CODE, result.areaCode)
         assertEquals("성수동1가", result.area)
     }
@@ -433,7 +437,7 @@ class CourseServiceTest {
         CourseVisibility.PUBLIC,
         isPublished,
         duplicatedFromId,
-        listOf(CourseCategory.CAFETOUR),
+        null,
         places,
     )
 
@@ -447,7 +451,7 @@ class CourseServiceTest {
             emptyList(),
             CourseVisibility.PUBLIC,
             isPublished,
-            listOf(CourseCategory.CAFETOUR),
+            null,
             commandPlaces(),
         )
 
@@ -487,7 +491,7 @@ class CourseServiceTest {
     private fun placeRef(
         id: Long,
         areaCode: String? = AREA_CODE,
-    ) = PlaceRef(id, areaCode, "장소$id", Coordinate(latitude = 37.5445, longitude = 127.0578))
+    ) = PlaceRef(id, "CAFE", areaCode, "장소$id", Coordinate(latitude = 37.5445, longitude = 127.0578))
 
     private fun area(name: String) = AreaDescriptor(AREA_CODE, name, "서울특별시 성동구 $name", AreaLevel.DONG)
 

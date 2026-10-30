@@ -3,7 +3,6 @@ package com.example.backend.course.adapter.inbound.web.request
 import com.example.backend.common.domain.CourseVisibility
 import com.example.backend.course.application.port.inbound.dto.CreateCourseCommand
 import com.example.backend.course.application.port.inbound.dto.CreateCoursePlaceCommand
-import com.example.backend.course.domain.model.CourseCategory
 import jakarta.validation.Valid
 import jakarta.validation.constraints.NotBlank
 import jakarta.validation.constraints.Positive
@@ -25,7 +24,7 @@ private const val MAX_PLACES = 10
  *
  * - tags: 태그 이름 목록. 추천 태그 응답(RecommendedTagsResponse)과 동일하게 이름 문자열 기반.
  * - thumbnailUrl: 코스 커버 이미지(courses.cover_image_url).
- * - categories: 작성자가 고른 코스 카테고리(CourseCategory 이름, 개수 제한 없음). 중복은 도메인이 합친다.
+ * - category 는 요청에 없다 — 담은 장소들의 카테고리로 서비스가 도출한다(CourseCategory.fromPlaceCategoryNames).
  * - isPublished: true 면 발행("코스 저장하기"), false 면 임시저장(빌더 상단 "임시저장" 버튼).
  * - 도보 시간은 서버가 자동 계산하므로 요청에 없다(디자인 "도보 9분 · 경로 자동").
  */
@@ -44,7 +43,6 @@ data class CreateCourseRequest(
     > = emptyList(),
     val visibility: CourseVisibility,
     val isPublished: Boolean,
-    val categories: List<CourseCategory> = emptyList(),
     /** 코스 복제(다른 코스에서 복제) 원본 course id. 일반 생성이면 요청에 없거나 null. */
     @field:Positive
     val duplicatedFromId: Long? = null,
@@ -61,7 +59,7 @@ data class CreateCourseRequest(
             tags = tags,
             visibility = visibility,
             isPublished = isPublished,
-            categories = categories,
+            categories = null,
             duplicatedFromId = duplicatedFromId,
             places =
                 places.map {

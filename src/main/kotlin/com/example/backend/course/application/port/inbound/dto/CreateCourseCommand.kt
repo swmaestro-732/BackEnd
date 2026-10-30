@@ -1,13 +1,15 @@
 package com.example.backend.course.application.port.inbound.dto
 
 import com.example.backend.common.domain.CourseVisibility
+import com.example.backend.course.application.port.outbound.CourseDetailRow
+import com.example.backend.course.application.port.outbound.PlaceRef
 import com.example.backend.course.domain.model.Course
 import com.example.backend.course.domain.model.CourseCategory
 import com.example.backend.course.domain.model.CoursePlace
 
 /**
  * 코스 생성 명령(애플리케이션 경계 타입). 웹 요청(CreateCourseRequest)에서 매핑된다.
- * coverImageUrl 은 요청의 thumbnailUrl(코스 커버). categories 는 작성자가 고른 코스 카테고리.
+ * coverImageUrl 은 요청의 thumbnailUrl(코스 커버). categories 는 작성자가 고른 코스 카테고리(v2), null 이면 담은 장소들로 도출한다(v1).
  * [duplicatedFromId] 가 있으면 코스 복제 — 원본에서 가져오는 건 장소 구성뿐이라 필드는 일반 생성과 같다.
  */
 data class CreateCourseCommand(
@@ -19,7 +21,7 @@ data class CreateCourseCommand(
     val visibility: CourseVisibility,
     val isPublished: Boolean,
     val duplicatedFromId: Long?,
-    val categories: List<CourseCategory>,
+    val categories: List<CourseCategory>?,
     val places: List<CreateCoursePlaceCommand>,
 )
 
@@ -46,7 +48,7 @@ data class EditCourseCommand(
     val tags: List<String>,
     val visibility: CourseVisibility,
     val isPublished: Boolean,
-    val categories: List<CourseCategory>,
+    val categories: List<CourseCategory>?,
     val places: List<CreateCoursePlaceCommand>,
 )
 
@@ -69,6 +71,7 @@ fun List<CreateCoursePlaceCommand>.toCoursePlaces(): List<CoursePlace> =
 /** 생성 커맨드 → 도메인 [Course]. [places]·[areaCode]·[area] 는 서비스가 미리 도출·조회해 넘긴다. */
 fun CreateCourseCommand.toCourse(
     places: List<CoursePlace>,
+    foundPlaces: List<PlaceRef>,
     areaCode: String?,
     area: String?,
 ): Course =
@@ -83,14 +86,17 @@ fun CreateCourseCommand.toCourse(
         tags = tags,
         places = places,
         categories = categories,
+        placeCategoryByPlaceId = foundPlaces.associate { it.id to it.category },
         areaCode = areaCode,
         area = area,
     )
 
 /** 편집 커맨드 → 도메인 [Course]. [places]·[areaCode]·[area] 는 서비스가 미리 도출·조회해 넘긴다. */
 fun EditCourseCommand.toCourse(
+    existing: CourseDetailRow,
     duplicatedFromId: Long?,
     places: List<CoursePlace>,
+    foundPlaces: List<PlaceRef>,
     areaCode: String?,
     area: String?,
 ): Course =
@@ -106,6 +112,9 @@ fun EditCourseCommand.toCourse(
         tags = tags,
         places = places,
         categories = categories,
+        wasPublished = existing.isPublished,
+        existingCategories = existing.categories,
+        placeCategoryByPlaceId = foundPlaces.associate { it.id to it.category },
         areaCode = areaCode,
         area = area,
     )
