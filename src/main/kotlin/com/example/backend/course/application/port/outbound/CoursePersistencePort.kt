@@ -100,11 +100,12 @@ interface CoursePersistencePort {
 
     /**
      * 전체 공개(visibility=PUBLIC)·발행·활성·미삭제 코스 요약을 피드 정렬 순으로 읽는다.
-     * [cursor] 이후부터 hasNext 판별용 초과 1건을 포함해 최대 [size] + 1건을 반환한다.
+     * [cursor] 이후부터 hasNext 판별용 초과 1건을 포함해 최대 [size] + 1건을 반환한다. [category]가 있으면 그 카테고리만.
      */
     fun findPublishedPublic(
         cursor: FeedCursor?,
         size: Int,
+        category: CourseCategory? = null,
     ): List<CourseSummaryRow>
 
     /** 미삭제(deleted_at IS NULL) 코스가 존재하는지 확인한다(duplicate 원본 검증 등). */

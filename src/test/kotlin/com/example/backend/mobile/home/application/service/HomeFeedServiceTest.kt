@@ -24,12 +24,15 @@ class HomeFeedServiceTest {
         object : HomeFeedPort {
             var page = HomeFeedCoursePage(courses = listOf(course(1)), hasNext = false)
             val calls = mutableListOf<Pair<HomeFeedCursor?, Int>>()
+            val categories = mutableListOf<String?>()
 
             override fun listPublicCandidates(
                 cursor: HomeFeedCursor?,
                 size: Int,
+                category: String?,
             ): HomeFeedCoursePage {
                 calls += cursor to size
+                categories += category
                 return page
             }
         }
@@ -139,6 +142,13 @@ class HomeFeedServiceTest {
 
         assertTrue(result.hasNext)
         assertEquals(2L, HomeFeedCursorCodec.decode(result.nextCursor)?.id)
+    }
+
+    @Test
+    fun `전체보기 피드는 카테고리를 포트에 그대로 넘긴다`() {
+        service.getFeed(cursor = null, size = 2, category = "DATE")
+
+        assertEquals(listOf<String?>("DATE"), fakeFeedPort.categories)
     }
 
     private fun course(id: Long) =

@@ -64,8 +64,9 @@ class HomeFeedService(
     override fun getFeed(
         cursor: String?,
         size: Int,
+        category: String?,
     ): HomeFeedResult {
-        val page = homeFeedPort.listPublicCandidates(HomeFeedCursorCodec.decode(cursor), size)
+        val page = homeFeedPort.listPublicCandidates(HomeFeedCursorCodec.decode(cursor), size, category)
         val nextCursor =
             if (page.hasNext) {
                 page.courses.last().let {
