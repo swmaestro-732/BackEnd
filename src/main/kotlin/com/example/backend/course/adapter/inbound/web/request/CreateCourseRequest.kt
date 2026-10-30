@@ -59,6 +59,7 @@ data class CreateCourseRequest(
             tags = tags,
             visibility = visibility,
             isPublished = isPublished,
+            categories = null,
             duplicatedFromId = duplicatedFromId,
             places =
                 places.map {

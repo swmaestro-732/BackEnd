@@ -1,8 +1,8 @@
 package com.example.backend.course.domain.model
 
 /**
- * 코스 카테고리. DB `courses.category` 에 이름 문자열로 저장된다(V3 enum 저장 컨벤션 — enumerationByName).
- * 카테고리 미선택 임시저장(draft) 코스가 있어 nullable.
+ * 코스 카테고리. 코스마다 여러 개를 가지며, DB `course_categories.category` 에 이름 문자열로 저장된다
+ * (V3 enum 저장 컨벤션 — enumerationByName). v2 요청은 작성자가 고르고, v1 요청은 담은 장소들로 도출한다.
  */
 enum class CourseCategory {
     DATE,
@@ -23,7 +23,7 @@ enum class CourseCategory {
         /**
          * 코스에 담긴 장소들의 카테고리(PlaceCategory 이름, orderNo 오름차순)로 코스 카테고리를 도출한다.
          * 각 장소 카테고리를 코스 카테고리로 매핑한 뒤 최빈값을 고른다(동률이면 orderNo 빠른 장소 우선).
-         * 매핑되는 장소가 없으면 null(미선택 draft).
+         * 매핑되는 장소가 없으면 null.
          *
          * PlaceCategory 는 다른 도메인(place) 타입이라 직접 참조하지 않고 이름 문자열로 받는다(크로스 도메인 격리).
          */

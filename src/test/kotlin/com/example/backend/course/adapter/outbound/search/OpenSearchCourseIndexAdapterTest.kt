@@ -68,7 +68,7 @@ class OpenSearchCourseIndexAdapterTest {
             title = "코스 $id",
             description = "설명",
             coverImageUrl = "https://img.jpg",
-            category = null,
+            categories = emptyList(),
             area = "성수",
             areaCode = null,
             visitDate = null,

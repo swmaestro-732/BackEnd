@@ -143,7 +143,7 @@ class HomeFeedServiceTest {
             authorId = 1,
             title = "코스 $id",
             coverImageUrl = null,
-            theme = "CAFETOUR",
+            themes = listOf("CAFETOUR"),
             area = "성수",
             placeCount = 3,
             walkingMinutes = 12,

@@ -30,6 +30,7 @@ import com.example.backend.course.domain.model.CourseStatus
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Assertions.assertThrows
+import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.params.ParameterizedTest
 import org.junit.jupiter.params.provider.ValueSource
@@ -61,7 +62,7 @@ class CourseServiceTest {
 
         val result = service.create(createCommand(isPublished = true))
 
-        assertEquals(CourseCategory.CAFETOUR, result.category)
+        assertEquals(listOf(CourseCategory.CAFETOUR), result.categories)
         assertEquals(AREA_CODE, result.areaCode)
         assertEquals("성수동1가", result.area)
         assertNull(result.duplicatedFromId)
@@ -78,7 +79,7 @@ class CourseServiceTest {
 
         val result = service.create(createCommand(isPublished = false))
 
-        assertNull(result.category)
+        assertTrue(result.categories.isEmpty())
         assertNull(result.areaCode)
         assertNull(result.area)
         verifyNoInteractions(areas)
@@ -101,6 +102,7 @@ class CourseServiceTest {
                 duplicatedFromId = null,
                 tags = emptyList(),
                 places = listOf(CoursePlace(1L, 0, null, listOf("a")), CoursePlace(2L, 1, null, listOf("b"))),
+                categories = null,
                 placeCategoryByPlaceId = emptyMap(),
                 areaCode = null,
                 area = null,
@@ -128,7 +130,7 @@ class CourseServiceTest {
 
     @Test
     fun `기존 발행 코스 수정 시 기존 지역 코드를 유지하고 이름은 다시 조회한다`() {
-        val existing = detail(isPublished = true, areaCode = AREA_CODE, category = CourseCategory.CAFETOUR)
+        val existing = detail(isPublished = true, areaCode = AREA_CODE, categories = listOf(CourseCategory.CAFETOUR))
         stubEdit(existing)
         stubPlaces(areaCode = "1117013100")
         `when`(areas.findAreaByCode(AREA_CODE)).thenReturn(area("성수동1가"))
@@ -147,14 +149,14 @@ class CourseServiceTest {
 
     @Test
     fun `발행 코스의 누락된 파생값은 수정 시 장소 정보로 복구한다`() {
-        stubEdit(detail(isPublished = true, areaCode = null, category = null))
+        stubEdit(detail(isPublished = true, areaCode = null, categories = emptyList()))
         stubPlaces()
         `when`(areas.findAreaByCode(AREA_CODE)).thenReturn(area("성수동1가"))
         `when`(persistence.update(anyValue())).thenAnswer { it.arguments[0] as Course }
 
         val result = service.edit(editCommand(isPublished = true))
 
-        assertEquals(CourseCategory.CAFETOUR, result.category)
+        assertEquals(listOf(CourseCategory.CAFETOUR), result.categories)
         assertEquals(AREA_CODE, result.areaCode)
         assertEquals("성수동1가", result.area)
     }
@@ -196,7 +198,7 @@ class CourseServiceTest {
 
     @Test
     fun `임시저장 코스를 발행으로 수정하면 oldVisibility=null, newVisibility=PUBLIC 이벤트를 발행한다`() {
-        stubEdit(detail(isPublished = false, areaCode = null, category = null))
+        stubEdit(detail(isPublished = false, areaCode = null, categories = emptyList()))
         stubPlaces()
         `when`(areas.findAreaByCode(AREA_CODE)).thenReturn(area("성수동1가"))
         `when`(persistence.update(anyValue())).thenAnswer { it.arguments[0] as Course }
@@ -352,7 +354,7 @@ class CourseServiceTest {
 
     @Test
     fun `복제 초안 편집에서 원본 장소를 두 곳 미만으로 줄이면 수정하지 않는다`() {
-        stubEdit(detail(isPublished = false, areaCode = null, category = null, duplicatedFromId = 50L))
+        stubEdit(detail(isPublished = false, areaCode = null, categories = emptyList(), duplicatedFromId = 50L))
         `when`(persistence.existsById(50L)).thenReturn(true)
         `when`(persistence.findPlaces(50L)).thenReturn(originPlaces(listOf(1L, 3L, 4L)))
 
@@ -364,7 +366,7 @@ class CourseServiceTest {
 
     @Test
     fun `복제 원본이 삭제됐으면 참조를 끊고 일반 코스로 수정한다`() {
-        stubEdit(detail(isPublished = false, areaCode = null, category = null, duplicatedFromId = 50L))
+        stubEdit(detail(isPublished = false, areaCode = null, categories = emptyList(), duplicatedFromId = 50L))
         `when`(persistence.existsById(50L)).thenReturn(false)
         stubPlaces()
         `when`(persistence.update(anyValue())).thenAnswer { it.arguments[0] as Course }
@@ -392,7 +394,7 @@ class CourseServiceTest {
         id = 50L,
         title = "원본 코스",
         coverImageUrl = "cover",
-        theme = null,
+        themes = emptyList(),
         area = null,
         tags = emptyList(),
         description = "",
@@ -435,6 +437,7 @@ class CourseServiceTest {
         CourseVisibility.PUBLIC,
         isPublished,
         duplicatedFromId,
+        null,
         places,
     )
 
@@ -448,6 +451,7 @@ class CourseServiceTest {
             emptyList(),
             CourseVisibility.PUBLIC,
             isPublished,
+            null,
             commandPlaces(),
         )
 
@@ -466,7 +470,7 @@ class CourseServiceTest {
     private fun detail(
         isPublished: Boolean,
         areaCode: String? = AREA_CODE,
-        category: CourseCategory? = CourseCategory.CAFETOUR,
+        categories: List<CourseCategory> = listOf(CourseCategory.CAFETOUR),
         duplicatedFromId: Long? = null,
     ) = CourseDetailRow(
         10L,
@@ -474,7 +478,7 @@ class CourseServiceTest {
         "기존 코스",
         "cover",
         null,
-        category,
+        categories,
         null,
         areaCode,
         0,

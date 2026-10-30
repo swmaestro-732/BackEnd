@@ -9,15 +9,16 @@ TRUNCATE TABLE users, places, courses, course_places, course_place_images, cours
 INSERT INTO users (nickname, public_courses_cnt, follower_courses_cnt, private_courses_cnt)
 VALUES ('코스작성자', 1, 0, 0), ('타인', 1, 0, 0);
 
--- 장소: 발행 코스 카테고리 도출 입력(CAFE → CAFETOUR). location 은 NOT NULL 이라 임의 좌표를 넣는다.
+-- 장소: location 은 NOT NULL 이라 임의 좌표를 넣는다.
 INSERT INTO places (name, category, location, address)
 VALUES
     ('카페A', 'CAFE', 'SRID=4326;POINT(127.05 37.54)'::geography, '서울 성수동 1'),
     ('카페B', 'CAFE', 'SRID=4326;POINT(127.06 37.55)'::geography, '서울 성수동 2');
 
 -- course 1: 공개(PUBLIC)·발행 코스, 소유자 1. 상세/삭제 테스트 대상.
-INSERT INTO courses (user_id, title, description, cover_image_url, category, is_published, visibility, tracings_cnt)
-VALUES (1, '공개 발행 코스', '설명입니다', 'https://img/cover.jpg', 'CAFETOUR', true, 'PUBLIC', 1200);
+INSERT INTO courses (user_id, title, description, cover_image_url, is_published, visibility, tracings_cnt)
+VALUES (1, '공개 발행 코스', '설명입니다', 'https://img/cover.jpg', true, 'PUBLIC', 1200);
+INSERT INTO course_categories (course_id, category) VALUES (1, 'CAFETOUR');
 
 -- course 2: 비공개(PRIVATE)·임시저장 코스, 소유자 1. 공개범위/편집 및 초안 목록 테스트 대상(수정일이 더 오래됨).
 INSERT INTO courses (user_id, title, is_published, visibility, created_at, updated_at)

@@ -46,7 +46,7 @@ class CourseSearchService(
             authorId = row.authorId,
             title = row.title,
             coverImageUrl = row.coverImageUrl,
-            theme = row.theme,
+            themes = row.themes,
             area = row.area,
             likesCnt = row.likesCnt,
             savesCnt = row.savesCnt,

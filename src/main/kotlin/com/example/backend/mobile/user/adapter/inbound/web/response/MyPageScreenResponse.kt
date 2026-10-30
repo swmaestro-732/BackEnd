@@ -49,6 +49,7 @@ data class MyPageScreenResponse(
                             title = "한남동 갤러리 하나씩 도장깨기",
                             coverImageUrl = "https://images.unsplash.com/photo-1554118811-1e0d58224f24?w=600",
                             theme = "CULTURE",
+                            themes = listOf("CULTURE"),
                             likesCnt = 42,
                             savesCnt = 17,
                             createdAt = Instant.parse("2026-03-10T02:00:00Z"),
@@ -93,12 +94,13 @@ data class MyPageProfileResponse(
     }
 }
 
-/** 마이페이지 코스 카드 — 작성자의 발행 코스 요약([AuthoredCourse]). theme 은 카테고리 이름. */
+/** 마이페이지 코스 카드 — 작성자의 발행 코스 요약([AuthoredCourse]). themes 는 카테고리 이름들, theme 은 그 첫 값. */
 data class MyPageCourseResponse(
     val id: String,
     val title: String,
     val coverImageUrl: String?,
     val theme: String?,
+    val themes: List<String>,
     val likesCnt: Int,
     val savesCnt: Int,
     val createdAt: Instant,
@@ -109,7 +111,8 @@ data class MyPageCourseResponse(
                 id = summary.id.toString(),
                 title = summary.title,
                 coverImageUrl = summary.coverImageUrl,
-                theme = summary.theme,
+                theme = summary.themes.firstOrNull(),
+                themes = summary.themes,
                 likesCnt = summary.likesCnt,
                 savesCnt = summary.savesCnt,
                 createdAt = summary.createdAt,

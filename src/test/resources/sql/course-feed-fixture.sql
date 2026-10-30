@@ -10,12 +10,12 @@ INSERT INTO users (nickname)
 VALUES ('작성자'), ('유저2'), ('유저3'), ('유저4'), ('유저5');
 
 -- course 1: PUBLIC 발행, 가장 최신. 저장 1건.
-INSERT INTO courses (user_id, title, cover_image_url, category, is_published, visibility, saves_cnt, created_at)
-VALUES (1, '공개 최신 코스', 'https://img/c1.jpg', 'CAFETOUR', true, 'PUBLIC', 1, '2026-07-30T00:00:00Z');
+INSERT INTO courses (user_id, title, cover_image_url, is_published, visibility, saves_cnt, created_at)
+VALUES (1, '공개 최신 코스', 'https://img/c1.jpg', true, 'PUBLIC', 1, '2026-07-30T00:00:00Z');
 
 -- course 2: PUBLIC 발행, 두 번째로 최신이지만 저장 5건 → 피드 1위(저장수 우선).
-INSERT INTO courses (user_id, title, cover_image_url, category, area, is_published, visibility, saves_cnt, created_at)
-VALUES (1, '공개 인기 코스', 'https://img/c2.jpg', 'CAFETOUR', '성수', true, 'PUBLIC', 5, '2026-07-29T00:00:00Z');
+INSERT INTO courses (user_id, title, cover_image_url, area, is_published, visibility, saves_cnt, created_at)
+VALUES (1, '공개 인기 코스', 'https://img/c2.jpg', '성수', true, 'PUBLIC', 5, '2026-07-29T00:00:00Z');
 
 -- course 3: PRIVATE 발행 → 피드 제외.
 INSERT INTO courses (user_id, title, is_published, visibility, created_at)
@@ -30,8 +30,11 @@ INSERT INTO courses (user_id, title, is_published, visibility, created_at)
 VALUES (1, '공개 임시저장 코스', false, 'PUBLIC', '2026-07-26T00:00:00Z');
 
 -- course 6: PUBLIC 발행, 가장 오래됨. 저장 0건 → 피드 최하위.
-INSERT INTO courses (user_id, title, cover_image_url, category, is_published, visibility, saves_cnt, created_at)
-VALUES (1, '공개 오래된 코스', 'https://img/c6.jpg', 'CAFETOUR', true, 'PUBLIC', 0, '2026-07-25T00:00:00Z');
+INSERT INTO courses (user_id, title, cover_image_url, is_published, visibility, saves_cnt, created_at)
+VALUES (1, '공개 오래된 코스', 'https://img/c6.jpg', true, 'PUBLIC', 0, '2026-07-25T00:00:00Z');
+
+-- 공개 발행 코스(1·2·6)의 카테고리.
+INSERT INTO course_categories (course_id, category) VALUES (1, 'CAFETOUR'), (2, 'CAFETOUR'), (6, 'CAFETOUR');
 
 -- 저장 기록(정합성용): course 2 를 5명이, course 1 을 1명이 저장. course 6 은 저장 없음.
 INSERT INTO saved_courses (user_id, course_id, created_at)

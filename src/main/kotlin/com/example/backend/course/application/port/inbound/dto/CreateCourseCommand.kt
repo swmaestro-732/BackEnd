@@ -4,11 +4,12 @@ import com.example.backend.common.domain.CourseVisibility
 import com.example.backend.course.application.port.outbound.CourseDetailRow
 import com.example.backend.course.application.port.outbound.PlaceRef
 import com.example.backend.course.domain.model.Course
+import com.example.backend.course.domain.model.CourseCategory
 import com.example.backend.course.domain.model.CoursePlace
 
 /**
  * 코스 생성 명령(애플리케이션 경계 타입). 웹 요청(CreateCourseRequest)에서 매핑된다.
- * coverImageUrl 은 요청의 thumbnailUrl(코스 커버). category 는 담은 장소들의 카테고리로 서비스가 도출한다.
+ * coverImageUrl 은 요청의 thumbnailUrl(코스 커버). categories 는 작성자가 고른 코스 카테고리(v2), null 이면 담은 장소들로 도출한다(v1).
  * [duplicatedFromId] 가 있으면 코스 복제 — 원본에서 가져오는 건 장소 구성뿐이라 필드는 일반 생성과 같다.
  */
 data class CreateCourseCommand(
@@ -20,6 +21,7 @@ data class CreateCourseCommand(
     val visibility: CourseVisibility,
     val isPublished: Boolean,
     val duplicatedFromId: Long?,
+    val categories: List<CourseCategory>?,
     val places: List<CreateCoursePlaceCommand>,
 )
 
@@ -35,7 +37,7 @@ data class CreateCoursePlaceCommand(
 /**
  * 코스 편집 명령(애플리케이션 경계 타입). 웹 요청(EditCourseRequest)에서 매핑된다.
  * 편집은 전체 치환(full replacement)이라 코스 생성과 필드가 같고, 대상 코스 [courseId] 와
- * 요청자 [userId](소유권 검증용)를 더 받는다. category 는 담은 장소들의 카테고리로 서비스가 도출한다.
+ * 요청자 [userId](소유권 검증용)를 더 받는다.
  */
 data class EditCourseCommand(
     val courseId: Long,
@@ -46,6 +48,7 @@ data class EditCourseCommand(
     val tags: List<String>,
     val visibility: CourseVisibility,
     val isPublished: Boolean,
+    val categories: List<CourseCategory>?,
     val places: List<CreateCoursePlaceCommand>,
 )
 
@@ -82,6 +85,7 @@ fun CreateCourseCommand.toCourse(
         duplicatedFromId = duplicatedFromId,
         tags = tags,
         places = places,
+        categories = categories,
         placeCategoryByPlaceId = foundPlaces.associate { it.id to it.category },
         areaCode = areaCode,
         area = area,
@@ -107,8 +111,9 @@ fun EditCourseCommand.toCourse(
         duplicatedFromId = duplicatedFromId,
         tags = tags,
         places = places,
+        categories = categories,
         wasPublished = existing.isPublished,
-        existingCategory = existing.category,
+        existingCategories = existing.categories,
         placeCategoryByPlaceId = foundPlaces.associate { it.id to it.category },
         areaCode = areaCode,
         area = area,

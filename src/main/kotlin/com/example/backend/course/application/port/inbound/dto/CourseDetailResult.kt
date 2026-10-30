@@ -11,8 +11,8 @@ data class CourseDetailResult(
     val id: Long,
     val title: String,
     val coverImageUrl: String,
-    /** 코스 테마 = 카테고리(단일). 미선택 draft 는 null. */
-    val theme: String?,
+    /** 코스 테마 = 작성자가 고른 카테고리들. 미선택이면 빈 목록. */
+    val themes: List<String>,
     /** 코스 지역(예: "성수"). 미입력이면 null. */
     val area: String?,
     /**

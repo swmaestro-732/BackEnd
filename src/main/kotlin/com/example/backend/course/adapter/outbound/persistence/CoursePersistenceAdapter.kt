@@ -1,6 +1,7 @@
 package com.example.backend.course.adapter.outbound.persistence
 
 import com.example.backend.common.domain.CourseVisibility
+import com.example.backend.course.adapter.outbound.persistence.exposed.repository.CourseCategoryRepository
 import com.example.backend.course.adapter.outbound.persistence.exposed.repository.CoursePlaceRepository
 import com.example.backend.course.adapter.outbound.persistence.exposed.repository.CourseRepository
 import com.example.backend.course.adapter.outbound.persistence.exposed.repository.CourseTagRepository
@@ -18,8 +19,8 @@ import org.springframework.stereotype.Component
 /**
  * 아웃바운드 어댑터 — [CoursePersistencePort] 를 구현한다(조회·생성·편집).
  * 실제 테이블 접근은 테이블별 리포지토리([CourseRepository]·[CoursePlaceRepository]·[TagRepository]·[CourseTagRepository])에
- * 위임하고, 이 어댑터는 애그리거트 저장 순서(courses → course_places → 태그 연결)만 조율한다.
- * 편집(전체 치환)은 코스 본문을 갱신하고 기존 장소·이미지·태그 연결을 지운 뒤 요청 값으로 다시 심는다.
+ * 위임하고, 이 어댑터는 애그리거트 저장 순서(courses → course_places → 태그·카테고리 연결)만 조율한다.
+ * 편집(전체 치환)은 코스 본문을 갱신하고 기존 장소·이미지·태그·카테고리 연결을 지운 뒤 요청 값으로 다시 심는다.
  * 트랜잭션 경계는 호출하는 서비스(@Transactional)가 소유한다.
  */
 @Component
@@ -28,6 +29,7 @@ class CoursePersistenceAdapter(
     private val coursePlaceRepository: CoursePlaceRepository,
     private val tagRepository: TagRepository,
     private val courseTagRepository: CourseTagRepository,
+    private val courseCategoryRepository: CourseCategoryRepository,
 ) : CoursePersistencePort {
     override fun findCourseDetail(courseId: Long): CourseDetailRow? = courseRepository.findDetail(courseId)
 
@@ -62,19 +64,20 @@ class CoursePersistenceAdapter(
     override fun save(course: Course): Course {
         val courseEntity = courseRepository.insert(course)
         insertChildren(courseEntity.id.value, course)
-        // 자식(tags·places)은 방금 저장한 입력 애그리거트를 재사용해 조립한다(도메인은 자식의 생성 id 를 담지 않음).
-        return courseEntity.toDomain(course.tags, course.places)
+        // 자식(tags·places·categories)은 방금 저장한 입력 애그리거트를 재사용해 조립한다(도메인은 자식의 생성 id 를 담지 않음).
+        return courseEntity.toDomain(course.tags, course.places, course.categories)
     }
 
     override fun update(course: Course): Course {
         val courseId = checkNotNull(course.id) { "영속화된 Course 는 id 를 가진다." }
         val courseEntity = courseRepository.update(course)
-        // 전체 치환 — 기존 장소·이미지·태그 연결을 지우고 요청 값으로 다시 심는다.
+        // 전체 치환 — 기존 장소·이미지·태그·카테고리 연결을 지우고 요청 값으로 다시 심는다.
         coursePlaceRepository.deleteByCourseId(courseId)
         courseTagRepository.deleteByCourseId(courseId)
+        courseCategoryRepository.deleteByCourseId(courseId)
         insertChildren(courseId, course)
-        // 자식(tags·places)은 방금 저장한 입력 애그리거트를 재사용해 조립한다(도메인은 자식의 생성 id 를 담지 않음).
-        return courseEntity.toDomain(course.tags, course.places)
+        // 자식(tags·places·categories)은 방금 저장한 입력 애그리거트를 재사용해 조립한다(도메인은 자식의 생성 id 를 담지 않음).
+        return courseEntity.toDomain(course.tags, course.places, course.categories)
     }
 
     override fun softDelete(courseId: Long): Int = courseRepository.softDelete(courseId)
@@ -108,16 +111,21 @@ class CoursePersistenceAdapter(
         val entities = courseRepository.findForIndex(afterId, limit)
         // 재색인 문서도 태그 검색 대상이 되도록 태그를 채운다(태그를 비우면 재색인분이 태그 필터에서 누락).
         // 페이지의 코스 id 를 모아 태그를 배치로 읽어 N+1 을 피한다. 장소는 색인 문서에 쓰지 않아 비운다.
-        val tagsByCourse = courseTagRepository.findNamesByCourseIds(entities.map { it.id.value })
-        return entities.map { it.toDomain(tagsByCourse[it.id.value] ?: emptyList(), emptyList()) }
+        val courseIds = entities.map { it.id.value }
+        val tagsByCourse = courseTagRepository.findNamesByCourseIds(courseIds)
+        val categoriesByCourse = courseCategoryRepository.findByCourseIds(courseIds)
+        return entities.map {
+            it.toDomain(tagsByCourse[it.id.value].orEmpty(), emptyList(), categoriesByCourse[it.id.value].orEmpty())
+        }
     }
 
-    /** 코스에 담긴 장소·이미지와 태그 연결을 심는다(생성·편집 공용) — 테이블별 배치 insert 로 왕복을 줄인다. */
+    /** 코스에 담긴 장소·이미지와 태그·카테고리 연결을 심는다(생성·편집 공용) — 테이블별 배치 insert 로 왕복을 줄인다. */
     private fun insertChildren(
         courseId: Long,
         course: Course,
     ) {
         coursePlaceRepository.insertAll(courseId, course.places)
         courseTagRepository.linkAll(courseId, tagRepository.findOrCreateAll(course.tags))
+        courseCategoryRepository.insertAll(courseId, course.categories)
     }
 }

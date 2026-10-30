@@ -18,7 +18,7 @@ data class Course private constructor(
     val title: String,
     val description: String?,
     val coverImageUrl: String?,
-    val category: CourseCategory?,
+    val categories: List<CourseCategory>,
     val area: String?,
     val areaCode: String?,
     val visitDate: LocalDate?,
@@ -112,6 +112,7 @@ data class Course private constructor(
             return signature(storedPlaces) != signature(newPlaces)
         }
 
+        /** [categories] 가 null 이면(v1 요청) 담은 장소들로 도출한다. */
         fun create(
             userId: Long,
             title: String,
@@ -122,12 +123,12 @@ data class Course private constructor(
             duplicatedFromId: Long?,
             tags: List<String>,
             places: List<CoursePlace>,
+            categories: List<CourseCategory>?,
             placeCategoryByPlaceId: Map<Long, String>,
             areaCode: String?,
             area: String?,
-        ): Course {
-            val category = deriveCategory(isPublished, places, placeCategoryByPlaceId)
-            return build(
+        ): Course =
+            build(
                 id = null,
                 userId = userId,
                 title = title,
@@ -138,12 +139,12 @@ data class Course private constructor(
                 duplicatedFromId = duplicatedFromId,
                 tags = tags,
                 places = places,
-                category = category,
+                categories = categories ?: deriveCategories(isPublished, places, placeCategoryByPlaceId),
                 areaCode = areaCode,
                 area = area,
             )
-        }
 
+        /** [categories] 가 null 이면(v1 요청) 장소들로 도출한다 — 발행 상태를 유지하는 코스는 기존 카테고리를 보존한다. */
         fun edit(
             id: Long,
             userId: Long,
@@ -155,17 +156,19 @@ data class Course private constructor(
             duplicatedFromId: Long?,
             tags: List<String>,
             places: List<CoursePlace>,
+            categories: List<CourseCategory>?,
             wasPublished: Boolean,
-            existingCategory: CourseCategory?,
+            existingCategories: List<CourseCategory>,
             placeCategoryByPlaceId: Map<Long, String>,
             areaCode: String?,
             area: String?,
         ): Course {
-            val category =
+            val resolvedCategories =
                 when {
-                    !isPublished -> null
-                    wasPublished && existingCategory != null -> existingCategory
-                    else -> deriveCategory(true, places, placeCategoryByPlaceId)
+                    categories != null -> categories
+                    !isPublished -> emptyList()
+                    wasPublished && existingCategories.isNotEmpty() -> existingCategories
+                    else -> deriveCategories(true, places, placeCategoryByPlaceId)
                 }
 
             return build(
@@ -179,13 +182,13 @@ data class Course private constructor(
                 duplicatedFromId = duplicatedFromId,
                 tags = tags,
                 places = places,
-                category = category,
+                categories = resolvedCategories,
                 areaCode = areaCode,
                 area = area,
             )
         }
 
-        /** 생성·편집 공통 — 도메인 불변식을 강제해 애그리거트를 만든다(카테고리·지역코드는 호출부가 도출·결정). */
+        /** 생성·편집 공통 — 도메인 불변식을 강제해 애그리거트를 만든다(지역코드는 호출부가 도출·결정). */
         @Suppress("LongParameterList")
         private fun build(
             id: Long?,
@@ -198,7 +201,7 @@ data class Course private constructor(
             duplicatedFromId: Long?,
             tags: List<String>,
             places: List<CoursePlace>,
-            category: CourseCategory?,
+            categories: List<CourseCategory>,
             areaCode: String?,
             area: String?,
         ): Course {
@@ -227,7 +230,8 @@ data class Course private constructor(
                 title = title,
                 description = description,
                 coverImageUrl = coverImageUrl,
-                category = category,
+                // 조회(course_categories)와 같은 enum 선언 순으로 맞춰 저장 직후와 조회 시 theme(첫 값)이 같게 한다.
+                categories = categories.distinct().sorted(),
                 area = area,
                 areaCode = areaCode,
                 visitDate = null,
@@ -248,7 +252,7 @@ data class Course private constructor(
 
         /**
          * 영속 계층에서 읽어온 상태로 코스를 복원한다(insert 직후·조회 시). 이미 저장된 신뢰 값이라
-         * 불변식 재검증·카테고리 재도출을 하지 않고 그대로 싣는다 — [create] 와 달리 파생 없이 전부 주입한다.
+         * 불변식 재검증을 하지 않고 그대로 싣는다 — [create] 와 달리 파생 없이 전부 주입한다.
          * copy() 가 막혀 있어(팩토리 우회 차단) id·DB 생성값을 채운 [Course] 를 만드는 유일한 통로다.
          */
         @Suppress("LongParameterList")
@@ -259,7 +263,7 @@ data class Course private constructor(
             title: String,
             description: String?,
             coverImageUrl: String?,
-            category: CourseCategory?,
+            categories: List<CourseCategory>,
             area: String?,
             areaCode: String?,
             visitDate: LocalDate?,
@@ -283,7 +287,7 @@ data class Course private constructor(
                 title = title,
                 description = description,
                 coverImageUrl = coverImageUrl,
-                category = category,
+                categories = categories,
                 area = area,
                 areaCode = areaCode,
                 visitDate = visitDate,
@@ -302,23 +306,23 @@ data class Course private constructor(
             )
 
         /**
-         * 코스 카테고리 도출 규칙 — 발행 코스만 담은 장소들의 카테고리로 정한다(임시저장은 null).
+         * v1 요청의 코스 카테고리 도출 규칙 — 발행 코스만 담은 장소들의 카테고리로 정한다(임시저장은 빈 목록).
          * 장소를 orderNo 순으로 정렬해 각 장소의 카테고리(placeId→PlaceCategory 이름)를 모으고,
-         * [CourseCategory.fromPlaceCategoryNames] 로 최빈값을 고른다.
+         * [CourseCategory.fromPlaceCategoryNames] 로 최빈값 하나를 고른다.
          */
-        private fun deriveCategory(
+        private fun deriveCategories(
             isPublished: Boolean,
             places: List<CoursePlace>,
             placeCategoryByPlaceId: Map<Long, String>,
-        ): CourseCategory? {
-            if (!isPublished) return null
+        ): List<CourseCategory> {
+            if (!isPublished) return emptyList()
             val orderedNames = places.sortedBy { it.orderNo }.mapNotNull { placeCategoryByPlaceId[it.placeId] }
-            return CourseCategory.fromPlaceCategoryNames(orderedNames)
+            return listOfNotNull(CourseCategory.fromPlaceCategoryNames(orderedNames))
         }
 
         /**
          * 코스 지역코드(법정동코드 10자리) 도출 규칙 — 발행 코스만 담은 장소들의 지역으로 정한다(임시저장은 null).
-         * [deriveCategory] 와 같은 최빈값 규칙을 시군구(코드 앞 5자리) 레벨에 적용한다:
+         * [deriveCategories] 와 같은 최빈값 규칙을 시군구(코드 앞 5자리) 레벨에 적용한다:
          * orderNo 순으로 장소의 법정동코드를 모아 최다 빈도 시군구를 고르고(동률은 앞선 장소 우선),
          * 그 시군구 안 장소들이 모두 같은 읍면동이면 동 코드(10자리)로 세분화, 아니면 시군구 코드 + "00000" 패딩.
          */
@@ -333,7 +337,7 @@ data class Course private constructor(
 
             val sigunguCounts = orderedCodes.groupingBy { it.take(SIGUNGU_CODE_LENGTH) }.eachCount()
             val maxCount = sigunguCounts.values.max()
-            // orderNo 오름차순으로 순회하며 최다 빈도 시군구 중 먼저 나온 것 → 동률은 앞선 장소 우선(카테고리와 동일).
+            // orderNo 오름차순으로 순회하며 최다 빈도 시군구 중 먼저 나온 것 → 동률은 앞선 장소 우선.
             val sigungu =
                 orderedCodes.map { it.take(SIGUNGU_CODE_LENGTH) }.first { sigunguCounts.getValue(it) == maxCount }
 
@@ -343,7 +347,6 @@ data class Course private constructor(
 
         /**
          * 편집 시 지역코드 결정 규칙 — 초안이면 null, 발행 상태를 유지하면 기존 코드를 보존, 그 외엔 장소들에서 재도출한다.
-         * [edit] 의 category 결정([deriveCategory])과 같은 모양의 규칙을 지역코드에 적용한다.
          */
         fun editAreaCode(
             isPublished: Boolean,

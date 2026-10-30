@@ -87,7 +87,7 @@ class CourseQueryService(
                 id = course.id,
                 title = course.title,
                 coverImageUrl = course.coverImageUrl.orEmpty(),
-                theme = course.category?.name,
+                themes = course.categories.map { it.name },
                 area = course.area,
                 // 배치 조회는 태그를 읽지 않는다(코스 상세 화면 전용) — [getDetail] 이 단건으로 채운다.
                 tags = emptyList(),
@@ -184,7 +184,7 @@ class CourseQueryService(
         authorId = row.userId,
         title = row.title,
         coverImageUrl = row.coverImageUrl,
-        theme = row.category?.name,
+        themes = row.categories.map { it.name },
         area = row.area,
         likesCnt = row.likesCnt,
         savesCnt = row.savesCnt,

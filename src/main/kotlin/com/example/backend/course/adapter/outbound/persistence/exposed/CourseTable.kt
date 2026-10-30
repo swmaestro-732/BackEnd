@@ -26,7 +26,6 @@ internal object CourseTable : LongIdTable("courses") {
     val title = varchar("title", 200)
     val coverImageUrl = text("cover_image_url").nullable()
     val description = text("description").nullable()
-    val category = enumerationByName<CourseCategory>("category", 50).nullable()
     val area = varchar("area", 100).nullable()
 
     // 법정동코드 10자리(V12). sigungu_code 는 DB 파생 컬럼(앞 5자리 자동 계산)이라 매핑하지 않는다.
@@ -83,7 +82,6 @@ internal class CourseEntity(
     var title by CourseTable.title
     var coverImageUrl by CourseTable.coverImageUrl
     var description by CourseTable.description
-    var category by CourseTable.category
     var area by CourseTable.area
     var areaCode by CourseTable.areaCode
     var visitDate by CourseTable.visitDate
@@ -97,12 +95,13 @@ internal class CourseEntity(
 
     /**
      * DAO 엔티티를 도메인 [Course] 로 변환한다. courses 컬럼(생성된 id·DB 생성값 포함)은 엔티티가,
-     * 자식(tags·places)은 인자로 받아 조립한다 — 도메인은 자식의 생성 id 를 담지 않아 입력 애그리거트를 재사용한다.
+     * 자식(tags·places·categories)은 인자로 받아 조립한다 — 도메인은 자식의 생성 id 를 담지 않아 입력 애그리거트를 재사용한다.
      * DB 생성값(created_at·updated_at·카운터)은 insert 후 [refresh] 로 적재된 뒤라야 정확하다.
      */
     fun toDomain(
         tags: List<String>,
         places: List<CoursePlace>,
+        categories: List<CourseCategory>,
     ): Course =
         Course.reconstitute(
             id = id.value,
@@ -111,7 +110,7 @@ internal class CourseEntity(
             title = title,
             description = description,
             coverImageUrl = coverImageUrl,
-            category = category,
+            categories = categories,
             area = area,
             areaCode = areaCode,
             visitDate = visitDate,

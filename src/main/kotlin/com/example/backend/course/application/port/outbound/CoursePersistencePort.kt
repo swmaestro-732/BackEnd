@@ -15,8 +15,8 @@ data class CourseDetailRow(
     val title: String,
     val coverImageUrl: String?,
     val description: String?,
-    /** 코스 카테고리(응답 theme 의 출처). 미선택 draft 는 null. */
-    val category: CourseCategory?,
+    /** 코스 카테고리(응답 themes 의 출처, enum 선언 순). 미선택이면 빈 목록. */
+    val categories: List<CourseCategory>,
     /** 코스 지역(예: "성수"). 미입력이면 null. */
     val area: String?,
     /** 코스 지역 법정동코드 10자리(시군구 레벨은 뒤 0 패딩). 미도출이면 null. 편집 시 유지/재도출 판정에 쓰인다. */
@@ -39,7 +39,7 @@ data class CourseSummaryRow(
     val userId: Long,
     val title: String,
     val coverImageUrl: String?,
-    val category: CourseCategory?,
+    val categories: List<CourseCategory>,
     /** 코스 지역(예: "성수"). 미입력이면 null. */
     val area: String?,
     val visibility: CourseVisibility,
@@ -118,12 +118,12 @@ interface CoursePersistencePort {
     /** 여러 코스의 장소 집계를 group by 한 번으로 읽는다(카드 메타). 장소가 없는 코스는 결과에서 빠진다. */
     fun findPlaceStats(courseIds: List<Long>): Map<Long, CoursePlaceStats>
 
-    /** 코스 애그리거트(코스·장소·이미지·태그)를 한 트랜잭션으로 저장하고, 저장된 코스(생성 id·DB 생성값 포함)를 반환한다. */
+    /** 코스 애그리거트(코스·장소·이미지·태그·카테고리)를 한 트랜잭션으로 저장하고, 저장된 코스(생성 id·DB 생성값 포함)를 반환한다. */
     fun save(course: Course): Course
 
     /**
      * 이미 영속화된 코스([Course.id] 필수)를 전체 치환한다 — 코스 본문을 갱신하고
-     * 장소·이미지·태그 연결을 지운 뒤 요청 값으로 다시 심고, 갱신된 코스(DB 생성값 포함)를 반환한다(한 트랜잭션).
+     * 장소·이미지·태그·카테고리 연결을 지운 뒤 요청 값으로 다시 심고, 갱신된 코스(DB 생성값 포함)를 반환한다(한 트랜잭션).
      */
     fun update(course: Course): Course
 

@@ -56,6 +56,7 @@ data class EditCourseRequest(
             tags = tags,
             visibility = visibility,
             isPublished = isPublished,
+            categories = null,
             places =
                 places.map {
                     CreateCoursePlaceCommand(
