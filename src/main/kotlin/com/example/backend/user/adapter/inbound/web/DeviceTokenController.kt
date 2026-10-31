@@ -3,6 +3,7 @@ package com.example.backend.user.adapter.inbound.web
 import com.example.backend.bootstrap.appversion.AppPlatform
 import com.example.backend.bootstrap.appversion.AppVersionInterceptor.Companion.BUILD_HEADER
 import com.example.backend.bootstrap.appversion.AppVersionInterceptor.Companion.PLATFORM_HEADER
+import com.example.backend.bootstrap.appversion.CurrentDeviceId
 import com.example.backend.bootstrap.security.AccessTokenRequired
 import com.example.backend.bootstrap.security.CurrentUserId
 import com.example.backend.common.exception.BusinessException
@@ -29,19 +30,14 @@ class DeviceTokenController(
     @AccessTokenRequired
     fun register(
         @CurrentUserId userId: Long,
+        @CurrentDeviceId deviceId: String,
         @Valid @RequestBody request: DeviceTokenRequest,
-        @RequestHeader(DEVICE_ID_HEADER, required = false) deviceId: String?,
         @RequestHeader(PLATFORM_HEADER, required = false) platform: String?,
         @RequestHeader(BUILD_HEADER, required = false) appBuild: String?,
         @RequestParam(required = false) mock: Boolean = false,
     ): ApiResponse<Nothing?> {
         val command =
-            RegisterDeviceTokenCommand(
-                requireDeviceId(deviceId),
-                request.fcmToken,
-                parsePlatform(platform),
-                parseBuild(appBuild),
-            )
+            RegisterDeviceTokenCommand(deviceId, request.fcmToken, parsePlatform(platform), parseBuild(appBuild))
         if (!mock) deviceTokenUseCase.register(userId, command)
         return ApiResponse.ok()
     }
@@ -50,19 +46,11 @@ class DeviceTokenController(
     @AccessTokenRequired
     fun unregister(
         @CurrentUserId userId: Long,
-        @RequestHeader(DEVICE_ID_HEADER, required = false) deviceId: String?,
+        @CurrentDeviceId deviceId: String,
         @RequestParam(required = false) mock: Boolean = false,
     ): ApiResponse<Nothing?> {
-        val id = requireDeviceId(deviceId)
-        if (!mock) deviceTokenUseCase.unregister(userId, id)
+        if (!mock) deviceTokenUseCase.unregister(userId, deviceId)
         return ApiResponse.ok()
-    }
-
-    private fun requireDeviceId(value: String?): String {
-        if (value.isNullOrBlank() || value.length > MAX_DEVICE_ID_LENGTH) {
-            throw BusinessException(CommonErrorCode.INVALID_INPUT, "$DEVICE_ID_HEADER 헤더가 비었거나 너무 깁니다.")
-        }
-        return value
     }
 
     private fun parsePlatform(value: String?): String? =
@@ -74,10 +62,4 @@ class DeviceTokenController(
         value?.let {
             it.toIntOrNull() ?: throw BusinessException(CommonErrorCode.INVALID_APP_HEADER)
         }
-
-    companion object {
-        /** 기기 식별자. Android 는 Firebase Installation ID 를 보낸다. */
-        const val DEVICE_ID_HEADER = "X-Device-Id"
-        private const val MAX_DEVICE_ID_LENGTH = 128
-    }
 }
