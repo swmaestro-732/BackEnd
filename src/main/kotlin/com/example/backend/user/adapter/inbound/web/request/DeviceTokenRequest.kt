@@ -1,4 +1,4 @@
-package com.example.backend.notification.adapter.inbound.web.request
+package com.example.backend.user.adapter.inbound.web.request
 
 import jakarta.validation.constraints.NotBlank
 import jakarta.validation.constraints.Size

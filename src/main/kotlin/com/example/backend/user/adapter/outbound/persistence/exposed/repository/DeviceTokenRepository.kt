@@ -1,7 +1,7 @@
-package com.example.backend.notification.adapter.outbound.persistence.exposed.repository
+package com.example.backend.user.adapter.outbound.persistence.exposed.repository
 
-import com.example.backend.notification.adapter.outbound.persistence.exposed.DeviceTokenTable
-import com.example.backend.notification.application.port.inbound.dto.RegisterDeviceTokenCommand
+import com.example.backend.user.adapter.outbound.persistence.exposed.DeviceTokenTable
+import com.example.backend.user.application.port.inbound.dto.RegisterDeviceTokenCommand
 import org.jetbrains.exposed.v1.core.and
 import org.jetbrains.exposed.v1.core.eq
 import org.jetbrains.exposed.v1.jdbc.deleteWhere

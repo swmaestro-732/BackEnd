@@ -1,6 +1,6 @@
-package com.example.backend.notification.application.port.outbound
+package com.example.backend.user.application.port.outbound
 
-import com.example.backend.notification.application.port.inbound.dto.RegisterDeviceTokenCommand
+import com.example.backend.user.application.port.inbound.dto.RegisterDeviceTokenCommand
 
 interface DeviceTokenPersistencePort {
     fun upsert(

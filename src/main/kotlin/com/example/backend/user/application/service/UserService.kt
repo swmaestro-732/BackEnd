@@ -5,8 +5,8 @@ import com.example.backend.common.response.UserErrorCode
 import com.example.backend.user.application.port.inbound.UserUseCase
 import com.example.backend.user.application.port.inbound.dto.UserProfileResult
 import com.example.backend.user.application.port.outbound.CourseCleanupPort
+import com.example.backend.user.application.port.outbound.DeviceTokenPersistencePort
 import com.example.backend.user.application.port.outbound.FollowPersistencePort
-import com.example.backend.user.application.port.outbound.NotificationCleanupPort
 import com.example.backend.user.application.port.outbound.RefreshTokenPort
 import com.example.backend.user.application.port.outbound.SavedCoursePersistencePort
 import com.example.backend.user.application.port.outbound.UserAreaPersistencePort
@@ -31,7 +31,7 @@ class UserService(
     private val userAreaPersistencePort: UserAreaPersistencePort,
     private val userLikeThemePort: UserLikeThemePort,
     private val courseCleanupPort: CourseCleanupPort,
-    private val notificationCleanupPort: NotificationCleanupPort,
+    private val deviceTokenPersistencePort: DeviceTokenPersistencePort,
 ) : UserUseCase {
     override fun getProfile(
         userId: Long,
@@ -101,13 +101,6 @@ class UserService(
         handle.lowercase() !in RESERVED_HANDLES && !userPersistencePort.existsByHandle(handle)
 
     @Transactional
-    override fun lockActive(userId: Long) {
-        if (userId !in userPersistencePort.lockActive(listOf(userId))) {
-            throw BusinessException(UserErrorCode.USER_NOT_FOUND, "사용자를 찾을 수 없습니다: id=$userId")
-        }
-    }
-
-    @Transactional
     override fun withdraw(userId: Long) {
         // 이 사용자 행을 먼저 FOR UPDATE 로 잠가, 탈퇴 정리 도중 유입되는 이 사용자 대상 쓰기(팔로우·저장)를 직렬화한다.
         // (같은 행 잠금을 follow/save 도 획득 → 정리 후 유입분이 잔여 행·카운터를 남기지 못한다.)
@@ -129,8 +122,8 @@ class UserService(
         courseCleanupPort.purgeTracesByUser(userId)
         // 2) 팔로우: 양방향 삭제 + 상대 카운터 보정.
         followPersistencePort.purgeFollowsOf(userId)
-        // 2-1) 알림: 기기 토큰을 지운다.
-        notificationCleanupPort.purgeByUser(userId)
+        // 2-1) 기기 토큰(FCM): 이 사용자의 기기를 모두 지운다.
+        deviceTokenPersistencePort.deleteAllByUser(userId)
         // 3) 관심 지역·테마: 빈 목록으로 전체 치환(=전부 삭제).
         userAreaPersistencePort.replaceAreas(userId, emptyList())
         userLikeThemePort.replaceLikeThemes(userId, emptyList())

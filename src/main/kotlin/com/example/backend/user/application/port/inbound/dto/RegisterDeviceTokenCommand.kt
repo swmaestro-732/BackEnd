@@ -1,4 +1,4 @@
-package com.example.backend.notification.application.port.inbound.dto
+package com.example.backend.user.application.port.inbound.dto
 
 data class RegisterDeviceTokenCommand(
     val token: String,

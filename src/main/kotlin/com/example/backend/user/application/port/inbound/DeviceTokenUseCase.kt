@@ -1,6 +1,6 @@
-package com.example.backend.notification.application.port.inbound
+package com.example.backend.user.application.port.inbound
 
-import com.example.backend.notification.application.port.inbound.dto.RegisterDeviceTokenCommand
+import com.example.backend.user.application.port.inbound.dto.RegisterDeviceTokenCommand
 
 interface DeviceTokenUseCase {
     fun register(

@@ -1,7 +1,7 @@
-package com.example.backend.notification
+package com.example.backend.user
 
-import com.example.backend.notification.adapter.inbound.web.request.DeviceTokenRequest
-import com.example.backend.notification.application.port.inbound.dto.RegisterDeviceTokenCommand
+import com.example.backend.user.adapter.inbound.web.request.DeviceTokenRequest
+import com.example.backend.user.application.port.inbound.dto.RegisterDeviceTokenCommand
 import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test

@@ -1,4 +1,4 @@
-package com.example.backend.notification.adapter.inbound.web
+package com.example.backend.user.adapter.inbound.web
 
 import com.example.backend.bootstrap.security.JwtTokenProvider
 import com.example.backend.support.IntegrationTestBase

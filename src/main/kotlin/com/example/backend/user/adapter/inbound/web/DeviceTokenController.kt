@@ -1,4 +1,4 @@
-package com.example.backend.notification.adapter.inbound.web
+package com.example.backend.user.adapter.inbound.web
 
 import com.example.backend.bootstrap.appversion.AppPlatform
 import com.example.backend.bootstrap.appversion.AppVersionInterceptor.Companion.BUILD_HEADER
@@ -8,9 +8,9 @@ import com.example.backend.bootstrap.security.CurrentUserId
 import com.example.backend.common.exception.BusinessException
 import com.example.backend.common.response.ApiResponse
 import com.example.backend.common.response.CommonErrorCode
-import com.example.backend.notification.adapter.inbound.web.request.DeviceTokenRequest
-import com.example.backend.notification.application.port.inbound.DeviceTokenUseCase
-import com.example.backend.notification.application.port.inbound.dto.RegisterDeviceTokenCommand
+import com.example.backend.user.adapter.inbound.web.request.DeviceTokenRequest
+import com.example.backend.user.application.port.inbound.DeviceTokenUseCase
+import com.example.backend.user.application.port.inbound.dto.RegisterDeviceTokenCommand
 import jakarta.validation.Valid
 import org.springframework.web.bind.annotation.DeleteMapping
 import org.springframework.web.bind.annotation.PutMapping
