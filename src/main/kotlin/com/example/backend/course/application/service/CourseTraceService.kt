@@ -21,6 +21,7 @@ import com.example.backend.course.application.port.outbound.WalkingRoutePort
 import com.example.backend.course.domain.model.CourseStatus
 import com.example.backend.course.domain.model.CourseTraceStatus
 import org.springframework.stereotype.Service
+import org.springframework.transaction.annotation.Propagation
 import org.springframework.transaction.annotation.Transactional
 import java.time.Instant
 
@@ -95,6 +96,11 @@ class CourseTraceService(
         }
     }
 
+    /**
+     * 외부 경로 API(Tmap) 호출을 DB 트랜잭션 밖에서 한다 — 응답이 느려도 커넥션을 쥐지 않게.
+     * 장소 조회는 place 도메인 서비스가 자체 읽기 트랜잭션을 연다.
+     */
+    @Transactional(propagation = Propagation.NOT_SUPPORTED)
     override fun findRoute(
         fromPlaceId: Long,
         toPlaceId: Long,
