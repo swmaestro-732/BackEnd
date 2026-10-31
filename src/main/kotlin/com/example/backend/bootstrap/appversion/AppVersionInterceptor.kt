@@ -52,7 +52,7 @@ class AppVersionInterceptor(
         handler.getMethodAnnotation(RequiresAppFeature::class.java)?.value
             ?: handler.beanType.getAnnotation(RequiresAppFeature::class.java)?.value
 
-    private companion object {
+    companion object {
         const val BUILD_HEADER = "X-App-Build"
         const val PLATFORM_HEADER = "X-App-Platform"
     }
