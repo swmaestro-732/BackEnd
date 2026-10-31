@@ -18,6 +18,8 @@ import org.junit.jupiter.api.assertThrows
 import org.mockito.Mockito.mock
 import org.mockito.Mockito.verifyNoInteractions
 import org.mockito.Mockito.`when`
+import org.springframework.context.ApplicationEventPublisher
+import java.time.Clock
 
 /**
  * [CourseTraceService.findRoute] 단위 테스트 — 포트를 목으로 대체해 서비스 규칙만 검증한다.
@@ -34,6 +36,8 @@ class CourseTraceServiceTest {
             courseViewPolicy = mock(CourseViewPolicy::class.java),
             placeLookupPort = placeLookupPort,
             walkingRoutePort = walkingRoutePort,
+            eventPublisher = mock(ApplicationEventPublisher::class.java),
+            clock = Clock.systemUTC(),
         )
 
     private val fromPlace = placeRef(22L, "어니언 성수", Coordinate(latitude = 37.5446, longitude = 127.0559))

@@ -6,6 +6,7 @@ import com.example.backend.common.response.CourseErrorCode
 import com.example.backend.course.application.port.inbound.CourseQueryUseCase
 import com.example.backend.course.application.port.inbound.dto.AuthorCourseCursor
 import com.example.backend.course.application.port.inbound.dto.CourseDetailResult
+import com.example.backend.course.application.port.inbound.dto.CourseOwnerSummary
 import com.example.backend.course.application.port.inbound.dto.CoursePlaceImageResult
 import com.example.backend.course.application.port.inbound.dto.CoursePlaceResult
 import com.example.backend.course.application.port.inbound.dto.CourseSummary
@@ -36,6 +37,9 @@ class CourseQueryService(
     private val viewerInteractionPort: ViewerInteractionPort,
     private val courseViewPolicy: CourseViewPolicy,
 ) : CourseQueryUseCase {
+    override fun findOwnerSummaries(courseIds: Collection<Long>): Map<Long, CourseOwnerSummary> =
+        coursePersistencePort.findOwnerSummaries(courseIds)
+
     override fun getDetail(
         courseId: Long,
         viewerId: Long?,

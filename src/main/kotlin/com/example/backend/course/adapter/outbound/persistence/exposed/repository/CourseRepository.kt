@@ -6,6 +6,7 @@ import com.example.backend.common.response.CourseErrorCode
 import com.example.backend.course.adapter.outbound.persistence.exposed.CourseEntity
 import com.example.backend.course.adapter.outbound.persistence.exposed.CourseTable
 import com.example.backend.course.application.port.inbound.dto.AuthorCourseCursor
+import com.example.backend.course.application.port.inbound.dto.CourseOwnerSummary
 import com.example.backend.course.application.port.inbound.dto.FeedCursor
 import com.example.backend.course.application.port.outbound.CourseDetailRow
 import com.example.backend.course.application.port.outbound.CourseSummaryRow
@@ -44,6 +45,19 @@ import kotlin.time.toKotlinInstant
  */
 @Repository
 class CourseRepository {
+    fun findOwnerSummaries(courseIds: Collection<Long>): Map<Long, CourseOwnerSummary> {
+        if (courseIds.isEmpty()) return emptyMap()
+        return CourseTable
+            .select(CourseTable.id, CourseTable.userId, CourseTable.title)
+            .where {
+                (CourseTable.id inList courseIds) and
+                    (CourseTable.status eq CourseStatus.ACTIVE) and CourseTable.deletedAt.isNull()
+            }.associate { row ->
+                val id = row[CourseTable.id].value
+                id to CourseOwnerSummary(id, row[CourseTable.userId], row[CourseTable.title])
+            }
+    }
+
     /** 코스 본문을 삽입하고, 생성값(id·created_at·카운터 등)까지 적재된 엔티티를 반환한다(엔티티는 모듈 내부 구현이라 internal). */
     internal fun insert(course: Course): CourseEntity =
         CourseEntity
