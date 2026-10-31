@@ -4,15 +4,19 @@ import com.example.backend.common.exception.BusinessException
 import com.example.backend.common.response.UserErrorCode
 import com.example.backend.user.application.port.outbound.CourseCleanupPort
 import com.example.backend.user.application.port.outbound.FollowPersistencePort
+import com.example.backend.user.application.port.outbound.NotificationCleanupPort
 import com.example.backend.user.application.port.outbound.RefreshTokenPort
 import com.example.backend.user.application.port.outbound.SavedCoursePersistencePort
 import com.example.backend.user.application.port.outbound.UserAreaPersistencePort
 import com.example.backend.user.application.port.outbound.UserLikeThemePort
 import com.example.backend.user.application.port.outbound.UserPersistencePort
+import com.example.backend.user.domain.model.User
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertThrows
 import org.junit.jupiter.api.Test
+import org.mockito.Mockito.inOrder
 import org.mockito.Mockito.mock
+import org.mockito.Mockito.verifyNoInteractions
 import org.mockito.Mockito.`when`
 
 class UserServiceTest {
@@ -23,6 +27,7 @@ class UserServiceTest {
     private val userAreaPersistencePort = mock(UserAreaPersistencePort::class.java)
     private val userLikeThemePort = mock(UserLikeThemePort::class.java)
     private val courseCleanupPort = mock(CourseCleanupPort::class.java)
+    private val notificationCleanupPort = mock(NotificationCleanupPort::class.java)
 
     private val service =
         UserService(
@@ -33,6 +38,7 @@ class UserServiceTest {
             userAreaPersistencePort = userAreaPersistencePort,
             userLikeThemePort = userLikeThemePort,
             courseCleanupPort = courseCleanupPort,
+            notificationCleanupPort = notificationCleanupPort,
         )
 
     @Test
@@ -63,5 +69,20 @@ class UserServiceTest {
         val ex = assertThrows(BusinessException::class.java) { service.withdraw(userId = 1L) }
 
         assertEquals(UserErrorCode.USER_NOT_FOUND, ex.errorCode)
+        verifyNoInteractions(notificationCleanupPort)
+    }
+
+    @Test
+    fun `withdraw - 팔로우 정리 직후 알림 토큰을 정리한다`() {
+        `when`(userPersistencePort.lockActive(listOf(1L))).thenReturn(setOf(1L))
+        `when`(userPersistencePort.findById(1L)).thenReturn(User.reconstitute(id = 1L, nickname = "탈퇴대상"))
+        `when`(savedCoursePersistencePort.findAliveSavedCourseIds(1L)).thenReturn(emptyList())
+
+        service.withdraw(1L)
+
+        val order = inOrder(followPersistencePort, notificationCleanupPort, userAreaPersistencePort)
+        order.verify(followPersistencePort).purgeFollowsOf(1L)
+        order.verify(notificationCleanupPort).purgeByUser(1L)
+        order.verify(userAreaPersistencePort).replaceAreas(1L, emptyList())
     }
 }
