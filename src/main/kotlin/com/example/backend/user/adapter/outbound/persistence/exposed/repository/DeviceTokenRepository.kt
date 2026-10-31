@@ -4,43 +4,39 @@ import com.example.backend.user.adapter.outbound.persistence.exposed.DeviceToken
 import com.example.backend.user.application.port.inbound.dto.RegisterDeviceTokenCommand
 import org.jetbrains.exposed.v1.core.and
 import org.jetbrains.exposed.v1.core.eq
+import org.jetbrains.exposed.v1.datetime.CurrentTimestamp
 import org.jetbrains.exposed.v1.jdbc.deleteWhere
-import org.jetbrains.exposed.v1.jdbc.transactions.TransactionManager
+import org.jetbrains.exposed.v1.jdbc.upsert
 import org.springframework.stereotype.Repository
 
 @Repository
 class DeviceTokenRepository {
+    /** token 유니크 충돌 시 소유자와 헤더 값을 새 요청으로 덮어쓴다(계정 전환 시 소유자 이전). */
     fun upsert(
         userId: Long,
         command: RegisterDeviceTokenCommand,
     ) {
-        TransactionManager.current().exec(
-            """
-            INSERT INTO device_tokens (user_id, token, platform, app_build)
-            VALUES (?, ?, ?, ?)
-            ON CONFLICT ON CONSTRAINT uq_device_tokens_token DO UPDATE SET
-                user_id = EXCLUDED.user_id,
-                platform = EXCLUDED.platform,
-                app_build = EXCLUDED.app_build,
-                last_seen_at = now()
-            """.trimIndent(),
-            args =
-                listOf(
-                    DeviceTokenTable.userId.columnType to userId,
-                    DeviceTokenTable.token.columnType to command.token,
-                    DeviceTokenTable.platform.columnType to command.platform,
-                    DeviceTokenTable.appBuild.columnType to command.appBuild,
-                ),
-        )
+        DeviceTokenTable.upsert(
+            DeviceTokenTable.token,
+            onUpdate = {
+                it[DeviceTokenTable.userId] = insertValue(DeviceTokenTable.userId)
+                it[DeviceTokenTable.platform] = insertValue(DeviceTokenTable.platform)
+                it[DeviceTokenTable.appBuild] = insertValue(DeviceTokenTable.appBuild)
+                it[DeviceTokenTable.lastSeenAt] = CurrentTimestamp
+            },
+        ) {
+            it[DeviceTokenTable.userId] = userId
+            it[DeviceTokenTable.token] = command.token
+            it[DeviceTokenTable.platform] = command.platform
+            it[DeviceTokenTable.appBuild] = command.appBuild
+        }
     }
 
     fun deleteByUserAndToken(
         userId: Long,
         token: String,
     ) {
-        DeviceTokenTable.deleteWhere {
-            (DeviceTokenTable.userId eq userId) and (DeviceTokenTable.token eq token)
-        }
+        DeviceTokenTable.deleteWhere { (DeviceTokenTable.userId eq userId) and (DeviceTokenTable.token eq token) }
     }
 
     fun deleteAllByUser(userId: Long) {

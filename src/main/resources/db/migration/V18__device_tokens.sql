@@ -1,7 +1,7 @@
--- 기기별 FCM 토큰. 사용자 참조는 도메인 경계를 넘어가므로 FK를 두지 않는다.
+-- 기기별 FCM 토큰. 로그인 시 등록, 로그아웃/탈퇴 시 삭제하는 계정 세션 데이터다(refresh_tokens 와 같은 성격).
 CREATE TABLE device_tokens (
     id bigserial PRIMARY KEY,
-    user_id bigint NOT NULL,
+    user_id bigint NOT NULL REFERENCES users (id),
     token varchar(4096) NOT NULL,
     platform varchar(16),
     app_build integer,
