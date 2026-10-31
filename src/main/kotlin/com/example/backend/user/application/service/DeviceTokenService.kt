@@ -28,6 +28,6 @@ class DeviceTokenService(
 
     override fun unregister(
         userId: Long,
-        token: String,
-    ) = deviceTokenPersistencePort.deleteByUserAndToken(userId, token)
+        deviceId: String,
+    ) = deviceTokenPersistencePort.deleteByUserAndDevice(userId, deviceId)
 }

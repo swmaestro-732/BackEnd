@@ -6,6 +6,7 @@ import org.jetbrains.exposed.v1.datetime.timestamp
 internal object DeviceTokenTable : Table("device_tokens") {
     val id = long("id").autoIncrement()
     val userId = long("user_id")
+    val deviceId = varchar("device_id", 128)
     val token = varchar("token", 4096)
     val platform = varchar("platform", 16).nullable()
     val appBuild = integer("app_build").nullable()

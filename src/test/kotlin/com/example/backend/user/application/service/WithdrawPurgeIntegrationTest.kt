@@ -34,8 +34,8 @@ import org.springframework.test.context.jdbc.Sql
         // C(3) — A 가 저장한 코스의 작성자.
         "INSERT INTO users (nickname, handle, status) VALUES ('유저씨', 'c_handle', 'ACTIVE')",
         "INSERT INTO follows (follower_id, following_id) VALUES (1, 2), (2, 1)",
-        "INSERT INTO device_tokens (user_id, token) VALUES " +
-            "(1, 'withdraw-device-a'), (1, 'withdraw-device-b'), (2, 'other-device')",
+        "INSERT INTO device_tokens (user_id, device_id, token) VALUES " +
+            "(1, 'fid-a', 'withdraw-device-a'), (1, 'fid-b', 'withdraw-device-b'), (2, 'fid-o', 'other-device')",
         "INSERT INTO courses (user_id, title, is_published, visibility, created_at) " +
             "VALUES (1, 'A코스1', true, 'PUBLIC', now())",
         "INSERT INTO courses (user_id, title, is_published, visibility, created_at) " +

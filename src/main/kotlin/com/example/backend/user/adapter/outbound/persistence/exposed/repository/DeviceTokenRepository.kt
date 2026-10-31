@@ -11,32 +11,34 @@ import org.springframework.stereotype.Repository
 
 @Repository
 class DeviceTokenRepository {
-    /** token 유니크 충돌 시 소유자와 헤더 값을 새 요청으로 덮어쓴다(계정 전환 시 소유자 이전). */
+    /** 기기당 한 행. 같은 기기면 토큰, 소유자, 헤더 값을 새 요청으로 덮어쓴다(토큰 갱신, 계정 전환). */
     fun upsert(
         userId: Long,
         command: RegisterDeviceTokenCommand,
     ) {
         DeviceTokenTable.upsert(
-            DeviceTokenTable.token,
+            DeviceTokenTable.deviceId,
             onUpdate = {
                 it[DeviceTokenTable.userId] = insertValue(DeviceTokenTable.userId)
+                it[DeviceTokenTable.token] = insertValue(DeviceTokenTable.token)
                 it[DeviceTokenTable.platform] = insertValue(DeviceTokenTable.platform)
                 it[DeviceTokenTable.appBuild] = insertValue(DeviceTokenTable.appBuild)
                 it[DeviceTokenTable.lastSeenAt] = CurrentTimestamp
             },
         ) {
             it[DeviceTokenTable.userId] = userId
+            it[DeviceTokenTable.deviceId] = command.deviceId
             it[DeviceTokenTable.token] = command.token
             it[DeviceTokenTable.platform] = command.platform
             it[DeviceTokenTable.appBuild] = command.appBuild
         }
     }
 
-    fun deleteByUserAndToken(
+    fun deleteByUserAndDevice(
         userId: Long,
-        token: String,
+        deviceId: String,
     ) {
-        DeviceTokenTable.deleteWhere { (DeviceTokenTable.userId eq userId) and (DeviceTokenTable.token eq token) }
+        DeviceTokenTable.deleteWhere { (DeviceTokenTable.userId eq userId) and (DeviceTokenTable.deviceId eq deviceId) }
     }
 
     fun deleteAllByUser(userId: Long) {

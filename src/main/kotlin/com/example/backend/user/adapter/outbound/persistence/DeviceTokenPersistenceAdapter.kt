@@ -14,10 +14,10 @@ class DeviceTokenPersistenceAdapter(
         command: RegisterDeviceTokenCommand,
     ) = deviceTokenRepository.upsert(userId, command)
 
-    override fun deleteByUserAndToken(
+    override fun deleteByUserAndDevice(
         userId: Long,
-        token: String,
-    ) = deviceTokenRepository.deleteByUserAndToken(userId, token)
+        deviceId: String,
+    ) = deviceTokenRepository.deleteByUserAndDevice(userId, deviceId)
 
     override fun deleteAllByUser(userId: Long) = deviceTokenRepository.deleteAllByUser(userId)
 }

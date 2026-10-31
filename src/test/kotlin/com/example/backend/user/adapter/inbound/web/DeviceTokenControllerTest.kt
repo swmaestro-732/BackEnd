@@ -71,7 +71,7 @@ class DeviceTokenControllerTest
         }
 
         @Test
-        fun `PUT을 반복해도 토큰 행은 하나만 남는다`() {
+        fun `PUT을 반복해도 기기 행은 하나만 남는다`() {
             repeat(2) {
                 mockMvc.perform(deviceRequest("PUT")).andExpect(status().isOk)
             }
@@ -81,7 +81,7 @@ class DeviceTokenControllerTest
         }
 
         @Test
-        fun `다른 사용자가 같은 토큰을 등록하면 소유권을 이전한다`() {
+        fun `다른 사용자가 같은 기기에서 등록하면 소유권을 이전한다`() {
             mockMvc.perform(deviceRequest("PUT")).andExpect(status().isOk)
             val id = row()["id"]
 
@@ -160,11 +160,44 @@ class DeviceTokenControllerTest
             assertEquals(0, count())
         }
 
+        @Test
+        fun `같은 기기에서 토큰이 바뀌면 행 하나에서 토큰만 교체한다`() {
+            mockMvc.perform(deviceRequest("PUT", token = "old-token")).andExpect(status().isOk)
+            mockMvc.perform(deviceRequest("PUT", token = "new-token")).andExpect(status().isOk)
+
+            assertEquals(1, count())
+            assertEquals("new-token", row()["token"])
+        }
+
         @ParameterizedTest
         @ValueSource(strings = ["PUT", "DELETE"])
-        fun `공백 토큰은 검증 실패를 반환한다`(method: String) {
+        fun `X-Device-Id 헤더가 없으면 INVALID_INPUT이다`(method: String) {
+            storeToken(ME)
+
             mockMvc
-                .perform(deviceRequest(method, token = "   "))
+                .perform(deviceRequest(method, deviceId = null))
+                .andExpect(status().isBadRequest)
+                .andExpect(jsonPath("$.code").value(4001))
+
+            assertEquals(TOKEN, row()["token"])
+        }
+
+        @ParameterizedTest
+        @ValueSource(strings = ["   ", "129"])
+        fun `X-Device-Id 헤더가 비었거나 128자를 넘으면 INVALID_INPUT이다`(value: String) {
+            val deviceId = if (value == "129") "a".repeat(129) else value
+            mockMvc
+                .perform(deviceRequest("PUT", deviceId = deviceId))
+                .andExpect(status().isBadRequest)
+                .andExpect(jsonPath("$.code").value(4001))
+
+            assertEquals(0, count())
+        }
+
+        @Test
+        fun `공백 토큰은 검증 실패를 반환한다`() {
+            mockMvc
+                .perform(deviceRequest("PUT", token = "   "))
                 .andExpect(status().isBadRequest)
                 .andExpect(jsonPath("$.code").value(4002))
                 .andExpect(jsonPath("$.fieldErrors[0].field").value("token"))
@@ -172,11 +205,10 @@ class DeviceTokenControllerTest
             assertEquals(0, count())
         }
 
-        @ParameterizedTest
-        @ValueSource(strings = ["PUT", "DELETE"])
-        fun `4096자를 초과한 토큰은 검증 실패를 반환한다`(method: String) {
+        @Test
+        fun `4096자를 초과한 토큰은 검증 실패를 반환한다`() {
             mockMvc
-                .perform(deviceRequest(method, token = "a".repeat(4097)))
+                .perform(deviceRequest("PUT", token = "a".repeat(4097)))
                 .andExpect(status().isBadRequest)
                 .andExpect(jsonPath("$.code").value(4002))
                 .andExpect(jsonPath("$.fieldErrors[0].field").value("token"))
@@ -188,14 +220,14 @@ class DeviceTokenControllerTest
         fun `4096자 토큰은 등록하고 삭제할 수 있다`() {
             val token = "a".repeat(4096)
             mockMvc.perform(deviceRequest("PUT", token)).andExpect(status().isOk)
-            assertEquals(token, row(token)["token"])
+            assertEquals(token, row()["token"])
 
-            mockMvc.perform(deviceRequest("DELETE", token)).andExpect(status().isOk)
+            mockMvc.perform(deviceRequest("DELETE")).andExpect(status().isOk)
             assertEquals(0, count())
         }
 
         @Test
-        fun `DELETE는 자기 토큰을 삭제하고 반복해도 성공한다`() {
+        fun `DELETE는 자기 기기를 삭제하고 반복해도 성공한다`() {
             storeToken(ME)
 
             repeat(2) {
@@ -210,7 +242,7 @@ class DeviceTokenControllerTest
         }
 
         @Test
-        fun `DELETE는 다른 사용자의 토큰을 삭제하지 않는다`() {
+        fun `DELETE는 다른 사용자의 기기를 삭제하지 않는다`() {
             storeToken(OTHER)
 
             mockMvc
@@ -222,7 +254,7 @@ class DeviceTokenControllerTest
         }
 
         @Test
-        fun `DELETE는 존재하지 않는 토큰에도 성공한다`() {
+        fun `DELETE는 존재하지 않는 기기에도 성공한다`() {
             mockMvc
                 .perform(deviceRequest("DELETE"))
                 .andExpect(status().isOk)
@@ -232,7 +264,7 @@ class DeviceTokenControllerTest
         }
 
         @Test
-        fun `소유권 이전 뒤 이전 사용자가 DELETE해도 새 소유자의 토큰은 남는다`() {
+        fun `소유권 이전 뒤 이전 사용자가 DELETE해도 새 소유자의 기기는 남는다`() {
             storeToken(ME)
             mockMvc.perform(deviceRequest("PUT", userId = OTHER)).andExpect(status().isOk)
 
@@ -242,7 +274,7 @@ class DeviceTokenControllerTest
         }
 
         @Test
-        fun `DELETE는 유효한 앱 헤더와 함께 자기 토큰을 삭제한다`() {
+        fun `DELETE는 유효한 앱 헤더와 함께 자기 기기를 삭제한다`() {
             storeToken(ME)
 
             mockMvc
@@ -306,18 +338,22 @@ class DeviceTokenControllerTest
             method: String,
             token: String = TOKEN,
             userId: Long = ME,
-        ): MockHttpServletRequestBuilder =
-            request(HttpMethod.valueOf(method), PATH)
-                .header(HttpHeaders.AUTHORIZATION, "Bearer ${jwtTokenProvider.issueAccessToken(userId)}")
-                .contentType(MediaType.APPLICATION_JSON)
-                .content("""{"token":"$token"}""")
-
-        private fun storeToken(userId: Long) {
-            jdbc.update("INSERT INTO device_tokens (user_id, token) VALUES (?, ?)", userId, TOKEN)
+            deviceId: String? = DEVICE,
+        ): MockHttpServletRequestBuilder {
+            val builder =
+                request(HttpMethod.valueOf(method), PATH)
+                    .header(HttpHeaders.AUTHORIZATION, "Bearer ${jwtTokenProvider.issueAccessToken(userId)}")
+            deviceId?.let { builder.header("X-Device-Id", it) }
+            if (method == "PUT") builder.contentType(MediaType.APPLICATION_JSON).content("""{"token":"$token"}""")
+            return builder
         }
 
-        private fun row(token: String = TOKEN): Map<String, Any?> =
-            jdbc.queryForMap("SELECT * FROM device_tokens WHERE token = ?", token)
+        private fun storeToken(userId: Long) {
+            jdbc.update("INSERT INTO device_tokens (user_id, device_id, token) VALUES (?, ?, ?)", userId, DEVICE, TOKEN)
+        }
+
+        private fun row(): Map<String, Any?> =
+            jdbc.queryForMap("SELECT * FROM device_tokens WHERE device_id = ?", DEVICE)
 
         private fun count(): Int =
             jdbc.queryForObject(
@@ -330,6 +366,7 @@ class DeviceTokenControllerTest
         private companion object {
             const val PATH = "/api/v1/my/devices"
             const val TOKEN = "device-web-token"
+            const val DEVICE = "fid-web-device"
             const val ME = 730001L
             const val OTHER = 730002L
         }

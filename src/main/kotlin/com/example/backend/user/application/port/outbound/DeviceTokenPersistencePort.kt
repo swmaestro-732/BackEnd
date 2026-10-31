@@ -8,9 +8,9 @@ interface DeviceTokenPersistencePort {
         command: RegisterDeviceTokenCommand,
     )
 
-    fun deleteByUserAndToken(
+    fun deleteByUserAndDevice(
         userId: Long,
-        token: String,
+        deviceId: String,
     )
 
     fun deleteAllByUser(userId: Long)

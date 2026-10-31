@@ -21,7 +21,7 @@ class DeviceTokenRedactionTest {
     fun `커맨드는 토큰을 숨기고 플랫폼과 빌드는 표시한다`() {
         val token = "secret-command-device-token"
 
-        val representation = RegisterDeviceTokenCommand(token, "ANDROID", 12).toString()
+        val representation = RegisterDeviceTokenCommand("fid-1", token, "ANDROID", 12).toString()
 
         assertFalse(representation.contains(token))
         assertTrue(representation.contains("[REDACTED]"))

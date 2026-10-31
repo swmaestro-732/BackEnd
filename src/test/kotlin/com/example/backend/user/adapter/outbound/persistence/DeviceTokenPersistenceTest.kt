@@ -26,7 +26,7 @@ class DeviceTokenPersistenceTest
             transaction {
                 insertUsers()
                 val token = "device-persistence-insert"
-                port.upsert(ME, RegisterDeviceTokenCommand(token, "ANDROID", 12))
+                port.upsert(ME, command(token, "ANDROID", 12))
 
                 val row = row(token)
                 assertEquals(ME, row[DeviceTokenTable.userId])
@@ -44,14 +44,14 @@ class DeviceTokenPersistenceTest
             transaction {
                 insertUsers()
                 val token = "device-persistence-refresh"
-                port.upsert(ME, RegisterDeviceTokenCommand(token, "ANDROID", 1))
+                port.upsert(ME, command(token, "ANDROID", 1))
                 val id = row(token)[DeviceTokenTable.id]
                 DeviceTokenTable.update({ DeviceTokenTable.token eq token }) {
                     it[createdAt] = OLD
                     it[lastSeenAt] = OLD
                 }
 
-                port.upsert(ME, RegisterDeviceTokenCommand(token, "IOS", 2))
+                port.upsert(ME, command(token, "IOS", 2))
 
                 val row = row(token)
                 assertEquals(id, row[DeviceTokenTable.id])
@@ -70,10 +70,10 @@ class DeviceTokenPersistenceTest
             transaction {
                 insertUsers()
                 val token = "device-persistence-transfer"
-                port.upsert(ME, RegisterDeviceTokenCommand(token, "ANDROID", 1))
+                port.upsert(ME, command(token, "ANDROID", 1))
                 val original = row(token)
 
-                port.upsert(OTHER, RegisterDeviceTokenCommand(token, null, null))
+                port.upsert(OTHER, command(token, null, null))
 
                 val row = row(token)
                 assertEquals(original[DeviceTokenTable.id], row[DeviceTokenTable.id])
@@ -91,8 +91,8 @@ class DeviceTokenPersistenceTest
             transaction {
                 insertUsers()
                 val token = "device-token'; DELETE FROM device_tokens; --"
-                port.upsert(ME, RegisterDeviceTokenCommand(token, null, null))
-                port.upsert(OTHER, RegisterDeviceTokenCommand(token, "IOS", 3))
+                port.upsert(ME, command(token, null, null))
+                port.upsert(OTHER, command(token, "IOS", 3))
 
                 val row = row(token)
                 assertEquals(token, row[DeviceTokenTable.token])
@@ -104,21 +104,35 @@ class DeviceTokenPersistenceTest
         }
 
         @Test
-        fun `deleteByUserAndToken은 소유자가 맞는 행만 삭제하고 반복해도 성공한다`() {
+        fun `deleteByUserAndDevice는 소유자가 맞는 행만 삭제하고 반복해도 성공한다`() {
             transaction {
                 insertUsers()
                 val token = "device-persistence-delete"
-                port.upsert(ME, RegisterDeviceTokenCommand(token, null, null))
+                port.upsert(ME, command(token, null, null))
 
-                port.deleteByUserAndToken(OTHER, token)
+                port.deleteByUserAndDevice(OTHER, token)
                 assertEquals(ME, row(token)[DeviceTokenTable.userId])
-                port.deleteByUserAndToken(ME, "unknown-device-token")
+                port.deleteByUserAndDevice(ME, "unknown-device-token")
                 assertEquals(ME, row(token)[DeviceTokenTable.userId])
 
-                port.deleteByUserAndToken(ME, token)
-                port.deleteByUserAndToken(ME, token)
+                port.deleteByUserAndDevice(ME, token)
+                port.deleteByUserAndDevice(ME, token)
 
                 assertEquals(0L, DeviceTokenTable.selectAll().where { DeviceTokenTable.token eq token }.count())
+                rollback()
+            }
+        }
+
+        @Test
+        fun `같은 기기에서 토큰이 바뀌면 행 하나에서 토큰만 교체한다`() {
+            transaction {
+                insertUsers()
+                port.upsert(ME, command("device-persistence-old", "ANDROID", 1, deviceId = "fid-rotate"))
+                port.upsert(ME, command("device-persistence-new", "ANDROID", 1, deviceId = "fid-rotate"))
+
+                val rows = DeviceTokenTable.selectAll().where { DeviceTokenTable.deviceId eq "fid-rotate" }.toList()
+                assertEquals(1, rows.size)
+                assertEquals("device-persistence-new", rows.single()[DeviceTokenTable.token])
                 rollback()
             }
         }
@@ -127,9 +141,9 @@ class DeviceTokenPersistenceTest
         fun `deleteAllByUser는 사용자의 모든 토큰을 삭제하고 다른 사용자의 토큰은 보존한다`() {
             transaction {
                 insertUsers()
-                port.upsert(ME, RegisterDeviceTokenCommand("device-persistence-a", "ANDROID", 1))
-                port.upsert(ME, RegisterDeviceTokenCommand("device-persistence-b", "IOS", 2))
-                port.upsert(OTHER, RegisterDeviceTokenCommand("device-persistence-other", null, null))
+                port.upsert(ME, command("device-persistence-a", "ANDROID", 1))
+                port.upsert(ME, command("device-persistence-b", "IOS", 2))
+                port.upsert(OTHER, command("device-persistence-other", null, null))
 
                 port.deleteAllByUser(ME)
                 port.deleteAllByUser(ME)
@@ -152,6 +166,14 @@ class DeviceTokenPersistenceTest
                 "INSERT INTO users (id, nickname) VALUES ($ME, '기기주인'), ($OTHER, '다른사용자')",
             )
         }
+
+        /** 기본값으로 기기 ID 를 토큰과 같게 둬 토큰으로 행을 찾는다. */
+        private fun command(
+            token: String,
+            platform: String?,
+            appBuild: Int?,
+            deviceId: String = token,
+        ) = RegisterDeviceTokenCommand(deviceId, token, platform, appBuild)
 
         private fun row(token: String) = DeviceTokenTable.selectAll().where { DeviceTokenTable.token eq token }.single()
 

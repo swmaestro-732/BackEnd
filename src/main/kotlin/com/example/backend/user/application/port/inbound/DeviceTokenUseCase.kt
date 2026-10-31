@@ -10,6 +10,6 @@ interface DeviceTokenUseCase {
 
     fun unregister(
         userId: Long,
-        token: String,
+        deviceId: String,
     )
 }
