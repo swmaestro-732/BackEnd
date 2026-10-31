@@ -33,4 +33,10 @@ interface UserUseCase {
 
     /** 회원 탈퇴 — 현재 사용자 소프트 삭제 + 리프레시 토큰 전량 폐기. 재가입 시 같은 소셜로 재활성화 가능. */
     fun withdraw(userId: Long)
+
+    /**
+     * 활성 사용자 행을 FOR UPDATE 로 잠근다. 탈퇴했으면 USER_NOT_FOUND.
+     * 호출자 트랜잭션 안에서 불러야 이후 쓰기가 탈퇴 정리와 직렬화된다.
+     */
+    fun lockActive(userId: Long)
 }

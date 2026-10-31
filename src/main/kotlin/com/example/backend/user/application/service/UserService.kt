@@ -101,6 +101,13 @@ class UserService(
         handle.lowercase() !in RESERVED_HANDLES && !userPersistencePort.existsByHandle(handle)
 
     @Transactional
+    override fun lockActive(userId: Long) {
+        if (userId !in userPersistencePort.lockActive(listOf(userId))) {
+            throw BusinessException(UserErrorCode.USER_NOT_FOUND, "사용자를 찾을 수 없습니다: id=$userId")
+        }
+    }
+
+    @Transactional
     override fun withdraw(userId: Long) {
         // 이 사용자 행을 먼저 FOR UPDATE 로 잠가, 탈퇴 정리 도중 유입되는 이 사용자 대상 쓰기(팔로우·저장)를 직렬화한다.
         // (같은 행 잠금을 follow/save 도 획득 → 정리 후 유입분이 잔여 행·카운터를 남기지 못한다.)

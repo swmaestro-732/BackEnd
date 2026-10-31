@@ -32,9 +32,27 @@ class DeviceTokenControllerTest
         private val jdbc: JdbcTemplate,
     ) : IntegrationTestBase() {
         @BeforeEach
+        fun setUp() {
+            cleanUp()
+            jdbc.update("INSERT INTO users (id, nickname) VALUES (?, '기기주인'), (?, '다른사용자')", ME, OTHER)
+        }
+
         @AfterEach
         fun cleanUp() {
             jdbc.update("DELETE FROM device_tokens WHERE user_id IN (?, ?)", ME, OTHER)
+            jdbc.update("DELETE FROM users WHERE id IN (?, ?)", ME, OTHER)
+        }
+
+        @Test
+        fun `탈퇴한 사용자는 토큰을 등록할 수 없다`() {
+            jdbc.update("UPDATE users SET deleted_at = now() WHERE id = ?", ME)
+
+            mockMvc
+                .perform(deviceRequest("PUT"))
+                .andExpect(status().isNotFound)
+                .andExpect(jsonPath("$.code").value(4042))
+
+            assertEquals(0, count())
         }
 
         @Test
