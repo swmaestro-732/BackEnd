@@ -1,7 +1,7 @@
 -- 댓글 컨트롤러 통합 테스트: 코스 1의 활성 댓글 3개, 삭제 댓글 1개, 다른 코스 댓글 2개.
 TRUNCATE TABLE users, courses, course_comments RESTART IDENTITY CASCADE;
 
-INSERT INTO users (nickname) VALUES ('댓글작성자'), ('다른작성자');
+INSERT INTO users (nickname, profile_image_url) VALUES ('댓글작성자', 'https://cdn.example.com/profile/1.png'), ('다른작성자', NULL);
 
 INSERT INTO courses (user_id, title, is_published, visibility, comments_cnt)
 VALUES

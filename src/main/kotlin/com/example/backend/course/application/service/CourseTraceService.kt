@@ -1,22 +1,32 @@
 package com.example.backend.course.application.service
 
 import com.example.backend.common.exception.BusinessException
+import com.example.backend.common.response.CommonErrorCode
 import com.example.backend.common.response.CourseErrorCode
+import com.example.backend.common.response.PlaceErrorCode
 import com.example.backend.course.application.port.inbound.CourseTraceUseCase
 import com.example.backend.course.application.port.inbound.dto.CheckInPlaceCommand
 import com.example.backend.course.application.port.inbound.dto.CourseTraceResult
 import com.example.backend.course.application.port.inbound.dto.EndCourseTraceCommand
+import com.example.backend.course.application.port.inbound.dto.TracePlaceResult
+import com.example.backend.course.application.port.inbound.dto.TraceRouteGuideResult
+import com.example.backend.course.application.port.inbound.dto.TraceRouteResult
+import com.example.backend.course.application.port.inbound.dto.TraceWalkingRouteResult
 import com.example.backend.course.application.port.outbound.CoursePersistencePort
 import com.example.backend.course.application.port.outbound.CourseTracePersistencePort
 import com.example.backend.course.application.port.outbound.CourseTraceRow
+import com.example.backend.course.application.port.outbound.PlaceLookupPort
+import com.example.backend.course.application.port.outbound.PlaceRef
+import com.example.backend.course.application.port.outbound.WalkingRoutePort
 import com.example.backend.course.domain.model.CourseStatus
 import com.example.backend.course.domain.model.CourseTraceStatus
 import org.springframework.stereotype.Service
+import org.springframework.transaction.annotation.Propagation
 import org.springframework.transaction.annotation.Transactional
 import java.time.Instant
 
 /**
- * 코스 따라가기 유스케이스 — 시작(IN_PROGRESS 세션 생성 또는 이어가기)·장소 체크인·종료(COMPLETED + tracings_cnt 원자적 +1)·완주 조회.
+ * 코스 따라가기 유스케이스 — 시작(IN_PROGRESS 세션 생성 또는 이어가기)·장소 체크인·다음 장소 도보 경로·종료(COMPLETED + tracings_cnt 원자적 +1)·완주 조회.
  * 열람 권한 검사는 CourseLikeService 와 동일하다.
  */
 @Service
@@ -25,6 +35,8 @@ class CourseTraceService(
     private val courseTracePersistencePort: CourseTracePersistencePort,
     private val coursePersistencePort: CoursePersistencePort,
     private val courseViewPolicy: CourseViewPolicy,
+    private val placeLookupPort: PlaceLookupPort,
+    private val walkingRoutePort: WalkingRoutePort,
 ) : CourseTraceUseCase {
     @Transactional
     override fun start(
@@ -84,6 +96,35 @@ class CourseTraceService(
         }
     }
 
+    /**
+     * 외부 경로 API(Tmap) 호출을 DB 트랜잭션 밖에서 한다 — 응답이 느려도 커넥션을 쥐지 않게.
+     * 장소 조회는 place 도메인 서비스가 자체 읽기 트랜잭션을 연다.
+     */
+    @Transactional(propagation = Propagation.NOT_SUPPORTED)
+    override fun findRoute(
+        fromPlaceId: Long,
+        toPlaceId: Long,
+    ): TraceRouteResult {
+        if (fromPlaceId == toPlaceId) {
+            throw BusinessException(CommonErrorCode.INVALID_INPUT, "출발 장소와 도착 장소가 같습니다: placeId=$fromPlaceId")
+        }
+        val (from, to) = requirePlacesInOrder(listOf(fromPlaceId, toPlaceId))
+        val route = walkingRoutePort.findWalkingRoute(from.coordinate, to.coordinate)
+        return TraceRouteResult(
+            from = from.toTracePlace(),
+            to = to.toTracePlace(),
+            route =
+                route?.let {
+                    TraceWalkingRouteResult(
+                        distanceMeters = it.distanceMeters,
+                        seconds = it.seconds,
+                        path = it.path,
+                        guides = it.guides.map { guide -> TraceRouteGuideResult(guide.coordinate, guide.description) },
+                    )
+                },
+        )
+    }
+
     override fun findCompletedAt(
         userId: Long,
         courseIds: List<Long>,
@@ -107,6 +148,16 @@ class CourseTraceService(
                 CourseErrorCode.PLACE_NOT_IN_COURSE,
                 "코스에 없는 장소입니다: courseId=$courseId, placeIds=$outsiders",
             )
+        }
+    }
+
+    private fun PlaceRef.toTracePlace() = TracePlaceResult(placeId = id, name = name, coordinate = coordinate)
+
+    /** 요청한 순서대로 [PlaceRef] 를 돌려준다 — 하나라도 없으면 404. (조회 결과 순서는 보장되지 않아 id 로 다시 맞춘다.) */
+    private fun requirePlacesInOrder(placeIds: List<Long>): List<PlaceRef> {
+        val placesById = placeLookupPort.findPlacesByIds(placeIds).associateBy { it.id }
+        return placeIds.map {
+            placesById[it] ?: throw BusinessException(PlaceErrorCode.PLACE_NOT_FOUND, "장소를 찾을 수 없습니다: placeId=$it")
         }
     }
 

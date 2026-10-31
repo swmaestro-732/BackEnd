@@ -53,7 +53,7 @@ class OpenSearchIndexInitializerTest {
     }
 
     @Test
-    fun `인덱스가 없으면 매핑 리소스를 파싱해 place, course 를 settings 와 함께 생성하고 alias 를 붙인다`() {
+    fun `인덱스가 없으면 매핑 리소스를 파싱해 place, course, saved_place 를 settings 와 함께 생성하고 alias 를 붙인다`() {
         val transport = mock(OpenSearchTransport::class.java)
         `when`(transport.jsonpMapper()).thenReturn(JacksonJsonpMapper()) // loadDefinition 이 실제 JSON 파싱을 수행
         val client = mock(OpenSearchClient::class.java)
@@ -117,12 +117,12 @@ class OpenSearchIndexInitializerTest {
 
         initializer.run(args)
 
-        // place, course 두 인덱스 모두 생성 + alias 부착됐는지 검증(리소스 파싱이 성공했다는 뜻이기도 하다).
+        // place, course, saved_place 세 인덱스 모두 생성 + alias 부착됐는지 검증(리소스 파싱이 성공했다는 뜻이기도 하다).
         verify(
             indices,
-            times(2),
+            times(3),
         ).create(anyArg<Function<CreateIndexRequest.Builder, ObjectBuilder<CreateIndexRequest>>>())
-        verify(indices, times(2)).putAlias(anyArg<Function<PutAliasRequest.Builder, ObjectBuilder<PutAliasRequest>>>())
+        verify(indices, times(3)).putAlias(anyArg<Function<PutAliasRequest.Builder, ObjectBuilder<PutAliasRequest>>>())
     }
 
     @Test
@@ -160,7 +160,7 @@ class OpenSearchIndexInitializerTest {
         verify(indices, never()).putAlias(anyArg<Function<PutAliasRequest.Builder, ObjectBuilder<PutAliasRequest>>>())
         verify(
             indices,
-            times(2),
+            times(3),
         ).putMapping(anyArg<Function<PutMappingRequest.Builder, ObjectBuilder<PutMappingRequest>>>())
     }
 }

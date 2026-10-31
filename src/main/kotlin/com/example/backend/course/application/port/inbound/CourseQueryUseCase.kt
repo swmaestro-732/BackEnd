@@ -53,9 +53,11 @@ interface CourseQueryUseCase {
     /**
      * 전체 공개(PUBLIC)·발행·활성 코스를 savesCnt DESC, createdAt DESC, id DESC 순으로 [size] 개 내려준다.
      * [cursor]가 있으면 직전 페이지 마지막 정렬 키 이후부터 조회한다. 모두 PUBLIC 이라 공개범위 필터가 필요 없다.
+     * [category]는 코스 카테고리 이름(예: DATE)이며, 주면 그 카테고리만 내려준다. 알 수 없는 이름이면 IllegalArgumentException(400).
      */
     fun listPublic(
         cursor: FeedCursor?,
         size: Int,
+        category: String? = null,
     ): CourseSummaryPage
 }

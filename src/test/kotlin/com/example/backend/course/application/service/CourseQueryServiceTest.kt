@@ -129,6 +129,24 @@ class CourseQueryServiceTest {
         assertTrue(result.hasNext)
     }
 
+    @Test
+    fun `공개 목록에 카테고리 이름을 주면 해당 카테고리로 조회한다`() {
+        `when`(persistence.findPublishedPublic(null, 2, CourseCategory.DATE)).thenReturn(listOf(summary(1L)))
+
+        val result = service.listPublic(null, 2, "DATE")
+
+        assertEquals(listOf(1L), result.items.map { it.id })
+        verify(persistence).findPublishedPublic(null, 2, CourseCategory.DATE)
+    }
+
+    @Test
+    fun `공개 목록에 알 수 없는 카테고리를 주면 조회 없이 IllegalArgumentException 이다`() {
+        val exception = assertThrows(IllegalArgumentException::class.java) { service.listPublic(null, 2, "date") }
+
+        assertEquals("알 수 없는 코스 카테고리입니다: date", exception.message)
+        verifyNoInteractions(persistence)
+    }
+
     private fun detail(
         id: Long,
         visibility: CourseVisibility,
