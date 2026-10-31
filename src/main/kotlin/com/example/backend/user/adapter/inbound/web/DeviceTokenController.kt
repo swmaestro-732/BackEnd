@@ -38,7 +38,7 @@ class DeviceTokenController(
         val command =
             RegisterDeviceTokenCommand(
                 requireDeviceId(deviceId),
-                request.token,
+                request.fcmToken,
                 parsePlatform(platform),
                 parseBuild(appBuild),
             )

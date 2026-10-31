@@ -22,14 +22,14 @@ class DeviceTokenRepository {
         command: RegisterDeviceTokenCommand,
     ) {
         DeviceTokenTable.deleteWhere {
-            (DeviceTokenTable.token eq command.token) and
+            (DeviceTokenTable.fcmToken eq command.fcmToken) and
                 (DeviceTokenTable.userId neq userId)
         }
         DeviceTokenTable.upsert(
             DeviceTokenTable.userId,
             DeviceTokenTable.deviceId,
             onUpdate = {
-                it[DeviceTokenTable.token] = insertValue(DeviceTokenTable.token)
+                it[DeviceTokenTable.fcmToken] = insertValue(DeviceTokenTable.fcmToken)
                 it[DeviceTokenTable.platform] = insertValue(DeviceTokenTable.platform)
                 it[DeviceTokenTable.appBuild] = insertValue(DeviceTokenTable.appBuild)
                 it[DeviceTokenTable.lastSeenAt] = CurrentTimestamp
@@ -37,7 +37,7 @@ class DeviceTokenRepository {
         ) {
             it[DeviceTokenTable.userId] = userId
             it[DeviceTokenTable.deviceId] = command.deviceId
-            it[DeviceTokenTable.token] = command.token
+            it[DeviceTokenTable.fcmToken] = command.fcmToken
             it[DeviceTokenTable.platform] = command.platform
             it[DeviceTokenTable.appBuild] = command.appBuild
         }

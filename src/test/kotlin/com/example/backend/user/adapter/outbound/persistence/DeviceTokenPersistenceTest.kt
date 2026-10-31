@@ -30,7 +30,7 @@ class DeviceTokenPersistenceTest
 
                 val row = row(token)
                 assertEquals(ME, row[DeviceTokenTable.userId])
-                assertEquals(token, row[DeviceTokenTable.token])
+                assertEquals(token, row[DeviceTokenTable.fcmToken])
                 assertEquals("ANDROID", row[DeviceTokenTable.platform])
                 assertEquals(12, row[DeviceTokenTable.appBuild])
                 assertEquals(row[DeviceTokenTable.createdAt], row[DeviceTokenTable.lastSeenAt])
@@ -46,7 +46,7 @@ class DeviceTokenPersistenceTest
                 val token = "device-persistence-refresh"
                 port.upsert(ME, command(token, "ANDROID", 1))
                 val id = row(token)[DeviceTokenTable.id]
-                DeviceTokenTable.update({ DeviceTokenTable.token eq token }) {
+                DeviceTokenTable.update({ DeviceTokenTable.fcmToken eq token }) {
                     it[createdAt] = OLD
                     it[lastSeenAt] = OLD
                 }
@@ -60,7 +60,7 @@ class DeviceTokenPersistenceTest
                 assertEquals(2, row[DeviceTokenTable.appBuild])
                 assertEquals(OLD, row[DeviceTokenTable.createdAt])
                 assertTrue(row[DeviceTokenTable.lastSeenAt] > OLD)
-                assertEquals(1L, DeviceTokenTable.selectAll().where { DeviceTokenTable.token eq token }.count())
+                assertEquals(1L, DeviceTokenTable.selectAll().where { DeviceTokenTable.fcmToken eq token }.count())
                 rollback()
             }
         }
@@ -78,7 +78,7 @@ class DeviceTokenPersistenceTest
                 assertEquals(OTHER, row[DeviceTokenTable.userId])
                 assertNull(row[DeviceTokenTable.platform])
                 assertNull(row[DeviceTokenTable.appBuild])
-                assertEquals(1L, DeviceTokenTable.selectAll().where { DeviceTokenTable.token eq token }.count())
+                assertEquals(1L, DeviceTokenTable.selectAll().where { DeviceTokenTable.fcmToken eq token }.count())
                 rollback()
             }
         }
@@ -92,7 +92,7 @@ class DeviceTokenPersistenceTest
                 port.upsert(OTHER, command(token, "IOS", 3))
 
                 val row = row(token)
-                assertEquals(token, row[DeviceTokenTable.token])
+                assertEquals(token, row[DeviceTokenTable.fcmToken])
                 assertEquals(OTHER, row[DeviceTokenTable.userId])
                 assertEquals("IOS", row[DeviceTokenTable.platform])
                 assertEquals(3, row[DeviceTokenTable.appBuild])
@@ -115,7 +115,7 @@ class DeviceTokenPersistenceTest
                 port.deleteByUserAndDevice(ME, token)
                 port.deleteByUserAndDevice(ME, token)
 
-                assertEquals(0L, DeviceTokenTable.selectAll().where { DeviceTokenTable.token eq token }.count())
+                assertEquals(0L, DeviceTokenTable.selectAll().where { DeviceTokenTable.fcmToken eq token }.count())
                 rollback()
             }
         }
@@ -132,7 +132,7 @@ class DeviceTokenPersistenceTest
                     DeviceTokenTable
                         .selectAll()
                         .where { DeviceTokenTable.deviceId eq "fid-shared" }
-                        .associate { it[DeviceTokenTable.userId] to it[DeviceTokenTable.token] }
+                        .associate { it[DeviceTokenTable.userId] to it[DeviceTokenTable.fcmToken] }
                 assertEquals(mapOf(ME to "device-persistence-owned", OTHER to "device-persistence-attacker"), rows)
                 rollback()
             }
@@ -147,7 +147,7 @@ class DeviceTokenPersistenceTest
 
                 val rows = DeviceTokenTable.selectAll().where { DeviceTokenTable.deviceId eq "fid-rotate" }.toList()
                 assertEquals(1, rows.size)
-                assertEquals("device-persistence-new", rows.single()[DeviceTokenTable.token])
+                assertEquals("device-persistence-new", rows.single()[DeviceTokenTable.fcmToken])
                 rollback()
             }
         }
@@ -169,7 +169,7 @@ class DeviceTokenPersistenceTest
                     DeviceTokenTable
                         .selectAll()
                         .where { DeviceTokenTable.userId eq OTHER }
-                        .map { it[DeviceTokenTable.token] },
+                        .map { it[DeviceTokenTable.fcmToken] },
                 )
                 rollback()
             }
@@ -190,7 +190,8 @@ class DeviceTokenPersistenceTest
             deviceId: String = token,
         ) = RegisterDeviceTokenCommand(deviceId, token, platform, appBuild)
 
-        private fun row(token: String) = DeviceTokenTable.selectAll().where { DeviceTokenTable.token eq token }.single()
+        private fun row(token: String) =
+            DeviceTokenTable.selectAll().where { DeviceTokenTable.fcmToken eq token }.single()
 
         private companion object {
             const val ME = 730101L

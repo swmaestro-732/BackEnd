@@ -5,7 +5,7 @@ CREATE TABLE device_tokens (
     id bigserial PRIMARY KEY,
     user_id bigint NOT NULL REFERENCES users (id),
     device_id varchar(128) NOT NULL,
-    token varchar(1024) NOT NULL,
+    fcm_token varchar(1024) NOT NULL,
     platform varchar(16),
     app_build integer,
     created_at timestamptz NOT NULL DEFAULT now(),
@@ -13,4 +13,4 @@ CREATE TABLE device_tokens (
     CONSTRAINT uq_device_tokens_user_device UNIQUE (user_id, device_id)
 );
 
-CREATE INDEX idx_device_tokens_token ON device_tokens (token);
+CREATE INDEX idx_device_tokens_fcm_token ON device_tokens (fcm_token);

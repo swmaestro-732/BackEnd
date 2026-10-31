@@ -65,7 +65,7 @@ class DeviceTokenControllerTest
 
             val row = row()
             assertEquals(ME, row["user_id"])
-            assertEquals(TOKEN, row["token"])
+            assertEquals(TOKEN, row["fcm_token"])
             assertNull(row["platform"])
             assertNull(row["app_build"])
         }
@@ -166,8 +166,8 @@ class DeviceTokenControllerTest
             mockMvc.perform(deviceRequest("PUT", token = "owner-new-token")).andExpect(status().isOk)
 
             assertEquals(2, count())
-            assertEquals("owner-new-token", row(ME)["token"])
-            assertEquals("attacker-token", row(OTHER)["token"])
+            assertEquals("owner-new-token", row(ME)["fcm_token"])
+            assertEquals("attacker-token", row(OTHER)["fcm_token"])
         }
 
         @Test
@@ -176,7 +176,7 @@ class DeviceTokenControllerTest
             mockMvc.perform(deviceRequest("PUT", token = "new-token")).andExpect(status().isOk)
 
             assertEquals(1, count())
-            assertEquals("new-token", row()["token"])
+            assertEquals("new-token", row()["fcm_token"])
         }
 
         @ParameterizedTest
@@ -189,7 +189,7 @@ class DeviceTokenControllerTest
                 .andExpect(status().isBadRequest)
                 .andExpect(jsonPath("$.code").value(4001))
 
-            assertEquals(TOKEN, row()["token"])
+            assertEquals(TOKEN, row()["fcm_token"])
         }
 
         @ParameterizedTest
@@ -210,7 +210,7 @@ class DeviceTokenControllerTest
                 .perform(deviceRequest("PUT", token = "   "))
                 .andExpect(status().isBadRequest)
                 .andExpect(jsonPath("$.code").value(4002))
-                .andExpect(jsonPath("$.fieldErrors[0].field").value("token"))
+                .andExpect(jsonPath("$.fieldErrors[0].field").value("fcmToken"))
 
             assertEquals(0, count())
         }
@@ -221,7 +221,7 @@ class DeviceTokenControllerTest
                 .perform(deviceRequest("PUT", token = "a".repeat(1025)))
                 .andExpect(status().isBadRequest)
                 .andExpect(jsonPath("$.code").value(4002))
-                .andExpect(jsonPath("$.fieldErrors[0].field").value("token"))
+                .andExpect(jsonPath("$.fieldErrors[0].field").value("fcmToken"))
 
             assertEquals(0, count())
         }
@@ -230,7 +230,7 @@ class DeviceTokenControllerTest
         fun `1024자 토큰은 등록하고 삭제할 수 있다`() {
             val token = "a".repeat(1024)
             mockMvc.perform(deviceRequest("PUT", token)).andExpect(status().isOk)
-            assertEquals(token, row()["token"])
+            assertEquals(token, row()["fcm_token"])
 
             mockMvc.perform(deviceRequest("DELETE")).andExpect(status().isOk)
             assertEquals(0, count())
@@ -323,7 +323,7 @@ class DeviceTokenControllerTest
                 .perform(
                     request(HttpMethod.valueOf(method), PATH)
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content("""{"token":"$TOKEN"}"""),
+                        .content("""{"fcmToken":"$TOKEN"}"""),
                 ).andExpect(status().isUnauthorized)
 
             assertEquals(0, count())
@@ -338,7 +338,7 @@ class DeviceTokenControllerTest
                     request(HttpMethod.valueOf(method), PATH)
                         .header(HttpHeaders.AUTHORIZATION, "Bearer $registrationToken")
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content("""{"token":"$TOKEN"}"""),
+                        .content("""{"fcmToken":"$TOKEN"}"""),
                 ).andExpect(status().isForbidden)
 
             assertEquals(0, count())
@@ -354,12 +354,17 @@ class DeviceTokenControllerTest
                 request(HttpMethod.valueOf(method), PATH)
                     .header(HttpHeaders.AUTHORIZATION, "Bearer ${jwtTokenProvider.issueAccessToken(userId)}")
             deviceId?.let { builder.header("X-Device-Id", it) }
-            if (method == "PUT") builder.contentType(MediaType.APPLICATION_JSON).content("""{"token":"$token"}""")
+            if (method == "PUT") builder.contentType(MediaType.APPLICATION_JSON).content("""{"fcmToken":"$token"}""")
             return builder
         }
 
         private fun storeToken(userId: Long) {
-            jdbc.update("INSERT INTO device_tokens (user_id, device_id, token) VALUES (?, ?, ?)", userId, DEVICE, TOKEN)
+            jdbc.update(
+                "INSERT INTO device_tokens (user_id, device_id, fcm_token) VALUES (?, ?, ?)",
+                userId,
+                DEVICE,
+                TOKEN,
+            )
         }
 
         /** 사용자를 지정하지 않으면 이 기기의 유일한 행을 읽는다(행이 둘이면 실패한다). */
