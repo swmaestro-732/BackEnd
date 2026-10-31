@@ -5,7 +5,7 @@ import jakarta.validation.constraints.Size
 
 data class DeviceTokenRequest(
     @field:NotBlank
-    @field:Size(max = 4096)
+    @field:Size(max = 1024)
     val token: String,
 ) {
     override fun toString(): String = "DeviceTokenRequest(token=[REDACTED])"

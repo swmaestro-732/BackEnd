@@ -66,18 +66,15 @@ class DeviceTokenPersistenceTest
         }
 
         @Test
-        fun `다른 사용자의 upsert는 소유권을 이전하고 누락된 헤더 값을 지운다`() {
+        fun `같은 토큰을 다른 사용자가 등록하면 이전 사용자의 행을 지우고 새 행을 만든다`() {
             transaction {
                 insertUsers()
                 val token = "device-persistence-transfer"
                 port.upsert(ME, command(token, "ANDROID", 1))
-                val original = row(token)
 
                 port.upsert(OTHER, command(token, null, null))
 
                 val row = row(token)
-                assertEquals(original[DeviceTokenTable.id], row[DeviceTokenTable.id])
-                assertEquals(original[DeviceTokenTable.createdAt], row[DeviceTokenTable.createdAt])
                 assertEquals(OTHER, row[DeviceTokenTable.userId])
                 assertNull(row[DeviceTokenTable.platform])
                 assertNull(row[DeviceTokenTable.appBuild])
@@ -124,20 +121,19 @@ class DeviceTokenPersistenceTest
         }
 
         @Test
-        fun `다른 사용자는 토큰이 같을 때만 기기 행을 가져간다`() {
+        fun `기기 ID만 같은 다른 사용자의 등록은 기존 사용자의 행을 바꾸지 않는다`() {
             transaction {
                 insertUsers()
-                port.upsert(ME, command("device-persistence-owned", "ANDROID", 1, deviceId = "fid-owned"))
+                port.upsert(ME, command("device-persistence-owned", "ANDROID", 1, deviceId = "fid-shared"))
 
-                port.upsert(OTHER, command("device-persistence-attacker", "IOS", 9, deviceId = "fid-owned"))
-                val kept = DeviceTokenTable.selectAll().where { DeviceTokenTable.deviceId eq "fid-owned" }.single()
-                assertEquals(ME, kept[DeviceTokenTable.userId])
-                assertEquals("device-persistence-owned", kept[DeviceTokenTable.token])
-                assertEquals("ANDROID", kept[DeviceTokenTable.platform])
+                port.upsert(OTHER, command("device-persistence-attacker", "IOS", 9, deviceId = "fid-shared"))
 
-                port.upsert(OTHER, command("device-persistence-owned", "IOS", 9, deviceId = "fid-owned"))
-                val moved = DeviceTokenTable.selectAll().where { DeviceTokenTable.deviceId eq "fid-owned" }.single()
-                assertEquals(OTHER, moved[DeviceTokenTable.userId])
+                val rows =
+                    DeviceTokenTable
+                        .selectAll()
+                        .where { DeviceTokenTable.deviceId eq "fid-shared" }
+                        .associate { it[DeviceTokenTable.userId] to it[DeviceTokenTable.token] }
+                assertEquals(mapOf(ME to "device-persistence-owned", OTHER to "device-persistence-attacker"), rows)
                 rollback()
             }
         }

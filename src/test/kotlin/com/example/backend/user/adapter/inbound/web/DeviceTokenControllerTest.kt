@@ -81,15 +81,13 @@ class DeviceTokenControllerTest
         }
 
         @Test
-        fun `다른 사용자가 같은 기기에서 등록하면 소유권을 이전한다`() {
+        fun `같은 기기에서 같은 토큰으로 다른 사용자가 등록하면 이전 사용자의 행을 지운다`() {
             mockMvc.perform(deviceRequest("PUT")).andExpect(status().isOk)
-            val id = row()["id"]
 
             mockMvc.perform(deviceRequest("PUT", userId = OTHER)).andExpect(status().isOk)
 
             assertEquals(1, count())
             assertEquals(OTHER, row()["user_id"])
-            assertEquals(id, row()["id"])
         }
 
         @Test
@@ -161,13 +159,15 @@ class DeviceTokenControllerTest
         }
 
         @Test
-        fun `기기 ID만 같고 토큰이 다른 다른 사용자는 기기 행을 가져가지 못한다`() {
+        fun `기기 ID만 같은 다른 사용자는 자기 행만 만들고 기존 사용자의 행을 건드리지 못한다`() {
             storeToken(ME)
 
             mockMvc.perform(deviceRequest("PUT", token = "attacker-token", userId = OTHER)).andExpect(status().isOk)
+            mockMvc.perform(deviceRequest("PUT", token = "owner-new-token")).andExpect(status().isOk)
 
-            assertEquals(ME, row()["user_id"])
-            assertEquals(TOKEN, row()["token"])
+            assertEquals(2, count())
+            assertEquals("owner-new-token", row(ME)["token"])
+            assertEquals("attacker-token", row(OTHER)["token"])
         }
 
         @Test
@@ -216,9 +216,9 @@ class DeviceTokenControllerTest
         }
 
         @Test
-        fun `4096자를 초과한 토큰은 검증 실패를 반환한다`() {
+        fun `1024자를 초과한 토큰은 검증 실패를 반환한다`() {
             mockMvc
-                .perform(deviceRequest("PUT", token = "a".repeat(4097)))
+                .perform(deviceRequest("PUT", token = "a".repeat(1025)))
                 .andExpect(status().isBadRequest)
                 .andExpect(jsonPath("$.code").value(4002))
                 .andExpect(jsonPath("$.fieldErrors[0].field").value("token"))
@@ -227,8 +227,8 @@ class DeviceTokenControllerTest
         }
 
         @Test
-        fun `4096자 토큰은 등록하고 삭제할 수 있다`() {
-            val token = "a".repeat(4096)
+        fun `1024자 토큰은 등록하고 삭제할 수 있다`() {
+            val token = "a".repeat(1024)
             mockMvc.perform(deviceRequest("PUT", token)).andExpect(status().isOk)
             assertEquals(token, row()["token"])
 
@@ -362,8 +362,13 @@ class DeviceTokenControllerTest
             jdbc.update("INSERT INTO device_tokens (user_id, device_id, token) VALUES (?, ?, ?)", userId, DEVICE, TOKEN)
         }
 
-        private fun row(): Map<String, Any?> =
-            jdbc.queryForMap("SELECT * FROM device_tokens WHERE device_id = ?", DEVICE)
+        /** 사용자를 지정하지 않으면 이 기기의 유일한 행을 읽는다(행이 둘이면 실패한다). */
+        private fun row(userId: Long? = null): Map<String, Any?> =
+            if (userId == null) {
+                jdbc.queryForMap("SELECT * FROM device_tokens WHERE device_id = ?", DEVICE)
+            } else {
+                jdbc.queryForMap("SELECT * FROM device_tokens WHERE device_id = ? AND user_id = ?", DEVICE, userId)
+            }
 
         private fun count(): Int =
             jdbc.queryForObject(
