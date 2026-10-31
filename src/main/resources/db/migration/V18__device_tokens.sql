@@ -10,7 +10,7 @@ CREATE TABLE device_tokens (
     app_build integer,
     created_at timestamptz NOT NULL DEFAULT now(),
     last_seen_at timestamptz NOT NULL DEFAULT now(),
-    CONSTRAINT uq_device_tokens_user_device UNIQUE (user_id, device_id)
+    CONSTRAINT uq_device_tokens_user_device UNIQUE (user_id, device_id),
+    -- 토큰 하나는 한 사용자에게만 연결된다. 같은 토큰의 동시 등록 경합은 뒤 요청이 유니크 위반으로 실패한다.
+    CONSTRAINT uq_device_tokens_fcm_token UNIQUE (fcm_token)
 );
-
-CREATE INDEX idx_device_tokens_fcm_token ON device_tokens (fcm_token);
