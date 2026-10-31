@@ -19,6 +19,7 @@ class HomeFeedAdapter(
     override fun listPublicCandidates(
         cursor: HomeFeedCursor?,
         size: Int,
+        category: String?,
     ): HomeFeedCoursePage {
         val page =
             courseQueryUseCase.listPublic(
@@ -31,6 +32,7 @@ class HomeFeedAdapter(
                         )
                     },
                 size = size,
+                category = category,
             )
         return HomeFeedCoursePage(
             courses =

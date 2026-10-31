@@ -4,16 +4,20 @@ import com.example.backend.common.exception.BusinessException
 import com.example.backend.common.geo.Coordinate
 import com.example.backend.common.response.DirectionErrorCode
 import com.example.backend.direction.application.port.inbound.WalkingDurationUseCase
+import com.example.backend.direction.application.port.inbound.WalkingRouteUseCase
+import com.example.backend.direction.application.port.inbound.dto.WalkingGuideResult
+import com.example.backend.direction.application.port.inbound.dto.WalkingRouteResult
 import com.example.backend.direction.application.port.outbound.PedestrianRoute
 import com.example.backend.direction.application.port.outbound.PedestrianRoutePort
 import org.springframework.stereotype.Service
 import kotlin.math.ceil
 
-/** 보행자 이동 시간 서비스. 초 → 분(올림) 변환과 구간별 계산을 담당한다. */
+/** 보행자 이동 시간·경로 서비스. 초 → 분(올림) 변환과 구간별 계산을 담당한다. */
 @Service
 class DirectionService(
     private val pedestrianRoutePort: PedestrianRoutePort,
-) : WalkingDurationUseCase {
+) : WalkingDurationUseCase,
+    WalkingRouteUseCase {
     override fun walkingMinutes(
         from: Coordinate,
         to: Coordinate,
@@ -32,6 +36,33 @@ class DirectionService(
      */
     override fun walkingSegments(points: List<Coordinate>): List<Int> =
         points.zipWithNext { from, to -> segmentMinutes(from, to) }
+
+    /**
+     * 도보 경로 전체. 코스 카드의 1시간 상한은 적용하지 않는다 — 따라가는 중인 구간은 길어도 경로를 보여줘야 한다.
+     * 산출 불가(Tmap 호출 실패)면 [DirectionErrorCode.WALKING_ROUTE_UNAVAILABLE](503/5033) — 클라이언트는 외부 지도로 폴백한다.
+     */
+    override fun walkingRoute(
+        from: Coordinate,
+        to: Coordinate,
+    ): WalkingRouteResult? =
+        when (val route = pedestrianRoutePort.walkingRoute(from, to)) {
+            is PedestrianRoute.Reachable -> {
+                WalkingRouteResult(
+                    distanceMeters = route.distanceMeters,
+                    seconds = route.seconds,
+                    path = route.path,
+                    guides = route.guides.map { WalkingGuideResult(it.coordinate, it.description) },
+                )
+            }
+
+            PedestrianRoute.Unreachable -> {
+                null
+            }
+
+            PedestrianRoute.Unknown -> {
+                throw BusinessException(DirectionErrorCode.WALKING_ROUTE_UNAVAILABLE)
+            }
+        }
 
     private fun segmentMinutes(
         from: Coordinate,

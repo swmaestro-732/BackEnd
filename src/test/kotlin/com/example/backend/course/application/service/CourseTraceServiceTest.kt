@@ -1,100 +1,114 @@
 package com.example.backend.course.application.service
 
 import com.example.backend.common.exception.BusinessException
-import com.example.backend.common.response.CourseErrorCode
-import com.example.backend.course.application.event.CourseActivityEvent
-import com.example.backend.course.application.port.inbound.CourseActivityKind
-import com.example.backend.course.application.port.inbound.dto.EndCourseTraceCommand
+import com.example.backend.common.geo.Coordinate
+import com.example.backend.common.response.CommonErrorCode
+import com.example.backend.common.response.PlaceErrorCode
 import com.example.backend.course.application.port.outbound.CoursePersistencePort
 import com.example.backend.course.application.port.outbound.CourseTracePersistencePort
-import com.example.backend.course.application.port.outbound.CourseTraceRow
-import com.example.backend.course.domain.model.CourseTraceStatus
+import com.example.backend.course.application.port.outbound.PlaceLookupPort
+import com.example.backend.course.application.port.outbound.PlaceRef
+import com.example.backend.course.application.port.outbound.WalkingGuide
+import com.example.backend.course.application.port.outbound.WalkingRoute
+import com.example.backend.course.application.port.outbound.WalkingRoutePort
 import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
-import org.mockito.Mockito.inOrder
 import org.mockito.Mockito.mock
-import org.mockito.Mockito.never
-import org.mockito.Mockito.verify
 import org.mockito.Mockito.verifyNoInteractions
-import org.mockito.Mockito.verifyNoMoreInteractions
 import org.mockito.Mockito.`when`
 import org.springframework.context.ApplicationEventPublisher
 import java.time.Clock
-import java.time.Instant
-import java.time.ZoneOffset
 
+/**
+ * [CourseTraceService.findRoute] 단위 테스트 — 포트를 목으로 대체해 서비스 규칙만 검증한다.
+ * 검증 대상: 출발·도착 장소 검증(같으면 400, 없으면 404), 조회 순서 보정, 도보 경로 → 결과 DTO 변환,
+ * 도보 불가(null) 전파.
+ */
 class CourseTraceServiceTest {
-    private val traces = mock(CourseTracePersistencePort::class.java)
-    private val courses = mock(CoursePersistencePort::class.java)
-    private val viewPolicy = mock(CourseViewPolicy::class.java)
-    private val eventPublisher = mock(ApplicationEventPublisher::class.java)
-    private val occurredAt = Instant.parse("2026-10-24T10:09:59Z")
-    private val clock = Clock.fixed(occurredAt, ZoneOffset.UTC)
-    private val service = CourseTraceService(traces, courses, viewPolicy, eventPublisher, clock)
-    private val command = EndCourseTraceCommand(7L, 30L, emptyList(), 20, 1200)
-    private val trace = CourseTraceRow(30L, 7L, 10L, CourseTraceStatus.IN_PROGRESS, Instant.EPOCH)
+    private val placeLookupPort = mock(PlaceLookupPort::class.java)
+    private val walkingRoutePort = mock(WalkingRoutePort::class.java)
+    private val service =
+        CourseTraceService(
+            courseTracePersistencePort = mock(CourseTracePersistencePort::class.java),
+            coursePersistencePort = mock(CoursePersistencePort::class.java),
+            courseViewPolicy = mock(CourseViewPolicy::class.java),
+            placeLookupPort = placeLookupPort,
+            walkingRoutePort = walkingRoutePort,
+            eventPublisher = mock(ApplicationEventPublisher::class.java),
+            clock = Clock.systemUTC(),
+        )
+
+    private val fromPlace = placeRef(22L, "어니언 성수", Coordinate(latitude = 37.5446, longitude = 127.0559))
+    private val toPlace = placeRef(23L, "대림창고", Coordinate(latitude = 37.5420, longitude = 127.0563))
 
     @Test
-    fun `따라가기 종료와 카운터 증가가 성공한 뒤 완주 이벤트를 한 번 발행한다`() {
-        `when`(traces.findById(30L)).thenReturn(trace)
-        `when`(traces.complete(30L, 20, 1200)).thenReturn(1)
-        `when`(courses.increaseTracingsCount(10L)).thenReturn(1)
+    fun `출발·도착 장소와 도보 경로를 결과 DTO 로 변환한다`() {
+        `when`(placeLookupPort.findPlacesByIds(listOf(22L, 23L))).thenReturn(listOf(fromPlace, toPlace))
+        val guide = WalkingGuide(fromPlace.coordinate, "출발")
+        val route =
+            WalkingRoute(
+                distanceMeters = 420,
+                seconds = 360,
+                path = listOf(fromPlace.coordinate, toPlace.coordinate),
+                guides = listOf(guide),
+            )
+        `when`(walkingRoutePort.findWalkingRoute(fromPlace.coordinate, toPlace.coordinate)).thenReturn(route)
 
-        service.end(command)
+        val result = service.findRoute(22L, 23L)
 
-        val order = inOrder(traces, courses, eventPublisher)
-        order.verify(traces).complete(30L, 20, 1200)
-        order.verify(courses).increaseTracingsCount(10L)
-        order
-            .verify(
-                eventPublisher,
-            ).publishEvent(CourseActivityEvent(CourseActivityKind.TRACE_COMPLETED, 7L, 10L, occurredAt))
-        verifyNoMoreInteractions(eventPublisher)
+        assertEquals(22L, result.from.placeId)
+        assertEquals("어니언 성수", result.from.name)
+        assertEquals(fromPlace.coordinate, result.from.coordinate)
+        assertEquals(23L, result.to.placeId)
+        assertEquals(420, result.route?.distanceMeters)
+        assertEquals(360, result.route?.seconds)
+        assertEquals(listOf(fromPlace.coordinate, toPlace.coordinate), result.route?.path)
+        val guides = result.route?.guides?.map { it.coordinate to it.description }
+        assertEquals(listOf(fromPlace.coordinate to "출발"), guides)
     }
 
     @Test
-    fun `종료 갱신이 실패하면 카운터와 이벤트를 변경하지 않는다`() {
-        `when`(traces.findById(30L)).thenReturn(trace)
-        `when`(traces.complete(30L, 20, 1200)).thenReturn(0)
+    fun `조회 결과 순서가 뒤집혀도 요청한 출발·도착 순서로 맞춘다`() {
+        `when`(placeLookupPort.findPlacesByIds(listOf(23L, 22L))).thenReturn(listOf(fromPlace, toPlace))
+        `when`(walkingRoutePort.findWalkingRoute(toPlace.coordinate, fromPlace.coordinate)).thenReturn(null)
 
-        val exception = assertThrows<BusinessException> { service.end(command) }
+        val result = service.findRoute(23L, 22L)
 
-        assertEquals(CourseErrorCode.COURSE_TRACE_ALREADY_ENDED, exception.errorCode)
-        verifyNoInteractions(courses, eventPublisher)
+        assertEquals(23L, result.from.placeId)
+        assertEquals(22L, result.to.placeId)
     }
 
     @Test
-    fun `완주 카운터를 증가시키지 못하면 이벤트를 발행하지 않는다`() {
-        `when`(traces.findById(30L)).thenReturn(trace)
-        `when`(traces.complete(30L, 20, 1200)).thenReturn(1)
-        `when`(courses.increaseTracingsCount(10L)).thenReturn(0)
+    fun `도보로 갈 수 없는 구간이면 route 가 null 이다`() {
+        `when`(placeLookupPort.findPlacesByIds(listOf(22L, 23L))).thenReturn(listOf(fromPlace, toPlace))
+        `when`(walkingRoutePort.findWalkingRoute(fromPlace.coordinate, toPlace.coordinate)).thenReturn(null)
 
-        val exception = assertThrows<BusinessException> { service.end(command) }
-
-        assertEquals(CourseErrorCode.COURSE_NOT_FOUND, exception.errorCode)
-        verifyNoInteractions(eventPublisher)
+        assertNull(service.findRoute(22L, 23L).route)
     }
 
     @Test
-    fun `이미 종료한 세션이면 완료를 반복하거나 이벤트를 발행하지 않는다`() {
-        `when`(traces.findById(30L)).thenReturn(trace.copy(status = CourseTraceStatus.COMPLETED))
+    fun `출발·도착 장소가 같으면 INVALID_INPUT 이고 조회하지 않는다`() {
+        val exception = assertThrows<BusinessException> { service.findRoute(22L, 22L) }
 
-        val exception = assertThrows<BusinessException> { service.end(command) }
-
-        assertEquals(CourseErrorCode.COURSE_TRACE_ALREADY_ENDED, exception.errorCode)
-        verify(traces, never()).complete(30L, 20, 1200)
-        verifyNoInteractions(courses, eventPublisher)
+        assertEquals(CommonErrorCode.INVALID_INPUT, exception.errorCode)
+        verifyNoInteractions(placeLookupPort, walkingRoutePort)
     }
 
     @Test
-    fun `타인의 세션을 종료하려고 하면 이벤트를 발행하지 않는다`() {
-        `when`(traces.findById(30L)).thenReturn(trace.copy(userId = 8L))
+    fun `장소가 하나라도 없으면 PLACE_NOT_FOUND 이고 경로를 조회하지 않는다`() {
+        `when`(placeLookupPort.findPlacesByIds(listOf(22L, 99L))).thenReturn(listOf(fromPlace))
 
-        val exception = assertThrows<BusinessException> { service.end(command) }
+        val exception = assertThrows<BusinessException> { service.findRoute(22L, 99L) }
 
-        assertEquals(CourseErrorCode.COURSE_TRACE_NOT_FOUND, exception.errorCode)
-        verify(traces, never()).complete(30L, 20, 1200)
-        verifyNoInteractions(courses, eventPublisher)
+        assertEquals(PlaceErrorCode.PLACE_NOT_FOUND, exception.errorCode)
+        verifyNoInteractions(walkingRoutePort)
     }
+
+    private fun placeRef(
+        id: Long,
+        name: String,
+        coordinate: Coordinate,
+    ) = PlaceRef(id = id, category = "CAFE", areaCode = null, name = name, coordinate = coordinate)
 }

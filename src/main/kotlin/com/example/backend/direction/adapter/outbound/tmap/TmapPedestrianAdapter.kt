@@ -10,12 +10,13 @@ import org.springframework.http.MediaType
 import org.springframework.stereotype.Component
 import org.springframework.web.client.RestClient
 import org.springframework.web.client.RestClientResponseException
+import tools.jackson.databind.JsonNode
 
 /**
  * T map 보행자 경로 API 어댑터.
  *
  * `POST /tmap/routes/pedestrian?version=1`, 헤더 `appKey`, JSON 바디 `{startX, startY, endX, endY}` (X=경도, Y=위도).
- * 응답 `features[0].properties.totalTime`(초) → [PedestrianRoute.Reachable].
+ * 응답 `features[0].properties.totalTime`(초)·`totalDistance`(m) 와 LineString 좌표·Point 안내 문구 → [PedestrianRoute.Reachable].
  *
  * **결과 구분(fail-soft)**:
  * - **[PedestrianRoute.Unreachable]**: Tmap 이 HTTP 4xx + 에러코드 [NO_SERVICE_AREA_CODE](3102, NoServiceArea)로 응답 →
@@ -43,7 +44,7 @@ class TmapPedestrianAdapter(
     ): PedestrianRoute {
         if (tmapProperties.appKey.isBlank()) return PedestrianRoute.Unknown // 부팅 시 1회 경고 완료 — 요청별 로깅 생략
         return try {
-            val seconds =
+            val features =
                 tmapRestClient
                     .post()
                     .uri { builder -> builder.path("/tmap/routes/pedestrian").queryParam("version", 1).build() }
@@ -59,11 +60,9 @@ class TmapPedestrianAdapter(
                     ).retrieve()
                     .body(PedestrianResponse::class.java)
                     ?.features
-                    ?.firstOrNull()
-                    ?.properties
-                    ?.totalTime
-            // 200 이지만 경로/시간이 비면 판단 불가 → Unknown.
-            seconds?.let { PedestrianRoute.Reachable(it) } ?: PedestrianRoute.Unknown
+                    .orEmpty()
+            // 200 이지만 시간·거리·경로 중 하나라도 비면 판단 불가 → Unknown.
+            toReachable(features) ?: PedestrianRoute.Unknown
         } catch (exception: RestClientResponseException) {
             // 4xx/5xx. NoServiceArea(3102)만 도보 불가로 확정하고, 나머지 오류는 Unknown(일시적 오류 가능).
             val code =
@@ -85,6 +84,49 @@ class TmapPedestrianAdapter(
             log.warn(exception) { "T map 보행자 경로 조회 실패" }
             PedestrianRoute.Unknown
         }
+    }
+
+    private fun toReachable(features: List<PedestrianResponse.Feature>): PedestrianRoute.Reachable? {
+        val summary = features.firstOrNull()?.properties ?: return null
+        val seconds = summary.totalTime ?: return null
+        val distanceMeters = summary.totalDistance ?: return null
+        val path = mutableListOf<Coordinate>()
+        val guides = mutableListOf<PedestrianRoute.Guide>()
+        features.forEach { feature ->
+            val geometry = feature.geometry ?: return@forEach
+            when (geometry.type) {
+                "Point" -> {
+                    geometry.coordinates?.toCoordinate()?.let { point ->
+                        val description = feature.properties?.description?.takeIf { it.isNotBlank() } ?: return@let
+                        guides += PedestrianRoute.Guide(point, description)
+                    }
+                }
+
+                "LineString" -> {
+                    geometry.coordinates?.forEach { node ->
+                        val point = node.toCoordinate() ?: return@forEach
+                        // 선분 경계는 앞 선분의 끝점과 같은 좌표로 시작하므로 한 번만 담는다.
+                        if (path.lastOrNull() != point) path += point
+                    }
+                }
+            }
+        }
+        // 그릴 선이 없으면 walkable=true 로 내보낼 수 없다 → Unknown(외부 지도 폴백).
+        if (path.isEmpty()) return null
+        return PedestrianRoute.Reachable(
+            seconds = seconds,
+            distanceMeters = distanceMeters,
+            path = path,
+            guides = guides,
+        )
+    }
+
+    /** GeoJSON `[x, y]` → [Coordinate] (x=경도, y=위도). 형식이 어긋나면 null. */
+    private fun JsonNode.toCoordinate(): Coordinate? {
+        if (!isArray || size() < 2) return null
+        val longitude = get(0).takeIf { it.isNumber }?.asDouble() ?: return null
+        val latitude = get(1).takeIf { it.isNumber }?.asDouble() ?: return null
+        return runCatching { Coordinate(latitude = latitude, longitude = longitude) }.getOrNull()
     }
 
     private companion object {
