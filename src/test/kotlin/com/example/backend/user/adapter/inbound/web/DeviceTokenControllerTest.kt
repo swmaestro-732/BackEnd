@@ -161,6 +161,16 @@ class DeviceTokenControllerTest
         }
 
         @Test
+        fun `기기 ID만 같고 토큰이 다른 다른 사용자는 기기 행을 가져가지 못한다`() {
+            storeToken(ME)
+
+            mockMvc.perform(deviceRequest("PUT", token = "attacker-token", userId = OTHER)).andExpect(status().isOk)
+
+            assertEquals(ME, row()["user_id"])
+            assertEquals(TOKEN, row()["token"])
+        }
+
+        @Test
         fun `같은 기기에서 토큰이 바뀌면 행 하나에서 토큰만 교체한다`() {
             mockMvc.perform(deviceRequest("PUT", token = "old-token")).andExpect(status().isOk)
             mockMvc.perform(deviceRequest("PUT", token = "new-token")).andExpect(status().isOk)

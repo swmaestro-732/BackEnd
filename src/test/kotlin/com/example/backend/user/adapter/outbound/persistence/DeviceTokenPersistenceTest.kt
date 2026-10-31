@@ -124,6 +124,25 @@ class DeviceTokenPersistenceTest
         }
 
         @Test
+        fun `다른 사용자는 토큰이 같을 때만 기기 행을 가져간다`() {
+            transaction {
+                insertUsers()
+                port.upsert(ME, command("device-persistence-owned", "ANDROID", 1, deviceId = "fid-owned"))
+
+                port.upsert(OTHER, command("device-persistence-attacker", "IOS", 9, deviceId = "fid-owned"))
+                val kept = DeviceTokenTable.selectAll().where { DeviceTokenTable.deviceId eq "fid-owned" }.single()
+                assertEquals(ME, kept[DeviceTokenTable.userId])
+                assertEquals("device-persistence-owned", kept[DeviceTokenTable.token])
+                assertEquals("ANDROID", kept[DeviceTokenTable.platform])
+
+                port.upsert(OTHER, command("device-persistence-owned", "IOS", 9, deviceId = "fid-owned"))
+                val moved = DeviceTokenTable.selectAll().where { DeviceTokenTable.deviceId eq "fid-owned" }.single()
+                assertEquals(OTHER, moved[DeviceTokenTable.userId])
+                rollback()
+            }
+        }
+
+        @Test
         fun `같은 기기에서 토큰이 바뀌면 행 하나에서 토큰만 교체한다`() {
             transaction {
                 insertUsers()
