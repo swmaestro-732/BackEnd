@@ -16,6 +16,8 @@ class KakaoCategoryMapperTest {
             "음식점 > 술집 > 와인바 | FD6 | BAR",
             "음식점 > 한식 | FD6 | RESTAURANT",
             "가정,생활 > 시장 | | SHOPPING",
+            "가정,생활 > 편의점 > GS25 | CS2 | SHOPPING",
+            "가정,생활 > 슈퍼마켓 > 대형슈퍼 > GS더프레시 | MT1 | SHOPPING",
             "교육,학문 > 학습시설 > 도서관 > 작은도서관 | | CULTURE",
             "문화,예술 > 문화시설 > 아쿠아리움 | CT1 | EXPERIENCE",
             "여행 > 공원 > 도시근린공원 | | NATURE",
@@ -38,7 +40,15 @@ class KakaoCategoryMapperTest {
     }
 
     @ParameterizedTest
-    @CsvSource("CE7, CAFE", "FD6, RESTAURANT", "CT1, CULTURE", "AT4, LANDMARK", "HP8, WELLNESS")
+    @CsvSource(
+        "CE7, CAFE",
+        "FD6, RESTAURANT",
+        "CT1, CULTURE",
+        "AT4, LANDMARK",
+        "MT1, SHOPPING",
+        "CS2, SHOPPING",
+        "HP8, WELLNESS",
+    )
     fun `category_name 매칭이 없으면 그룹 코드로 매핑한다`(
         groupCode: String,
         expected: PlaceCategory,

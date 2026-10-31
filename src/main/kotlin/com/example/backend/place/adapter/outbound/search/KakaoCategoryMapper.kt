@@ -20,6 +20,8 @@ object KakaoCategoryMapper {
             "가정,생활 > 패션" to PlaceCategory.SHOPPING,
             "가정,생활 > 시장" to PlaceCategory.SHOPPING,
             "가정,생활 > 생활용품점" to PlaceCategory.SHOPPING,
+            "가정,생활 > 편의점" to PlaceCategory.SHOPPING,
+            "가정,생활 > 슈퍼마켓" to PlaceCategory.SHOPPING,
             "이슈 > 이벤트 > 팝업스토어" to PlaceCategory.SHOPPING,
             "여행 > 기념품판매" to PlaceCategory.SHOPPING,
             "문화,예술 > 문화시설" to PlaceCategory.CULTURE,
@@ -70,6 +72,7 @@ object KakaoCategoryMapper {
                 "FD6" -> PlaceCategory.RESTAURANT
                 "CT1" -> PlaceCategory.CULTURE
                 "AT4" -> PlaceCategory.LANDMARK
+                "MT1", "CS2" -> PlaceCategory.SHOPPING
                 else -> PlaceCategory.WELLNESS
             }
     }
