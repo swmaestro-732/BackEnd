@@ -9,6 +9,7 @@ package com.example.backend.place.application.port.inbound.dto
  * - [category] 장소 카테고리 코드(도메인 enum 이름). 코스 카테고리 도출 입력으로도 쓰인다.
  * - [imageUrl] 대표 이미지 URL(없을 수 있음). 장소 검색 결과 카드 썸네일에 쓴다.
  * - [latitude]·[longitude] 장소 좌표(지도 핀 표시용). 코스 상세 화면에서 장소별 위치를 찍는 데 쓴다.
+ * - [rating]·[ratingCount] DB 에서 읽은 최신 평점과 평점수.
  * - [address] 장소 주소.
  * - [areaCode] 법정동코드 10자리(미확인 시 null). 코스 지역(area_code) 도출 입력으로 쓰인다.
  */
@@ -21,4 +22,6 @@ data class PlaceSummary(
     val longitude: Double,
     val address: String,
     val areaCode: String?,
+    val rating: Double = 0.0,
+    val ratingCount: Int = 0,
 )

@@ -125,6 +125,62 @@ class HomeControllerTest
         }
 
         @Test
+        fun `전체보기에 카테고리를 주면 그 카테고리 공개 코스만 저장수 순으로 내려준다`() {
+            mockMvc
+                .perform(get(RECOMMENDED_PATH).param("category", "CAFETOUR"))
+                .andExpect(status().isOk)
+                .andExpect(jsonPath("$.data.courses.length()").value(2))
+                .andExpect(jsonPath("$.data.courses[0].id").value(2))
+                .andExpect(jsonPath("$.data.courses[1].id").value(1))
+                .andExpect(jsonPath("$.data.hasNext").value(false))
+
+            mockMvc
+                .perform(get(RECOMMENDED_PATH).param("category", "FOOD"))
+                .andExpect(status().isOk)
+                .andExpect(jsonPath("$.data.courses.length()").value(1))
+                .andExpect(jsonPath("$.data.courses[0].id").value(6))
+                .andExpect(jsonPath("$.data.courses[0].theme").value("FOOD"))
+
+            mockMvc
+                .perform(get(RECOMMENDED_PATH).param("category", "NIGHTVIEW"))
+                .andExpect(status().isOk)
+                .andExpect(jsonPath("$.data.courses.length()").value(0))
+                .andExpect(jsonPath("$.data.hasNext").value(false))
+        }
+
+        @Test
+        fun `전체보기에 카테고리와 커서를 함께 주면 같은 카테고리 안에서 다음 페이지를 잇는다`() {
+            val firstPageBody =
+                mockMvc
+                    .perform(get(RECOMMENDED_PATH).param("category", "CAFETOUR").param("size", "1"))
+                    .andExpect(status().isOk)
+                    .andExpect(jsonPath("$.data.courses[0].id").value(2))
+                    .andExpect(jsonPath("$.data.hasNext").value(true))
+                    .andReturn()
+                    .response.contentAsString
+            val nextCursor: String = JsonPath.read(firstPageBody, "$.data.nextCursor")
+
+            mockMvc
+                .perform(
+                    get(RECOMMENDED_PATH)
+                        .param("category", "CAFETOUR")
+                        .param("size", "1")
+                        .param("cursor", nextCursor),
+                ).andExpect(status().isOk)
+                .andExpect(jsonPath("$.data.courses.length()").value(1))
+                .andExpect(jsonPath("$.data.courses[0].id").value(1))
+                .andExpect(jsonPath("$.data.hasNext").value(false))
+        }
+
+        @Test
+        fun `전체보기에 알 수 없는 카테고리면 4001을 내려준다`() {
+            mockMvc
+                .perform(get(RECOMMENDED_PATH).param("category", "데이트"))
+                .andExpect(status().isBadRequest)
+                .andExpect(jsonPath("$.code").value(4001))
+        }
+
+        @Test
         fun `전체보기에 잘못된 커서면 4001을 내려준다`() {
             mockMvc
                 .perform(get(RECOMMENDED_PATH).param("cursor", "not-a-feed-cursor"))

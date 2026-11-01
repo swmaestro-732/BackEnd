@@ -3,6 +3,7 @@ package com.example.backend.course.adapter.outbound.persistence.exposed.reposito
 import com.example.backend.common.domain.CourseVisibility
 import com.example.backend.common.exception.BusinessException
 import com.example.backend.common.response.CourseErrorCode
+import com.example.backend.course.adapter.outbound.persistence.exposed.CourseCategoryTable
 import com.example.backend.course.adapter.outbound.persistence.exposed.CourseEntity
 import com.example.backend.course.adapter.outbound.persistence.exposed.CourseTable
 import com.example.backend.course.application.port.inbound.dto.AuthorCourseCursor
@@ -23,6 +24,7 @@ import org.jetbrains.exposed.v1.core.dao.id.EntityID
 import org.jetbrains.exposed.v1.core.eq
 import org.jetbrains.exposed.v1.core.greater
 import org.jetbrains.exposed.v1.core.inList
+import org.jetbrains.exposed.v1.core.inSubQuery
 import org.jetbrains.exposed.v1.core.isNull
 import org.jetbrains.exposed.v1.core.less
 import org.jetbrains.exposed.v1.core.minus
@@ -298,12 +300,19 @@ class CourseRepository(
     fun findPublishedPublic(
         cursor: FeedCursor?,
         size: Int,
+        category: CourseCategory? = null,
     ): List<CourseSummaryRow> {
         var condition =
             (CourseTable.isPublished eq true) and
                 (CourseTable.status eq CourseStatus.ACTIVE) and
                 CourseTable.deletedAt.isNull() and
                 (CourseTable.visibility eq CourseVisibility.PUBLIC)
+        // 카테고리는 부분 인덱스(idx_courses_public_feed) 정렬 순서로 읽으며 거르는 필터라 정렬과 커서는 그대로다.
+        category?.let {
+            val courseIds =
+                CourseCategoryTable.select(CourseCategoryTable.courseId).where { CourseCategoryTable.category eq it }
+            condition = condition and (CourseTable.id inSubQuery courseIds)
+        }
 
         cursor?.let {
             // 행 비교 (saves_cnt, created_at, id) < (?, ?, ?) — 세 키가 모두 DESC 라 정렬과 방향이 같고,

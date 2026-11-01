@@ -1,6 +1,7 @@
 package com.example.backend.user.application.port.inbound
 
-import com.example.backend.user.application.port.inbound.dto.SavedPlaceRef
+import com.example.backend.common.geo.Coordinate
+import com.example.backend.user.application.port.inbound.dto.NearbySavedHit
 import com.example.backend.user.application.port.inbound.dto.SavedPlacesCommand
 import com.example.backend.user.application.port.inbound.dto.SavedPlacesResult
 import com.example.backend.user.domain.model.SavedPlace
@@ -28,6 +29,11 @@ interface SavedPlaceUseCase {
 
     fun getSavedPlaces(command: SavedPlacesCommand): SavedPlacesResult
 
-    /** 사용자가 저장한 모든 장소의 id 와 방문 여부(페이지 없이 전체). */
-    fun listSavedPlaceRefs(userId: Long): List<SavedPlaceRef>
+    /** 홈 등 BFF에서 사용하는 저장 장소 거리 조회 공개 API. 검색엔진 장애 시 빈 목록을 반환한다. */
+    fun nearestSaved(
+        userId: Long,
+        origin: Coordinate,
+        radiusMeters: Double,
+        size: Int,
+    ): List<NearbySavedHit>
 }

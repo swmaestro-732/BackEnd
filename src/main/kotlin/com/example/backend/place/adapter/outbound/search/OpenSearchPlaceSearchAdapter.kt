@@ -5,7 +5,6 @@ import com.example.backend.common.exception.BusinessException
 import com.example.backend.common.geo.Coordinate
 import com.example.backend.common.response.PlaceErrorCode
 import com.example.backend.place.application.port.inbound.dto.PlaceMapSort
-import com.example.backend.place.application.port.outbound.PlaceDistanceHit
 import com.example.backend.place.application.port.outbound.PlaceMapBucket
 import com.example.backend.place.application.port.outbound.PlaceMapHits
 import com.example.backend.place.application.port.outbound.PlaceMapSearchPort
@@ -59,41 +58,6 @@ class OpenSearchPlaceSearchAdapter(
             )
         } catch (e: Exception) {
             log.warn { "place 검색 실패: ${e.message}" }
-            throw unavailable()
-        }
-    }
-
-    override fun nearestAmong(
-        placeIds: List<Long>,
-        origin: Coordinate,
-        size: Int,
-    ): List<PlaceDistanceHit> {
-        val client = clientProvider.ifAvailable ?: throw unavailable()
-
-        return try {
-            val response =
-                client.search(
-                    SearchRequest
-                        .Builder()
-                        .index(indexAlias)
-                        .size(size)
-                        .source { it.fetch(false) }
-                        .query { q ->
-                            q.bool { b ->
-                                b
-                                    .filter { f ->
-                                        f.term { t -> t.field("status").value(FieldValue.of(STATUS_ACTIVE)) }
-                                    }.filter { f -> f.ids { i -> i.values(placeIds.map { it.toString() }) } }
-                            }
-                        }.sort(distanceSort(origin), docSort())
-                        .build(),
-                    Void::class.java,
-                )
-            check(!response.timedOut() && response.shards().failed() == 0) { "거리순 검색이 일부만 완료되었습니다." }
-            // geo_distance 정렬값(첫 sort 값)이 곧 기준점까지의 거리(m)다.
-            response.hits().hits().map { PlaceDistanceHit(it.id()!!.toLong(), it.sort().first().toDouble()) }
-        } catch (e: Exception) {
-            log.warn { "거리순 장소 검색 실패: ${e.message}" }
             throw unavailable()
         }
     }

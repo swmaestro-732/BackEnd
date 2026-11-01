@@ -24,12 +24,15 @@ class HomeFeedServiceTest {
         object : HomeFeedPort {
             var page = HomeFeedCoursePage(courses = listOf(course(1)), hasNext = false)
             val calls = mutableListOf<Pair<HomeFeedCursor?, Int>>()
+            val categories = mutableListOf<String?>()
 
             override fun listPublicCandidates(
                 cursor: HomeFeedCursor?,
                 size: Int,
+                category: String?,
             ): HomeFeedCoursePage {
                 calls += cursor to size
+                categories += category
                 return page
             }
         }
@@ -45,13 +48,16 @@ class HomeFeedServiceTest {
         object : HomeNearbyPlacePort {
             var places: List<HomeNearbyPlace> = emptyList()
             val calls = mutableListOf<Triple<Long, Coordinate, Int>>()
+            val radii = mutableListOf<Double>()
 
             override fun findNearbySavedPlaces(
                 userId: Long,
                 origin: Coordinate,
+                radiusMeters: Double,
                 limit: Int,
             ): List<HomeNearbyPlace> {
                 calls += Triple(userId, origin, limit)
+                radii += radiusMeters
                 return places
             }
         }
@@ -100,21 +106,22 @@ class HomeFeedServiceTest {
 
         val result = service.getHome(viewerId = USER_ID, userLocation = ORIGIN)
 
-        assertEquals(listOf(Triple(USER_ID, ORIGIN, 5)), fakeNearbyPort.calls)
+        assertEquals(listOf(Triple(USER_ID, ORIGIN, 3)), fakeNearbyPort.calls)
         assertEquals(listOf(1L, 2L, 3L, 4L), result.nearbySavedPlaces.map { it.place.placeId })
         // 400/67=5.97 → 6, 670/67=10 → 10(정수면 그대로), 671/67=10.01 → 11, 0 → 0
         assertEquals(listOf(6, 10, 11, 0), result.nearbySavedPlaces.map { it.walkingMinutes })
     }
 
     @Test
-    fun `도보 30분을 넘는 저장 장소는 근처 저장 장소에서 뺀다`() {
-        // 30분 = 2010m(67m x 30) 까지 포함, 2011m 는 31분이라 제외
-        fakeNearbyPort.places = listOf(place(1, 400.0), place(2, 2010.0), place(3, 2011.0), place(4, 5000.0))
+    fun `반경 제한은 조회 포트에 전달하고 도보 시간은 표시만 한다`() {
+        fakeNearbyPort.places = listOf(place(1, 2010.0), place(2, 2011.0))
 
         val result = service.getHome(viewerId = USER_ID, userLocation = ORIGIN)
 
+        assertEquals(listOf(2010.0), fakeNearbyPort.radii)
+        assertEquals(listOf(Triple(USER_ID, ORIGIN, 3)), fakeNearbyPort.calls)
         assertEquals(listOf(1L, 2L), result.nearbySavedPlaces.map { it.place.placeId })
-        assertEquals(listOf(6, 30), result.nearbySavedPlaces.map { it.walkingMinutes })
+        assertEquals(listOf(30, 31), result.nearbySavedPlaces.map { it.walkingMinutes })
     }
 
     @Test
@@ -135,6 +142,13 @@ class HomeFeedServiceTest {
 
         assertTrue(result.hasNext)
         assertEquals(2L, HomeFeedCursorCodec.decode(result.nextCursor)?.id)
+    }
+
+    @Test
+    fun `전체보기 피드는 카테고리를 포트에 그대로 넘긴다`() {
+        service.getFeed(cursor = null, size = 2, category = "DATE")
+
+        assertEquals(listOf<String?>("DATE"), fakeFeedPort.categories)
     }
 
     private fun course(id: Long) =

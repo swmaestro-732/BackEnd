@@ -36,6 +36,20 @@ class OpenSearchMappingResourceTest {
         assertKoreanAnalyzerDefined(load("place.json"))
     }
 
+    @Test
+    fun `saved_place 는 초기화 가능한 settings 와 좌표 저장 관계 매핑을 갖는다`() {
+        val root = load("saved_place.json")
+        assertThat(root.path("settings").isObject).isTrue()
+        val props = root.path("mappings").path("properties")
+        assertThat(props.path("userId").path("type").asText()).isEqualTo("long")
+        assertThat(props.path("placeId").path("type").asText()).isEqualTo("long")
+        assertThat(props.path("location").path("type").asText()).isEqualTo("geo_point")
+        assertThat(props.path("visited").path("type").asText()).isEqualTo("boolean")
+        assertThat(props.path("visited").path("index").isBoolean).isTrue()
+        assertThat(props.path("visited").path("index").asBoolean()).isFalse()
+        assertThat(props.path("savedAt").path("type").asText()).isEqualTo("date")
+    }
+
     private fun assertKoreanAnalyzerDefined(root: JsonNode) {
         val analysis = root.path("settings").path("analysis")
         val tokenizer = analysis.path("tokenizer").path("korean_nori")
