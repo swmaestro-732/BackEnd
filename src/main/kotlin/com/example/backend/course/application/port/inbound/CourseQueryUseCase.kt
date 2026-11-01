@@ -18,8 +18,8 @@ import com.example.backend.course.application.port.inbound.dto.FeedCursor
  * - [listPublic] 전체 공개(PUBLIC) 발행 코스 피드 — 저장수·최신순 복합 커서 페이지.
  */
 interface CourseQueryUseCase {
-    /** 활성 상태이며 삭제되지 않은 코스의 소유자와 제목을 한 번에 읽는다. */
-    fun findOwnerSummaries(courseIds: Collection<Long>): Map<Long, CourseOwnerSummary>
+    /** 활성 상태이며 삭제되지 않은 코스의 소유자와 제목을 읽는다. 없거나 비활성이면 null. */
+    fun findOwnerSummary(courseId: Long): CourseOwnerSummary?
 
     /** 코스 상세 단건. status=ACTIVE·미삭제만 반환(그 외 404), PRIVATE 은 소유자만, FOLLOWER 는 소유자·팔로워만. */
     fun getDetail(

@@ -77,7 +77,7 @@ data class CoursePlaceImageRow(
  * 한 포트에서 읽기·쓰기를 함께 다루고, 저장은 도메인 애그리거트([Course])를 받는다.
  */
 interface CoursePersistencePort {
-    fun findOwnerSummaries(courseIds: Collection<Long>): Map<Long, CourseOwnerSummary>
+    fun findOwnerSummary(courseId: Long): CourseOwnerSummary?
 
     fun findCourseDetail(courseId: Long): CourseDetailRow?
 

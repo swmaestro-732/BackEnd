@@ -31,8 +31,7 @@ class CoursePersistenceAdapter(
     private val tagRepository: TagRepository,
     private val courseTagRepository: CourseTagRepository,
 ) : CoursePersistencePort {
-    override fun findOwnerSummaries(courseIds: Collection<Long>): Map<Long, CourseOwnerSummary> =
-        courseRepository.findOwnerSummaries(courseIds)
+    override fun findOwnerSummary(courseId: Long): CourseOwnerSummary? = courseRepository.findOwnerSummary(courseId)
 
     override fun findCourseDetail(courseId: Long): CourseDetailRow? = courseRepository.findDetail(courseId)
 

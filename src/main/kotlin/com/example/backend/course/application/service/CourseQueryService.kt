@@ -37,8 +37,8 @@ class CourseQueryService(
     private val viewerInteractionPort: ViewerInteractionPort,
     private val courseViewPolicy: CourseViewPolicy,
 ) : CourseQueryUseCase {
-    override fun findOwnerSummaries(courseIds: Collection<Long>): Map<Long, CourseOwnerSummary> =
-        coursePersistencePort.findOwnerSummaries(courseIds)
+    override fun findOwnerSummary(courseId: Long): CourseOwnerSummary? =
+        coursePersistencePort.findOwnerSummary(courseId)
 
     override fun getDetail(
         courseId: Long,

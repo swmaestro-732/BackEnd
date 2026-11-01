@@ -45,18 +45,14 @@ import kotlin.time.toKotlinInstant
  */
 @Repository
 class CourseRepository {
-    fun findOwnerSummaries(courseIds: Collection<Long>): Map<Long, CourseOwnerSummary> {
-        if (courseIds.isEmpty()) return emptyMap()
-        return CourseTable
-            .select(CourseTable.id, CourseTable.userId, CourseTable.title)
+    fun findOwnerSummary(courseId: Long): CourseOwnerSummary? =
+        CourseTable
+            .select(CourseTable.userId, CourseTable.title)
             .where {
-                (CourseTable.id inList courseIds) and
+                (CourseTable.id eq courseId) and
                     (CourseTable.status eq CourseStatus.ACTIVE) and CourseTable.deletedAt.isNull()
-            }.associate { row ->
-                val id = row[CourseTable.id].value
-                id to CourseOwnerSummary(id, row[CourseTable.userId], row[CourseTable.title])
-            }
-    }
+            }.singleOrNull()
+            ?.let { CourseOwnerSummary(courseId, it[CourseTable.userId], it[CourseTable.title]) }
 
     /** 코스 본문을 삽입하고, 생성값(id·created_at·카운터 등)까지 적재된 엔티티를 반환한다(엔티티는 모듈 내부 구현이라 internal). */
     internal fun insert(course: Course): CourseEntity =
