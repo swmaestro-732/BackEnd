@@ -1,6 +1,5 @@
 package com.example.backend.bootstrap.config
 
-import io.micrometer.core.instrument.simple.SimpleMeterRegistry
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.Assertions.assertDoesNotThrow
 import org.junit.jupiter.api.Test
@@ -11,8 +10,7 @@ import java.util.concurrent.atomic.AtomicBoolean
 class NotificationExecutorTest {
     @Test
     fun `알림 실행기는 작업자 두 개와 큐 천 개를 두고 포화 시 예외 없이 버린다`() {
-        val meterRegistry = SimpleMeterRegistry()
-        val executor = AsyncConfig().notificationExecutor(meterRegistry)
+        val executor = AsyncConfig().notificationExecutor()
         val started = CountDownLatch(2)
         val release = CountDownLatch(1)
         val rejectedTaskRan = AtomicBoolean(false)
@@ -34,12 +32,10 @@ class NotificationExecutorTest {
             assertDoesNotThrow { executor.execute { rejectedTaskRan.set(true) } }
 
             assertThat(executor.threadPoolExecutor.queue.size).isEqualTo(1000)
-            assertThat(meterRegistry.get("notification.record.dropped").counter().count()).isEqualTo(1.0)
             assertThat(rejectedTaskRan.get()).isFalse()
         } finally {
             release.countDown()
             executor.shutdown()
-            meterRegistry.close()
         }
     }
 }

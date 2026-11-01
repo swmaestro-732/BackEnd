@@ -9,7 +9,6 @@ import com.example.backend.notification.domain.model.NotificationType
 import com.example.backend.user.application.port.inbound.UserActivityKind
 import com.example.backend.user.application.port.inbound.UserActivityOccurred
 import io.github.oshai.kotlinlogging.KotlinLogging
-import io.micrometer.core.instrument.MeterRegistry
 import org.springframework.scheduling.annotation.Async
 import org.springframework.stereotype.Component
 import org.springframework.transaction.event.TransactionPhase
@@ -19,7 +18,6 @@ import org.springframework.transaction.event.TransactionalEventListener
 @Component
 class NotificationEventListener(
     private val notificationUseCase: NotificationUseCase,
-    private val meterRegistry: MeterRegistry,
 ) {
     private val log = KotlinLogging.logger {}
 
@@ -31,8 +29,8 @@ class NotificationEventListener(
                 RecordNotificationCommand(courseType(event.kind), event.actorId, event.courseId, event.occurredAt),
             )
         } catch (e: Exception) {
-            log.warn(e) { "코스 활동 알림 기록 실패: type=${event.kind}" }
-            meterRegistry.counter("notification.record.failed", "type", courseType(event.kind).name).increment()
+            // 재시도 없이 유실되는 실패라 ERROR 로 남겨 Loki 에러 로그 알림에 걸리게 한다.
+            log.error(e) { "코스 활동 알림 기록 실패(알림 유실): type=${event.kind}" }
         }
     }
 
@@ -44,8 +42,7 @@ class NotificationEventListener(
                 RecordNotificationCommand(userType(event.kind), event.actorId, event.targetId, event.occurredAt),
             )
         } catch (e: Exception) {
-            log.warn(e) { "사용자 활동 알림 기록 실패: type=${event.kind}" }
-            meterRegistry.counter("notification.record.failed", "type", userType(event.kind).name).increment()
+            log.error(e) { "사용자 활동 알림 기록 실패(알림 유실): type=${event.kind}" }
         }
     }
 
