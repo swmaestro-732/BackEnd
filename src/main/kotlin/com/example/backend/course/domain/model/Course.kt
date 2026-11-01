@@ -112,7 +112,7 @@ data class Course private constructor(
             return signature(storedPlaces) != signature(newPlaces)
         }
 
-        /** [categories] 가 null 이면(v1 요청) 담은 장소들로 도출한다. */
+        /** 카테고리는 작성자가 고른 [companions] 와 담은 장소들로 정한다([resolveCategories]). */
         fun create(
             userId: Long,
             title: String,
@@ -123,7 +123,7 @@ data class Course private constructor(
             duplicatedFromId: Long?,
             tags: List<String>,
             places: List<CoursePlace>,
-            categories: List<CourseCategory>?,
+            companions: List<CourseCategory>?,
             placeCategoryByPlaceId: Map<Long, String>,
             areaCode: String?,
             area: String?,
@@ -139,12 +139,12 @@ data class Course private constructor(
                 duplicatedFromId = duplicatedFromId,
                 tags = tags,
                 places = places,
-                categories = categories ?: deriveCategories(isPublished, places, placeCategoryByPlaceId),
+                categories = resolveCategories(isPublished, companions.orEmpty(), places, placeCategoryByPlaceId),
                 areaCode = areaCode,
                 area = area,
             )
 
-        /** [categories] 가 null 이면(v1 요청) 장소들로 도출한다 — 발행 상태를 유지하는 코스는 기존 카테고리를 보존한다. */
+        /** [companions] 가 null 이면(요청에 없으면) 기존에 고른 값을 유지하고, 나머지 카테고리는 담은 장소로 다시 정한다. */
         fun edit(
             id: Long,
             userId: Long,
@@ -156,21 +156,13 @@ data class Course private constructor(
             duplicatedFromId: Long?,
             tags: List<String>,
             places: List<CoursePlace>,
-            categories: List<CourseCategory>?,
-            wasPublished: Boolean,
+            companions: List<CourseCategory>?,
             existingCategories: List<CourseCategory>,
             placeCategoryByPlaceId: Map<Long, String>,
             areaCode: String?,
             area: String?,
         ): Course {
-            val resolvedCategories =
-                when {
-                    categories != null -> categories
-                    !isPublished -> emptyList()
-                    wasPublished && existingCategories.isNotEmpty() -> existingCategories
-                    else -> deriveCategories(true, places, placeCategoryByPlaceId)
-                }
-
+            val resolvedCompanions = companions ?: existingCategories.filter { it in CourseCategory.COMPANIONS }
             return build(
                 id = id,
                 userId = userId,
@@ -182,7 +174,7 @@ data class Course private constructor(
                 duplicatedFromId = duplicatedFromId,
                 tags = tags,
                 places = places,
-                categories = resolvedCategories,
+                categories = resolveCategories(isPublished, resolvedCompanions, places, placeCategoryByPlaceId),
                 areaCode = areaCode,
                 area = area,
             )
@@ -306,23 +298,25 @@ data class Course private constructor(
             )
 
         /**
-         * v1 요청의 코스 카테고리 도출 규칙 — 발행 코스만 담은 장소들의 카테고리로 정한다(임시저장은 빈 목록).
-         * 장소를 orderNo 순으로 정렬해 각 장소의 카테고리(placeId→PlaceCategory 이름)를 모으고,
-         * [CourseCategory.fromPlaceCategoryNames] 로 최빈값 하나를 고른다.
+         * 작성자가 고를 수 있는 값([CourseCategory.COMPANIONS])만 받아 코스 카테고리를 정한다.
+         * 장소 기반 카테고리는 발행 코스만 붙이고, 임시저장은 작성자가 고른 값만 보존한다.
          */
-        private fun deriveCategories(
+        private fun resolveCategories(
             isPublished: Boolean,
+            companions: List<CourseCategory>,
             places: List<CoursePlace>,
             placeCategoryByPlaceId: Map<Long, String>,
         ): List<CourseCategory> {
-            if (!isPublished) return emptyList()
-            val orderedNames = places.sortedBy { it.orderNo }.mapNotNull { placeCategoryByPlaceId[it.placeId] }
-            return listOfNotNull(CourseCategory.fromPlaceCategoryNames(orderedNames))
+            if (companions.any { it !in CourseCategory.COMPANIONS }) {
+                throw BusinessException(CommonErrorCode.INVALID_INPUT, "companions 는 DATE·FAMILY·SOLO 만 고를 수 있습니다.")
+            }
+            if (!isPublished) return companions
+            return CourseCategory.resolve(companions, places.mapNotNull { placeCategoryByPlaceId[it.placeId] }).toList()
         }
 
         /**
          * 코스 지역코드(법정동코드 10자리) 도출 규칙 — 발행 코스만 담은 장소들의 지역으로 정한다(임시저장은 null).
-         * [deriveCategories] 와 같은 최빈값 규칙을 시군구(코드 앞 5자리) 레벨에 적용한다:
+         * 최빈값 규칙을 시군구(코드 앞 5자리) 레벨에 적용한다:
          * orderNo 순으로 장소의 법정동코드를 모아 최다 빈도 시군구를 고르고(동률은 앞선 장소 우선),
          * 그 시군구 안 장소들이 모두 같은 읍면동이면 동 코드(10자리)로 세분화, 아니면 시군구 코드 + "00000" 패딩.
          */

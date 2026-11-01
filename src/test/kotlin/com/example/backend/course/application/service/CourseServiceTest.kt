@@ -102,7 +102,7 @@ class CourseServiceTest {
                 duplicatedFromId = null,
                 tags = emptyList(),
                 places = listOf(CoursePlace(1L, 0, null, listOf("a")), CoursePlace(2L, 1, null, listOf("b"))),
-                categories = null,
+                companions = null,
                 placeCategoryByPlaceId = emptyMap(),
                 areaCode = null,
                 area = null,
