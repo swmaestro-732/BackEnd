@@ -19,9 +19,9 @@ import org.mockito.Mockito.verify
 import java.time.Instant
 
 class NotificationEventListenerTest {
-    private val useCase = mock(NotificationUseCase::class.java)
+    private val notificationUseCase = mock(NotificationUseCase::class.java)
     private val meterRegistry = SimpleMeterRegistry()
-    private val listener = NotificationEventListener(useCase, meterRegistry)
+    private val listener = NotificationEventListener(notificationUseCase, meterRegistry)
 
     @ParameterizedTest
     @CsvSource(
@@ -36,8 +36,8 @@ class NotificationEventListenerTest {
     ) {
         listener.onCourseActivity(courseEvent(kind))
 
-        verify(useCase).record(RecordNotificationCommand(type, ACTOR_ID, TARGET_ID, OCCURRED_AT))
-        assertThat(meterRegistry.find("notification.record.failed").counters()).isEmpty()
+        verify(notificationUseCase).record(RecordNotificationCommand(type, ACTOR_ID, TARGET_ID, OCCURRED_AT))
+        assertThat(meterRegistry.find("notification.record.failed").counters().sumOf { it.count() }).isZero()
     }
 
     @ParameterizedTest
@@ -48,18 +48,27 @@ class NotificationEventListenerTest {
     ) {
         listener.onUserActivity(userEvent(kind))
 
-        verify(useCase).record(RecordNotificationCommand(type, ACTOR_ID, TARGET_ID, OCCURRED_AT))
-        assertThat(meterRegistry.find("notification.record.failed").counters()).isEmpty()
+        verify(notificationUseCase).record(RecordNotificationCommand(type, ACTOR_ID, TARGET_ID, OCCURRED_AT))
+        assertThat(meterRegistry.find("notification.record.failed").counters().sumOf { it.count() }).isZero()
+    }
+
+    @Test
+    fun `시작 시 모든 알림 종류의 실패 카운터를 0으로 등록한다`() {
+        val counters = meterRegistry.find("notification.record.failed").counters()
+
+        assertThat(counters.map { it.id.getTag("type") })
+            .containsExactlyInAnyOrderElementsOf(NotificationType.entries.map { it.name })
+        assertThat(counters.sumOf { it.count() }).isZero()
     }
 
     @Test
     fun `코스 알림 기록이 실패해도 예외를 전파하지 않고 종류별 실패를 센다`() {
         val command = RecordNotificationCommand(NotificationType.COURSE_LIKED, ACTOR_ID, TARGET_ID, OCCURRED_AT)
-        doThrow(IllegalStateException("알림 저장 실패")).`when`(useCase).record(command)
+        doThrow(IllegalStateException("알림 저장 실패")).`when`(notificationUseCase).record(command)
 
         assertDoesNotThrow { listener.onCourseActivity(courseEvent(CourseActivityKind.LIKED)) }
 
-        verify(useCase).record(command)
+        verify(notificationUseCase).record(command)
         assertThat(
             meterRegistry
                 .get("notification.record.failed")
@@ -72,11 +81,11 @@ class NotificationEventListenerTest {
     @Test
     fun `사용자 알림 기록이 실패해도 예외를 전파하지 않고 종류별 실패를 센다`() {
         val command = RecordNotificationCommand(NotificationType.USER_FOLLOWED, ACTOR_ID, TARGET_ID, OCCURRED_AT)
-        doThrow(IllegalStateException("알림 저장 실패")).`when`(useCase).record(command)
+        doThrow(IllegalStateException("알림 저장 실패")).`when`(notificationUseCase).record(command)
 
         assertDoesNotThrow { listener.onUserActivity(userEvent(UserActivityKind.FOLLOWED)) }
 
-        verify(useCase).record(command)
+        verify(notificationUseCase).record(command)
         assertThat(
             meterRegistry
                 .get("notification.record.failed")

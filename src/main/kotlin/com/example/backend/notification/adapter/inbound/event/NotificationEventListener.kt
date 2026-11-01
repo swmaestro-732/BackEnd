@@ -19,9 +19,13 @@ import org.springframework.transaction.event.TransactionalEventListener
 @Component
 class NotificationEventListener(
     private val notificationUseCase: NotificationUseCase,
-    private val meterRegistry: MeterRegistry,
+    meterRegistry: MeterRegistry,
 ) {
     private val log = KotlinLogging.logger {}
+
+    // 첫 실패부터 increase() 로 잡히도록 종류별 카운터를 0 으로 미리 등록한다.
+    private val failedCounters =
+        NotificationType.entries.associateWith { meterRegistry.counter("notification.record.failed", "type", it.name) }
 
     @Async(AsyncConfig.NOTIFICATION_EXECUTOR)
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
@@ -32,7 +36,7 @@ class NotificationEventListener(
             )
         } catch (e: Exception) {
             log.warn(e) { "코스 활동 알림 기록 실패: type=${event.kind}" }
-            meterRegistry.counter("notification.record.failed", "type", courseType(event.kind).name).increment()
+            failedCounters.getValue(courseType(event.kind)).increment()
         }
     }
 
@@ -45,7 +49,7 @@ class NotificationEventListener(
             )
         } catch (e: Exception) {
             log.warn(e) { "사용자 활동 알림 기록 실패: type=${event.kind}" }
-            meterRegistry.counter("notification.record.failed", "type", userType(event.kind).name).increment()
+            failedCounters.getValue(userType(event.kind)).increment()
         }
     }
 

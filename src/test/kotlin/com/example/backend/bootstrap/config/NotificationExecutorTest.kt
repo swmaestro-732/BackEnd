@@ -18,6 +18,7 @@ class NotificationExecutorTest {
         val rejectedTaskRan = AtomicBoolean(false)
         executor.initialize()
         try {
+            assertThat(meterRegistry.get("notification.record.dropped").counter().count()).isZero()
             assertThat(executor.corePoolSize).isEqualTo(2)
             assertThat(executor.maxPoolSize).isEqualTo(2)
             assertThat(executor.threadNamePrefix).isEqualTo("notification-")
