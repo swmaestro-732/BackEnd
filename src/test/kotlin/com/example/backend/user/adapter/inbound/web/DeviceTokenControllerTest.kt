@@ -29,23 +29,23 @@ class DeviceTokenControllerTest
     constructor(
         private val mockMvc: MockMvc,
         private val jwtTokenProvider: JwtTokenProvider,
-        private val jdbc: JdbcTemplate,
+        private val jdbcTemplate: JdbcTemplate,
     ) : IntegrationTestBase() {
         @BeforeEach
         fun setUp() {
             cleanUp()
-            jdbc.update("INSERT INTO users (id, nickname) VALUES (?, '기기주인'), (?, '다른사용자')", ME, OTHER)
+            jdbcTemplate.update("INSERT INTO users (id, nickname) VALUES (?, '기기주인'), (?, '다른사용자')", ME, OTHER)
         }
 
         @AfterEach
         fun cleanUp() {
-            jdbc.update("DELETE FROM device_tokens WHERE user_id IN (?, ?)", ME, OTHER)
-            jdbc.update("DELETE FROM users WHERE id IN (?, ?)", ME, OTHER)
+            jdbcTemplate.update("DELETE FROM device_tokens WHERE user_id IN (?, ?)", ME, OTHER)
+            jdbcTemplate.update("DELETE FROM users WHERE id IN (?, ?)", ME, OTHER)
         }
 
         @Test
         fun `탈퇴한 사용자는 토큰을 등록할 수 없다`() {
-            jdbc.update("UPDATE users SET deleted_at = now() WHERE id = ?", ME)
+            jdbcTemplate.update("UPDATE users SET deleted_at = now() WHERE id = ?", ME)
 
             mockMvc
                 .perform(deviceRequest("PUT"))
@@ -374,7 +374,7 @@ class DeviceTokenControllerTest
         }
 
         private fun storeToken(userId: Long) {
-            jdbc.update(
+            jdbcTemplate.update(
                 "INSERT INTO device_tokens (user_id, device_id, fcm_token) VALUES (?, ?, ?)",
                 userId,
                 DEVICE,
@@ -385,13 +385,17 @@ class DeviceTokenControllerTest
         /** 사용자를 지정하지 않으면 이 기기의 유일한 행을 읽는다(행이 둘이면 실패한다). */
         private fun row(userId: Long? = null): Map<String, Any?> =
             if (userId == null) {
-                jdbc.queryForMap("SELECT * FROM device_tokens WHERE device_id = ?", DEVICE)
+                jdbcTemplate.queryForMap("SELECT * FROM device_tokens WHERE device_id = ?", DEVICE)
             } else {
-                jdbc.queryForMap("SELECT * FROM device_tokens WHERE device_id = ? AND user_id = ?", DEVICE, userId)
+                jdbcTemplate.queryForMap(
+                    "SELECT * FROM device_tokens WHERE device_id = ? AND user_id = ?",
+                    DEVICE,
+                    userId,
+                )
             }
 
         private fun count(): Int =
-            jdbc.queryForObject(
+            jdbcTemplate.queryForObject(
                 "SELECT count(*) FROM device_tokens WHERE user_id IN (?, ?)",
                 Int::class.java,
                 ME,
