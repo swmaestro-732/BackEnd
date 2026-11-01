@@ -171,6 +171,21 @@ class DeviceTokenControllerTest
         }
 
         @Test
+        fun `Android 가 보내는 platform, appBuild 필드가 body 에 있어도 무시하고 헤더 값을 저장한다`() {
+            mockMvc
+                .perform(
+                    deviceRequest("PUT")
+                        .header("X-App-Platform", "ANDROID")
+                        .header("X-App-Build", "7")
+                        .content("""{"token":"$TOKEN","platform":"IOS","appBuild":99}"""),
+                ).andExpect(status().isOk)
+
+            assertEquals(TOKEN, row()["fcm_token"])
+            assertEquals("ANDROID", row()["platform"])
+            assertEquals(7, row()["app_build"])
+        }
+
+        @Test
         fun `같은 기기에서 토큰이 바뀌면 행 하나에서 토큰만 교체한다`() {
             mockMvc.perform(deviceRequest("PUT", token = "old-token")).andExpect(status().isOk)
             mockMvc.perform(deviceRequest("PUT", token = "new-token")).andExpect(status().isOk)
@@ -210,7 +225,7 @@ class DeviceTokenControllerTest
                 .perform(deviceRequest("PUT", token = "   "))
                 .andExpect(status().isBadRequest)
                 .andExpect(jsonPath("$.code").value(4002))
-                .andExpect(jsonPath("$.fieldErrors[0].field").value("fcmToken"))
+                .andExpect(jsonPath("$.fieldErrors[0].field").value("token"))
 
             assertEquals(0, count())
         }
@@ -221,7 +236,7 @@ class DeviceTokenControllerTest
                 .perform(deviceRequest("PUT", token = "a".repeat(1025)))
                 .andExpect(status().isBadRequest)
                 .andExpect(jsonPath("$.code").value(4002))
-                .andExpect(jsonPath("$.fieldErrors[0].field").value("fcmToken"))
+                .andExpect(jsonPath("$.fieldErrors[0].field").value("token"))
 
             assertEquals(0, count())
         }
@@ -323,7 +338,7 @@ class DeviceTokenControllerTest
                 .perform(
                     request(HttpMethod.valueOf(method), PATH)
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content("""{"fcmToken":"$TOKEN"}"""),
+                        .content("""{"token":"$TOKEN"}"""),
                 ).andExpect(status().isUnauthorized)
 
             assertEquals(0, count())
@@ -338,7 +353,7 @@ class DeviceTokenControllerTest
                     request(HttpMethod.valueOf(method), PATH)
                         .header(HttpHeaders.AUTHORIZATION, "Bearer $registrationToken")
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content("""{"fcmToken":"$TOKEN"}"""),
+                        .content("""{"token":"$TOKEN"}"""),
                 ).andExpect(status().isForbidden)
 
             assertEquals(0, count())
@@ -354,7 +369,7 @@ class DeviceTokenControllerTest
                 request(HttpMethod.valueOf(method), PATH)
                     .header(HttpHeaders.AUTHORIZATION, "Bearer ${jwtTokenProvider.issueAccessToken(userId)}")
             deviceId?.let { builder.header("X-Device-Id", it) }
-            if (method == "PUT") builder.contentType(MediaType.APPLICATION_JSON).content("""{"fcmToken":"$token"}""")
+            if (method == "PUT") builder.contentType(MediaType.APPLICATION_JSON).content("""{"token":"$token"}""")
             return builder
         }
 

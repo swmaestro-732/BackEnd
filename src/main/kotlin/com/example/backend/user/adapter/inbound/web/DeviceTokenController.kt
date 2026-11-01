@@ -37,7 +37,7 @@ class DeviceTokenController(
         @RequestParam(required = false) mock: Boolean = false,
     ): ApiResponse<Nothing?> {
         val command =
-            RegisterDeviceTokenCommand(deviceId, request.fcmToken, parsePlatform(platform), parseBuild(appBuild))
+            RegisterDeviceTokenCommand(deviceId, request.token, parsePlatform(platform), parseBuild(appBuild))
         if (!mock) deviceTokenUseCase.register(userId, command)
         return ApiResponse.ok()
     }
