@@ -4,8 +4,7 @@ import com.example.backend.notification.application.port.inbound.dto.Notificatio
 import com.example.backend.notification.domain.model.NotificationBundle
 
 interface NotificationPersistencePort {
-    /** 새 묶음 삽입이면 true, 기존 묶음 갱신이면 false. */
-    fun upsert(bundle: NotificationBundle): Boolean
+    fun upsert(bundle: NotificationBundle)
 
     fun findPage(
         userId: Long,

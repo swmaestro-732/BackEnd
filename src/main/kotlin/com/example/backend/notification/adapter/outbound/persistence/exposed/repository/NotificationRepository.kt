@@ -3,71 +3,60 @@ package com.example.backend.notification.adapter.outbound.persistence.exposed.re
 import com.example.backend.notification.adapter.outbound.persistence.exposed.NotificationTable
 import com.example.backend.notification.application.port.inbound.dto.NotificationSummary
 import com.example.backend.notification.domain.model.NotificationBundle
-import com.example.backend.notification.domain.model.NotificationPayload
-import org.jetbrains.exposed.v1.core.LongColumnType
+import org.jetbrains.exposed.v1.core.Op
 import org.jetbrains.exposed.v1.core.SortOrder
-import org.jetbrains.exposed.v1.core.TextColumnType
-import org.jetbrains.exposed.v1.core.VarCharColumnType
 import org.jetbrains.exposed.v1.core.and
+import org.jetbrains.exposed.v1.core.case
 import org.jetbrains.exposed.v1.core.eq
+import org.jetbrains.exposed.v1.core.intLiteral
 import org.jetbrains.exposed.v1.core.isNull
 import org.jetbrains.exposed.v1.core.less
 import org.jetbrains.exposed.v1.core.or
-import org.jetbrains.exposed.v1.core.statements.StatementType
+import org.jetbrains.exposed.v1.core.plus
 import org.jetbrains.exposed.v1.datetime.CurrentTimestamp
 import org.jetbrains.exposed.v1.jdbc.andWhere
 import org.jetbrains.exposed.v1.jdbc.deleteWhere
 import org.jetbrains.exposed.v1.jdbc.selectAll
-import org.jetbrains.exposed.v1.jdbc.transactions.TransactionManager
 import org.jetbrains.exposed.v1.jdbc.update
+import org.jetbrains.exposed.v1.jdbc.upsert
 import org.springframework.stereotype.Repository
-import tools.jackson.databind.ObjectMapper
 import kotlin.time.toJavaInstant
+import kotlin.time.toKotlinInstant
 
 @Repository
-class NotificationRepository(
-    private val objectMapper: ObjectMapper,
-) {
-    fun upsert(bundle: NotificationBundle): Boolean {
-        val payload =
-            linkedMapOf<String, Any?>(
-                "actorNickname" to bundle.payload.actorNickname,
-                "actorProfileImageUrl" to bundle.payload.actorProfileImageUrl,
-            )
-        bundle.payload.courseTitle?.let { payload["courseTitle"] = it }
-        // 직전 행동자와 같으면(좋아요 토글 반복 등) 인원을 늘리지 않고 읽음 상태도 되돌리지 않는다.
-        // ponytail: 직전 행동자만 비교하므로 A, B, A 순서면 A 가 두 번 센다. 정확한 고유 인원이 필요하면 행동자 목록을 따로 둔다.
-        return checkNotNull(
-            TransactionManager.current().exec(
-                """
-                INSERT INTO notifications (user_id, type, target_type, target_id, window_start, last_actor_id, payload)
-                VALUES (?, ?, ?, ?, CAST(? AS timestamptz), ?, CAST(? AS jsonb))
-                ON CONFLICT ON CONSTRAINT uq_notifications_bundle DO UPDATE SET
-                    actor_count = notifications.actor_count +
-                        CASE WHEN notifications.last_actor_id = EXCLUDED.last_actor_id THEN 0 ELSE 1 END,
-                    read_at =
-                        CASE WHEN notifications.last_actor_id = EXCLUDED.last_actor_id THEN notifications.read_at END,
-                    last_actor_id = EXCLUDED.last_actor_id,
-                    payload = EXCLUDED.payload,
-                    updated_at = now()
-                RETURNING (xmax = 0) AS inserted
-                """.trimIndent(),
-                args =
-                    listOf(
-                        LongColumnType() to bundle.userId,
-                        VarCharColumnType() to bundle.type.name,
-                        VarCharColumnType() to bundle.targetType.name,
-                        LongColumnType() to bundle.targetId,
-                        TextColumnType() to bundle.windowStart.toString(),
-                        LongColumnType() to bundle.lastActorId,
-                        TextColumnType() to objectMapper.writeValueAsString(payload),
-                    ),
-                explicitStatementType = StatementType.SELECT,
-            ) { rs ->
-                check(rs.next()) { "알림 업서트 결과가 없습니다." }
-                rs.getBoolean("inserted")
+class NotificationRepository {
+    fun upsert(bundle: NotificationBundle) {
+        NotificationTable.upsert(
+            NotificationTable.userId,
+            NotificationTable.type,
+            NotificationTable.targetType,
+            NotificationTable.targetId,
+            NotificationTable.windowStart,
+            onUpdate = {
+                // 직전 행동자와 같으면(좋아요 토글 반복 등) 인원을 늘리지 않고 읽음 상태도 되돌리지 않는다.
+                // ponytail: 직전 행동자만 비교하므로 A, B, A 순서면 A 가 두 번 센다. 정확한 고유 인원이 필요하면 행동자 목록을 따로 둔다.
+                val sameActor = NotificationTable.lastActorId eq insertValue(NotificationTable.lastActorId)
+                it[NotificationTable.actorCount] =
+                    NotificationTable.actorCount + case().When(sameActor, intLiteral(0)).Else(intLiteral(1))
+                it[NotificationTable.readAt] = case().When(sameActor, NotificationTable.readAt).Else(Op.nullOp())
+                it[NotificationTable.lastActorId] = insertValue(NotificationTable.lastActorId)
+                it[NotificationTable.actorNickname] = insertValue(NotificationTable.actorNickname)
+                it[NotificationTable.actorProfileImageUrl] = insertValue(NotificationTable.actorProfileImageUrl)
+                it[NotificationTable.courseTitle] = insertValue(NotificationTable.courseTitle)
+                it[NotificationTable.updatedAt] = CurrentTimestamp
             },
-        )
+        ) {
+            it[userId] = bundle.userId
+            it[type] = bundle.type
+            it[targetType] = bundle.targetType
+            it[targetId] = bundle.targetId
+            it[windowStart] = bundle.windowStart.toKotlinInstant()
+            it[lastActorId] = bundle.lastActorId
+            it[actorCount] = 1
+            it[actorNickname] = bundle.payload.actorNickname
+            it[actorProfileImageUrl] = bundle.payload.actorProfileImageUrl
+            it[courseTitle] = bundle.payload.courseTitle
+        }
     }
 
     fun findPage(
@@ -78,7 +67,6 @@ class NotificationRepository(
         val query = NotificationTable.selectAll().where { NotificationTable.userId eq userId }
         if (cursor != null) query.andWhere { NotificationTable.id less cursor }
         return query.orderBy(NotificationTable.id, SortOrder.DESC).limit(limit).map { row ->
-            val payload = objectMapper.readValue(row[NotificationTable.payload], NotificationPayload::class.java)
             NotificationSummary(
                 id = row[NotificationTable.id].value,
                 type = row[NotificationTable.type],
@@ -86,9 +74,9 @@ class NotificationRepository(
                 targetId = row[NotificationTable.targetId],
                 actorCount = row[NotificationTable.actorCount],
                 lastActorId = row[NotificationTable.lastActorId],
-                actorNickname = payload.actorNickname,
-                actorProfileImageUrl = payload.actorProfileImageUrl,
-                courseTitle = payload.courseTitle,
+                actorNickname = row[NotificationTable.actorNickname],
+                actorProfileImageUrl = row[NotificationTable.actorProfileImageUrl],
+                courseTitle = row[NotificationTable.courseTitle],
                 isRead = row[NotificationTable.readAt] != null,
                 createdAt = row[NotificationTable.createdAt].toJavaInstant(),
                 updatedAt = row[NotificationTable.updatedAt].toJavaInstant(),

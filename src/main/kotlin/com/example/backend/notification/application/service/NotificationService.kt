@@ -11,7 +11,6 @@ import com.example.backend.notification.domain.model.NotificationBundle
 import com.example.backend.notification.domain.model.NotificationPayload
 import com.example.backend.notification.domain.model.NotificationSettings
 import com.example.backend.notification.domain.model.NotificationTargetType
-import io.github.oshai.kotlinlogging.KotlinLogging
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
 
@@ -28,8 +27,6 @@ class NotificationService(
     private val notificationPersistencePort: NotificationPersistencePort,
     private val notificationSettingsPersistencePort: NotificationSettingsPersistencePort,
 ) : NotificationUseCase {
-    private val log = KotlinLogging.logger {}
-
     @Transactional
     override fun record(activity: RecordNotificationCommand) {
         val targetType = activity.type.targetType
@@ -49,19 +46,17 @@ class NotificationService(
             return
         }
         val actor = notificationActorLookupPort.findActor(activity.actorId) ?: return
-        val inserted =
-            notificationPersistencePort.upsert(
-                NotificationBundle(
-                    userId = recipientId,
-                    type = activity.type,
-                    targetType = targetType,
-                    targetId = activity.targetId,
-                    windowStart = NotificationBundle.windowStart(activity.occurredAt),
-                    lastActorId = activity.actorId,
-                    payload = NotificationPayload(actor.nickname, actor.profileImageUrl, course?.title),
-                ),
-            )
-        log.debug { "알림 기록: type=${activity.type}, inserted=$inserted" }
+        notificationPersistencePort.upsert(
+            NotificationBundle(
+                userId = recipientId,
+                type = activity.type,
+                targetType = targetType,
+                targetId = activity.targetId,
+                windowStart = NotificationBundle.windowStart(activity.occurredAt),
+                lastActorId = activity.actorId,
+                payload = NotificationPayload(actor.nickname, actor.profileImageUrl, course?.title),
+            ),
+        )
     }
 
     override fun list(

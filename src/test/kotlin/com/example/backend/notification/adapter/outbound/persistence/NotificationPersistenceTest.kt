@@ -25,7 +25,7 @@ class NotificationPersistenceTest
         fun `같은 묶음을 업서트하면 한 행의 인원과 마지막 행동자 스냅샷을 갱신한다`() {
             transaction {
                 val first = bundle()
-                assertThat(notificationPersistencePort.upsert(first)).isTrue()
+                notificationPersistencePort.upsert(first)
                 val inserted = notificationPersistencePort.findPage(USER_ID, null, 10).single()
                 // 같은 트랜잭션 안에서는 now() 가 같으므로 기존 갱신 시각을 과거로 돌려 재업서트의 갱신을 구분한다.
                 exec("UPDATE notifications SET updated_at = updated_at - interval '1 hour' WHERE id = ${inserted.id}")
@@ -36,7 +36,7 @@ class NotificationPersistenceTest
                         payload = NotificationPayload("새로운 '작성자' \"인용\"", "https://example.com/new.jpg", "바뀐 코스"),
                     )
 
-                assertThat(notificationPersistencePort.upsert(latest)).isFalse()
+                notificationPersistencePort.upsert(latest)
 
                 val rows = notificationPersistencePort.findPage(USER_ID, null, 10)
                 assertThat(rows.map { it.id }).containsExactly(inserted.id)
@@ -62,9 +62,7 @@ class NotificationPersistenceTest
                 val first = bundle()
                 notificationPersistencePort.upsert(first)
                 val firstId = notificationPersistencePort.findPage(USER_ID, null, 10).single().id
-                assertThat(
-                    notificationPersistencePort.upsert(first.copy(windowStart = first.windowStart.plusSeconds(600))),
-                ).isTrue()
+                notificationPersistencePort.upsert(first.copy(windowStart = first.windowStart.plusSeconds(600)))
                 val secondId = notificationPersistencePort.findPage(USER_ID, null, 1).single().id
                 notificationPersistencePort.upsert(first.copy(userId = OTHER_USER_ID))
 
@@ -106,7 +104,7 @@ class NotificationPersistenceTest
                 val id = notificationPersistencePort.findPage(USER_ID, null, 10).single().id
                 notificationPersistencePort.markRead(USER_ID, id)
 
-                assertThat(notificationPersistencePort.upsert(activity.copy(lastActorId = 570_902L))).isFalse()
+                notificationPersistencePort.upsert(activity.copy(lastActorId = 570_902L))
 
                 val rows = notificationPersistencePort.findPage(USER_ID, null, 10)
                 assertThat(rows.map { it.id }).containsExactly(id)
@@ -125,8 +123,8 @@ class NotificationPersistenceTest
                 val id = notificationPersistencePort.findPage(USER_ID, null, 10).single().id
                 notificationPersistencePort.markRead(USER_ID, id)
 
-                assertThat(notificationPersistencePort.upsert(activity)).isFalse()
-                assertThat(notificationPersistencePort.upsert(activity)).isFalse()
+                notificationPersistencePort.upsert(activity)
+                notificationPersistencePort.upsert(activity)
 
                 val row = notificationPersistencePort.findPage(USER_ID, null, 10).single()
                 assertThat(row.actorCount).isEqualTo(1)

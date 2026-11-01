@@ -10,7 +10,10 @@ CREATE TABLE notifications (
     window_start timestamptz NOT NULL,
     last_actor_id bigint NOT NULL,
     actor_count integer NOT NULL DEFAULT 1,
-    payload jsonb NOT NULL DEFAULT '{}',
+    -- 기록 시점 스냅샷(마지막 행동자 프로필, 코스 제목). 코스가 아닌 알림은 course_title 이 NULL.
+    actor_nickname varchar(20) NOT NULL,
+    actor_profile_image_url text,
+    course_title varchar(200),
     read_at timestamptz,
     created_at timestamptz NOT NULL DEFAULT now(),
     updated_at timestamptz NOT NULL DEFAULT now(),

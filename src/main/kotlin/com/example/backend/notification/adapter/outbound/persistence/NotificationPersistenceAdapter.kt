@@ -10,7 +10,7 @@ import org.springframework.stereotype.Component
 class NotificationPersistenceAdapter(
     private val notificationRepository: NotificationRepository,
 ) : NotificationPersistencePort {
-    override fun upsert(bundle: NotificationBundle): Boolean = notificationRepository.upsert(bundle)
+    override fun upsert(bundle: NotificationBundle) = notificationRepository.upsert(bundle)
 
     override fun findPage(
         userId: Long,

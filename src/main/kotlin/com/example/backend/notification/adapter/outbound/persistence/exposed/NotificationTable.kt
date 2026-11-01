@@ -13,9 +13,9 @@ internal object NotificationTable : LongIdTable("notifications") {
     val windowStart = timestamp("window_start")
     val lastActorId = long("last_actor_id")
     val actorCount = integer("actor_count")
-
-    // JSONB는 조회 시 문자열로 읽고, 쓰기는 업서트 SQL에서 JSONB로 바인딩한다.
-    val payload = text("payload")
+    val actorNickname = varchar("actor_nickname", 20)
+    val actorProfileImageUrl = text("actor_profile_image_url").nullable()
+    val courseTitle = varchar("course_title", 200).nullable()
     val readAt = timestamp("read_at").nullable()
     val createdAt = timestamp("created_at")
     val updatedAt = timestamp("updated_at")
