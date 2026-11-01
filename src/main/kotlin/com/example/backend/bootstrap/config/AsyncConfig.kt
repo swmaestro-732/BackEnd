@@ -35,8 +35,11 @@ class AsyncConfig {
 
     @Bean(NOTIFICATION_EXECUTOR)
     fun notificationExecutor(meterRegistry: MeterRegistry): ThreadPoolTaskExecutor {
-        // 첫 폐기부터 increase() 로 잡히도록 카운터를 0 으로 미리 등록한다.
-        val droppedCounter = meterRegistry.counter("notification.record.dropped")
+        // 원인별(큐 포화, 실행기 종료) 카운터를 0 으로 미리 등록해 첫 폐기부터 increase() 로 잡히게 한다.
+        val droppedCounters =
+            listOf(DROP_QUEUE_FULL, DROP_SHUTDOWN).associateWith {
+                meterRegistry.counter("notification.record.dropped", "reason", it)
+            }
         return ThreadPoolTaskExecutor().apply {
             corePoolSize = 2
             maxPoolSize = 2
@@ -46,15 +49,18 @@ class AsyncConfig {
             setWaitForTasksToCompleteOnShutdown(true)
             setAwaitTerminationSeconds(10)
             // AFTER_COMMIT 콜백의 거부 예외가 이미 커밋된 요청을 실패로 바꾸지 않도록 폐기한다.
-            setRejectedExecutionHandler { _, _ ->
-                log.debug { "알림 실행기 작업 폐기: 큐 포화 또는 실행기 종료" }
-                droppedCounter.increment()
+            setRejectedExecutionHandler { _, executor ->
+                val reason = if (executor.isShutdown) DROP_SHUTDOWN else DROP_QUEUE_FULL
+                log.debug { "알림 실행기 작업 폐기: reason=$reason" }
+                droppedCounters.getValue(reason).increment()
             }
         }
     }
 
     companion object {
         const val NOTIFICATION_EXECUTOR = "notificationExecutor"
+        const val DROP_QUEUE_FULL = "queue_full"
+        const val DROP_SHUTDOWN = "shutdown"
         const val BUSINESS_HOURS_SYNC_EXECUTOR = "businessHoursSyncExecutor"
         private const val BUSINESS_HOURS_SYNC_THREADS = 2
         const val BUSINESS_HOURS_SYNC_QUEUE_CAPACITY = 100

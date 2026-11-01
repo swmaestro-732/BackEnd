@@ -18,7 +18,9 @@ class NotificationExecutorTest {
         val rejectedTaskRan = AtomicBoolean(false)
         executor.initialize()
         try {
-            assertThat(meterRegistry.get("notification.record.dropped").counter().count()).isZero()
+            assertThat(meterRegistry.get("notification.record.dropped").counters().map { it.id.getTag("reason") })
+                .containsExactlyInAnyOrder("queue_full", "shutdown")
+            assertThat(meterRegistry.get("notification.record.dropped").counters().sumOf { it.count() }).isZero()
             assertThat(executor.corePoolSize).isEqualTo(2)
             assertThat(executor.maxPoolSize).isEqualTo(2)
             assertThat(executor.threadNamePrefix).isEqualTo("notification-")
@@ -35,7 +37,8 @@ class NotificationExecutorTest {
             assertDoesNotThrow { executor.execute { rejectedTaskRan.set(true) } }
 
             assertThat(executor.threadPoolExecutor.queue.size).isEqualTo(1000)
-            assertThat(meterRegistry.get("notification.record.dropped").counter().count()).isEqualTo(1.0)
+            assertThat(droppedCount(meterRegistry, "queue_full")).isEqualTo(1.0)
+            assertThat(droppedCount(meterRegistry, "shutdown")).isZero()
             assertThat(rejectedTaskRan.get()).isFalse()
         } finally {
             release.countDown()
@@ -43,4 +46,30 @@ class NotificationExecutorTest {
             meterRegistry.close()
         }
     }
+
+    @Test
+    fun `종료된 알림 실행기에 들어온 작업은 실행기 종료 원인으로 센다`() {
+        val meterRegistry = SimpleMeterRegistry()
+        val executor = AsyncConfig().notificationExecutor(meterRegistry)
+        val rejectedTaskRan = AtomicBoolean(false)
+        executor.initialize()
+        executor.shutdown()
+
+        assertDoesNotThrow { executor.execute { rejectedTaskRan.set(true) } }
+
+        assertThat(droppedCount(meterRegistry, "shutdown")).isEqualTo(1.0)
+        assertThat(droppedCount(meterRegistry, "queue_full")).isZero()
+        assertThat(rejectedTaskRan.get()).isFalse()
+        meterRegistry.close()
+    }
+
+    private fun droppedCount(
+        meterRegistry: SimpleMeterRegistry,
+        reason: String,
+    ): Double =
+        meterRegistry
+            .get("notification.record.dropped")
+            .tag("reason", reason)
+            .counter()
+            .count()
 }
