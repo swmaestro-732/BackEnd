@@ -3,13 +3,12 @@ package com.example.backend.notification.adapter.outbound.persistence.exposed.re
 import com.example.backend.notification.adapter.outbound.persistence.exposed.NotificationSettingsTable
 import com.example.backend.notification.application.port.inbound.dto.UpdateNotificationSettingsCommand
 import com.example.backend.notification.domain.model.NotificationSettings
-import org.jetbrains.exposed.v1.core.BooleanColumnType
-import org.jetbrains.exposed.v1.core.LongColumnType
+import org.jetbrains.exposed.v1.core.ResultRow
 import org.jetbrains.exposed.v1.core.eq
-import org.jetbrains.exposed.v1.core.statements.StatementType
+import org.jetbrains.exposed.v1.datetime.CurrentTimestamp
 import org.jetbrains.exposed.v1.jdbc.deleteWhere
 import org.jetbrains.exposed.v1.jdbc.selectAll
-import org.jetbrains.exposed.v1.jdbc.transactions.TransactionManager
+import org.jetbrains.exposed.v1.jdbc.upsertReturning
 import org.springframework.stereotype.Repository
 
 @Repository
@@ -19,15 +18,7 @@ class NotificationSettingsRepository {
             .selectAll()
             .where { NotificationSettingsTable.userId eq userId }
             .singleOrNull()
-            ?.let {
-                NotificationSettings(
-                    activityLike = it[NotificationSettingsTable.activityLike],
-                    activityComment = it[NotificationSettingsTable.activityComment],
-                    activityFollow = it[NotificationSettingsTable.activityFollow],
-                    activityCourse = it[NotificationSettingsTable.activityCourse],
-                    activityReview = it[NotificationSettingsTable.activityReview],
-                )
-            }
+            ?.toSettings()
 
     fun update(
         userId: Long,
@@ -35,43 +26,37 @@ class NotificationSettingsRepository {
     ): NotificationSettings {
         val changes =
             listOf(
-                command.activityLike,
-                command.activityComment,
-                command.activityFollow,
-                command.activityCourse,
-                command.activityReview,
+                NotificationSettingsTable.activityLike to command.activityLike,
+                NotificationSettingsTable.activityComment to command.activityComment,
+                NotificationSettingsTable.activityFollow to command.activityFollow,
+                NotificationSettingsTable.activityCourse to command.activityCourse,
+                NotificationSettingsTable.activityReview to command.activityReview,
             )
-        // null 필드를 DB의 현재 값으로 유지해 동시 부분 수정끼리 서로 덮어쓰지 않는다.
-        return checkNotNull(
-            TransactionManager.current().exec(
-                """
-                INSERT INTO notification_settings (user_id, activity_like, activity_comment, activity_follow, activity_course, activity_review)
-                VALUES (?, COALESCE(?, true), COALESCE(?, true), COALESCE(?, true), COALESCE(?, true), COALESCE(?, true))
-                ON CONFLICT (user_id) DO UPDATE SET
-                    activity_like = COALESCE(?, notification_settings.activity_like),
-                    activity_comment = COALESCE(?, notification_settings.activity_comment),
-                    activity_follow = COALESCE(?, notification_settings.activity_follow),
-                    activity_course = COALESCE(?, notification_settings.activity_course),
-                    activity_review = COALESCE(?, notification_settings.activity_review),
-                    updated_at = now()
-                RETURNING activity_like, activity_comment, activity_follow, activity_course, activity_review
-                """.trimIndent(),
-                args = listOf(LongColumnType() to userId) + (changes + changes).map { BooleanColumnType() to it },
-                explicitStatementType = StatementType.SELECT,
-            ) { rs ->
-                check(rs.next()) { "알림 설정 업서트 결과가 없습니다." }
-                NotificationSettings(
-                    rs.getBoolean("activity_like"),
-                    rs.getBoolean("activity_comment"),
-                    rs.getBoolean("activity_follow"),
-                    rs.getBoolean("activity_course"),
-                    rs.getBoolean("activity_review"),
-                )
-            },
-        )
+        // 갱신은 요청에 온 필드만 SET 한다. null 필드는 DB 의 현재 값을 그대로 둬 동시 부분 수정끼리 덮어쓰지 않는다.
+        return NotificationSettingsTable
+            .upsertReturning(
+                NotificationSettingsTable.userId,
+                onUpdate = {
+                    changes.forEach { (column, value) -> if (value != null) it[column] = insertValue(column) }
+                    it[NotificationSettingsTable.updatedAt] = CurrentTimestamp
+                },
+            ) {
+                it[NotificationSettingsTable.userId] = userId
+                changes.forEach { (column, value) -> it[column] = value ?: true }
+            }.single()
+            .toSettings()
     }
 
     fun delete(userId: Long) {
         NotificationSettingsTable.deleteWhere { NotificationSettingsTable.userId eq userId }
     }
+
+    private fun ResultRow.toSettings(): NotificationSettings =
+        NotificationSettings(
+            activityLike = this[NotificationSettingsTable.activityLike],
+            activityComment = this[NotificationSettingsTable.activityComment],
+            activityFollow = this[NotificationSettingsTable.activityFollow],
+            activityCourse = this[NotificationSettingsTable.activityCourse],
+            activityReview = this[NotificationSettingsTable.activityReview],
+        )
 }
