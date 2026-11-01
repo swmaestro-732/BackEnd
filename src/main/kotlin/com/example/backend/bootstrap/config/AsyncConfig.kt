@@ -1,6 +1,7 @@
 package com.example.backend.bootstrap.config
 
 import io.github.oshai.kotlinlogging.KotlinLogging
+import io.micrometer.core.instrument.MeterRegistry
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
 import org.springframework.scheduling.annotation.EnableAsync
@@ -33,7 +34,7 @@ class AsyncConfig {
         }
 
     @Bean(NOTIFICATION_EXECUTOR)
-    fun notificationExecutor(): ThreadPoolTaskExecutor =
+    fun notificationExecutor(meterRegistry: MeterRegistry): ThreadPoolTaskExecutor =
         ThreadPoolTaskExecutor().apply {
             corePoolSize = 2
             maxPoolSize = 2
@@ -43,9 +44,9 @@ class AsyncConfig {
             setWaitForTasksToCompleteOnShutdown(true)
             setAwaitTerminationSeconds(10)
             // AFTER_COMMIT 콜백의 거부 예외가 이미 커밋된 요청을 실패로 바꾸지 않도록 폐기한다.
-            // 폐기는 알림 유실이라 ERROR 로 남겨 Loki 에러 로그 알림에 걸리게 한다.
             setRejectedExecutionHandler { _, _ ->
-                log.error { "알림 실행기 작업 폐기(알림 유실): 큐 포화 또는 실행기 종료" }
+                log.debug { "알림 실행기 작업 폐기: 큐 포화 또는 실행기 종료" }
+                meterRegistry.counter("notification.record.dropped").increment()
             }
         }
 
