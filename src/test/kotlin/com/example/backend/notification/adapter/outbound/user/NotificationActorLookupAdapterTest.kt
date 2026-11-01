@@ -1,4 +1,4 @@
-package com.example.backend.notification.adapter.outbound.lookup
+package com.example.backend.notification.adapter.outbound.user
 
 import com.example.backend.notification.application.port.outbound.NotificationActor
 import com.example.backend.user.application.port.inbound.UserUseCase

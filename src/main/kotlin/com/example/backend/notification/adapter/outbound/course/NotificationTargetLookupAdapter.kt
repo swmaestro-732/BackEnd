@@ -1,4 +1,4 @@
-package com.example.backend.notification.adapter.outbound.lookup
+package com.example.backend.notification.adapter.outbound.course
 
 import com.example.backend.course.application.port.inbound.CourseQueryUseCase
 import com.example.backend.notification.application.port.outbound.NotificationCourseTarget
