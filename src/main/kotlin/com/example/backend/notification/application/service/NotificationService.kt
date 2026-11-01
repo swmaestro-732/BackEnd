@@ -46,12 +46,19 @@ class NotificationService(
             return
         }
         val actor = notificationActorLookupPort.findActor(activity.actorId) ?: return
+        // 사용자 대상 알림(팔로우)은 행동자를 대상으로 둬 행동자마다 따로 보이게 한다(맞팔로우 버튼, 프로필 이동).
+        // 코스 알림은 코스를 대상으로 둬 같은 코스의 활동끼리 묶는다.
+        val bundleTargetId =
+            when (targetType) {
+                NotificationTargetType.COURSE -> activity.targetId
+                NotificationTargetType.USER -> activity.actorId
+            }
         notificationPersistencePort.upsert(
             NotificationBundle(
                 userId = recipientId,
                 type = activity.type,
                 targetType = targetType,
-                targetId = activity.targetId,
+                targetId = bundleTargetId,
                 windowStart = NotificationBundle.windowStart(activity.occurredAt),
                 lastActorId = activity.actorId,
                 payload = NotificationPayload(actor.nickname, actor.profileImageUrl, course?.title),

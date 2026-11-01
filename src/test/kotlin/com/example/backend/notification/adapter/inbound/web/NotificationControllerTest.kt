@@ -40,7 +40,7 @@ class NotificationControllerTest
                 .andExpect(jsonPath("$.data.nextCursor").value(570102))
                 .andExpect(jsonPath("$.data.items[0].type").value("USER_FOLLOWED"))
                 .andExpect(jsonPath("$.data.items[0].targetType").value("USER"))
-                .andExpect(jsonPath("$.data.items[0].targetId").value(USER_ID))
+                .andExpect(jsonPath("$.data.items[0].targetId").value(OTHER_USER_ID))
                 .andExpect(jsonPath("$.data.items[0].actorCount").value(1))
                 .andExpect(jsonPath("$.data.items[0].lastActorId").value(OTHER_USER_ID))
                 .andExpect(jsonPath("$.data.items[0].actorNickname").value("알림함타인"))

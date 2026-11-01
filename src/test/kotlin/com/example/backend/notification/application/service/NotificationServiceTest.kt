@@ -59,7 +59,7 @@ class NotificationServiceTest {
     }
 
     @Test
-    fun `팔로우는 대상 사용자에게 코스 제목 없이 기록한다`() {
+    fun `팔로우는 대상 사용자에게 팔로워를 대상으로 코스 제목 없이 기록한다`() {
         `when`(settings.findByUser(OWNER_ID)).thenReturn(NotificationSettings.DEFAULT)
         `when`(actors.findActor(ACTOR_ID)).thenReturn(NotificationActor("새 팔로워", null))
 
@@ -72,12 +72,39 @@ class NotificationServiceTest {
                 userId = OWNER_ID,
                 type = NotificationType.USER_FOLLOWED,
                 targetType = NotificationTargetType.USER,
-                targetId = OWNER_ID,
+                targetId = ACTOR_ID,
                 windowStart = WINDOW_START,
                 lastActorId = ACTOR_ID,
                 payload = NotificationPayload("새 팔로워", null),
             ),
         )
+    }
+
+    @Test
+    fun `같은 창의 서로 다른 팔로워는 팔로워마다 다른 대상으로 기록해 묶이지 않는다`() {
+        val otherActorId = 3L
+        `when`(settings.findByUser(OWNER_ID)).thenReturn(NotificationSettings.DEFAULT)
+        `when`(actors.findActor(ACTOR_ID)).thenReturn(NotificationActor("첫 팔로워", null))
+        `when`(actors.findActor(otherActorId)).thenReturn(NotificationActor("둘째 팔로워", null))
+
+        service.record(command(NotificationType.USER_FOLLOWED, targetId = OWNER_ID))
+        service.record(
+            RecordNotificationCommand(NotificationType.USER_FOLLOWED, otherActorId, OWNER_ID, OCCURRED_AT),
+        )
+
+        listOf(ACTOR_ID to "첫 팔로워", otherActorId to "둘째 팔로워").forEach { (followerId, nickname) ->
+            verify(notifications).upsert(
+                NotificationBundle(
+                    userId = OWNER_ID,
+                    type = NotificationType.USER_FOLLOWED,
+                    targetType = NotificationTargetType.USER,
+                    targetId = followerId,
+                    windowStart = WINDOW_START,
+                    lastActorId = followerId,
+                    payload = NotificationPayload(nickname, null),
+                ),
+            )
+        }
     }
 
     @ParameterizedTest
