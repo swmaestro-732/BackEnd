@@ -10,13 +10,14 @@ import org.springframework.transaction.annotation.Transactional
 @Service
 @Transactional(readOnly = true)
 class NotificationSettingsService(
-    private val settings: NotificationSettingsPersistencePort,
+    private val notificationSettingsPersistencePort: NotificationSettingsPersistencePort,
 ) : NotificationSettingsUseCase {
-    override fun get(userId: Long): NotificationSettings = settings.findByUser(userId) ?: NotificationSettings.DEFAULT
+    override fun get(userId: Long): NotificationSettings =
+        notificationSettingsPersistencePort.findByUser(userId) ?: NotificationSettings.DEFAULT
 
     @Transactional
     override fun update(
         userId: Long,
         command: UpdateNotificationSettingsCommand,
-    ): NotificationSettings = settings.update(userId, command)
+    ): NotificationSettings = notificationSettingsPersistencePort.update(userId, command)
 }

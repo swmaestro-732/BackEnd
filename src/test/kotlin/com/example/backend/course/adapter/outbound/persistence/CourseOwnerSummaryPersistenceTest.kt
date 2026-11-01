@@ -17,7 +17,7 @@ import kotlin.time.Instant
 class CourseOwnerSummaryPersistenceTest
     @Autowired
     constructor(
-        private val query: CoursePersistencePort,
+        private val coursePersistencePort: CoursePersistencePort,
     ) : IntegrationTestBase() {
         @Test
         fun `작성자 요약은 활성 미삭제 코스만 단일 조회로 반환한다`() {
@@ -30,7 +30,9 @@ class CourseOwnerSummaryPersistenceTest
 
                 val (result, statements) =
                     SqlCapture.record {
-                        query.findOwnerSummaries(listOf(active, hidden, suspended, deleted, draft, Long.MAX_VALUE))
+                        coursePersistencePort.findOwnerSummaries(
+                            listOf(active, hidden, suspended, deleted, draft, Long.MAX_VALUE),
+                        )
                     }
 
                 assertThat(result).isEqualTo(
@@ -49,7 +51,7 @@ class CourseOwnerSummaryPersistenceTest
 
         @Test
         fun `빈 코스 목록이면 쿼리 없이 빈 작성자 요약을 반환한다`() {
-            val (result, statements) = SqlCapture.record { query.findOwnerSummaries(emptyList()) }
+            val (result, statements) = SqlCapture.record { coursePersistencePort.findOwnerSummaries(emptyList()) }
 
             assertThat(result).isEmpty()
             assertThat(statements).isEmpty()

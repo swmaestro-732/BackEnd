@@ -23,10 +23,10 @@ import org.springframework.transaction.annotation.Transactional
 @Service
 @Transactional(readOnly = true)
 class NotificationService(
-    private val targets: NotificationTargetLookupPort,
-    private val actors: NotificationActorLookupPort,
-    private val notifications: NotificationPersistencePort,
-    private val settings: NotificationSettingsPersistencePort,
+    private val notificationTargetLookupPort: NotificationTargetLookupPort,
+    private val notificationActorLookupPort: NotificationActorLookupPort,
+    private val notificationPersistencePort: NotificationPersistencePort,
+    private val notificationSettingsPersistencePort: NotificationSettingsPersistencePort,
 ) : NotificationUseCase {
     private val log = KotlinLogging.logger {}
 
@@ -35,15 +35,22 @@ class NotificationService(
         val targetType = activity.type.targetType
         val course =
             when (targetType) {
-                NotificationTargetType.COURSE -> targets.findCourse(activity.targetId) ?: return
+                NotificationTargetType.COURSE -> notificationTargetLookupPort.findCourse(activity.targetId) ?: return
                 NotificationTargetType.USER -> null
             }
         val recipientId = course?.authorId ?: activity.targetId
         if (recipientId == activity.actorId) return
-        if (!(settings.findByUser(recipientId) ?: NotificationSettings.DEFAULT).allows(activity.type)) return
-        val actor = actors.findActor(activity.actorId) ?: return
+        if (!(
+                notificationSettingsPersistencePort.findByUser(
+                    recipientId,
+                ) ?: NotificationSettings.DEFAULT
+            ).allows(activity.type)
+        ) {
+            return
+        }
+        val actor = notificationActorLookupPort.findActor(activity.actorId) ?: return
         val inserted =
-            notifications.upsert(
+            notificationPersistencePort.upsert(
                 NotificationBundle(
                     userId = recipientId,
                     type = activity.type,
@@ -63,22 +70,22 @@ class NotificationService(
         size: Int,
     ): NotificationSummaryPage {
         val effectiveSize = size.coerceIn(1, 50)
-        val rows = notifications.findPage(userId, cursor, effectiveSize + 1)
+        val rows = notificationPersistencePort.findPage(userId, cursor, effectiveSize + 1)
         val items = rows.take(effectiveSize)
         val hasNext = rows.size > effectiveSize
         return NotificationSummaryPage(items, hasNext, if (hasNext) items.last().id else null)
     }
 
-    override fun unreadCount(userId: Long): Long = notifications.countUnread(userId)
+    override fun unreadCount(userId: Long): Long = notificationPersistencePort.countUnread(userId)
 
     @Transactional
     override fun markRead(
         userId: Long,
         id: Long,
     ) {
-        notifications.markRead(userId, id)
+        notificationPersistencePort.markRead(userId, id)
     }
 
     @Transactional
-    override fun markAllRead(userId: Long): Int = notifications.markAllRead(userId)
+    override fun markAllRead(userId: Long): Int = notificationPersistencePort.markAllRead(userId)
 }

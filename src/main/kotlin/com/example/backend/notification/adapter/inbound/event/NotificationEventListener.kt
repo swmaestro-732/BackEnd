@@ -18,7 +18,7 @@ import org.springframework.transaction.event.TransactionalEventListener
 /** 발행 도메인의 공개 계약만 받아 커밋 이후 알림 기록을 시도한다. */
 @Component
 class NotificationEventListener(
-    private val useCase: NotificationUseCase,
+    private val notificationUseCase: NotificationUseCase,
     private val meterRegistry: MeterRegistry,
 ) {
     private val log = KotlinLogging.logger {}
@@ -27,7 +27,7 @@ class NotificationEventListener(
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
     fun onCourseActivity(event: CourseActivityOccurred) {
         try {
-            useCase.record(
+            notificationUseCase.record(
                 RecordNotificationCommand(courseType(event.kind), event.actorId, event.courseId, event.occurredAt),
             )
         } catch (e: Exception) {
@@ -40,7 +40,7 @@ class NotificationEventListener(
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
     fun onUserActivity(event: UserActivityOccurred) {
         try {
-            useCase.record(
+            notificationUseCase.record(
                 RecordNotificationCommand(userType(event.kind), event.actorId, event.targetId, event.occurredAt),
             )
         } catch (e: Exception) {

@@ -21,7 +21,7 @@ import org.springframework.web.bind.annotation.RestController
 @AccessTokenRequired
 @RequiresAppFeature(AppFeature.NOTIFICATION)
 class NotificationController(
-    private val useCase: NotificationUseCase,
+    private val notificationUseCase: NotificationUseCase,
 ) {
     @GetMapping
     fun list(
@@ -29,20 +29,20 @@ class NotificationController(
         @RequestParam(required = false) cursor: Long?,
         @RequestParam(defaultValue = "20") size: Int = 20,
     ): ApiResponse<NotificationListResponse> =
-        ApiResponse.success(NotificationListResponse.from(useCase.list(userId, cursor, size)))
+        ApiResponse.success(NotificationListResponse.from(notificationUseCase.list(userId, cursor, size)))
 
     @GetMapping("/unread-count")
     fun unreadCount(
         @CurrentUserId userId: Long,
     ): ApiResponse<NotificationCountResponse> =
-        ApiResponse.success(NotificationCountResponse(useCase.unreadCount(userId)))
+        ApiResponse.success(NotificationCountResponse(notificationUseCase.unreadCount(userId)))
 
     @PatchMapping("/{id}/read")
     fun markRead(
         @CurrentUserId userId: Long,
         @PathVariable id: Long,
     ): ApiResponse<Nothing?> {
-        useCase.markRead(userId, id)
+        notificationUseCase.markRead(userId, id)
         return ApiResponse.ok()
     }
 
@@ -50,5 +50,5 @@ class NotificationController(
     fun markAllRead(
         @CurrentUserId userId: Long,
     ): ApiResponse<NotificationCountResponse> =
-        ApiResponse.success(NotificationCountResponse(useCase.markAllRead(userId).toLong()))
+        ApiResponse.success(NotificationCountResponse(notificationUseCase.markAllRead(userId).toLong()))
 }

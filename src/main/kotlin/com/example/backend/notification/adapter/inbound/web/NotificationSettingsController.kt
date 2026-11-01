@@ -19,18 +19,20 @@ import org.springframework.web.bind.annotation.RestController
 @AccessTokenRequired
 @RequiresAppFeature(AppFeature.NOTIFICATION)
 class NotificationSettingsController(
-    private val useCase: NotificationSettingsUseCase,
+    private val notificationSettingsUseCase: NotificationSettingsUseCase,
 ) {
     @GetMapping
     fun get(
         @CurrentUserId userId: Long,
     ): ApiResponse<NotificationSettingsResponse> =
-        ApiResponse.success(NotificationSettingsResponse.from(useCase.get(userId)))
+        ApiResponse.success(NotificationSettingsResponse.from(notificationSettingsUseCase.get(userId)))
 
     @PatchMapping
     fun update(
         @CurrentUserId userId: Long,
         @RequestBody request: UpdateNotificationSettingsRequest,
     ): ApiResponse<NotificationSettingsResponse> =
-        ApiResponse.success(NotificationSettingsResponse.from(useCase.update(userId, request.toCommand())))
+        ApiResponse.success(
+            NotificationSettingsResponse.from(notificationSettingsUseCase.update(userId, request.toCommand())),
+        )
 }

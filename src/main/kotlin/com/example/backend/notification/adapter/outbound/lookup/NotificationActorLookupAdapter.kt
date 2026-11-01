@@ -7,10 +7,10 @@ import org.springframework.stereotype.Component
 
 @Component
 class NotificationActorLookupAdapter(
-    private val users: UserUseCase,
+    private val userUseCase: UserUseCase,
 ) : NotificationActorLookupPort {
     override fun findActor(actorId: Long): NotificationActor? =
-        users
+        userUseCase
             .getProfiles(
                 listOf(actorId),
                 null,

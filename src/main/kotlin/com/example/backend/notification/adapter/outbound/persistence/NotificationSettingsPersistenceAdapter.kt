@@ -8,14 +8,14 @@ import org.springframework.stereotype.Component
 
 @Component
 class NotificationSettingsPersistenceAdapter(
-    private val repository: NotificationSettingsRepository,
+    private val notificationSettingsRepository: NotificationSettingsRepository,
 ) : NotificationSettingsPersistencePort {
-    override fun findByUser(userId: Long): NotificationSettings? = repository.findByUser(userId)
+    override fun findByUser(userId: Long): NotificationSettings? = notificationSettingsRepository.findByUser(userId)
 
-    override fun delete(userId: Long) = repository.delete(userId)
+    override fun delete(userId: Long) = notificationSettingsRepository.delete(userId)
 
     override fun update(
         userId: Long,
         command: UpdateNotificationSettingsCommand,
-    ): NotificationSettings = repository.update(userId, command)
+    ): NotificationSettings = notificationSettingsRepository.update(userId, command)
 }

@@ -8,12 +8,12 @@ import org.springframework.transaction.annotation.Transactional
 
 @Service
 class NotificationCleanupService(
-    private val notifications: NotificationPersistencePort,
-    private val settings: NotificationSettingsPersistencePort,
+    private val notificationPersistencePort: NotificationPersistencePort,
+    private val notificationSettingsPersistencePort: NotificationSettingsPersistencePort,
 ) : NotificationCleanupUseCase {
     @Transactional
     override fun purgeByUser(userId: Long) {
-        notifications.deleteAllInvolving(userId)
-        settings.delete(userId)
+        notificationPersistencePort.deleteAllInvolving(userId)
+        notificationSettingsPersistencePort.delete(userId)
     }
 }

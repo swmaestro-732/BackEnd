@@ -8,24 +8,24 @@ import org.springframework.stereotype.Component
 
 @Component
 class NotificationPersistenceAdapter(
-    private val repository: NotificationRepository,
+    private val notificationRepository: NotificationRepository,
 ) : NotificationPersistencePort {
-    override fun upsert(bundle: NotificationBundle): Boolean = repository.upsert(bundle)
+    override fun upsert(bundle: NotificationBundle): Boolean = notificationRepository.upsert(bundle)
 
     override fun findPage(
         userId: Long,
         cursor: Long?,
         limit: Int,
-    ): List<NotificationSummary> = repository.findPage(userId, cursor, limit)
+    ): List<NotificationSummary> = notificationRepository.findPage(userId, cursor, limit)
 
-    override fun countUnread(userId: Long): Long = repository.countUnread(userId)
+    override fun countUnread(userId: Long): Long = notificationRepository.countUnread(userId)
 
     override fun markRead(
         userId: Long,
         id: Long,
-    ): Int = repository.markRead(userId, id)
+    ): Int = notificationRepository.markRead(userId, id)
 
-    override fun markAllRead(userId: Long): Int = repository.markAllRead(userId)
+    override fun markAllRead(userId: Long): Int = notificationRepository.markAllRead(userId)
 
-    override fun deleteAllInvolving(userId: Long) = repository.deleteAllInvolving(userId)
+    override fun deleteAllInvolving(userId: Long) = notificationRepository.deleteAllInvolving(userId)
 }

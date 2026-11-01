@@ -7,8 +7,10 @@ import org.springframework.stereotype.Component
 
 @Component
 class NotificationTargetLookupAdapter(
-    private val courses: CourseQueryUseCase,
+    private val courseQueryUseCase: CourseQueryUseCase,
 ) : NotificationTargetLookupPort {
     override fun findCourse(courseId: Long): NotificationCourseTarget? =
-        courses.findOwnerSummaries(listOf(courseId))[courseId]?.let { NotificationCourseTarget(it.authorId, it.title) }
+        courseQueryUseCase.findOwnerSummaries(listOf(courseId))[courseId]?.let {
+            NotificationCourseTarget(it.authorId, it.title)
+        }
 }
