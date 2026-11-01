@@ -99,7 +99,26 @@ class NotificationPersistenceTest
         }
 
         @Test
-        fun `읽은 묶음에 같은 행동자가 다시 기록되면 인원이 늘고 미읽음으로 돌아간다`() {
+        fun `읽은 묶음에 다른 행동자가 기록되면 인원이 늘고 미읽음으로 돌아간다`() {
+            transaction {
+                val activity = bundle()
+                notificationPersistencePort.upsert(activity)
+                val id = notificationPersistencePort.findPage(USER_ID, null, 10).single().id
+                notificationPersistencePort.markRead(USER_ID, id)
+
+                assertThat(notificationPersistencePort.upsert(activity.copy(lastActorId = 570_902L))).isFalse()
+
+                val rows = notificationPersistencePort.findPage(USER_ID, null, 10)
+                assertThat(rows.map { it.id }).containsExactly(id)
+                assertThat(rows.single().actorCount).isEqualTo(2)
+                assertThat(rows.single().isRead).isFalse()
+                assertThat(notificationPersistencePort.countUnread(USER_ID)).isEqualTo(1L)
+                rollback()
+            }
+        }
+
+        @Test
+        fun `직전 행동자가 반복하면 인원과 읽음 상태를 유지한다`() {
             transaction {
                 val activity = bundle()
                 notificationPersistencePort.upsert(activity)
@@ -107,12 +126,12 @@ class NotificationPersistenceTest
                 notificationPersistencePort.markRead(USER_ID, id)
 
                 assertThat(notificationPersistencePort.upsert(activity)).isFalse()
+                assertThat(notificationPersistencePort.upsert(activity)).isFalse()
 
-                val rows = notificationPersistencePort.findPage(USER_ID, null, 10)
-                assertThat(rows.map { it.id }).containsExactly(id)
-                assertThat(rows.single().actorCount).isEqualTo(2)
-                assertThat(rows.single().isRead).isFalse()
-                assertThat(notificationPersistencePort.countUnread(USER_ID)).isEqualTo(1L)
+                val row = notificationPersistencePort.findPage(USER_ID, null, 10).single()
+                assertThat(row.actorCount).isEqualTo(1)
+                assertThat(row.isRead).isTrue()
+                assertThat(notificationPersistencePort.countUnread(USER_ID)).isZero()
                 rollback()
             }
         }

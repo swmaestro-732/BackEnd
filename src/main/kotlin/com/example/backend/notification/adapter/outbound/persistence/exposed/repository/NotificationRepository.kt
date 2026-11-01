@@ -35,17 +35,20 @@ class NotificationRepository(
                 "actorProfileImageUrl" to bundle.payload.actorProfileImageUrl,
             )
         bundle.payload.courseTitle?.let { payload["courseTitle"] = it }
-        // shortcut: 같은 주체의 반복 활동도 합산하며 고유 주체 수가 필요해지면 별도 중복 추적을 도입한다.
+        // 직전 행동자와 같으면(좋아요 토글 반복 등) 인원을 늘리지 않고 읽음 상태도 되돌리지 않는다.
+        // ponytail: 직전 행동자만 비교하므로 A, B, A 순서면 A 가 두 번 센다. 정확한 고유 인원이 필요하면 행동자 목록을 따로 둔다.
         return checkNotNull(
             TransactionManager.current().exec(
                 """
                 INSERT INTO notifications (user_id, type, target_type, target_id, window_start, last_actor_id, payload)
                 VALUES (?, ?, ?, ?, CAST(? AS timestamptz), ?, CAST(? AS jsonb))
                 ON CONFLICT ON CONSTRAINT uq_notifications_bundle DO UPDATE SET
-                    actor_count = notifications.actor_count + 1,
+                    actor_count = notifications.actor_count +
+                        CASE WHEN notifications.last_actor_id = EXCLUDED.last_actor_id THEN 0 ELSE 1 END,
+                    read_at =
+                        CASE WHEN notifications.last_actor_id = EXCLUDED.last_actor_id THEN notifications.read_at END,
                     last_actor_id = EXCLUDED.last_actor_id,
                     payload = EXCLUDED.payload,
-                    read_at = NULL,
                     updated_at = now()
                 RETURNING (xmax = 0) AS inserted
                 """.trimIndent(),
