@@ -4,12 +4,9 @@ package com.example.backend.user.application.port.inbound.dto
 data class UpdateDeviceCommand(
     val deviceId: String,
     val fcmToken: String?,
-    val platform: String?,
-    val appBuild: Int?,
     val marketing: Boolean?,
     val night: Boolean?,
 ) {
     override fun toString(): String =
-        "UpdateDeviceCommand(deviceId=$deviceId, fcmToken=[REDACTED], platform=$platform, appBuild=$appBuild, " +
-            "marketing=$marketing, night=$night)"
+        "UpdateDeviceCommand(deviceId=$deviceId, fcmToken=[REDACTED], marketing=$marketing, night=$night)"
 }

@@ -6,8 +6,6 @@ CREATE TABLE devices (
     user_id bigint REFERENCES users (id),
     -- 토큰 하나는 한 기기에만 있다. 동의를 먼저 보내 토큰이 아직 없는 기기는 NULL.
     fcm_token varchar(1024) UNIQUE,
-    platform varchar(16),
-    app_build integer,
     -- 광고성 정보 수신 동의 시각(정보통신망법 제50조). NULL 이면 미동의. 야간(21시~8시)은 별도 동의.
     marketing_agreed_at timestamptz,
     night_agreed_at timestamptz,
@@ -17,10 +15,5 @@ CREATE TABLE devices (
 
 CREATE INDEX idx_devices_user_id ON devices (user_id) WHERE user_id IS NOT NULL;
 
--- device_tokens(V18) 이관. 같은 기기 ID 를 여러 계정이 가진 경우 최근 행 하나만 옮긴다(토큰은 이미 유일).
-INSERT INTO devices (device_id, user_id, fcm_token, platform, app_build, created_at, last_seen_at)
-SELECT DISTINCT ON (device_id) device_id, user_id, fcm_token, platform, app_build, created_at, last_seen_at
-FROM device_tokens
-ORDER BY device_id, last_seen_at DESC;
-
+-- device_tokens(V18)는 운영에 배포되기 전이라 데이터를 옮기지 않고 지운다.
 DROP TABLE device_tokens;

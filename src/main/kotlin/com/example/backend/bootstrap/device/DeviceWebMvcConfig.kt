@@ -7,10 +7,8 @@ import org.springframework.web.servlet.config.annotation.WebMvcConfigurer
 @Configuration
 class DeviceWebMvcConfig(
     private val currentDeviceIdArgumentResolver: CurrentDeviceIdArgumentResolver,
-    private val currentAppClientArgumentResolver: CurrentAppClientArgumentResolver,
 ) : WebMvcConfigurer {
     override fun addArgumentResolvers(resolvers: MutableList<HandlerMethodArgumentResolver>) {
         resolvers.add(currentDeviceIdArgumentResolver)
-        resolvers.add(currentAppClientArgumentResolver)
     }
 }

@@ -24,16 +24,14 @@ class DevicePersistenceTest
         private val devicePersistencePort: DevicePersistencePort,
     ) : IntegrationTestBase() {
         @Test
-        fun `saveToken은 기기 행을 만들고 사용자와 헤더 값을 저장한다`() {
+        fun `saveToken은 기기 행을 만들고 사용자와 토큰을 저장한다`() {
             transaction {
                 insertUsers()
-                devicePersistencePort.saveToken(command("fid-insert", "token-insert", "ANDROID", 12), ME)
+                devicePersistencePort.saveToken(command("fid-insert", "token-insert"), ME)
 
                 val row = row("fid-insert")
                 assertEquals(ME, row[DeviceTable.userId])
                 assertEquals("token-insert", row[DeviceTable.fcmToken])
-                assertEquals("ANDROID", row[DeviceTable.platform])
-                assertEquals(12, row[DeviceTable.appBuild])
                 assertNull(row[DeviceTable.marketingAgreedAt])
                 assertEquals(row[DeviceTable.createdAt], row[DeviceTable.lastSeenAt])
                 rollback()
@@ -41,21 +39,19 @@ class DevicePersistenceTest
         }
 
         @Test
-        fun `재등록은 같은 행의 토큰과 헤더와 마지막 접속만 갱신하고 생성 시각은 보존한다`() {
+        fun `재등록은 같은 행의 토큰과 마지막 접속만 갱신하고 생성 시각은 보존한다`() {
             transaction {
                 insertUsers()
-                devicePersistencePort.saveToken(command("fid-refresh", "token-old", "ANDROID", 1), ME)
+                devicePersistencePort.saveToken(command("fid-refresh", "token-old"), ME)
                 DeviceTable.update({ DeviceTable.deviceId eq "fid-refresh" }) {
                     it[createdAt] = OLD
                     it[lastSeenAt] = OLD
                 }
 
-                devicePersistencePort.saveToken(command("fid-refresh", "token-new", "IOS", 2), ME)
+                devicePersistencePort.saveToken(command("fid-refresh", "token-new"), ME)
 
                 val row = row("fid-refresh")
                 assertEquals("token-new", row[DeviceTable.fcmToken])
-                assertEquals("IOS", row[DeviceTable.platform])
-                assertEquals(2, row[DeviceTable.appBuild])
                 assertEquals(OLD, row[DeviceTable.createdAt])
                 assertTrue(row[DeviceTable.lastSeenAt] > OLD)
                 assertEquals(1L, DeviceTable.selectAll().where { DeviceTable.deviceId eq "fid-refresh" }.count())
@@ -119,12 +115,11 @@ class DevicePersistenceTest
                 insertUsers()
                 val token = "device-token'; DELETE FROM devices; --"
                 devicePersistencePort.saveToken(command("fid-sql", token), ME)
-                devicePersistencePort.saveToken(command("fid-sql", token, "IOS", 3), OTHER)
+                devicePersistencePort.saveToken(command("fid-sql", token), OTHER)
 
                 val row = row("fid-sql")
                 assertEquals(token, row[DeviceTable.fcmToken])
                 assertEquals(OTHER, row[DeviceTable.userId])
-                assertEquals(3, row[DeviceTable.appBuild])
                 rollback()
             }
         }
@@ -207,9 +202,7 @@ class DevicePersistenceTest
         private fun command(
             deviceId: String,
             token: String,
-            platform: String? = null,
-            appBuild: Int? = null,
-        ) = RegisterDeviceTokenCommand(deviceId, token, platform, appBuild)
+        ) = RegisterDeviceTokenCommand(deviceId, token)
 
         private fun row(deviceId: String) = DeviceTable.selectAll().where { DeviceTable.deviceId eq deviceId }.single()
 

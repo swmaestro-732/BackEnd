@@ -20,15 +20,14 @@ class DeviceTokenRedactionTest {
     }
 
     @Test
-    fun `커맨드는 토큰을 숨기고 플랫폼과 빌드는 표시한다`() {
+    fun `커맨드는 토큰을 숨기고 기기 ID는 표시한다`() {
         val token = "secret-command-device-token"
 
-        val representation = RegisterDeviceTokenCommand("fid-1", token, "ANDROID", 12).toString()
+        val representation = RegisterDeviceTokenCommand("fid-1", token).toString()
 
         assertFalse(representation.contains(token))
         assertTrue(representation.contains("[REDACTED]"))
-        assertTrue(representation.contains("platform=ANDROID"))
-        assertTrue(representation.contains("appBuild=12"))
+        assertTrue(representation.contains("deviceId=fid-1"))
     }
 
     @Test
@@ -47,11 +46,10 @@ class DeviceTokenRedactionTest {
     fun `기기 갱신 커맨드는 토큰을 숨기고 나머지는 표시한다`() {
         val token = "secret-update-command-token"
 
-        val representation = UpdateDeviceCommand("fid-1", token, "IOS", 3, true, null).toString()
+        val representation = UpdateDeviceCommand("fid-1", token, true, null).toString()
 
         assertFalse(representation.contains(token))
         assertTrue(representation.contains("[REDACTED]"))
-        assertTrue(representation.contains("platform=IOS"))
         assertTrue(representation.contains("marketing=true"))
     }
 }

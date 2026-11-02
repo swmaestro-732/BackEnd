@@ -80,8 +80,6 @@ class DeviceTokenControllerTest
             val row = row()
             assertEquals(ME, row["user_id"])
             assertEquals(TOKEN, row["fcm_token"])
-            assertNull(row["platform"])
-            assertNull(row["app_build"])
         }
 
         @Test
@@ -102,74 +100,6 @@ class DeviceTokenControllerTest
 
             assertEquals(1, count())
             assertEquals(OTHER, row()["user_id"])
-        }
-
-        @Test
-        fun `PUT은 플랫폼과 빌드를 헤더에서 읽고 재등록 때 갱신한다`() {
-            mockMvc
-                .perform(deviceRequest("PUT").header("X-App-Platform", "android").header("X-App-Build", "1"))
-                .andExpect(status().isOk)
-            assertEquals("ANDROID", row()["platform"])
-            assertEquals(1, row()["app_build"])
-
-            mockMvc
-                .perform(deviceRequest("PUT").header("X-App-Platform", "iOs").header("X-App-Build", "12"))
-                .andExpect(status().isOk)
-
-            assertEquals("IOS", row()["platform"])
-            assertEquals(12, row()["app_build"])
-        }
-
-        @Test
-        fun `헤더 없이 재등록하면 기존 플랫폼과 빌드를 null로 갱신한다`() {
-            mockMvc
-                .perform(deviceRequest("PUT").header("X-App-Platform", "ANDROID").header("X-App-Build", "1"))
-                .andExpect(status().isOk)
-
-            mockMvc.perform(deviceRequest("PUT")).andExpect(status().isOk)
-
-            assertNull(row()["platform"])
-            assertNull(row()["app_build"])
-        }
-
-        @Test
-        fun `플랫폼 헤더만 있으면 빌드는 null로 저장한다`() {
-            mockMvc
-                .perform(deviceRequest("PUT").header("X-App-Platform", "ANDROID"))
-                .andExpect(status().isOk)
-
-            assertEquals("ANDROID", row()["platform"])
-            assertNull(row()["app_build"])
-        }
-
-        @Test
-        fun `빌드 헤더만 있으면 플랫폼은 null로 저장한다`() {
-            mockMvc.perform(deviceRequest("PUT").header("X-App-Build", "1")).andExpect(status().isOk)
-
-            assertNull(row()["platform"])
-            assertEquals(1, row()["app_build"])
-        }
-
-        @ParameterizedTest
-        @ValueSource(strings = ["abc", "", "2147483648"])
-        fun `잘못된 빌드 헤더는 INVALID_APP_HEADER이고 저장하지 않는다`(build: String) {
-            mockMvc
-                .perform(deviceRequest("PUT").header("X-App-Build", build))
-                .andExpect(status().isBadRequest)
-                .andExpect(jsonPath("$.code").value(4005))
-
-            assertEquals(0, count())
-        }
-
-        @ParameterizedTest
-        @ValueSource(strings = ["WEB", "", " android "])
-        fun `잘못된 플랫폼 헤더는 INVALID_APP_HEADER이고 저장하지 않는다`(platform: String) {
-            mockMvc
-                .perform(deviceRequest("PUT").header("X-App-Platform", platform))
-                .andExpect(status().isBadRequest)
-                .andExpect(jsonPath("$.code").value(4005))
-
-            assertEquals(0, count())
         }
 
         @Test
@@ -204,18 +134,14 @@ class DeviceTokenControllerTest
         }
 
         @Test
-        fun `Android 가 보내는 platform, appBuild 필드가 body 에 있어도 무시하고 헤더 값을 저장한다`() {
+        fun `Android 가 body 에 보내는 platform, appBuild 필드는 무시한다`() {
             mockMvc
                 .perform(
                     deviceRequest("PUT")
-                        .header("X-App-Platform", "ANDROID")
-                        .header("X-App-Build", "7")
                         .content("""{"fcmToken":"$TOKEN","platform":"IOS","appBuild":99}"""),
                 ).andExpect(status().isOk)
 
             assertEquals(TOKEN, row()["fcm_token"])
-            assertEquals("ANDROID", row()["platform"])
-            assertEquals(7, row()["app_build"])
         }
 
         @Test

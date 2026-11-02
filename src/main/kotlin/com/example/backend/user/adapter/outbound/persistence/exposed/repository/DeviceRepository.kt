@@ -42,8 +42,6 @@ class DeviceRepository {
                     case().When(sameToken, DeviceTable.marketingAgreedAt).Else(Op.nullOp())
                 it[DeviceTable.nightAgreedAt] = case().When(sameToken, DeviceTable.nightAgreedAt).Else(Op.nullOp())
                 it[DeviceTable.fcmToken] = insertValue(DeviceTable.fcmToken)
-                it[DeviceTable.platform] = insertValue(DeviceTable.platform)
-                it[DeviceTable.appBuild] = insertValue(DeviceTable.appBuild)
                 // 비로그인 경로는 인증이 없어 기기 ID 만으로 계정에 연결된 행의 토큰을 바꿀 수 있다.
                 // 토큰이 바뀌면 연결을 끊어, 남의 기기 ID 로 그 계정의 활동 알림을 가로채지 못하게 한다.
                 it[DeviceTable.userId] =
@@ -58,8 +56,6 @@ class DeviceRepository {
             it[deviceId] = command.deviceId
             it[DeviceTable.userId] = userId
             it[fcmToken] = command.fcmToken
-            it[platform] = command.platform
-            it[appBuild] = command.appBuild
         }
     }
 

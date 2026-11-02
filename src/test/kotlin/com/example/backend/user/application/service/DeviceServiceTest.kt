@@ -88,10 +88,10 @@ class DeviceServiceTest {
     fun `동의 없이 토큰만 보내면 토큰만 저장하고 현재 동의를 돌려준다`() {
         devicePersistencePort.consent = DeviceConsent(past, null)
 
-        val result = service.update(command(token = "tok", platform = "IOS", appBuild = 3))
+        val result = service.update(command(token = "tok"))
 
         assertEquals(DeviceConsent(past, null), result)
-        assertEquals(RegisterDeviceTokenCommand(DEVICE, "tok", "IOS", 3) to null, devicePersistencePort.saved.single())
+        assertEquals(RegisterDeviceTokenCommand(DEVICE, "tok") to null, devicePersistencePort.saved.single())
     }
 
     @Test
@@ -111,11 +111,9 @@ class DeviceServiceTest {
 
     private fun command(
         token: String? = null,
-        platform: String? = null,
-        appBuild: Int? = null,
         marketing: Boolean? = null,
         night: Boolean? = null,
-    ) = UpdateDeviceCommand(DEVICE, token, platform, appBuild, marketing, night)
+    ) = UpdateDeviceCommand(DEVICE, token, marketing, night)
 
     private class FakeDevicePersistencePort : DevicePersistencePort {
         var consent = DeviceConsent.NONE

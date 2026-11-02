@@ -1,7 +1,5 @@
 package com.example.backend.user.adapter.inbound.web
 
-import com.example.backend.bootstrap.device.AppClient
-import com.example.backend.bootstrap.device.CurrentAppClient
 import com.example.backend.bootstrap.device.CurrentDeviceId
 import com.example.backend.common.response.ApiResponse
 import com.example.backend.user.adapter.inbound.web.request.DeviceRequest
@@ -27,15 +25,12 @@ class DeviceController(
     fun update(
         @CurrentDeviceId deviceId: String,
         @Valid @RequestBody request: DeviceRequest,
-        @CurrentAppClient appClient: AppClient,
         @RequestParam(required = false) mock: Boolean = false,
     ): ApiResponse<DeviceConsentResponse> {
         val command =
             UpdateDeviceCommand(
                 deviceId,
                 request.fcmToken,
-                appClient.platform,
-                appClient.build,
                 request.marketing,
                 request.night,
             )

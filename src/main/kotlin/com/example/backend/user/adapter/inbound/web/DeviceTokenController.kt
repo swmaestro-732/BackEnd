@@ -1,7 +1,5 @@
 package com.example.backend.user.adapter.inbound.web
 
-import com.example.backend.bootstrap.device.AppClient
-import com.example.backend.bootstrap.device.CurrentAppClient
 import com.example.backend.bootstrap.device.CurrentDeviceId
 import com.example.backend.bootstrap.security.AccessTokenRequired
 import com.example.backend.bootstrap.security.CurrentUserId
@@ -28,15 +26,12 @@ class DeviceTokenController(
         @CurrentUserId userId: Long,
         @CurrentDeviceId deviceId: String,
         @Valid @RequestBody request: DeviceTokenRequest,
-        @CurrentAppClient appClient: AppClient,
         @RequestParam(required = false) mock: Boolean = false,
     ): ApiResponse<Nothing?> {
         val command =
             RegisterDeviceTokenCommand(
                 deviceId,
                 request.fcmToken,
-                appClient.platform,
-                appClient.build,
             )
         if (!mock) deviceTokenUseCase.register(userId, command)
         return ApiResponse.ok()

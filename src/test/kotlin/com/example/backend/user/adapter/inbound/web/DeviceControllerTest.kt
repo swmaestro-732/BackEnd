@@ -41,7 +41,7 @@ class DeviceControllerTest
         @Test
         fun `로그인 없이 토큰을 보내면 계정 연결 없는 기기 행을 만든다`() {
             mockMvc
-                .perform(put("""{"fcmToken":"$TOKEN"}""").header("X-App-Platform", "ios").header("X-App-Build", "4"))
+                .perform(put("""{"fcmToken":"$TOKEN"}"""))
                 .andExpect(status().isOk)
                 .andExpect(jsonPath("$.code").value(2000))
                 .andExpect(jsonPath("$.data.marketingAgreedAt").value(null as String?))
@@ -50,8 +50,6 @@ class DeviceControllerTest
             val row = row()
             assertEquals(TOKEN, row["fcm_token"])
             assertNull(row["user_id"])
-            assertEquals("IOS", row["platform"])
-            assertEquals(4, row["app_build"])
         }
 
         @Test

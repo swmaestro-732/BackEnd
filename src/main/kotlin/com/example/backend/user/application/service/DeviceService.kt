@@ -28,7 +28,7 @@ class DeviceService(
         command.fcmToken?.let {
             // 비로그인 등록은 토큰이 같을 때만 기존 계정 연결을 유지한다(바뀌면 저장소가 연결을 끊는다).
             devicePersistencePort.saveToken(
-                RegisterDeviceTokenCommand(command.deviceId, it, command.platform, command.appBuild),
+                RegisterDeviceTokenCommand(command.deviceId, it),
                 null,
             )
         }
