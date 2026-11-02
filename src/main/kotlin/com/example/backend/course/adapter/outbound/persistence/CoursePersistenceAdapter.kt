@@ -13,6 +13,7 @@ import com.example.backend.course.application.port.outbound.CoursePlaceRow
 import com.example.backend.course.application.port.outbound.CoursePlaceStats
 import com.example.backend.course.application.port.outbound.CourseSummaryRow
 import com.example.backend.course.domain.model.Course
+import com.example.backend.course.domain.model.CourseCategory
 import org.springframework.stereotype.Component
 
 /**
@@ -47,7 +48,8 @@ class CoursePersistenceAdapter(
     override fun findPublishedPublic(
         cursor: FeedCursor?,
         size: Int,
-    ): List<CourseSummaryRow> = courseRepository.findPublishedPublic(cursor, size)
+        category: CourseCategory?,
+    ): List<CourseSummaryRow> = courseRepository.findPublishedPublic(cursor, size, category)
 
     override fun existsById(courseId: Long): Boolean = courseRepository.existsById(courseId)
 

@@ -1,5 +1,6 @@
 package com.example.backend.course.adapter.outbound.place
 
+import com.example.backend.common.geo.Coordinate
 import com.example.backend.course.application.port.outbound.PlaceLookupPort
 import com.example.backend.course.application.port.outbound.PlaceRef
 import com.example.backend.place.application.port.inbound.PlaceQueryUseCase
@@ -17,5 +18,13 @@ class PlaceLookupAdapter(
     override fun findPlacesByIds(placeIds: List<Long>): List<PlaceRef> =
         placeQueryUseCase
             .findPlacesById(placeIds)
-            .map { PlaceRef(id = it.id, category = it.category, areaCode = it.areaCode) }
+            .map {
+                PlaceRef(
+                    id = it.id,
+                    category = it.category,
+                    areaCode = it.areaCode,
+                    name = it.name,
+                    coordinate = Coordinate(latitude = it.latitude, longitude = it.longitude),
+                )
+            }
 }

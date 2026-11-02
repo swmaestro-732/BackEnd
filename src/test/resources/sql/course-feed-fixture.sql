@@ -29,9 +29,9 @@ VALUES (1, '팔로워 공개 코스', true, 'FOLLOWER', '2026-07-27T00:00:00Z');
 INSERT INTO courses (user_id, title, is_published, visibility, created_at)
 VALUES (1, '공개 임시저장 코스', false, 'PUBLIC', '2026-07-26T00:00:00Z');
 
--- course 6: PUBLIC 발행, 가장 오래됨. 저장 0건 → 피드 최하위.
+-- course 6: PUBLIC 발행, 가장 오래됨. 저장 0건 → 피드 최하위. 카테고리 필터 검증용으로 유일한 FOOD 코스다.
 INSERT INTO courses (user_id, title, cover_image_url, category, is_published, visibility, saves_cnt, created_at)
-VALUES (1, '공개 오래된 코스', 'https://img/c6.jpg', 'CAFETOUR', true, 'PUBLIC', 0, '2026-07-25T00:00:00Z');
+VALUES (1, '공개 오래된 코스', 'https://img/c6.jpg', 'FOOD', true, 'PUBLIC', 0, '2026-07-25T00:00:00Z');
 
 -- 저장 기록(정합성용): course 2 를 5명이, course 1 을 1명이 저장. course 6 은 저장 없음.
 INSERT INTO saved_courses (user_id, course_id, created_at)

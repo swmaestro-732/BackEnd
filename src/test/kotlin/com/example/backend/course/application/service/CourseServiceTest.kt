@@ -5,6 +5,7 @@ import com.example.backend.area.application.port.inbound.dto.AreaDescriptor
 import com.example.backend.area.domain.model.AreaLevel
 import com.example.backend.common.domain.CourseVisibility
 import com.example.backend.common.exception.BusinessException
+import com.example.backend.common.geo.Coordinate
 import com.example.backend.common.response.CourseErrorCode
 import com.example.backend.common.response.PlaceErrorCode
 import com.example.backend.course.application.event.CourseAuthorWithdrawnEvent
@@ -486,7 +487,7 @@ class CourseServiceTest {
     private fun placeRef(
         id: Long,
         areaCode: String? = AREA_CODE,
-    ) = PlaceRef(id, "CAFE", areaCode)
+    ) = PlaceRef(id, "CAFE", areaCode, "장소$id", Coordinate(latitude = 37.5445, longitude = 127.0578))
 
     private fun area(name: String) = AreaDescriptor(AREA_CODE, name, "서울특별시 성동구 $name", AreaLevel.DONG)
 

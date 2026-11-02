@@ -1,5 +1,6 @@
 package com.example.backend.user.adapter.outbound.place
 
+import com.example.backend.common.geo.Coordinate
 import com.example.backend.place.application.port.inbound.PlaceQueryUseCase
 import com.example.backend.user.application.port.outbound.PlaceAccessPort
 import com.example.backend.user.application.port.outbound.PlaceRef
@@ -14,9 +15,18 @@ import org.springframework.stereotype.Component
 class PlaceAccessAdapter(
     private val placeQueryUseCase: PlaceQueryUseCase,
 ) : PlaceAccessPort {
-    override fun findPlace(placeId: Long): PlaceRef? =
-        placeQueryUseCase
-            .findPlacesById(listOf(placeId))
-            .firstOrNull()
-            ?.let { PlaceRef(id = it.id, category = it.category) }
+    override fun findPlace(placeId: Long): PlaceRef? = findPlaces(listOf(placeId)).firstOrNull()
+
+    override fun findPlaces(placeIds: List<Long>): List<PlaceRef> =
+        placeQueryUseCase.findPlacesById(placeIds).map {
+            PlaceRef(
+                id = it.id,
+                name = it.name,
+                category = it.category,
+                imageUrl = it.imageUrl,
+                location = Coordinate(it.latitude, it.longitude),
+                rating = it.rating,
+                ratingCount = it.ratingCount,
+            )
+        }
 }

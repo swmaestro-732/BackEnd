@@ -3,7 +3,6 @@ package com.example.backend.user.adapter.outbound.persistence
 import com.example.backend.support.IntegrationTestBase
 import com.example.backend.user.adapter.outbound.persistence.exposed.SavedPlaceTable
 import com.example.backend.user.adapter.outbound.persistence.exposed.UserTable
-import com.example.backend.user.application.port.inbound.dto.SavedPlaceRef
 import com.example.backend.user.application.port.outbound.SavedPlacePersistencePort
 import com.example.backend.user.domain.model.SavedPlaceCategory
 import com.example.backend.user.domain.model.UserStatus
@@ -241,6 +240,58 @@ class SavedPlacePersistenceTest
             }
         }
 
+        // --- 재색인 ---
+
+        @Test
+        fun `findForIndex 는 살아있는 저장을 id 오름차순으로 제한하고 마지막 id 다음부터 조회한다`() {
+            transaction {
+                val userId = insertUser("재색인러1")
+                val first = port.insert(userId, placeId = 910L, category = SavedPlaceCategory.CAFE)
+                port.insert(userId, placeId = 911L, category = null)
+                port.deleteByUserAndPlace(userId, 911L)
+                val second = port.insert(userId, placeId = 912L, category = SavedPlaceCategory.BAR)
+                val third = port.insert(userId, placeId = 913L, category = null)
+
+                val firstPage = port.findForIndex(afterId = first.id - 1, limit = 2)
+                val secondPage = port.findForIndex(afterId = second.id, limit = 2)
+
+                assertEquals(listOf(first.id, second.id), firstPage.map { it.id })
+                assertEquals(listOf(third.id), secondPage.map { it.id })
+                assertTrue(port.findForIndex(afterId = third.id, limit = 2).isEmpty())
+                rollback()
+            }
+        }
+
+        @Test
+        fun `findForIndex 첫 페이지는 사용자 제한 없이 방문 여부와 저장 시각을 복원한다`() {
+            transaction {
+                val me = insertUser("재색인러2")
+                val other = insertUser("재색인러3")
+                val mine = port.insert(me, placeId = 914L, category = SavedPlaceCategory.NATURE)
+                val theirs = port.insert(other, placeId = 915L, category = null)
+                markVisited(mine.id)
+
+                val rows = port.findForIndex(afterId = null, limit = Int.MAX_VALUE)
+                val indexedMine = rows.single { it.id == mine.id }
+                val indexedTheirs = rows.single { it.id == theirs.id }
+
+                assertEquals(rows.map { it.id }.sorted(), rows.map { it.id })
+                assertEquals(me, indexedMine.userId)
+                assertEquals(914L, indexedMine.placeId)
+                assertEquals(SavedPlaceCategory.NATURE, indexedMine.category)
+                assertTrue(indexedMine.visited)
+                assertEquals(
+                    mine.savedAt.truncatedTo(ChronoUnit.MILLIS),
+                    indexedMine.savedAt.truncatedTo(ChronoUnit.MILLIS),
+                )
+                assertNull(indexedMine.deletedAt)
+                assertEquals(other, indexedTheirs.userId)
+                assertNull(indexedTheirs.category)
+                assertFalse(indexedTheirs.visited)
+                rollback()
+            }
+        }
+
         // --- 카운트 ---
 
         @Test
@@ -293,29 +344,6 @@ class SavedPlacePersistenceTest
         }
 
         /** 저장 레코드의 소유자로 쓸 활성 사용자 한 명. saved_places.user_id 는 users 를 FK 로 참조한다. */
-        @Test
-        fun `findAllRefs 는 본인의 살아있는 저장 전부를 방문 여부와 함께 돌려준다`() {
-            transaction {
-                val me = insertUser("참조러1")
-                val other = insertUser("참조러2")
-                val cafe = port.insert(me, placeId = 901L, category = SavedPlaceCategory.CAFE)
-                port.insert(me, placeId = 902L, category = null)
-                port.insert(me, placeId = 903L, category = null)
-                port.deleteByUserAndPlace(me, 903L) // 소프트 삭제 → 제외
-                port.insert(other, placeId = 904L, category = null) // 타인 저장 → 제외
-                markVisited(cafe.id)
-
-                val refs = port.findAllRefs(me)
-
-                assertEquals(
-                    setOf(SavedPlaceRef(901L, visited = true), SavedPlaceRef(902L, visited = false)),
-                    refs.toSet(),
-                )
-                assertEquals(2, refs.size)
-                rollback()
-            }
-        }
-
         private fun insertUser(nickname: String): Long =
             UserTable
                 .insert {

@@ -8,7 +8,6 @@ import org.springframework.data.mongodb.core.MongoTemplate
 import org.springframework.data.mongodb.core.index.Index
 import org.springframework.data.mongodb.core.index.PartialIndexFilter
 import org.springframework.data.mongodb.core.query.Criteria
-import org.springframework.data.mongodb.core.schema.JsonSchemaObject
 import org.springframework.stereotype.Component
 
 /**
@@ -23,6 +22,10 @@ class ChatMongoIndexInitializer(
 
     override fun run(args: ApplicationArguments) {
         runCatching {
+            // DocumentDB 는 트랜잭션 안에서 컬렉션을 만들지 못해 첫 메시지 전에 만들어 둔다. 메시지 컬렉션은 인덱스 생성 때 생긴다.
+            if (!mongoTemplate.collectionExists(ChatRoomCounterDocument::class.java)) {
+                mongoTemplate.createCollection(ChatRoomCounterDocument::class.java)
+            }
             val indexOps = mongoTemplate.indexOps(ChatMessageDocument::class.java)
             indexOps.createIndex(
                 Index()
@@ -31,16 +34,16 @@ class ChatMongoIndexInitializer(
                     .unique()
                     .named("uq_chat_messages_room_seq"),
             )
-            // 시스템 메시지(clientMessageId 없음)끼리 충돌하지 않게 문자열일 때만 유니크를 건다.
+            // 시스템 메시지(clientMessageId 필드 없음)끼리 충돌하지 않게 필드가 있을 때만 유니크를 건다.
+            // DocumentDB 부분 인덱스는 $type 을 지원하지 않아 $exists 를 쓴다.
             indexOps.createIndex(
                 Index()
                     .on("roomId", Sort.Direction.ASC)
                     .on("senderId", Sort.Direction.ASC)
                     .on("clientMessageId", Sort.Direction.ASC)
                     .unique()
-                    .partial(
-                        PartialIndexFilter.of(Criteria.where("clientMessageId").type(JsonSchemaObject.Type.STRING)),
-                    ).named("uq_chat_messages_client_message"),
+                    .partial(PartialIndexFilter.of(Criteria.where("clientMessageId").exists(true)))
+                    .named("uq_chat_messages_client_message"),
             )
         }.onSuccess { log.info { "MongoDB 채팅 인덱스 준비 완료" } }
             .onFailure { log.error(it) { "MongoDB 채팅 인덱스 생성 실패(무시): ${it.message}" } }

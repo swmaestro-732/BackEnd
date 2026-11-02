@@ -16,6 +16,7 @@ import com.example.backend.course.application.port.outbound.CoursePlaceStats
 import com.example.backend.course.application.port.outbound.CourseSummaryRow
 import com.example.backend.course.application.port.outbound.CourseTagQueryPort
 import com.example.backend.course.application.port.outbound.ViewerInteractionPort
+import com.example.backend.course.domain.model.CourseCategory
 import com.example.backend.course.domain.model.CourseStatus
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
@@ -146,9 +147,14 @@ class CourseQueryService(
     override fun listPublic(
         cursor: FeedCursor?,
         size: Int,
+        category: String?,
     ): CourseSummaryPage {
         val effectiveSize = size.coerceAtLeast(1)
-        val rows = coursePersistencePort.findPublishedPublic(cursor, effectiveSize)
+        val courseCategory =
+            category?.let { name ->
+                requireNotNull(CourseCategory.entries.find { it.name == name }) { "알 수 없는 코스 카테고리입니다: $name" }
+            }
+        val rows = coursePersistencePort.findPublishedPublic(cursor, effectiveSize, courseCategory)
         val page = rows.take(effectiveSize)
         val statsByCourse = coursePersistencePort.findPlaceStats(page.map { it.id })
         return CourseSummaryPage(

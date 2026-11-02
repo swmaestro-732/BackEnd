@@ -1,37 +1,58 @@
 package com.example.backend.bootstrap.config
 
+import com.mongodb.ConnectionString
+import com.mongodb.MongoClientSettings
+import com.mongodb.client.MongoClient
+import com.mongodb.client.MongoClients
+import org.springframework.boot.autoconfigure.condition.ConditionalOnExpression
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
+import org.springframework.core.io.ClassPathResource
 import org.springframework.data.mongodb.MongoDatabaseFactory
-import org.springframework.data.mongodb.SessionSynchronization
-import org.springframework.data.mongodb.core.MongoTemplate
-import org.springframework.data.mongodb.core.convert.DefaultDbRefResolver
-import org.springframework.data.mongodb.core.convert.DefaultMongoTypeMapper
-import org.springframework.data.mongodb.core.convert.MappingMongoConverter
-import org.springframework.data.mongodb.core.convert.MongoCustomConversions
-import org.springframework.data.mongodb.core.mapping.MongoMappingContext
+import org.springframework.data.mongodb.core.SimpleMongoClientDatabaseFactory
+import java.security.KeyStore
+import java.security.cert.CertificateFactory
+import javax.net.ssl.SSLContext
+import javax.net.ssl.TrustManagerFactory
 
 @Configuration
-class MongoConfig {
-    /** 문서마다 붙는 `_class` 필드를 끈다. 상속 매핑을 쓰지 않아 필요 없고, 클래스 이름 변경에 영향받지 않게 한다. */
+@ConditionalOnExpression("'\${docdb.endpoint:}'.trim().length() > 0")
+class MongoConfig(
+    private val properties: DocumentDbProperties,
+) {
     @Bean
-    fun mappingMongoConverter(
-        databaseFactory: MongoDatabaseFactory,
-        mappingContext: MongoMappingContext,
-        conversions: MongoCustomConversions,
-    ): MappingMongoConverter =
-        MappingMongoConverter(DefaultDbRefResolver(databaseFactory), mappingContext).apply {
-            setCustomConversions(conversions)
-            setTypeMapper(DefaultMongoTypeMapper(null))
+    fun mongoClientSettings(): MongoClientSettings {
+        // JAR 안의 PEM 을 읽어 이 클라이언트에만 적용한다. JVM 전역 trust store 는 변경하지 않는다.
+        val certificates =
+            ClassPathResource("global-bundle.pem").inputStream.use {
+                CertificateFactory.getInstance("X.509").generateCertificates(it)
+            }
+        require(certificates.isNotEmpty()) { "DocumentDB CA 번들이 비어 있습니다." }
+        val trustStore = KeyStore.getInstance(KeyStore.getDefaultType()).apply { load(null, null) }
+        certificates.forEachIndexed { index, certificate ->
+            trustStore.setCertificateEntry("rds-ca-$index", certificate)
         }
+        val trustManagers =
+            TrustManagerFactory.getInstance(TrustManagerFactory.getDefaultAlgorithm()).apply { init(trustStore) }
+        val sslContext = SSLContext.getInstance("TLS").apply { init(null, trustManagers.trustManagers, null) }
 
-    /** MongoDB 호출을 PostgreSQL @Transactional 에 묶지 않는다. 메시지 저장은 PostgreSQL 트랜잭션과 무관하게 바로 반영한다. */
+        // DocumentDB 는 retryable writes 를 지원하지 않는다. IAM 자격증명은 드라이버의 SDK v2 기본 체인에 맡긴다.
+        // 트랜잭션은 primary 읽기만 허용하고, 채팅 동기화는 방금 커밋된 seq 를 읽어야 해서 복제 지연이 있는 secondary 를 쓰지 않는다.
+        val uri =
+            "mongodb://${properties.endpoint.trim()}:${properties.port}/" +
+                "?replicaSet=rs0&readPreference=primary&retryWrites=false" +
+                "&authSource=\$external&authMechanism=MONGODB-AWS&tls=true"
+        return MongoClientSettings
+            .builder()
+            .applyConnectionString(ConnectionString(uri))
+            .applyToSslSettings { it.context(sslContext) }
+            .build()
+    }
+
+    @Bean(destroyMethod = "close")
+    fun mongoClient(settings: MongoClientSettings): MongoClient = MongoClients.create(settings)
+
     @Bean
-    fun mongoTemplate(
-        databaseFactory: MongoDatabaseFactory,
-        converter: MappingMongoConverter,
-    ): MongoTemplate =
-        MongoTemplate(databaseFactory, converter).apply {
-            setSessionSynchronization(SessionSynchronization.NEVER)
-        }
+    fun mongoDatabaseFactory(client: MongoClient): MongoDatabaseFactory =
+        SimpleMongoClientDatabaseFactory(client, properties.database)
 }
