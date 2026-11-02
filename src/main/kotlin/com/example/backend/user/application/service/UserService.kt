@@ -5,6 +5,7 @@ import com.example.backend.common.response.UserErrorCode
 import com.example.backend.user.application.port.inbound.UserUseCase
 import com.example.backend.user.application.port.inbound.dto.UserProfileResult
 import com.example.backend.user.application.port.outbound.CourseCleanupPort
+import com.example.backend.user.application.port.outbound.DeviceTokenPersistencePort
 import com.example.backend.user.application.port.outbound.FollowPersistencePort
 import com.example.backend.user.application.port.outbound.NotificationCleanupPort
 import com.example.backend.user.application.port.outbound.RefreshTokenPort
@@ -31,6 +32,7 @@ class UserService(
     private val userAreaPersistencePort: UserAreaPersistencePort,
     private val userLikeThemePort: UserLikeThemePort,
     private val courseCleanupPort: CourseCleanupPort,
+    private val deviceTokenPersistencePort: DeviceTokenPersistencePort,
     private val notificationCleanupPort: NotificationCleanupPort,
 ) : UserUseCase {
     override fun getProfile(
@@ -122,7 +124,9 @@ class UserService(
         courseCleanupPort.purgeTracesByUser(userId)
         // 2) 팔로우: 양방향 삭제 + 상대 카운터 보정.
         followPersistencePort.purgeFollowsOf(userId)
-        // 2-1) 알림: 받은 알림, 남의 알림함에 남은 이 사용자의 닉네임 스냅샷 묶음, 수신 설정을 지운다.
+        // 2-1) 기기 토큰(FCM): 이 사용자의 기기를 모두 지운다.
+        deviceTokenPersistencePort.deleteAllByUser(userId)
+        // 2-2) 알림: 받은 알림, 남의 알림함에 남은 이 사용자의 닉네임 스냅샷 묶음, 수신 설정을 지운다.
         notificationCleanupPort.purgeByUser(userId)
         // 3) 관심 지역·테마: 빈 목록으로 전체 치환(=전부 삭제).
         userAreaPersistencePort.replaceAreas(userId, emptyList())

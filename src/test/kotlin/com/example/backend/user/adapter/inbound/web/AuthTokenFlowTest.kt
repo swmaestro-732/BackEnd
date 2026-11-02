@@ -14,6 +14,7 @@ import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc
 import org.springframework.http.HttpHeaders
 import org.springframework.http.MediaType
+import org.springframework.jdbc.core.JdbcTemplate
 import org.springframework.test.context.jdbc.Sql
 import org.springframework.test.web.servlet.MockMvc
 import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder
@@ -43,6 +44,7 @@ class AuthTokenFlowTest
         private val jwtTokenProvider: JwtTokenProvider,
         private val userPersistencePort: UserPersistencePort,
         private val transactionManager: PlatformTransactionManager,
+        private val jdbcTemplate: JdbcTemplate,
     ) : IntegrationTestBase() {
         @Test
         fun `네이버 등록 토큰으로 가입하면 제공자와 식별자를 저장하고 서비스 토큰을 발급한다`() {
@@ -137,6 +139,27 @@ class AuthTokenFlowTest
                 .perform(reissueRequest())
                 .andExpect(status().isUnauthorized)
                 .andExpect(jsonPath("$.code").value(4012))
+        }
+
+        @Test
+        fun `기기 헤더와 함께 로그아웃하면 그 사용자의 해당 기기 토큰만 지운다`() {
+            jdbcTemplate.update("INSERT INTO users (nickname, handle) VALUES ('다른유저', 'other_handle')")
+            jdbcTemplate.update(
+                "INSERT INTO device_tokens (user_id, device_id, fcm_token) VALUES " +
+                    "(1, 'device-a', 'token-a'), (1, 'device-b', 'token-b'), (2, 'device-a', 'token-c')",
+            )
+
+            mockMvc
+                .perform(logoutRequest().header("X-Device-Id", "device-a"))
+                .andExpect(status().isOk)
+                .andExpect(jsonPath("$.code").value(2000))
+
+            val remaining =
+                jdbcTemplate.queryForList(
+                    "SELECT user_id || ':' || device_id FROM device_tokens ORDER BY user_id, device_id",
+                    String::class.java,
+                )
+            assertEquals(listOf("1:device-b", "2:device-a"), remaining)
         }
 
         @Test
