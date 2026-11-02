@@ -97,6 +97,19 @@ class DeviceControllerTest
         }
 
         @Test
+        fun `다른 토큰과 동의를 한 요청에 보내면 토큰도 바꾸지 않고 거부한다`() {
+            jdbcTemplate.update("INSERT INTO devices (device_id, fcm_token) VALUES (?, ?)", DEVICE, TOKEN)
+
+            mockMvc
+                .perform(put("""{"token":"attacker-token","marketing":true}"""))
+                .andExpect(status().isBadRequest)
+                .andExpect(jsonPath("$.code").value(4001))
+
+            assertEquals(TOKEN, row()["fcm_token"])
+            assertNull(row()["marketing_agreed_at"])
+        }
+
+        @Test
         fun `광고 동의 true는 동의 시각을 응답과 DB에 저장한다`() {
             mockMvc
                 .perform(put("""{"marketing":true}"""))
