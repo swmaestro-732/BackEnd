@@ -30,8 +30,8 @@ class HomeFeedService(
     private val homeNearbyPlacePort: HomeNearbyPlacePort,
 ) : HomeFeedUseCase {
     /**
-     * 바깥 트랜잭션 없이 조합한다 — 근처 장소 어댑터가 흡수하는 검색 503 이 참여 트랜잭션을 rollback-only 로 찍어
-     * 커밋 시 UnexpectedRollbackException 으로 홈 전체가 실패하지 않도록, 도메인 호출마다 각자의 트랜잭션을 쓴다.
+     * 바깥 트랜잭션 없이 조합한다 — OS 조회 동안 DB 트랜잭션을 잡아두지 않고,
+     * 프로필·추천 코스·장소 상세는 각 도메인의 읽기 트랜잭션으로 조회한다.
      */
     @Transactional(propagation = Propagation.NOT_SUPPORTED)
     override fun getHome(
@@ -45,23 +45,28 @@ class HomeFeedService(
                 if (viewerId == null || userLocation == null) {
                     emptyList()
                 } else {
-                    // 포트가 가까운 순으로 주므로, 상한을 넘는 장소를 걸러도 더 가까운 장소가 빠지지 않는다.
+                    // 반경 제한은 엔진 쿼리에 적용하고, 도보 시간은 표시용으로만 계산한다.
                     homeNearbyPlacePort
-                        .findNearbySavedPlaces(viewerId, userLocation, HOME_SECTION_SIZE)
-                        .map {
+                        .findNearbySavedPlaces(
+                            viewerId,
+                            userLocation,
+                            MAX_WALKING_MINUTES * WALKING_METERS_PER_MINUTE,
+                            HOME_NEARBY_SIZE,
+                        ).map {
                             HomeResult.NearbySavedPlace(
                                 place = it,
                                 walkingMinutes = ceil(it.distanceMeters / WALKING_METERS_PER_MINUTE).toInt(),
                             )
-                        }.filter { it.walkingMinutes <= MAX_WALKING_MINUTES }
+                        }
                 },
         )
 
     override fun getFeed(
         cursor: String?,
         size: Int,
+        category: String?,
     ): HomeFeedResult {
-        val page = homeFeedPort.listPublicCandidates(HomeFeedCursorCodec.decode(cursor), size)
+        val page = homeFeedPort.listPublicCandidates(HomeFeedCursorCodec.decode(cursor), size, category)
         val nextCursor =
             if (page.hasNext) {
                 page.courses.last().let {
@@ -85,6 +90,7 @@ class HomeFeedService(
 
     private companion object {
         const val HOME_SECTION_SIZE = 5
+        const val HOME_NEARBY_SIZE = 3
 
         /** 도보 속도 근사(시속 4km = 분당 약 67m). 경로 API(TMAP)는 부르지 않는다. */
         const val WALKING_METERS_PER_MINUTE = 67.0

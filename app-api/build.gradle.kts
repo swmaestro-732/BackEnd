@@ -49,6 +49,12 @@ dependencies {
     implementation(platform(libs.spring.cloud.aws.bom))
     implementation("io.awspring.cloud:spring-cloud-aws-starter-sqs")
 
+    // DocumentDB(MongoDB 호환): 연결 설정은 bootstrap/config/MongoConfig. MONGODB-AWS 인증은 SDK v2 기본 자격증명 체인(EC2 인스턴스 역할)
+    implementation("org.springframework.boot:spring-boot-starter-data-mongodb")
+    implementation("software.amazon.awssdk:auth")
+    // ElastiCache Redis(IAM 인증): 연결 설정은 bootstrap/config/RedisConfig
+    implementation("io.lettuce:lettuce-core")
+
     // 관측
     implementation("org.springframework.boot:spring-boot-starter-actuator")
     runtimeOnly("io.micrometer:micrometer-registry-prometheus")

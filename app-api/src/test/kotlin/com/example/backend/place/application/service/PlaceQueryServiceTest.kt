@@ -4,7 +4,6 @@ import com.example.backend.area.application.port.inbound.AreaQueryUseCase
 import com.example.backend.common.exception.BusinessException
 import com.example.backend.common.geo.Coordinate
 import com.example.backend.common.response.PlaceErrorCode
-import com.example.backend.place.application.port.outbound.PlaceDistanceHit
 import com.example.backend.place.application.port.outbound.PlaceQueryPort
 import com.example.backend.place.application.port.outbound.PlaceSearchCriteria
 import com.example.backend.place.application.port.outbound.PlaceSearchHits
@@ -41,19 +40,22 @@ class PlaceQueryServiceTest {
                 }
             }
         }
-    private var nearestHits: List<PlaceDistanceHit> = emptyList()
-    private val nearestCalls = mutableListOf<List<Long>>()
     private val engine =
         mock(PlaceSearchQueryPort::class.java) { invocation ->
-            if (invocation.method.name == "nearestAmong") {
-                nearestCalls += invocation.getArgument<List<Long>>(0)
-                return@mock nearestHits
-            }
             criteria += invocation.getArgument<PlaceSearchCriteria>(0)
             engineHits()
         }
     private val areas = mock(AreaQueryUseCase::class.java)
     private val service = PlaceQueryService(db, engine, PlaceSearchQueryPlanner(areas))
+
+    @Test
+    fun `PK 상세 조회는 DB 의 최신 평점과 평점수를 포함한다`() {
+        val result = service.findPlacesById(listOf(1L)).single()
+
+        assertEquals(place(1).averageRating, result.rating)
+        assertEquals(place(1).ratingCnt, result.ratingCount)
+        assertTrue(criteria.isEmpty())
+    }
 
     @Test
     fun `첫 장소 검색에는 거리 기준과 뷰포트가 없다`() {
@@ -166,37 +168,6 @@ class PlaceQueryServiceTest {
         assertFalse(last.hasNext)
     }
 
-    @Test
-    fun `근처 조회는 저장 장소가 없으면 엔진을 부르지 않는다`() {
-        assertTrue(service.findNearest(emptyList(), ORIGIN, 5).isEmpty())
-        assertTrue(nearestCalls.isEmpty())
-    }
-
-    @Test
-    fun `근처 조회는 엔진 거리순을 보존하고 DB 에서 사라진 장소는 뺀다`() {
-        // 99 는 기준 장소 픽스처라 anchorExists=false 면 DB 에서 탈락한다(삭제된 장소 흉내).
-        anchorExists = false
-        nearestHits = listOf(PlaceDistanceHit(3, 120.4), PlaceDistanceHit(99, 300.0), PlaceDistanceHit(1, 950.0))
-
-        val result = service.findNearest(listOf(1, 3, 99), ORIGIN, 5)
-
-        assertEquals(listOf(listOf(1L, 3L, 99L)), nearestCalls)
-        assertEquals(listOf(3L, 1L), result.map { it.id })
-        assertEquals(listOf(120.4, 950.0), result.map { it.distanceMeters })
-        assertEquals("블루보틀 3", result[0].name)
-        assertEquals("CAFE", result[0].category)
-        // place() 픽스처는 리뷰 합 9, 수 2 → 평균 4.5
-        assertEquals(4.5, result[0].rating)
-        assertEquals(2, result[0].ratingCount)
-    }
-
-    @Test
-    fun `근처 조회에서 엔진 결과가 없으면 빈 목록이다`() {
-        nearestHits = emptyList()
-
-        assertTrue(service.findNearest(listOf(1), ORIGIN, 5).isEmpty())
-    }
-
     private fun place(id: Long): Place =
         Place.reconstitute(
             id = id,
@@ -215,8 +186,4 @@ class PlaceQueryServiceTest {
             ratingSum = 9,
             ratingCnt = 2,
         )
-
-    private companion object {
-        val ORIGIN = Coordinate(37.544, 127.056)
-    }
 }

@@ -4,6 +4,7 @@ import com.example.backend.bootstrap.config.OpenSearchConfig
 import com.example.backend.bootstrap.config.OpenSearchProperties
 import com.example.backend.course.application.port.inbound.CourseReindexUseCase
 import com.example.backend.place.application.port.inbound.PlaceReindexUseCase
+import com.example.backend.user.application.port.inbound.SavedPlaceReindexUseCase
 import io.github.oshai.kotlinlogging.KotlinLogging
 import org.opensearch.client.opensearch.OpenSearchClient
 import org.springframework.beans.factory.ObjectProvider
@@ -24,6 +25,7 @@ class OpenSearchReindexRunner(
     private val properties: OpenSearchProperties,
     private val placeReindexUseCase: PlaceReindexUseCase,
     private val courseReindexUseCase: CourseReindexUseCase,
+    private val savedPlaceReindexUseCase: SavedPlaceReindexUseCase,
 ) : ApplicationRunner {
     private val log = KotlinLogging.logger {}
 
@@ -38,6 +40,7 @@ class OpenSearchReindexRunner(
         listOf(
             Target(properties.withPrefix("place"), placeReindexUseCase::reindexAll),
             Target(properties.withPrefix("course"), courseReindexUseCase::reindexAll),
+            Target(properties.withPrefix("saved_place"), savedPlaceReindexUseCase::reindexAll),
         ).forEach { t ->
             try {
                 val empty = client.count { c -> c.index(t.alias) }.count() == 0L

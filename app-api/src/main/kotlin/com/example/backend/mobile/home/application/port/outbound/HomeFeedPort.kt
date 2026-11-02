@@ -8,9 +8,10 @@ import com.example.backend.mobile.home.application.port.outbound.dto.HomeFeedCur
  * MSA 분리 후엔 course 서비스 HTTP 클라이언트로 바꿔 끼운다.
  */
 interface HomeFeedPort {
-    /** 전체 공개(PUBLIC)·발행 코스 후보를 복합 키셋 [cursor] 이후부터 [size] 개 조회한다. */
+    /** 전체 공개(PUBLIC)·발행 코스 후보를 복합 키셋 [cursor] 이후부터 [size] 개 조회한다. [category]가 있으면 그 카테고리만. */
     fun listPublicCandidates(
         cursor: HomeFeedCursor?,
         size: Int,
+        category: String? = null,
     ): HomeFeedCoursePage
 }

@@ -1,7 +1,6 @@
 package com.example.backend.user.adapter.outbound.persistence
 
 import com.example.backend.user.adapter.outbound.persistence.exposed.repository.SavedPlaceRepository
-import com.example.backend.user.application.port.inbound.dto.SavedPlaceRef
 import com.example.backend.user.application.port.outbound.SavedPlaceCategoryCountRow
 import com.example.backend.user.application.port.outbound.SavedPlacePersistencePort
 import com.example.backend.user.application.port.outbound.SavedPlaceRow
@@ -49,5 +48,8 @@ class SavedPlacePersistenceAdapter(
         limit: Int,
     ): List<SavedPlaceRow> = savedPlaceRepository.findPage(userId, visited, category, cursorId, limit)
 
-    override fun findAllRefs(userId: Long): List<SavedPlaceRef> = savedPlaceRepository.findAllRefs(userId)
+    override fun findForIndex(
+        afterId: Long?,
+        limit: Int,
+    ): List<SavedPlace> = savedPlaceRepository.findForIndex(afterId, limit)
 }
