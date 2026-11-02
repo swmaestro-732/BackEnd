@@ -7,6 +7,9 @@ import com.example.backend.common.response.PlaceErrorCode
 import com.example.backend.course.application.port.inbound.CourseTraceUseCase
 import com.example.backend.course.application.port.inbound.dto.CheckInPlaceCommand
 import com.example.backend.course.application.port.inbound.dto.CourseTraceResult
+import com.example.backend.course.application.port.inbound.dto.CourseTraceSummary
+import com.example.backend.course.application.port.inbound.dto.CourseTracesQuery
+import com.example.backend.course.application.port.inbound.dto.CourseTracesResult
 import com.example.backend.course.application.port.inbound.dto.EndCourseTraceCommand
 import com.example.backend.course.application.port.inbound.dto.TracePlaceResult
 import com.example.backend.course.application.port.inbound.dto.TraceRouteGuideResult
@@ -26,7 +29,8 @@ import org.springframework.transaction.annotation.Transactional
 import java.time.Instant
 
 /**
- * 코스 따라가기 유스케이스 — 시작(IN_PROGRESS 세션 생성 또는 이어가기)·장소 체크인·다음 장소 도보 경로·종료(COMPLETED + tracings_cnt 원자적 +1)·완주 조회.
+ * 코스 따라가기 유스케이스 — 시작(IN_PROGRESS 세션 생성 또는 이어가기)·장소 체크인·다음 장소 도보 경로·종료(COMPLETED + tracings_cnt 원자적 +1)·
+ * 내 따라가기 목록(상태별 커서 페이지)·완주 조회.
  * 열람 권한 검사는 CourseLikeService 와 동일하다.
  */
 @Service
@@ -66,6 +70,30 @@ class CourseTraceService(
             courseId = trace.courseId,
             startedAt = trace.startedAt,
             visitedPlaces = courseTracePersistencePort.findVisitedPlaces(trace.id),
+        )
+    }
+
+    override fun list(query: CourseTracesQuery): CourseTracesResult {
+        val beforeId = CourseTraceCursorCodec.decode(query.cursor)
+        // hasNext 판정을 위해 한 개 더 조회한 뒤 페이지 크기만큼 잘라낸다.
+        val rows = courseTracePersistencePort.findByUserAndStatus(query.userId, query.status, beforeId, query.size + 1)
+        val hasNext = rows.size > query.size
+        val page = rows.take(query.size)
+        return CourseTracesResult(
+            nextCursor = if (hasNext) CourseTraceCursorCodec.encode(page.last().id) else null,
+            hasNext = hasNext,
+            traces =
+                page.map {
+                    CourseTraceSummary(
+                        id = it.id,
+                        courseId = it.courseId,
+                        status = it.status,
+                        startedAt = it.startedAt,
+                        endedAt = it.endedAt,
+                        durationMinutes = it.durationMinutes,
+                        distanceMeters = it.distanceMeters,
+                    )
+                },
         )
     }
 

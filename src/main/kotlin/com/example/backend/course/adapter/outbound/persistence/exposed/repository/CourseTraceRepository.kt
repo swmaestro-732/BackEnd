@@ -11,6 +11,7 @@ import org.jetbrains.exposed.v1.core.and
 import org.jetbrains.exposed.v1.core.eq
 import org.jetbrains.exposed.v1.core.inList
 import org.jetbrains.exposed.v1.core.inSubQuery
+import org.jetbrains.exposed.v1.core.less
 import org.jetbrains.exposed.v1.core.min
 import org.jetbrains.exposed.v1.jdbc.deleteWhere
 import org.jetbrains.exposed.v1.jdbc.insertIgnore
@@ -39,6 +40,23 @@ class CourseTraceRepository {
                     (CourseTraceTable.status eq CourseTraceStatus.IN_PROGRESS)
             }.singleOrNull()
             ?.toRow()
+
+    /** 사용자의 [status] 세션을 id DESC 키셋으로 읽는다 — (user_id, course_id) 인덱스의 user_id 접두로 탄다. 한 사용자의 세션 수는 적다. */
+    fun findByUserAndStatus(
+        userId: Long,
+        status: CourseTraceStatus,
+        beforeId: Long?,
+        size: Int,
+    ): List<CourseTraceRow> {
+        var condition = (CourseTraceTable.userId eq userId) and (CourseTraceTable.status eq status)
+        beforeId?.let { condition = condition and (CourseTraceTable.id less it) }
+        return CourseTraceTable
+            .selectAll()
+            .where(condition)
+            .orderBy(CourseTraceTable.id to SortOrder.DESC)
+            .limit(size)
+            .map { it.toRow() }
+    }
 
     /** 부분 유니크 인덱스(진행 중 세션은 (user, course) 당 하나)와 충돌하면 null — 동시 시작은 호출부가 기존 세션을 다시 읽는다. */
     fun insertInProgress(
@@ -143,5 +161,8 @@ class CourseTraceRepository {
             courseId = this[CourseTraceTable.courseId],
             status = this[CourseTraceTable.status],
             startedAt = this[CourseTraceTable.createdAt].toJavaInstant(),
+            endedAt = this[CourseTraceTable.endedAt]?.toJavaInstant(),
+            durationMinutes = this[CourseTraceTable.durationMinutes],
+            distanceMeters = this[CourseTraceTable.distanceMeters],
         )
 }

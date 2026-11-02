@@ -4,6 +4,7 @@ import com.example.backend.course.adapter.outbound.persistence.exposed.repositor
 import com.example.backend.course.application.port.inbound.dto.VisitedPlaceResult
 import com.example.backend.course.application.port.outbound.CourseTracePersistencePort
 import com.example.backend.course.application.port.outbound.CourseTraceRow
+import com.example.backend.course.domain.model.CourseTraceStatus
 import org.springframework.stereotype.Component
 import java.time.Instant
 
@@ -16,6 +17,13 @@ class CourseTracePersistenceAdapter(
         userId: Long,
         courseId: Long,
     ): CourseTraceRow? = courseTraceRepository.findInProgress(userId, courseId)
+
+    override fun findByUserAndStatus(
+        userId: Long,
+        status: CourseTraceStatus,
+        beforeId: Long?,
+        size: Int,
+    ): List<CourseTraceRow> = courseTraceRepository.findByUserAndStatus(userId, status, beforeId, size)
 
     override fun insertInProgress(
         userId: Long,
