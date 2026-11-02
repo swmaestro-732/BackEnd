@@ -6,10 +6,10 @@ import com.example.backend.common.response.UserErrorCode
 import com.example.backend.media.application.port.inbound.MediaCleanupUseCase
 import com.example.backend.user.application.port.inbound.dto.UpdateProfileCommand
 import com.example.backend.user.application.port.outbound.FollowPersistencePort
-import com.example.backend.user.application.port.outbound.LikeThemePort
 import com.example.backend.user.application.port.outbound.UserAreaPersistencePort
 import com.example.backend.user.application.port.outbound.UserLikeThemePort
 import com.example.backend.user.application.port.outbound.UserPersistencePort
+import com.example.backend.user.application.port.spi.LikeThemePort
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertThrows
 import org.junit.jupiter.api.Test

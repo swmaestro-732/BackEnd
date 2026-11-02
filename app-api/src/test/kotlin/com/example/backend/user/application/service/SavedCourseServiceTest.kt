@@ -5,13 +5,13 @@ import com.example.backend.common.response.CommonErrorCode
 import com.example.backend.common.response.CourseErrorCode
 import com.example.backend.common.response.UserErrorCode
 import com.example.backend.user.application.port.inbound.dto.SavedCoursesCommand
-import com.example.backend.user.application.port.outbound.CourseAccessPort
 import com.example.backend.user.application.port.outbound.CourseFolderCountRow
 import com.example.backend.user.application.port.outbound.CourseFolderRow
 import com.example.backend.user.application.port.outbound.SavedCoursePersistencePort
 import com.example.backend.user.application.port.outbound.SavedCourseRow
 import com.example.backend.user.application.port.outbound.UserPersistencePort
 import com.example.backend.user.application.port.outbound.UserProfileRow
+import com.example.backend.user.application.port.spi.CourseAccessPort
 import com.example.backend.user.domain.model.CourseFolder
 import com.example.backend.user.domain.model.SavedCourse
 import com.example.backend.user.domain.model.SocialProvider

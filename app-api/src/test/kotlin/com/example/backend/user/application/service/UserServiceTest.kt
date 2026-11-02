@@ -2,7 +2,6 @@ package com.example.backend.user.application.service
 
 import com.example.backend.common.exception.BusinessException
 import com.example.backend.common.response.UserErrorCode
-import com.example.backend.user.application.port.outbound.CourseCleanupPort
 import com.example.backend.user.application.port.outbound.FollowPersistencePort
 import com.example.backend.user.application.port.outbound.RefreshTokenPort
 import com.example.backend.user.application.port.outbound.SavedCoursePersistencePort
@@ -14,6 +13,7 @@ import org.junit.jupiter.api.Assertions.assertThrows
 import org.junit.jupiter.api.Test
 import org.mockito.Mockito.mock
 import org.mockito.Mockito.`when`
+import org.springframework.context.ApplicationEventPublisher
 
 class UserServiceTest {
     private val userPersistencePort = mock(UserPersistencePort::class.java)
@@ -22,7 +22,7 @@ class UserServiceTest {
     private val savedCoursePersistencePort = mock(SavedCoursePersistencePort::class.java)
     private val userAreaPersistencePort = mock(UserAreaPersistencePort::class.java)
     private val userLikeThemePort = mock(UserLikeThemePort::class.java)
-    private val courseCleanupPort = mock(CourseCleanupPort::class.java)
+    private val applicationEventPublisher = mock(ApplicationEventPublisher::class.java)
 
     private val service =
         UserService(
@@ -32,7 +32,7 @@ class UserServiceTest {
             savedCoursePersistencePort = savedCoursePersistencePort,
             userAreaPersistencePort = userAreaPersistencePort,
             userLikeThemePort = userLikeThemePort,
-            courseCleanupPort = courseCleanupPort,
+            applicationEventPublisher = applicationEventPublisher,
         )
 
     @Test

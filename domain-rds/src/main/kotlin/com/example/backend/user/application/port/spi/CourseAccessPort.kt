@@ -1,4 +1,4 @@
-package com.example.backend.user.application.port.outbound
+package com.example.backend.user.application.port.spi
 
 /**
  * 아웃바운드 포트 — user 도메인이 course 도메인에 필요한 것(존재 검증·저장 카운터 갱신·완주 코스 조회)을 요청하는 경계.

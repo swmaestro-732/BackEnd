@@ -10,9 +10,9 @@ import com.example.backend.user.application.port.inbound.dto.SavedCourseFolderCo
 import com.example.backend.user.application.port.inbound.dto.SavedCourseFolderCounts
 import com.example.backend.user.application.port.inbound.dto.SavedCoursesCommand
 import com.example.backend.user.application.port.inbound.dto.SavedCoursesResult
-import com.example.backend.user.application.port.outbound.CourseAccessPort
 import com.example.backend.user.application.port.outbound.SavedCoursePersistencePort
 import com.example.backend.user.application.port.outbound.UserPersistencePort
+import com.example.backend.user.application.port.spi.CourseAccessPort
 import com.example.backend.user.domain.model.CourseFolder
 import com.example.backend.user.domain.model.SavedCourse
 import org.springframework.stereotype.Service

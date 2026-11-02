@@ -1,6 +1,5 @@
 package com.example.backend.place.adapter.outbound.search
 
-import com.example.backend.place.adapter.outbound.search.BusinessHoursSyncExecutorConfig
 import com.example.backend.place.application.event.PlaceBusinessHoursSyncRequestedEvent
 import com.example.backend.place.application.event.PlacesSavedEvent
 import com.example.backend.place.application.port.inbound.PlaceBusinessHoursSyncUseCase
