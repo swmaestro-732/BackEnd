@@ -1,4 +1,4 @@
-package com.example.backend.bootstrap.appversion
+package com.example.backend.bootstrap.device
 
 /**
  * `X-Device-Id` 헤더(기기 식별자, Android 는 Firebase Installation ID)를 주입한다.
