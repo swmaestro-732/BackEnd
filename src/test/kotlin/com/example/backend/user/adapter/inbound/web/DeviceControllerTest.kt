@@ -110,6 +110,28 @@ class DeviceControllerTest
         }
 
         @Test
+        fun `토큰이 바뀌면 광고, 야간 동의를 지우고 같은 토큰이면 유지한다`() {
+            mockMvc.perform(put("""{"token":"$TOKEN","marketing":true,"night":true}""")).andExpect(status().isOk)
+
+            mockMvc.perform(put("""{"token":"$TOKEN"}""")).andExpect(status().isOk)
+            assertNotNull(row()["marketing_agreed_at"])
+
+            mockMvc.perform(put("""{"token":"replaced-token"}""")).andExpect(status().isOk)
+            assertNull(row()["marketing_agreed_at"])
+            assertNull(row()["night_agreed_at"])
+        }
+
+        @Test
+        fun `토큰 없이 받은 동의는 처음 토큰을 붙일 때 지운다`() {
+            mockMvc.perform(put("""{"marketing":true}""")).andExpect(status().isOk)
+
+            mockMvc
+                .perform(put("""{"token":"$TOKEN"}"""))
+                .andExpect(status().isOk)
+                .andExpect(jsonPath("$.data.marketingAgreedAt").value(null as String?))
+        }
+
+        @Test
         fun `광고 동의 true는 동의 시각을 응답과 DB에 저장한다`() {
             mockMvc
                 .perform(put("""{"marketing":true}"""))
@@ -192,8 +214,8 @@ class DeviceControllerTest
         }
 
         @Test
-        fun `보내지 않은 필드는 바꾸지 않아 토큰만 보내도 동의가 유지된다`() {
-            mockMvc.perform(put("""{"marketing":true,"night":true}""")).andExpect(status().isOk)
+        fun `보내지 않은 필드는 바꾸지 않아 같은 토큰만 보내도 동의가 유지된다`() {
+            mockMvc.perform(put("""{"token":"$TOKEN","marketing":true,"night":true}""")).andExpect(status().isOk)
 
             mockMvc
                 .perform(put("""{"token":"$TOKEN"}"""))

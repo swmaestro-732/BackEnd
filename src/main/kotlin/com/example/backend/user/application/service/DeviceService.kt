@@ -35,7 +35,8 @@ class DeviceService(
         if (locked == null) {
             return devicePersistencePort.findConsent(command.deviceId) ?: DeviceConsent.NONE
         }
-        val current = locked.consent
+        // 이 요청이 토큰을 처음 붙였다면 저장소가 동의를 초기화했으므로 기존 동의를 이어받지 않는다.
+        val current = if (command.fcmToken != null && locked.fcmToken == null) DeviceConsent.NONE else locked.consent
         val now = clock.instant()
         // 이미 동의한 상태에서 다시 동의하면 처음 동의 시각을 유지한다(2년 재확인 기준).
         val marketingAgreedAt =

@@ -35,6 +35,12 @@ class DeviceRepository {
         DeviceTable.upsert(
             DeviceTable.deviceId,
             onUpdate = {
+                val sameToken = DeviceTable.fcmToken eq insertValue(DeviceTable.fcmToken)
+                // 광고 동의는 그 토큰(그 설치)에 대한 것이다. 토큰이 바뀌면 동의를 지워, 기기 ID 로 토큰을 바꿔 심은 동의가
+                // 실제 설치로 넘어가지 않게 한다. 같은 기기 ID 에서 토큰만 바뀌는 경우는 드물다(백업 복원 등).
+                it[DeviceTable.marketingAgreedAt] =
+                    case().When(sameToken, DeviceTable.marketingAgreedAt).Else(Op.nullOp())
+                it[DeviceTable.nightAgreedAt] = case().When(sameToken, DeviceTable.nightAgreedAt).Else(Op.nullOp())
                 it[DeviceTable.fcmToken] = insertValue(DeviceTable.fcmToken)
                 it[DeviceTable.platform] = insertValue(DeviceTable.platform)
                 it[DeviceTable.appBuild] = insertValue(DeviceTable.appBuild)
@@ -44,9 +50,7 @@ class DeviceRepository {
                     if (userId != null) {
                         insertValue(DeviceTable.userId)
                     } else {
-                        case()
-                            .When(DeviceTable.fcmToken eq insertValue(DeviceTable.fcmToken), DeviceTable.userId)
-                            .Else(Op.nullOp())
+                        case().When(sameToken, DeviceTable.userId).Else(Op.nullOp())
                     }
                 it[DeviceTable.lastSeenAt] = CurrentTimestamp
             },
