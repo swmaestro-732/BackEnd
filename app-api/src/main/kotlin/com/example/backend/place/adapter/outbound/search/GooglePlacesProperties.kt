@@ -1,4 +1,4 @@
-package com.example.backend.bootstrap.config
+package com.example.backend.place.adapter.outbound.search
 
 import org.springframework.boot.context.properties.ConfigurationProperties
 

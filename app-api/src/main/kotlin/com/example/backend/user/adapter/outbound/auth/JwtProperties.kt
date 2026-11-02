@@ -1,4 +1,4 @@
-package com.example.backend.bootstrap.security
+package com.example.backend.user.adapter.outbound.auth
 
 import com.example.backend.user.application.port.outbound.RefreshTokenPolicy
 import org.springframework.boot.context.properties.ConfigurationProperties

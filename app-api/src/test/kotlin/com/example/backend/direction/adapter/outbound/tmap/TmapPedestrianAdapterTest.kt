@@ -1,6 +1,5 @@
 package com.example.backend.direction.adapter.outbound.tmap
 
-import com.example.backend.bootstrap.config.TmapProperties
 import com.example.backend.common.geo.Coordinate
 import com.example.backend.direction.application.port.outbound.PedestrianRoute
 import org.hamcrest.Matchers.containsString

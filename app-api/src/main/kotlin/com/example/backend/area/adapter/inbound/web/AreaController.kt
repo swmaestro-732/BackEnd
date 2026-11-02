@@ -2,9 +2,9 @@ package com.example.backend.area.adapter.inbound.web
 
 import com.example.backend.area.adapter.inbound.web.response.AreaViewResponse
 import com.example.backend.area.application.port.inbound.AreaQueryUseCase
-import com.example.backend.bootstrap.appversion.AppFeature
-import com.example.backend.bootstrap.appversion.RequiresAppFeature
 import com.example.backend.common.response.ApiResponse
+import com.example.backend.web.AppFeature
+import com.example.backend.web.RequiresAppFeature
 import org.springframework.web.bind.annotation.GetMapping
 import org.springframework.web.bind.annotation.RequestMapping
 import org.springframework.web.bind.annotation.RequestParam

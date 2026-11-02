@@ -1,11 +1,11 @@
 package com.example.backend.mobile.course.adapter.inbound.web
 
-import com.example.backend.bootstrap.appversion.AppFeature
-import com.example.backend.bootstrap.appversion.RequiresAppFeature
-import com.example.backend.bootstrap.security.CurrentUserId
 import com.example.backend.common.response.ApiResponse
 import com.example.backend.mobile.course.adapter.inbound.web.response.PlanDetailScreenResponse
 import com.example.backend.mobile.course.application.port.inbound.PlanScreenUseCase
+import com.example.backend.web.AppFeature
+import com.example.backend.web.CurrentUserId
+import com.example.backend.web.RequiresAppFeature
 import org.springframework.web.bind.annotation.GetMapping
 import org.springframework.web.bind.annotation.PathVariable
 import org.springframework.web.bind.annotation.RequestMapping

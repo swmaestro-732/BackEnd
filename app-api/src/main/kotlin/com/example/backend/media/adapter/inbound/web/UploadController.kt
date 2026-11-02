@@ -1,12 +1,12 @@
 package com.example.backend.media.adapter.inbound.web
 
-import com.example.backend.bootstrap.appversion.AppFeature
-import com.example.backend.bootstrap.appversion.RequiresAppFeature
-import com.example.backend.bootstrap.security.CurrentUserId
 import com.example.backend.common.response.ApiResponse
 import com.example.backend.media.adapter.inbound.web.request.PresignRequest
 import com.example.backend.media.adapter.inbound.web.response.PresignResponse
 import com.example.backend.media.application.port.inbound.PresignUploadUseCase
+import com.example.backend.web.AppFeature
+import com.example.backend.web.CurrentUserId
+import com.example.backend.web.RequiresAppFeature
 import jakarta.validation.Valid
 import org.springframework.web.bind.annotation.PostMapping
 import org.springframework.web.bind.annotation.RequestBody

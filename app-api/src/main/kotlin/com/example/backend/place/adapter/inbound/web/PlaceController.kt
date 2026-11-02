@@ -1,7 +1,5 @@
 package com.example.backend.place.adapter.inbound.web
 
-import com.example.backend.bootstrap.appversion.AppFeature
-import com.example.backend.bootstrap.appversion.RequiresAppFeature
 import com.example.backend.common.geo.Coordinate
 import com.example.backend.common.geo.Viewport
 import com.example.backend.common.response.ApiResponse
@@ -10,6 +8,8 @@ import com.example.backend.place.adapter.inbound.web.response.PlaceSearchRespons
 import com.example.backend.place.application.port.inbound.PlaceMapQueryUseCase
 import com.example.backend.place.application.port.inbound.PlaceQueryUseCase
 import com.example.backend.place.application.port.inbound.dto.PlaceMapSort
+import com.example.backend.web.AppFeature
+import com.example.backend.web.RequiresAppFeature
 import io.swagger.v3.oas.annotations.tags.Tag
 import jakarta.validation.constraints.Max
 import jakarta.validation.constraints.Min

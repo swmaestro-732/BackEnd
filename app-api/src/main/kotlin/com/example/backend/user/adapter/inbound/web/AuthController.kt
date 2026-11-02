@@ -1,7 +1,5 @@
 package com.example.backend.user.adapter.inbound.web
 
-import com.example.backend.bootstrap.appversion.AppFeature
-import com.example.backend.bootstrap.appversion.RequiresAppFeature
 import com.example.backend.common.exception.BusinessException
 import com.example.backend.common.response.ApiResponse
 import com.example.backend.common.response.CommonErrorCode
@@ -14,6 +12,8 @@ import com.example.backend.user.adapter.inbound.web.response.SocialLoginResponse
 import com.example.backend.user.adapter.inbound.web.response.TokenResponse
 import com.example.backend.user.application.port.inbound.AuthUseCase
 import com.example.backend.user.application.port.inbound.dto.SignupCommand
+import com.example.backend.web.AppFeature
+import com.example.backend.web.RequiresAppFeature
 import jakarta.validation.Valid
 import org.springframework.web.bind.annotation.PostMapping
 import org.springframework.web.bind.annotation.RequestBody

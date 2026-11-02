@@ -1,6 +1,6 @@
 package com.example.backend.place.adapter.outbound.search
 
-import com.example.backend.bootstrap.config.AsyncConfig
+import com.example.backend.place.adapter.outbound.search.BusinessHoursSyncExecutorConfig
 import com.example.backend.place.application.event.PlaceBusinessHoursSyncRequestedEvent
 import com.example.backend.place.application.event.PlacesSavedEvent
 import com.example.backend.place.application.port.inbound.PlaceBusinessHoursSyncUseCase
@@ -17,13 +17,13 @@ import org.springframework.transaction.event.TransactionalEventListener
 class PlaceBusinessHoursSyncListener(
     private val useCase: PlaceBusinessHoursSyncUseCase,
 ) {
-    @Async(AsyncConfig.BUSINESS_HOURS_SYNC_EXECUTOR)
+    @Async(BusinessHoursSyncExecutorConfig.BUSINESS_HOURS_SYNC_EXECUTOR)
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
     fun onPlacesSaved(event: PlacesSavedEvent) {
         useCase.sync(event.places.mapNotNull { it.id })
     }
 
-    @Async(AsyncConfig.BUSINESS_HOURS_SYNC_EXECUTOR)
+    @Async(BusinessHoursSyncExecutorConfig.BUSINESS_HOURS_SYNC_EXECUTOR)
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
     fun onSyncRequested(event: PlaceBusinessHoursSyncRequestedEvent) {
         useCase.sync(event.placeIds)

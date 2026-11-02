@@ -1,4 +1,4 @@
-package com.example.backend.bootstrap.security
+package com.example.backend.user.adapter.outbound.auth
 
 import com.nimbusds.jose.jwk.source.ImmutableSecret
 import com.nimbusds.jose.proc.SecurityContext

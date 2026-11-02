@@ -1,6 +1,5 @@
 package com.example.backend.place.adapter.outbound.search
 
-import com.example.backend.bootstrap.config.KakaoLocalProperties
 import com.example.backend.common.geo.Coordinate
 import org.hamcrest.Matchers.allOf
 import org.hamcrest.Matchers.containsString

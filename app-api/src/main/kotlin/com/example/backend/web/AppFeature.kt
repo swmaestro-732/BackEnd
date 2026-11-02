@@ -1,4 +1,4 @@
-package com.example.backend.bootstrap.appversion
+package com.example.backend.web
 
 enum class AppFeature(
     val key: String,

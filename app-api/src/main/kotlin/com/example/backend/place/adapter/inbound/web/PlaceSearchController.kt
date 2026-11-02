@@ -1,11 +1,11 @@
 package com.example.backend.place.adapter.inbound.web
 
-import com.example.backend.bootstrap.appversion.AppFeature
-import com.example.backend.bootstrap.appversion.RequiresAppFeature
 import com.example.backend.common.geo.Coordinate
 import com.example.backend.common.response.ApiResponse
 import com.example.backend.place.adapter.inbound.web.response.ExternalPlaceSearchResponse
 import com.example.backend.place.application.port.inbound.PlaceSearchExternalUseCase
+import com.example.backend.web.AppFeature
+import com.example.backend.web.RequiresAppFeature
 import io.swagger.v3.oas.annotations.tags.Tag
 import jakarta.validation.constraints.NotBlank
 import org.springframework.validation.annotation.Validated

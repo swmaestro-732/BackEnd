@@ -1,4 +1,4 @@
-package com.example.backend.bootstrap.config
+package com.example.backend.direction.adapter.outbound.tmap
 
 import org.springframework.boot.context.properties.ConfigurationProperties
 

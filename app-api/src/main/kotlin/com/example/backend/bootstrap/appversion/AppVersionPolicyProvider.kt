@@ -1,5 +1,6 @@
 package com.example.backend.bootstrap.appversion
 
+import com.example.backend.web.AppFeature
 import io.github.oshai.kotlinlogging.KotlinLogging
 import org.springframework.beans.factory.annotation.Value
 import org.springframework.stereotype.Component

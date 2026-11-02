@@ -1,11 +1,11 @@
 package com.example.backend.direction.adapter.inbound.web
 
-import com.example.backend.bootstrap.appversion.AppFeature
-import com.example.backend.bootstrap.appversion.RequiresAppFeature
 import com.example.backend.common.response.ApiResponse
 import com.example.backend.direction.adapter.inbound.web.request.WalkingRequest
 import com.example.backend.direction.adapter.inbound.web.response.WalkingResponse
 import com.example.backend.direction.application.port.inbound.WalkingDurationUseCase
+import com.example.backend.web.AppFeature
+import com.example.backend.web.RequiresAppFeature
 import io.swagger.v3.oas.annotations.tags.Tag
 import jakarta.validation.Valid
 import org.springframework.web.bind.annotation.PostMapping

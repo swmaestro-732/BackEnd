@@ -1,9 +1,5 @@
 package com.example.backend.course.adapter.inbound.web
 
-import com.example.backend.bootstrap.appversion.AppFeature
-import com.example.backend.bootstrap.appversion.RequiresAppFeature
-import com.example.backend.bootstrap.security.AccessTokenRequired
-import com.example.backend.bootstrap.security.CurrentUserId
 import com.example.backend.common.response.ApiResponse
 import com.example.backend.course.adapter.inbound.web.request.CheckInPlaceRequest
 import com.example.backend.course.adapter.inbound.web.request.EndCourseTraceRequest
@@ -13,6 +9,10 @@ import com.example.backend.course.application.port.inbound.CourseTraceUseCase
 import com.example.backend.course.application.port.inbound.dto.CheckInPlaceCommand
 import com.example.backend.course.application.port.inbound.dto.EndCourseTraceCommand
 import com.example.backend.course.application.port.inbound.dto.VisitedPlaceCommand
+import com.example.backend.web.AccessTokenRequired
+import com.example.backend.web.AppFeature
+import com.example.backend.web.CurrentUserId
+import com.example.backend.web.RequiresAppFeature
 import jakarta.validation.Valid
 import org.springframework.web.bind.annotation.GetMapping
 import org.springframework.web.bind.annotation.PathVariable

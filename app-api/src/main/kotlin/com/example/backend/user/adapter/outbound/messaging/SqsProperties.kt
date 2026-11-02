@@ -1,4 +1,4 @@
-package com.example.backend.bootstrap.config
+package com.example.backend.user.adapter.outbound.messaging
 
 import org.springframework.boot.context.properties.ConfigurationProperties
 
