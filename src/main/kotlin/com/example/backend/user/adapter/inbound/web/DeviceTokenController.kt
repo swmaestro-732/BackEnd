@@ -2,6 +2,7 @@ package com.example.backend.user.adapter.inbound.web
 
 import com.example.backend.bootstrap.appversion.AppVersionInterceptor.Companion.BUILD_HEADER
 import com.example.backend.bootstrap.appversion.AppVersionInterceptor.Companion.PLATFORM_HEADER
+import com.example.backend.bootstrap.device.AppHeaders
 import com.example.backend.bootstrap.device.CurrentDeviceId
 import com.example.backend.bootstrap.security.AccessTokenRequired
 import com.example.backend.bootstrap.security.CurrentUserId
