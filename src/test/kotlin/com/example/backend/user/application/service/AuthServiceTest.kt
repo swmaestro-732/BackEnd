@@ -11,6 +11,7 @@ import com.example.backend.user.application.port.inbound.dto.SignupCommand
 import com.example.backend.user.application.port.outbound.AuthTokenPort
 import com.example.backend.user.application.port.outbound.DevicePersistencePort
 import com.example.backend.user.application.port.outbound.LikeThemePort
+import com.example.backend.user.application.port.outbound.LockedDevice
 import com.example.backend.user.application.port.outbound.RefreshTokenPort
 import com.example.backend.user.application.port.outbound.RefreshTokenRecord
 import com.example.backend.user.application.port.outbound.SocialIdentity
@@ -191,7 +192,7 @@ class AuthServiceTest {
                 userId: Long?,
             ) = Unit
 
-            override fun lockConsent(deviceId: String) = DeviceConsent.NONE
+            override fun lockConsent(deviceId: String) = LockedDevice(null, DeviceConsent.NONE)
 
             override fun updateConsent(
                 deviceId: String,
