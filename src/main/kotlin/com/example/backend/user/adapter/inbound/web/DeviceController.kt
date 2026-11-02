@@ -35,7 +35,7 @@ class DeviceController(
         val command =
             UpdateDeviceCommand(
                 deviceId,
-                request.token,
+                request.fcmToken,
                 AppHeaders.platform(platform),
                 AppHeaders.build(appBuild),
                 request.marketing,

@@ -7,9 +7,9 @@ import jakarta.validation.constraints.Size
 data class DeviceRequest(
     @field:Size(min = 1, max = 1024)
     @field:Pattern(regexp = "^[\\x21-\\x7E]+$")
-    val token: String? = null,
+    val fcmToken: String? = null,
     val marketing: Boolean? = null,
     val night: Boolean? = null,
 ) {
-    override fun toString(): String = "DeviceRequest(token=[REDACTED], marketing=$marketing, night=$night)"
+    override fun toString(): String = "DeviceRequest(fcmToken=[REDACTED], marketing=$marketing, night=$night)"
 }

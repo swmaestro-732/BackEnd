@@ -41,7 +41,7 @@ class DeviceControllerTest
         @Test
         fun `로그인 없이 토큰을 보내면 계정 연결 없는 기기 행을 만든다`() {
             mockMvc
-                .perform(put("""{"token":"$TOKEN"}""").header("X-App-Platform", "ios").header("X-App-Build", "4"))
+                .perform(put("""{"fcmToken":"$TOKEN"}""").header("X-App-Platform", "ios").header("X-App-Build", "4"))
                 .andExpect(status().isOk)
                 .andExpect(jsonPath("$.code").value(2000))
                 .andExpect(jsonPath("$.data.marketingAgreedAt").value(null as String?))
@@ -64,7 +64,7 @@ class DeviceControllerTest
                 TOKEN,
             )
 
-            mockMvc.perform(put("""{"token":"$TOKEN"}""")).andExpect(status().isOk)
+            mockMvc.perform(put("""{"fcmToken":"$TOKEN"}""")).andExpect(status().isOk)
 
             assertEquals(ME, row()["user_id"])
         }
@@ -74,7 +74,7 @@ class DeviceControllerTest
             jdbcTemplate.update("INSERT INTO users (id, nickname) VALUES (?, '기기주인')", ME)
             jdbcTemplate.update("INSERT INTO devices (device_id, user_id, fcm_token) VALUES (?, ?, 'old')", DEVICE, ME)
 
-            mockMvc.perform(put("""{"token":"$TOKEN"}""")).andExpect(status().isOk)
+            mockMvc.perform(put("""{"fcmToken":"$TOKEN"}""")).andExpect(status().isOk)
 
             assertNull(row()["user_id"])
             assertEquals(TOKEN, row()["fcm_token"])
@@ -91,7 +91,7 @@ class DeviceControllerTest
             assertNull(row()["marketing_agreed_at"])
 
             mockMvc
-                .perform(put("""{"token":"$TOKEN","marketing":true}"""))
+                .perform(put("""{"fcmToken":"$TOKEN","marketing":true}"""))
                 .andExpect(status().isOk)
                 .andExpect(jsonPath("$.data.marketingAgreedAt").isNotEmpty)
         }
@@ -101,7 +101,7 @@ class DeviceControllerTest
             jdbcTemplate.update("INSERT INTO devices (device_id, fcm_token) VALUES (?, ?)", DEVICE, TOKEN)
 
             mockMvc
-                .perform(put("""{"token":"attacker-token","marketing":true}"""))
+                .perform(put("""{"fcmToken":"attacker-token","marketing":true}"""))
                 .andExpect(status().isBadRequest)
                 .andExpect(jsonPath("$.code").value(4001))
 
@@ -111,12 +111,12 @@ class DeviceControllerTest
 
         @Test
         fun `토큰이 바뀌면 광고, 야간 동의를 지우고 같은 토큰이면 유지한다`() {
-            mockMvc.perform(put("""{"token":"$TOKEN","marketing":true,"night":true}""")).andExpect(status().isOk)
+            mockMvc.perform(put("""{"fcmToken":"$TOKEN","marketing":true,"night":true}""")).andExpect(status().isOk)
 
-            mockMvc.perform(put("""{"token":"$TOKEN"}""")).andExpect(status().isOk)
+            mockMvc.perform(put("""{"fcmToken":"$TOKEN"}""")).andExpect(status().isOk)
             assertNotNull(row()["marketing_agreed_at"])
 
-            mockMvc.perform(put("""{"token":"replaced-token"}""")).andExpect(status().isOk)
+            mockMvc.perform(put("""{"fcmToken":"replaced-token"}""")).andExpect(status().isOk)
             assertNull(row()["marketing_agreed_at"])
             assertNull(row()["night_agreed_at"])
         }
@@ -126,7 +126,7 @@ class DeviceControllerTest
             mockMvc.perform(put("""{"marketing":true}""")).andExpect(status().isOk)
 
             mockMvc
-                .perform(put("""{"token":"$TOKEN"}"""))
+                .perform(put("""{"fcmToken":"$TOKEN"}"""))
                 .andExpect(status().isOk)
                 .andExpect(jsonPath("$.data.marketingAgreedAt").value(null as String?))
         }
@@ -215,10 +215,10 @@ class DeviceControllerTest
 
         @Test
         fun `보내지 않은 필드는 바꾸지 않아 같은 토큰만 보내도 동의가 유지된다`() {
-            mockMvc.perform(put("""{"token":"$TOKEN","marketing":true,"night":true}""")).andExpect(status().isOk)
+            mockMvc.perform(put("""{"fcmToken":"$TOKEN","marketing":true,"night":true}""")).andExpect(status().isOk)
 
             mockMvc
-                .perform(put("""{"token":"$TOKEN"}"""))
+                .perform(put("""{"fcmToken":"$TOKEN"}"""))
                 .andExpect(status().isOk)
                 .andExpect(jsonPath("$.data.marketingAgreedAt").isNotEmpty)
                 .andExpect(jsonPath("$.data.nightAgreedAt").isNotEmpty)
@@ -267,10 +267,10 @@ class DeviceControllerTest
         @Test
         fun `잘못된 토큰은 검증 실패이고 동의도 저장하지 않는다`() {
             mockMvc
-                .perform(put("""{"token":"a b","marketing":true}"""))
+                .perform(put("""{"fcmToken":"a b","marketing":true}"""))
                 .andExpect(status().isBadRequest)
                 .andExpect(jsonPath("$.code").value(4002))
-                .andExpect(jsonPath("$.fieldErrors[0].field").value("token"))
+                .andExpect(jsonPath("$.fieldErrors[0].field").value("fcmToken"))
 
             assertEquals(0, count())
         }
@@ -278,7 +278,7 @@ class DeviceControllerTest
         @Test
         fun `mock 파라미터는 미동의를 돌려주고 아무것도 저장하지 않는다`() {
             mockMvc
-                .perform(put("""{"token":"$TOKEN","marketing":true}""").param("mock", "true"))
+                .perform(put("""{"fcmToken":"$TOKEN","marketing":true}""").param("mock", "true"))
                 .andExpect(status().isOk)
                 .andExpect(jsonPath("$.data.marketingAgreedAt").value(null as String?))
             mockMvc
