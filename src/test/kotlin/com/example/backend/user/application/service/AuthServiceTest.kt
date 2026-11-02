@@ -56,7 +56,12 @@ class AuthServiceTest {
 
             override fun findById(id: Long): User? = byId
 
-            override fun lockActive(userIds: List<Long>): Set<Long> = userIds.toSet()
+            val lockedUserIds = mutableListOf<Long>()
+
+            override fun lockActive(userIds: List<Long>): Set<Long> {
+                lockedUserIds += userIds
+                return userIds.toSet()
+            }
 
             override fun findByHandle(handle: String): User? = null
 
@@ -396,6 +401,7 @@ class AuthServiceTest {
 
         service.logout("some-refresh-token", "device-a")
 
+        assertEquals(listOf(7L), userPersistencePort.lockedUserIds)
         assertEquals(listOf(7L to "device-a"), deviceTokenPersistencePort.deleted)
         assertEquals("some-refresh-token", refreshTokenPort.revokedToken)
     }
