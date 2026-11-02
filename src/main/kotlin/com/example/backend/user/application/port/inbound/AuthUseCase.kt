@@ -18,7 +18,11 @@ interface AuthUseCase {
 
     fun reissue(refreshToken: String): TokenPair
 
-    fun logout(refreshToken: String)
+    /** refresh token 을 폐기한다. [deviceId] 가 있으면 그 사용자의 해당 기기 FCM 토큰도 지운다. */
+    fun logout(
+        refreshToken: String,
+        deviceId: String? = null,
+    )
 
     /** Kakao 설정이 없는 개발 환경의 mock 폴백용 access token. */
     fun issueDevAccessToken(): String
