@@ -5,8 +5,10 @@ import com.example.backend.area.application.port.inbound.dto.AreaDescriptor
 import com.example.backend.common.exception.BusinessException
 import com.example.backend.common.response.CommonErrorCode
 import com.example.backend.common.response.UserErrorCode
+import com.example.backend.user.application.port.inbound.dto.RegisterDeviceTokenCommand
 import com.example.backend.user.application.port.inbound.dto.SignupCommand
 import com.example.backend.user.application.port.outbound.AuthTokenPort
+import com.example.backend.user.application.port.outbound.DeviceTokenPersistencePort
 import com.example.backend.user.application.port.outbound.LikeThemePort
 import com.example.backend.user.application.port.outbound.RefreshTokenPort
 import com.example.backend.user.application.port.outbound.RefreshTokenRecord
@@ -174,6 +176,25 @@ class AuthServiceTest {
             override fun listThemeNames(): List<String> = listOf("DATE", "CAFETOUR", "CULTURE")
         }
 
+    private val deviceTokenPersistencePort =
+        object : DeviceTokenPersistencePort {
+            val deleted = mutableListOf<Pair<Long, String>>()
+
+            override fun upsert(
+                userId: Long,
+                command: RegisterDeviceTokenCommand,
+            ) = Unit
+
+            override fun deleteByUserAndDevice(
+                userId: Long,
+                deviceId: String,
+            ) {
+                deleted += userId to deviceId
+            }
+
+            override fun deleteAllByUser(userId: Long) = Unit
+        }
+
     private val service =
         AuthService(
             socialVerificationPort = socialVerificationPort,
@@ -182,6 +203,7 @@ class AuthServiceTest {
             userLikeThemePort = userLikeThemePort,
             authTokenPort = authTokenPort,
             refreshTokenPort = refreshTokenPort,
+            deviceTokenPersistencePort = deviceTokenPersistencePort,
             userAreaResolver = UserAreaResolver(areaQueryUseCase),
             userLikeThemeResolver = UserLikeThemeResolver(likeThemePort),
         )
@@ -356,6 +378,35 @@ class AuthServiceTest {
     fun `logout — refreshToken 을 폐기하고 예외가 발생하지 않는다`() {
         service.logout("some-refresh-token") // no exception
 
+        assertEquals("some-refresh-token", refreshTokenPort.revokedToken)
+        assertEquals(emptyList<Pair<Long, String>>(), deviceTokenPersistencePort.deleted)
+    }
+
+    @Test
+    fun `logout — 기기 ID가 있으면 유효한 refresh token의 사용자 기기 토큰을 지운다`() {
+        refreshTokenPort.valid =
+            RefreshTokenRecord(
+                id = 3L,
+                userId = 7L,
+                tokenHash = "hash",
+                expiresAt = Instant.EPOCH,
+                revoked = false,
+                createdAt = Instant.EPOCH,
+            )
+
+        service.logout("some-refresh-token", "device-a")
+
+        assertEquals(listOf(7L to "device-a"), deviceTokenPersistencePort.deleted)
+        assertEquals("some-refresh-token", refreshTokenPort.revokedToken)
+    }
+
+    @Test
+    fun `logout — refresh token이 유효하지 않으면 기기 토큰을 지우지 않는다`() {
+        refreshTokenPort.valid = null
+
+        service.logout("some-refresh-token", "device-a")
+
+        assertEquals(emptyList<Pair<Long, String>>(), deviceTokenPersistencePort.deleted)
         assertEquals("some-refresh-token", refreshTokenPort.revokedToken)
     }
 

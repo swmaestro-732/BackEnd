@@ -10,6 +10,7 @@ import com.example.backend.user.application.port.inbound.dto.SignupResult
 import com.example.backend.user.application.port.inbound.dto.SignupUserResult
 import com.example.backend.user.application.port.inbound.dto.TokenPair
 import com.example.backend.user.application.port.outbound.AuthTokenPort
+import com.example.backend.user.application.port.outbound.DeviceTokenPersistencePort
 import com.example.backend.user.application.port.outbound.RefreshTokenPort
 import com.example.backend.user.application.port.outbound.SocialVerificationPort
 import com.example.backend.user.application.port.outbound.UserAreaPersistencePort
@@ -31,6 +32,7 @@ class AuthService(
     private val userLikeThemePort: UserLikeThemePort,
     private val authTokenPort: AuthTokenPort,
     private val refreshTokenPort: RefreshTokenPort,
+    private val deviceTokenPersistencePort: DeviceTokenPersistencePort,
     private val userAreaResolver: UserAreaResolver,
     private val userLikeThemeResolver: UserLikeThemeResolver,
 ) : AuthUseCase {
@@ -139,7 +141,17 @@ class AuthService(
     }
 
     @Transactional
-    override fun logout(refreshToken: String) {
+    override fun logout(
+        refreshToken: String,
+        deviceId: String?,
+    ) {
+        // 클라이언트가 기기 해제(DELETE /my/devices)를 빠뜨려도 로그아웃한 기기로 알림이 가지 않게 서버에서도 지운다.
+        // 유효한 refresh token 으로 사용자를 확인한 경우에만 지운다(기기 ID 만으로 남의 행을 건드리지 않음).
+        if (deviceId != null) {
+            refreshTokenPort.findValid(refreshToken)?.let {
+                deviceTokenPersistencePort.deleteByUserAndDevice(it.userId, deviceId)
+            }
+        }
         refreshTokenPort.revoke(refreshToken)
     }
 

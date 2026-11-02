@@ -2,6 +2,7 @@ package com.example.backend.user.adapter.inbound.web
 
 import com.example.backend.bootstrap.appversion.AppFeature
 import com.example.backend.bootstrap.appversion.RequiresAppFeature
+import com.example.backend.bootstrap.device.CurrentDeviceIdArgumentResolver.Companion.DEVICE_ID_HEADER
 import com.example.backend.common.exception.BusinessException
 import com.example.backend.common.response.ApiResponse
 import com.example.backend.common.response.CommonErrorCode
@@ -17,6 +18,7 @@ import com.example.backend.user.application.port.inbound.dto.SignupCommand
 import jakarta.validation.Valid
 import org.springframework.web.bind.annotation.PostMapping
 import org.springframework.web.bind.annotation.RequestBody
+import org.springframework.web.bind.annotation.RequestHeader
 import org.springframework.web.bind.annotation.RequestMapping
 import org.springframework.web.bind.annotation.RequestParam
 import org.springframework.web.bind.annotation.RestController
@@ -95,11 +97,13 @@ class AuthController(
     @PostMapping("/logout")
     fun logout(
         @Valid @RequestBody(required = false) request: LogoutRequest?,
+        @RequestHeader(DEVICE_ID_HEADER, required = false) deviceId: String?,
         @RequestParam(required = false) mock: Boolean = false,
     ): ApiResponse<Nothing?> {
         if (mock) return ApiResponse.ok()
         val refreshToken = request?.refreshToken ?: throw BusinessException(CommonErrorCode.INVALID_INPUT)
-        authUseCase.logout(refreshToken)
+        // 기기 헤더는 선택이다. 없거나 비면 refresh token 만 폐기한다(웹, 구버전 앱 호환).
+        authUseCase.logout(refreshToken, deviceId?.takeIf { it.isNotBlank() })
         return ApiResponse.ok()
     }
 }
