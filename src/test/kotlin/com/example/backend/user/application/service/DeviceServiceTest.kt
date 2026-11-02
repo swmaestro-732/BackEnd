@@ -85,7 +85,8 @@ class DeviceServiceTest {
     }
 
     @Test
-    fun `동의 없이 토큰만 보내면 토큰만 저장하고 현재 동의를 돌려준다`() {
+    fun `같은 토큰만 다시 보내면 토큰만 저장하고 현재 동의를 돌려준다`() {
+        devicePersistencePort.storedToken = "tok"
         devicePersistencePort.consent = DeviceConsent(past, null)
 
         val result = service.update(command(token = "tok"))
