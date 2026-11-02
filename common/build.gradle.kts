@@ -5,5 +5,8 @@ plugins {
 }
 
 dependencies {
+    // Spring Modulith 모듈 선언 애노테이션(package-info.java). 컴파일에만 쓰고 런타임 의존은 늘리지 않는다
+    compileOnly(platform(libs.spring.modulith.bom))
+    compileOnly("org.springframework.modulith:spring-modulith-api")
     implementation("com.fasterxml.jackson.core:jackson-annotations")
 }

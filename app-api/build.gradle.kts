@@ -70,6 +70,9 @@ dependencies {
     testImplementation("org.springframework.boot:spring-boot-starter-validation-test")
     testImplementation("org.springframework.boot:spring-boot-starter-webmvc-test")
     testImplementation(libs.archunit.junit5)
+    // Spring Modulith: 도메인 패키지(모듈) 경계와 순환 검증. archTest 에서 돈다
+    testImplementation(platform(libs.spring.modulith.bom))
+    testImplementation("org.springframework.modulith:spring-modulith-starter-test")
     testImplementation(libs.testcontainers.junit)
 }
 
