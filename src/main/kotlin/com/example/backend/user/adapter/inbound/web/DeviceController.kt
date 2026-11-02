@@ -1,8 +1,7 @@
 package com.example.backend.user.adapter.inbound.web
 
-import com.example.backend.bootstrap.appversion.AppVersionInterceptor.Companion.BUILD_HEADER
-import com.example.backend.bootstrap.appversion.AppVersionInterceptor.Companion.PLATFORM_HEADER
-import com.example.backend.bootstrap.device.AppHeaders
+import com.example.backend.bootstrap.device.AppClient
+import com.example.backend.bootstrap.device.CurrentAppClient
 import com.example.backend.bootstrap.device.CurrentDeviceId
 import com.example.backend.common.response.ApiResponse
 import com.example.backend.user.adapter.inbound.web.request.DeviceRequest
@@ -14,7 +13,6 @@ import jakarta.validation.Valid
 import org.springframework.web.bind.annotation.GetMapping
 import org.springframework.web.bind.annotation.PutMapping
 import org.springframework.web.bind.annotation.RequestBody
-import org.springframework.web.bind.annotation.RequestHeader
 import org.springframework.web.bind.annotation.RequestMapping
 import org.springframework.web.bind.annotation.RequestParam
 import org.springframework.web.bind.annotation.RestController
@@ -29,16 +27,15 @@ class DeviceController(
     fun update(
         @CurrentDeviceId deviceId: String,
         @Valid @RequestBody request: DeviceRequest,
-        @RequestHeader(PLATFORM_HEADER, required = false) platform: String?,
-        @RequestHeader(BUILD_HEADER, required = false) appBuild: String?,
+        @CurrentAppClient appClient: AppClient,
         @RequestParam(required = false) mock: Boolean = false,
     ): ApiResponse<DeviceConsentResponse> {
         val command =
             UpdateDeviceCommand(
                 deviceId,
                 request.fcmToken,
-                AppHeaders.platform(platform),
-                AppHeaders.build(appBuild),
+                appClient.platform,
+                appClient.build,
                 request.marketing,
                 request.night,
             )
