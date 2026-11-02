@@ -241,6 +241,18 @@ class DeviceTokenControllerTest
             assertEquals(0, count())
         }
 
+        @ParameterizedTest
+        @ValueSource(strings = ["한", "😀", "a b"])
+        fun `ASCII가 아니거나 공백이 섞인 토큰은 검증 실패이고 저장하지 않는다`(unit: String) {
+            mockMvc
+                .perform(deviceRequest("PUT", token = unit.repeat(10)))
+                .andExpect(status().isBadRequest)
+                .andExpect(jsonPath("$.code").value(4002))
+                .andExpect(jsonPath("$.fieldErrors[0].field").value("token"))
+
+            assertEquals(0, count())
+        }
+
         @Test
         fun `1024자 토큰은 등록하고 삭제할 수 있다`() {
             val token = "a".repeat(1024)
