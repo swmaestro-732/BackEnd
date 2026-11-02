@@ -4,13 +4,17 @@ import com.example.backend.common.exception.BusinessException
 import com.example.backend.common.geo.Coordinate
 import com.example.backend.common.response.CommonErrorCode
 import com.example.backend.common.response.PlaceErrorCode
+import com.example.backend.course.application.port.inbound.dto.CourseTraceSummary
+import com.example.backend.course.application.port.inbound.dto.CourseTracesQuery
 import com.example.backend.course.application.port.outbound.CoursePersistencePort
 import com.example.backend.course.application.port.outbound.CourseTracePersistencePort
+import com.example.backend.course.application.port.outbound.CourseTraceRow
 import com.example.backend.course.application.port.outbound.PlaceLookupPort
 import com.example.backend.course.application.port.outbound.PlaceRef
 import com.example.backend.course.application.port.outbound.WalkingGuide
 import com.example.backend.course.application.port.outbound.WalkingRoute
 import com.example.backend.course.application.port.outbound.WalkingRoutePort
+import com.example.backend.course.domain.model.CourseTraceStatus
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Test
@@ -18,18 +22,20 @@ import org.junit.jupiter.api.assertThrows
 import org.mockito.Mockito.mock
 import org.mockito.Mockito.verifyNoInteractions
 import org.mockito.Mockito.`when`
+import java.time.Instant
 
 /**
- * [CourseTraceService.findRoute] 단위 테스트 — 포트를 목으로 대체해 서비스 규칙만 검증한다.
- * 검증 대상: 출발·도착 장소 검증(같으면 400, 없으면 404), 조회 순서 보정, 도보 경로 → 결과 DTO 변환,
- * 도보 불가(null) 전파.
+ * [CourseTraceService] 단위 테스트 — 포트를 목으로 대체해 서비스 규칙만 검증한다.
+ * - findRoute: 출발·도착 장소 검증(같으면 400, 없으면 404), 조회 순서 보정, 도보 경로 → 결과 DTO 변환, 도보 불가(null) 전파.
+ * - list: 커서 디코딩 → beforeId 전달, size+1 조회로 hasNext 판정·페이지 절단·nextCursor 생성, 행 → Summary 변환.
  */
 class CourseTraceServiceTest {
+    private val courseTracePersistencePort = mock(CourseTracePersistencePort::class.java)
     private val placeLookupPort = mock(PlaceLookupPort::class.java)
     private val walkingRoutePort = mock(WalkingRoutePort::class.java)
     private val service =
         CourseTraceService(
-            courseTracePersistencePort = mock(CourseTracePersistencePort::class.java),
+            courseTracePersistencePort = courseTracePersistencePort,
             coursePersistencePort = mock(CoursePersistencePort::class.java),
             courseViewPolicy = mock(CourseViewPolicy::class.java),
             placeLookupPort = placeLookupPort,
@@ -101,6 +107,107 @@ class CourseTraceServiceTest {
         assertEquals(PlaceErrorCode.PLACE_NOT_FOUND, exception.errorCode)
         verifyNoInteractions(walkingRoutePort)
     }
+
+    // --- list ---
+
+    @Test
+    fun `목록 — size 보다 많이 조회되면 잘라내고 hasNext 와 마지막 행 id 커서를 돌려준다`() {
+        `when`(courseTracePersistencePort.findByUserAndStatus(1L, CourseTraceStatus.COMPLETED, null, 3))
+            .thenReturn(listOf(completedRow(30L), completedRow(20L), completedRow(10L)))
+
+        val result =
+            service.list(
+                CourseTracesQuery(userId = 1L, status = CourseTraceStatus.COMPLETED, cursor = null, size = 2),
+            )
+
+        assertEquals(true, result.hasNext)
+        assertEquals(listOf(30L, 20L), result.traces.map { it.id })
+        assertEquals(20L, CourseTraceCursorCodec.decode(result.nextCursor))
+    }
+
+    @Test
+    fun `목록 — 커서를 beforeId 로 풀어 넘기고 마지막 페이지면 nextCursor 가 null 이다`() {
+        `when`(courseTracePersistencePort.findByUserAndStatus(1L, CourseTraceStatus.COMPLETED, 20L, 3))
+            .thenReturn(listOf(completedRow(10L)))
+
+        val result =
+            service.list(
+                CourseTracesQuery(
+                    userId = 1L,
+                    status = CourseTraceStatus.COMPLETED,
+                    cursor = CourseTraceCursorCodec.encode(20L),
+                    size = 2,
+                ),
+            )
+
+        assertEquals(false, result.hasNext)
+        assertNull(result.nextCursor)
+        assertEquals(listOf(10L), result.traces.map { it.id })
+    }
+
+    @Test
+    fun `목록 — 세션 행을 상태·시각·소요 시간·거리 그대로 Summary 로 옮긴다`() {
+        val startedAt = Instant.parse("2026-11-02T10:00:00Z")
+        val row =
+            CourseTraceRow(
+                id = 5L,
+                userId = 1L,
+                courseId = 7L,
+                status = CourseTraceStatus.IN_PROGRESS,
+                startedAt = startedAt,
+                endedAt = null,
+                durationMinutes = 0,
+                distanceMeters = 0,
+            )
+        `when`(
+            courseTracePersistencePort.findByUserAndStatus(1L, CourseTraceStatus.IN_PROGRESS, null, 11),
+        ).thenReturn(listOf(row))
+
+        val summary =
+            service
+                .list(
+                    CourseTracesQuery(userId = 1L, status = CourseTraceStatus.IN_PROGRESS, cursor = null, size = 10),
+                ).traces
+                .single()
+
+        assertEquals(
+            CourseTraceSummary(
+                id = 5L,
+                courseId = 7L,
+                status = CourseTraceStatus.IN_PROGRESS,
+                startedAt = startedAt,
+                endedAt = null,
+                durationMinutes = 0,
+                distanceMeters = 0,
+            ),
+            summary,
+        )
+    }
+
+    @Test
+    fun `목록 — 잘못된 커서는 INVALID_INPUT 이고 조회하지 않는다`() {
+        val exception =
+            assertThrows<BusinessException> {
+                service.list(
+                    CourseTracesQuery(userId = 1L, status = CourseTraceStatus.COMPLETED, cursor = "!!", size = 10),
+                )
+            }
+
+        assertEquals(CommonErrorCode.INVALID_INPUT, exception.errorCode)
+        verifyNoInteractions(courseTracePersistencePort)
+    }
+
+    private fun completedRow(id: Long) =
+        CourseTraceRow(
+            id = id,
+            userId = 1L,
+            courseId = 1L,
+            status = CourseTraceStatus.COMPLETED,
+            startedAt = Instant.parse("2026-11-02T09:00:00Z"),
+            endedAt = Instant.parse("2026-11-02T10:00:00Z"),
+            durationMinutes = 60,
+            distanceMeters = 1200,
+        )
 
     private fun placeRef(
         id: Long,
