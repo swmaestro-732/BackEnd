@@ -5,10 +5,11 @@ import com.example.backend.area.application.port.inbound.dto.AreaDescriptor
 import com.example.backend.common.exception.BusinessException
 import com.example.backend.common.response.CommonErrorCode
 import com.example.backend.common.response.UserErrorCode
+import com.example.backend.user.application.port.inbound.dto.DeviceConsent
 import com.example.backend.user.application.port.inbound.dto.RegisterDeviceTokenCommand
 import com.example.backend.user.application.port.inbound.dto.SignupCommand
 import com.example.backend.user.application.port.outbound.AuthTokenPort
-import com.example.backend.user.application.port.outbound.DeviceTokenPersistencePort
+import com.example.backend.user.application.port.outbound.DevicePersistencePort
 import com.example.backend.user.application.port.outbound.LikeThemePort
 import com.example.backend.user.application.port.outbound.RefreshTokenPort
 import com.example.backend.user.application.port.outbound.RefreshTokenRecord
@@ -181,23 +182,33 @@ class AuthServiceTest {
             override fun listThemeNames(): List<String> = listOf("DATE", "CAFETOUR", "CULTURE")
         }
 
-    private val deviceTokenPersistencePort =
-        object : DeviceTokenPersistencePort {
-            val deleted = mutableListOf<Pair<Long, String>>()
+    private val devicePersistencePort =
+        object : DevicePersistencePort {
+            val unlinked = mutableListOf<Pair<Long, String>>()
 
-            override fun upsert(
-                userId: Long,
+            override fun saveToken(
                 command: RegisterDeviceTokenCommand,
+                userId: Long?,
             ) = Unit
 
-            override fun deleteByUserAndDevice(
+            override fun lockConsent(deviceId: String) = DeviceConsent.NONE
+
+            override fun updateConsent(
+                deviceId: String,
+                marketingAgreedAt: Instant?,
+                nightAgreedAt: Instant?,
+            ) = Unit
+
+            override fun findConsent(deviceId: String): DeviceConsent? = null
+
+            override fun unlink(
                 userId: Long,
                 deviceId: String,
             ) {
-                deleted += userId to deviceId
+                unlinked += userId to deviceId
             }
 
-            override fun deleteAllByUser(userId: Long) = Unit
+            override fun unlinkAllByUser(userId: Long) = Unit
         }
 
     private val service =
@@ -208,7 +219,7 @@ class AuthServiceTest {
             userLikeThemePort = userLikeThemePort,
             authTokenPort = authTokenPort,
             refreshTokenPort = refreshTokenPort,
-            deviceTokenPersistencePort = deviceTokenPersistencePort,
+            devicePersistencePort = devicePersistencePort,
             userAreaResolver = UserAreaResolver(areaQueryUseCase),
             userLikeThemeResolver = UserLikeThemeResolver(likeThemePort),
         )
@@ -384,7 +395,7 @@ class AuthServiceTest {
         service.logout("some-refresh-token") // no exception
 
         assertEquals("some-refresh-token", refreshTokenPort.revokedToken)
-        assertEquals(emptyList<Pair<Long, String>>(), deviceTokenPersistencePort.deleted)
+        assertEquals(emptyList<Pair<Long, String>>(), devicePersistencePort.unlinked)
     }
 
     @Test
@@ -402,7 +413,7 @@ class AuthServiceTest {
         service.logout("some-refresh-token", "device-a")
 
         assertEquals(listOf(7L), userPersistencePort.lockedUserIds)
-        assertEquals(listOf(7L to "device-a"), deviceTokenPersistencePort.deleted)
+        assertEquals(listOf(7L to "device-a"), devicePersistencePort.unlinked)
         assertEquals("some-refresh-token", refreshTokenPort.revokedToken)
     }
 
@@ -412,7 +423,7 @@ class AuthServiceTest {
 
         service.logout("some-refresh-token", "device-a")
 
-        assertEquals(emptyList<Pair<Long, String>>(), deviceTokenPersistencePort.deleted)
+        assertEquals(emptyList<Pair<Long, String>>(), devicePersistencePort.unlinked)
         assertEquals("some-refresh-token", refreshTokenPort.revokedToken)
     }
 

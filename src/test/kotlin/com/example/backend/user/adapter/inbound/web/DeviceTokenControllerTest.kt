@@ -39,7 +39,7 @@ class DeviceTokenControllerTest
 
         @AfterEach
         fun cleanUp() {
-            jdbcTemplate.update("DELETE FROM device_tokens WHERE user_id IN (?, ?)", ME, OTHER)
+            jdbcTemplate.update("DELETE FROM devices WHERE device_id = ? OR user_id IN (?, ?)", DEVICE, ME, OTHER)
             jdbcTemplate.update("DELETE FROM users WHERE id IN (?, ?)", ME, OTHER)
         }
 
@@ -81,7 +81,7 @@ class DeviceTokenControllerTest
         }
 
         @Test
-        fun `같은 기기에서 같은 토큰으로 다른 사용자가 등록하면 이전 사용자의 행을 지운다`() {
+        fun `같은 기기에서 같은 토큰으로 다른 사용자가 등록하면 같은 행의 연결이 새 사용자로 옮겨진다`() {
             mockMvc.perform(deviceRequest("PUT")).andExpect(status().isOk)
 
             mockMvc.perform(deviceRequest("PUT", userId = OTHER)).andExpect(status().isOk)
@@ -159,15 +159,34 @@ class DeviceTokenControllerTest
         }
 
         @Test
-        fun `기기 ID만 같은 다른 사용자는 자기 행만 만들고 기존 사용자의 행을 건드리지 못한다`() {
+        fun `기기 ID가 같은 다른 사용자가 등록하면 기기 행을 이어받고 이후 원래 사용자가 다시 가져온다`() {
             storeToken(ME)
 
-            mockMvc.perform(deviceRequest("PUT", token = "attacker-token", userId = OTHER)).andExpect(status().isOk)
-            mockMvc.perform(deviceRequest("PUT", token = "owner-new-token")).andExpect(status().isOk)
+            mockMvc.perform(deviceRequest("PUT", token = "other-token", userId = OTHER)).andExpect(status().isOk)
+            assertEquals(1, count())
+            assertEquals(OTHER, row()["user_id"])
+            assertEquals("other-token", row()["fcm_token"])
 
-            assertEquals(2, count())
-            assertEquals("owner-new-token", row(ME)["fcm_token"])
-            assertEquals("attacker-token", row(OTHER)["fcm_token"])
+            mockMvc.perform(deviceRequest("PUT", token = "owner-new-token")).andExpect(status().isOk)
+            assertEquals(1, count())
+            assertEquals(ME, row()["user_id"])
+            assertEquals("owner-new-token", row()["fcm_token"])
+        }
+
+        @Test
+        fun `다른 기기가 같은 토큰을 등록하면 이전 기기 행은 토큰과 연결을 비우고 남는다`() {
+            mockMvc.perform(deviceRequest("PUT")).andExpect(status().isOk)
+
+            mockMvc
+                .perform(deviceRequest("PUT", userId = OTHER, deviceId = "fid-web-device-2"))
+                .andExpect(status().isOk)
+
+            val old = row()
+            assertNull(old["fcm_token"])
+            assertNull(old["user_id"])
+            val taken = jdbcTemplate.queryForMap("SELECT * FROM devices WHERE device_id = 'fid-web-device-2'")
+            assertEquals(TOKEN, taken["fcm_token"])
+            assertEquals(OTHER, taken["user_id"])
         }
 
         @Test
@@ -254,17 +273,18 @@ class DeviceTokenControllerTest
         }
 
         @Test
-        fun `1024자 토큰은 등록하고 삭제할 수 있다`() {
+        fun `1024자 토큰은 등록하고 연결을 끊을 수 있다`() {
             val token = "a".repeat(1024)
             mockMvc.perform(deviceRequest("PUT", token)).andExpect(status().isOk)
             assertEquals(token, row()["fcm_token"])
 
             mockMvc.perform(deviceRequest("DELETE")).andExpect(status().isOk)
-            assertEquals(0, count())
+            assertNull(row()["user_id"])
+            assertEquals(token, row()["fcm_token"])
         }
 
         @Test
-        fun `DELETE는 자기 기기를 삭제하고 반복해도 성공한다`() {
+        fun `DELETE는 자기 기기의 연결만 끊고 토큰은 남기며 반복해도 성공한다`() {
             storeToken(ME)
 
             repeat(2) {
@@ -275,11 +295,12 @@ class DeviceTokenControllerTest
                     .andExpect(jsonPath("$.data").doesNotExist())
             }
 
-            assertEquals(0, count())
+            assertNull(row()["user_id"])
+            assertEquals(TOKEN, row()["fcm_token"])
         }
 
         @Test
-        fun `DELETE는 다른 사용자의 기기를 삭제하지 않는다`() {
+        fun `DELETE는 다른 사용자의 기기 연결을 끊지 않는다`() {
             storeToken(OTHER)
 
             mockMvc
@@ -301,7 +322,7 @@ class DeviceTokenControllerTest
         }
 
         @Test
-        fun `소유권 이전 뒤 이전 사용자가 DELETE해도 새 소유자의 기기는 남는다`() {
+        fun `연결이 넘어간 뒤 이전 사용자가 DELETE해도 새 사용자의 연결은 남는다`() {
             storeToken(ME)
             mockMvc.perform(deviceRequest("PUT", userId = OTHER)).andExpect(status().isOk)
 
@@ -311,14 +332,14 @@ class DeviceTokenControllerTest
         }
 
         @Test
-        fun `DELETE는 유효한 앱 헤더와 함께 자기 기기를 삭제한다`() {
+        fun `DELETE는 유효한 앱 헤더와 함께 자기 기기의 연결을 끊는다`() {
             storeToken(ME)
 
             mockMvc
                 .perform(deviceRequest("DELETE").header("X-App-Platform", "IOS").header("X-App-Build", "1"))
                 .andExpect(status().isOk)
 
-            assertEquals(0, count())
+            assertNull(row()["user_id"])
         }
 
         @Test
@@ -332,7 +353,7 @@ class DeviceTokenControllerTest
         }
 
         @Test
-        fun `DELETE mock은 성공을 반환하고 토큰을 보존한다`() {
+        fun `DELETE mock은 성공을 반환하고 연결을 보존한다`() {
             storeToken(ME)
 
             mockMvc
@@ -387,32 +408,18 @@ class DeviceTokenControllerTest
 
         private fun storeToken(userId: Long) {
             jdbcTemplate.update(
-                "INSERT INTO device_tokens (user_id, device_id, fcm_token) VALUES (?, ?, ?)",
+                "INSERT INTO devices (user_id, device_id, fcm_token) VALUES (?, ?, ?)",
                 userId,
                 DEVICE,
                 TOKEN,
             )
         }
 
-        /** 사용자를 지정하지 않으면 이 기기의 유일한 행을 읽는다(행이 둘이면 실패한다). */
-        private fun row(userId: Long? = null): Map<String, Any?> =
-            if (userId == null) {
-                jdbcTemplate.queryForMap("SELECT * FROM device_tokens WHERE device_id = ?", DEVICE)
-            } else {
-                jdbcTemplate.queryForMap(
-                    "SELECT * FROM device_tokens WHERE device_id = ? AND user_id = ?",
-                    DEVICE,
-                    userId,
-                )
-            }
+        private fun row(): Map<String, Any?> =
+            jdbcTemplate.queryForMap("SELECT * FROM devices WHERE device_id = ?", DEVICE)
 
         private fun count(): Int =
-            jdbcTemplate.queryForObject(
-                "SELECT count(*) FROM device_tokens WHERE user_id IN (?, ?)",
-                Int::class.java,
-                ME,
-                OTHER,
-            )!!
+            jdbcTemplate.queryForObject("SELECT count(*) FROM devices WHERE device_id = ?", Int::class.java, DEVICE)!!
 
         private companion object {
             const val PATH = "/api/v1/my/devices"

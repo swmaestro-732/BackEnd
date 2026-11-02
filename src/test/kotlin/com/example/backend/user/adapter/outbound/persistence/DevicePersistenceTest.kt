@@ -1,0 +1,217 @@
+package com.example.backend.user.adapter.outbound.persistence
+
+import com.example.backend.support.IntegrationTestBase
+import com.example.backend.user.adapter.outbound.persistence.exposed.DeviceTable
+import com.example.backend.user.application.port.inbound.dto.DeviceConsent
+import com.example.backend.user.application.port.inbound.dto.RegisterDeviceTokenCommand
+import com.example.backend.user.application.port.outbound.DevicePersistencePort
+import org.jetbrains.exposed.v1.core.eq
+import org.jetbrains.exposed.v1.jdbc.selectAll
+import org.jetbrains.exposed.v1.jdbc.transactions.TransactionManager
+import org.jetbrains.exposed.v1.jdbc.transactions.transaction
+import org.jetbrains.exposed.v1.jdbc.update
+import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertNull
+import org.junit.jupiter.api.Assertions.assertTrue
+import org.junit.jupiter.api.Test
+import org.springframework.beans.factory.annotation.Autowired
+import kotlin.time.Instant
+
+class DevicePersistenceTest
+    @Autowired
+    constructor(
+        private val devicePersistencePort: DevicePersistencePort,
+    ) : IntegrationTestBase() {
+        @Test
+        fun `saveToken은 기기 행을 만들고 사용자와 헤더 값을 저장한다`() {
+            transaction {
+                insertUsers()
+                devicePersistencePort.saveToken(command("fid-insert", "token-insert", "ANDROID", 12), ME)
+
+                val row = row("fid-insert")
+                assertEquals(ME, row[DeviceTable.userId])
+                assertEquals("token-insert", row[DeviceTable.fcmToken])
+                assertEquals("ANDROID", row[DeviceTable.platform])
+                assertEquals(12, row[DeviceTable.appBuild])
+                assertNull(row[DeviceTable.marketingAgreedAt])
+                assertEquals(row[DeviceTable.createdAt], row[DeviceTable.lastSeenAt])
+                rollback()
+            }
+        }
+
+        @Test
+        fun `재등록은 같은 행의 토큰과 헤더와 마지막 접속만 갱신하고 생성 시각은 보존한다`() {
+            transaction {
+                insertUsers()
+                devicePersistencePort.saveToken(command("fid-refresh", "token-old", "ANDROID", 1), ME)
+                DeviceTable.update({ DeviceTable.deviceId eq "fid-refresh" }) {
+                    it[createdAt] = OLD
+                    it[lastSeenAt] = OLD
+                }
+
+                devicePersistencePort.saveToken(command("fid-refresh", "token-new", "IOS", 2), ME)
+
+                val row = row("fid-refresh")
+                assertEquals("token-new", row[DeviceTable.fcmToken])
+                assertEquals("IOS", row[DeviceTable.platform])
+                assertEquals(2, row[DeviceTable.appBuild])
+                assertEquals(OLD, row[DeviceTable.createdAt])
+                assertTrue(row[DeviceTable.lastSeenAt] > OLD)
+                assertEquals(1L, DeviceTable.selectAll().where { DeviceTable.deviceId eq "fid-refresh" }.count())
+                rollback()
+            }
+        }
+
+        @Test
+        fun `userId가 null이면 기존 계정 연결을 유지하고 새 행은 연결 없이 만든다`() {
+            transaction {
+                insertUsers()
+                devicePersistencePort.saveToken(command("fid-keep", "token-keep"), ME)
+
+                devicePersistencePort.saveToken(command("fid-keep", "token-keep-2"), null)
+                devicePersistencePort.saveToken(command("fid-guest", "token-guest"), null)
+
+                assertEquals(ME, row("fid-keep")[DeviceTable.userId])
+                assertEquals("token-keep-2", row("fid-keep")[DeviceTable.fcmToken])
+                assertNull(row("fid-guest")[DeviceTable.userId])
+                rollback()
+            }
+        }
+
+        @Test
+        fun `userId가 있으면 같은 기기의 이전 연결을 덮어쓴다`() {
+            transaction {
+                insertUsers()
+                devicePersistencePort.saveToken(command("fid-takeover", "token-takeover"), ME)
+
+                devicePersistencePort.saveToken(command("fid-takeover", "token-takeover"), OTHER)
+
+                assertEquals(OTHER, row("fid-takeover")[DeviceTable.userId])
+                assertEquals(1L, DeviceTable.selectAll().where { DeviceTable.deviceId eq "fid-takeover" }.count())
+                rollback()
+            }
+        }
+
+        @Test
+        fun `같은 토큰을 다른 기기가 등록하면 이전 기기 행의 토큰과 연결을 비우고 행은 남긴다`() {
+            transaction {
+                insertUsers()
+                devicePersistencePort.saveToken(command("fid-first", "token-shared"), ME)
+
+                devicePersistencePort.saveToken(command("fid-second", "token-shared"), OTHER)
+
+                val first = row("fid-first")
+                assertNull(first[DeviceTable.fcmToken])
+                assertNull(first[DeviceTable.userId])
+                assertEquals("token-shared", row("fid-second")[DeviceTable.fcmToken])
+                assertEquals(OTHER, row("fid-second")[DeviceTable.userId])
+                rollback()
+            }
+        }
+
+        @Test
+        fun `토큰의 SQL 특수문자는 값으로 저장된다`() {
+            transaction {
+                insertUsers()
+                val token = "device-token'; DELETE FROM devices; --"
+                devicePersistencePort.saveToken(command("fid-sql", token), ME)
+                devicePersistencePort.saveToken(command("fid-sql", token, "IOS", 3), OTHER)
+
+                val row = row("fid-sql")
+                assertEquals(token, row[DeviceTable.fcmToken])
+                assertEquals(OTHER, row[DeviceTable.userId])
+                assertEquals(3, row[DeviceTable.appBuild])
+                rollback()
+            }
+        }
+
+        @Test
+        fun `unlink는 소유자가 맞는 연결만 끊고 토큰과 행은 남기며 반복해도 성공한다`() {
+            transaction {
+                insertUsers()
+                devicePersistencePort.saveToken(command("fid-unlink", "token-unlink"), ME)
+
+                devicePersistencePort.unlink(OTHER, "fid-unlink")
+                devicePersistencePort.unlink(ME, "fid-unknown")
+                assertEquals(ME, row("fid-unlink")[DeviceTable.userId])
+
+                devicePersistencePort.unlink(ME, "fid-unlink")
+                devicePersistencePort.unlink(ME, "fid-unlink")
+
+                val row = row("fid-unlink")
+                assertNull(row[DeviceTable.userId])
+                assertEquals("token-unlink", row[DeviceTable.fcmToken])
+                rollback()
+            }
+        }
+
+        @Test
+        fun `unlinkAllByUser는 사용자의 모든 기기 연결만 끊고 다른 사용자는 그대로 둔다`() {
+            transaction {
+                insertUsers()
+                devicePersistencePort.saveToken(command("fid-a", "token-a"), ME)
+                devicePersistencePort.saveToken(command("fid-b", "token-b"), ME)
+                devicePersistencePort.saveToken(command("fid-o", "token-o"), OTHER)
+
+                devicePersistencePort.unlinkAllByUser(ME)
+                devicePersistencePort.unlinkAllByUser(ME)
+
+                assertEquals(0L, DeviceTable.selectAll().where { DeviceTable.userId eq ME }.count())
+                assertEquals("token-a", row("fid-a")[DeviceTable.fcmToken])
+                assertEquals("token-b", row("fid-b")[DeviceTable.fcmToken])
+                assertEquals(OTHER, row("fid-o")[DeviceTable.userId])
+                rollback()
+            }
+        }
+
+        @Test
+        fun `lockConsent는 행이 없으면 토큰 없는 빈 행을 만들고 미동의를 돌려준다`() {
+            transaction {
+                assertEquals(DeviceConsent.NONE, devicePersistencePort.lockConsent("fid-lock"))
+
+                val row = row("fid-lock")
+                assertNull(row[DeviceTable.fcmToken])
+                assertNull(row[DeviceTable.userId])
+                rollback()
+            }
+        }
+
+        @Test
+        fun `updateConsent로 저장한 동의를 findConsent로 읽고 행이 없으면 null이다`() {
+            transaction {
+                assertNull(devicePersistencePort.findConsent("fid-consent"))
+                devicePersistencePort.lockConsent("fid-consent")
+                val marketing = java.time.Instant.parse("2026-01-01T00:00:00Z")
+                val night = java.time.Instant.parse("2026-01-02T00:00:00Z")
+
+                devicePersistencePort.updateConsent("fid-consent", marketing, night)
+
+                assertEquals(DeviceConsent(marketing, night), devicePersistencePort.findConsent("fid-consent"))
+                devicePersistencePort.updateConsent("fid-consent", null, null)
+                assertEquals(DeviceConsent.NONE, devicePersistencePort.findConsent("fid-consent"))
+                rollback()
+            }
+        }
+
+        // devices.user_id 는 users(id) FK 라 소유자 행이 먼저 있어야 한다(테스트 트랜잭션과 함께 롤백).
+        private fun insertUsers() {
+            TransactionManager.current().exec(
+                "INSERT INTO users (id, nickname) VALUES ($ME, '기기주인'), ($OTHER, '다른사용자')",
+            )
+        }
+
+        private fun command(
+            deviceId: String,
+            token: String,
+            platform: String? = null,
+            appBuild: Int? = null,
+        ) = RegisterDeviceTokenCommand(deviceId, token, platform, appBuild)
+
+        private fun row(deviceId: String) = DeviceTable.selectAll().where { DeviceTable.deviceId eq deviceId }.single()
+
+        private companion object {
+            const val ME = 730101L
+            const val OTHER = 730102L
+            val OLD = Instant.parse("2000-01-01T00:00:00Z")
+        }
+    }
