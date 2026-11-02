@@ -37,7 +37,9 @@ class TmapPedestrianAdapterTest {
         val body =
             """
             {"type":"FeatureCollection","features":[
-              {"type":"Feature","properties":{"totalTime":540,"totalDistance":720}}
+              {"type":"Feature","properties":{"totalTime":540,"totalDistance":720}},
+              {"type":"Feature","properties":{},
+               "geometry":{"type":"LineString","coordinates":[[127.0559,37.5446],[127.0561,37.5433]]}}
             ]}
             """.trimIndent()
         server
@@ -48,7 +50,126 @@ class TmapPedestrianAdapterTest {
         val route = adapter.walkingRoute(from, to)
 
         server.verify()
-        assertEquals(PedestrianRoute.Reachable(540), route)
+        assertEquals(540, (route as PedestrianRoute.Reachable).seconds)
+        assertEquals(720, route.distanceMeters)
+    }
+
+    @Test
+    fun `Point 안내와 LineString 좌표를 폴리라인·안내 지점으로 옮긴다`() {
+        val (adapter, server) = adapterWith()
+        // 실제 응답처럼 Point(안내)·LineString(선분)이 번갈아 오고, 뒤 선분은 앞 선분의 끝점으로 시작한다.
+        val body =
+            """
+            {"type":"FeatureCollection","features":[
+              {"type":"Feature","geometry":{"type":"Point","coordinates":[127.0559,37.5446]},
+               "properties":{"totalTime":540,"totalDistance":720,"description":"출발"}},
+              {"type":"Feature","properties":{},
+               "geometry":{"type":"LineString","coordinates":[[127.0559,37.5446],[127.0561,37.5433]]}},
+              {"type":"Feature","geometry":{"type":"Point","coordinates":[127.0561,37.5433]},
+               "properties":{"description":"  "}},
+              {"type":"Feature","properties":{},
+               "geometry":{"type":"LineString","coordinates":[[127.0561,37.5433],[127.0563,37.5420]]}},
+              {"type":"Feature","geometry":{"type":"Point","coordinates":[127.0563,37.5420]},
+               "properties":{"description":"도착"}}
+            ]}
+            """.trimIndent()
+        server
+            .expect(requestTo(containsString("/tmap/routes/pedestrian")))
+            .andRespond(withSuccess(body, MediaType.APPLICATION_JSON))
+
+        val route = adapter.walkingRoute(from, to) as PedestrianRoute.Reachable
+
+        // 선분 경계의 중복 좌표는 한 번만 담는다.
+        assertEquals(
+            listOf(
+                Coordinate(latitude = 37.5446, longitude = 127.0559),
+                Coordinate(latitude = 37.5433, longitude = 127.0561),
+                Coordinate(latitude = 37.5420, longitude = 127.0563),
+            ),
+            route.path,
+        )
+        // 문구가 비어 있는 안내 지점은 제외한다.
+        assertEquals(listOf("출발", "도착"), route.guides.map { it.description })
+        assertEquals(Coordinate(latitude = 37.5446, longitude = 127.0559), route.guides.first().coordinate)
+    }
+
+    @Test
+    fun `형식이 어긋난 좌표는 건너뛰고 알 수 없는 geometry 는 무시한다`() {
+        val (adapter, server) = adapterWith()
+        val body =
+            """
+            {"type":"FeatureCollection","features":[
+              {"type":"Feature","geometry":{"type":"Point","coordinates":[127.0559]},
+               "properties":{"totalTime":60,"totalDistance":80,"description":"출발"}},
+              {"type":"Feature","properties":{},
+               "geometry":{"type":"LineString",
+                "coordinates":[[127.0559,37.5446],["x",1],[999,37.5433],[127.0561,37.5433]]}},
+              {"type":"Feature","geometry":{"type":"Polygon","coordinates":[[127.0561,37.5433]]},"properties":{}},
+              {"type":"Feature","properties":{"description":"geometry 없음"}}
+            ]}
+            """.trimIndent()
+        server
+            .expect(requestTo(containsString("/tmap/routes/pedestrian")))
+            .andRespond(withSuccess(body, MediaType.APPLICATION_JSON))
+
+        val route = adapter.walkingRoute(from, to) as PedestrianRoute.Reachable
+
+        assertEquals(60, route.seconds)
+        assertEquals(80, route.distanceMeters)
+        assertEquals(
+            listOf(
+                Coordinate(latitude = 37.5446, longitude = 127.0559),
+                Coordinate(latitude = 37.5433, longitude = 127.0561),
+            ),
+            route.path,
+        )
+        assertEquals(emptyList<PedestrianRoute.Guide>(), route.guides)
+    }
+
+    @Test
+    fun `totalTime 이 없으면 Unknown 으로 반환한다`() {
+        val (adapter, server) = adapterWith()
+        val body = """{"type":"FeatureCollection","features":[{"type":"Feature","properties":{"totalDistance":720}}]}"""
+        server
+            .expect(requestTo(containsString("/tmap/routes/pedestrian")))
+            .andRespond(withSuccess(body, MediaType.APPLICATION_JSON))
+
+        assertEquals(PedestrianRoute.Unknown, adapter.walkingRoute(from, to))
+    }
+
+    @Test
+    fun `totalDistance 가 없으면 Unknown 으로 반환한다`() {
+        val (adapter, server) = adapterWith()
+        val body =
+            """
+            {"type":"FeatureCollection","features":[
+              {"type":"Feature","properties":{"totalTime":540}},
+              {"type":"Feature","properties":{},
+               "geometry":{"type":"LineString","coordinates":[[127.0559,37.5446],[127.0561,37.5433]]}}
+            ]}
+            """.trimIndent()
+        server
+            .expect(requestTo(containsString("/tmap/routes/pedestrian")))
+            .andRespond(withSuccess(body, MediaType.APPLICATION_JSON))
+
+        assertEquals(PedestrianRoute.Unknown, adapter.walkingRoute(from, to))
+    }
+
+    @Test
+    fun `그릴 경로 좌표가 없으면 Unknown 으로 반환한다`() {
+        val (adapter, server) = adapterWith()
+        val body =
+            """
+            {"type":"FeatureCollection","features":[
+              {"type":"Feature","geometry":{"type":"Point","coordinates":[127.0559,37.5446]},
+               "properties":{"totalTime":540,"totalDistance":720,"description":"출발"}}
+            ]}
+            """.trimIndent()
+        server
+            .expect(requestTo(containsString("/tmap/routes/pedestrian")))
+            .andRespond(withSuccess(body, MediaType.APPLICATION_JSON))
+
+        assertEquals(PedestrianRoute.Unknown, adapter.walkingRoute(from, to))
     }
 
     @Test

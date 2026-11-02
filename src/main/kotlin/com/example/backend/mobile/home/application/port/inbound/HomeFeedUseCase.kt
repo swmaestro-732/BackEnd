@@ -18,9 +18,10 @@ interface HomeFeedUseCase {
         userLocation: Coordinate?,
     ): HomeResult
 
-    /** 저장수 내림차순·최신순으로 랭킹한 공개 코스 피드를 [cursor] 이후부터 [size] 개 내려준다. */
+    /** 저장수 내림차순·최신순으로 랭킹한 공개 코스 피드를 [cursor] 이후부터 [size] 개 내려준다. [category]가 있으면 그 카테고리만. */
     fun getFeed(
         cursor: String?,
         size: Int,
+        category: String? = null,
     ): HomeFeedResult
 }

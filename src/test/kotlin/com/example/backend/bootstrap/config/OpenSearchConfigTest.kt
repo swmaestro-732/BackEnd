@@ -17,13 +17,14 @@ import org.springframework.test.web.servlet.result.MockMvcResultMatchers.status
 /**
  * opensearch.endpoint 가 설정되면 클라이언트 빈이 생성되고(연결 배선),
  * OpenSearch 가 불통이어도 `/actuator/health` 가 UP(200)을 유지하는지(ALB 보호 — 불통 시 UNKNOWN) 검증한다.
- * 실제 도메인이 없어도 되도록 도달 불가한 로컬 값을 넣는다(클라이언트 생성은 연결하지 않으므로 부팅에 무해).
+ * 실제 도메인이 없어도 되도록 결정적으로 도달 불가한 호스트(.invalid TLD, 항상 DNS 실패)를 넣는다 —
+ * localhost 는 로컬에 무언가 떠 있으면 연결이 성공해 불통 경로를 못 밟을 수 있다(클라이언트 생성은 연결 안 하므로 부팅엔 무해).
  */
 @AutoConfigureMockMvc
 @TestPropertySource(
     // endpoint 양끝에 공백을 넣어 가드(@ConditionalOnExpression)·HttpHost 양쪽의 trim 정규화를 회귀 검증한다.
     properties = [
-        "opensearch.endpoint= localhost ",
+        "opensearch.endpoint= opensearch.invalid ",
         "opensearch.username=admin",
         "opensearch.password=admin",
     ],
@@ -51,6 +52,14 @@ class OpenSearchConfigTest
         fun `OpenSearch 불통이어도 actuator health 는 UP(200)을 유지한다`() {
             mockMvc
                 .perform(get("/actuator/health"))
+                .andExpect(status().isOk)
+                .andExpect(jsonPath("$.status").value("UP"))
+        }
+
+        @Test
+        fun `OpenSearch 불통이어도 liveness 는 인증 없이 UP(200)을 반환한다`() {
+            mockMvc
+                .perform(get("/actuator/health/liveness"))
                 .andExpect(status().isOk)
                 .andExpect(jsonPath("$.status").value("UP"))
         }

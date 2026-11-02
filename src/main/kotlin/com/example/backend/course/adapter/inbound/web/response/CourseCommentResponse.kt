@@ -6,6 +6,8 @@ import java.time.Instant
 data class CourseCommentResponse(
     val id: Long,
     val authorId: Long,
+    val authorNickname: String,
+    val authorProfileImageUrl: String?,
     val content: String,
     val createdAt: Instant,
     val updatedAt: Instant,
@@ -16,6 +18,8 @@ data class CourseCommentResponse(
             CourseCommentResponse(
                 id = result.id,
                 authorId = result.authorId,
+                authorNickname = result.authorNickname,
+                authorProfileImageUrl = result.authorProfileImageUrl,
                 content = result.content,
                 createdAt = result.createdAt,
                 updatedAt = result.updatedAt,
