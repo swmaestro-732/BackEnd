@@ -4,6 +4,5 @@ enum class NotificationCategory {
     LIKE,
     COMMENT,
     FOLLOW,
-    COURSE,
     REVIEW,
 }

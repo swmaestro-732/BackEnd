@@ -17,13 +17,13 @@ class NotificationSettingsServiceTest {
     fun `저장된 설정이 없으면 모든 알림을 허용한다`() {
         `when`(settings.findByUser(7L)).thenReturn(null)
 
-        assertThat(service.get(7L)).isEqualTo(NotificationSettings(true, true, true, true, true))
+        assertThat(service.get(7L)).isEqualTo(NotificationSettings(true, true, true, true))
         verify(settings).findByUser(7L)
     }
 
     @Test
     fun `저장된 설정이 있으면 그대로 반환한다`() {
-        val saved = NotificationSettings(false, true, false, true, false)
+        val saved = NotificationSettings(false, true, false, false)
         `when`(settings.findByUser(7L)).thenReturn(saved)
 
         assertThat(service.get(7L)).isEqualTo(saved)
@@ -33,7 +33,7 @@ class NotificationSettingsServiceTest {
     @Test
     fun `부분 수정 명령과 사용자 식별자를 전달하고 저장 결과를 반환한다`() {
         val command = UpdateNotificationSettingsCommand(activityLike = false, activityReview = true)
-        val saved = NotificationSettings(false, false, true, false, true)
+        val saved = NotificationSettings(false, false, true, true)
         `when`(settings.update(7L, command)).thenReturn(saved)
 
         assertThat(service.update(7L, command)).isEqualTo(saved)

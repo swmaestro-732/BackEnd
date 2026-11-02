@@ -6,9 +6,8 @@ data class UpdateNotificationSettingsRequest(
     val activityLike: Boolean? = null,
     val activityComment: Boolean? = null,
     val activityFollow: Boolean? = null,
-    val activityCourse: Boolean? = null,
     val activityReview: Boolean? = null,
 ) {
     fun toCommand(): UpdateNotificationSettingsCommand =
-        UpdateNotificationSettingsCommand(activityLike, activityComment, activityFollow, activityCourse, activityReview)
+        UpdateNotificationSettingsCommand(activityLike, activityComment, activityFollow, activityReview)
 }

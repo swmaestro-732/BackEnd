@@ -2,7 +2,6 @@ package com.example.backend.notification.application.service
 
 import com.example.backend.notification.application.port.inbound.dto.NotificationSummary
 import com.example.backend.notification.application.port.inbound.dto.RecordNotificationCommand
-import com.example.backend.notification.application.port.outbound.NotificationActor
 import com.example.backend.notification.application.port.outbound.NotificationActorLookupPort
 import com.example.backend.notification.application.port.outbound.NotificationCourseTarget
 import com.example.backend.notification.application.port.outbound.NotificationPersistencePort
@@ -10,7 +9,6 @@ import com.example.backend.notification.application.port.outbound.NotificationSe
 import com.example.backend.notification.application.port.outbound.NotificationTargetLookupPort
 import com.example.backend.notification.domain.model.NotificationBundle
 import com.example.backend.notification.domain.model.NotificationCategory
-import com.example.backend.notification.domain.model.NotificationPayload
 import com.example.backend.notification.domain.model.NotificationSettings
 import com.example.backend.notification.domain.model.NotificationTargetType
 import com.example.backend.notification.domain.model.NotificationType
@@ -18,6 +16,7 @@ import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.params.ParameterizedTest
 import org.junit.jupiter.params.provider.EnumSource
+import org.mockito.ArgumentMatchers.anyList
 import org.mockito.Mockito.inOrder
 import org.mockito.Mockito.mock
 import org.mockito.Mockito.verify
@@ -32,19 +31,31 @@ class NotificationServiceTest {
     private val settings = mock(NotificationSettingsPersistencePort::class.java)
     private val service = NotificationService(targets, actors, notifications, settings)
 
+    private fun active(vararg ids: Long) {
+        `when`(actors.lockActive(anyList())).thenAnswer {
+            (it.arguments[0] as List<*>)
+                .filterIsInstance<Long>()
+                .filter { id ->
+                    id in
+                        ids
+                }.toSet()
+        }
+    }
+
     @ParameterizedTest
     @EnumSource(value = NotificationType::class, names = ["USER_FOLLOWED"], mode = EnumSource.Mode.EXCLUDE)
-    fun `코스 활동은 작성자와 행위자 스냅샷을 10분 묶음으로 기록한다`(type: NotificationType) {
+    fun `코스 활동은 작성자에게 10분 묶음으로 기록하고 좋아요만 행동자를 남기지 않는다`(type: NotificationType) {
         `when`(targets.findCourse(COURSE_ID)).thenReturn(NotificationCourseTarget(OWNER_ID, "한강 산책"))
         `when`(settings.findByUser(OWNER_ID)).thenReturn(null)
-        `when`(actors.findActor(ACTOR_ID)).thenReturn(NotificationActor("산책자", "https://example.com/profile.jpg"))
+        active(ACTOR_ID, OWNER_ID)
+        `when`(actors.findNickname(ACTOR_ID)).thenReturn("산책자")
 
         service.record(command(type))
 
         val order = inOrder(targets, settings, actors, notifications)
         order.verify(targets).findCourse(COURSE_ID)
         order.verify(settings).findByUser(OWNER_ID)
-        order.verify(actors).findActor(ACTOR_ID)
+        order.verify(actors).lockActive(listOf(ACTOR_ID, OWNER_ID))
         order.verify(notifications).upsert(
             NotificationBundle(
                 userId = OWNER_ID,
@@ -53,7 +64,8 @@ class NotificationServiceTest {
                 targetId = COURSE_ID,
                 windowStart = WINDOW_START,
                 lastActorId = ACTOR_ID,
-                payload = NotificationPayload("산책자", "https://example.com/profile.jpg", "한강 산책"),
+                actorNickname = if (type == NotificationType.COURSE_LIKED) null else "산책자",
+                courseTitle = "한강 산책",
             ),
         )
     }
@@ -61,7 +73,8 @@ class NotificationServiceTest {
     @Test
     fun `팔로우는 대상 사용자에게 팔로워를 대상으로 코스 제목 없이 기록한다`() {
         `when`(settings.findByUser(OWNER_ID)).thenReturn(NotificationSettings.DEFAULT)
-        `when`(actors.findActor(ACTOR_ID)).thenReturn(NotificationActor("새 팔로워", null))
+        active(ACTOR_ID, OWNER_ID)
+        `when`(actors.findNickname(ACTOR_ID)).thenReturn("새 팔로워")
 
         service.record(command(NotificationType.USER_FOLLOWED, targetId = OWNER_ID))
 
@@ -75,7 +88,8 @@ class NotificationServiceTest {
                 targetId = ACTOR_ID,
                 windowStart = WINDOW_START,
                 lastActorId = ACTOR_ID,
-                payload = NotificationPayload("새 팔로워", null),
+                actorNickname = "새 팔로워",
+                courseTitle = null,
             ),
         )
     }
@@ -84,8 +98,9 @@ class NotificationServiceTest {
     fun `같은 창의 서로 다른 팔로워는 팔로워마다 다른 대상으로 기록해 묶이지 않는다`() {
         val otherActorId = 3L
         `when`(settings.findByUser(OWNER_ID)).thenReturn(NotificationSettings.DEFAULT)
-        `when`(actors.findActor(ACTOR_ID)).thenReturn(NotificationActor("첫 팔로워", null))
-        `when`(actors.findActor(otherActorId)).thenReturn(NotificationActor("둘째 팔로워", null))
+        active(ACTOR_ID, otherActorId, OWNER_ID)
+        `when`(actors.findNickname(ACTOR_ID)).thenReturn("첫 팔로워")
+        `when`(actors.findNickname(otherActorId)).thenReturn("둘째 팔로워")
 
         service.record(command(NotificationType.USER_FOLLOWED, targetId = OWNER_ID))
         service.record(
@@ -101,7 +116,8 @@ class NotificationServiceTest {
                     targetId = followerId,
                     windowStart = WINDOW_START,
                     lastActorId = followerId,
-                    payload = NotificationPayload(nickname, null),
+                    actorNickname = nickname,
+                    courseTitle = null,
                 ),
             )
         }
@@ -143,7 +159,6 @@ class NotificationServiceTest {
                 activityLike = type.category != NotificationCategory.LIKE,
                 activityComment = type.category != NotificationCategory.COMMENT,
                 activityFollow = type.category != NotificationCategory.FOLLOW,
-                activityCourse = type.category != NotificationCategory.COURSE,
                 activityReview = type.category != NotificationCategory.REVIEW,
             ),
         )
@@ -155,13 +170,23 @@ class NotificationServiceTest {
     }
 
     @Test
-    fun `행위자가 탈퇴해 조회되지 않으면 기록하지 않는다`() {
+    fun `행위자가 탈퇴했으면 잠금 결과에 없어 기록하지 않는다`() {
         `when`(targets.findCourse(COURSE_ID)).thenReturn(NotificationCourseTarget(OWNER_ID, "한강 산책"))
-        `when`(actors.findActor(ACTOR_ID)).thenReturn(null)
+        active(OWNER_ID)
 
-        service.record(command(NotificationType.COURSE_LIKED))
+        service.record(command(NotificationType.COURSE_COMMENTED))
 
-        verify(actors).findActor(ACTOR_ID)
+        verify(actors).lockActive(listOf(ACTOR_ID, OWNER_ID))
+        verifyNoInteractions(notifications)
+    }
+
+    @Test
+    fun `받는 사람이 탈퇴했으면 잠금 결과에 없어 기록하지 않는다`() {
+        active(ACTOR_ID)
+
+        service.record(command(NotificationType.USER_FOLLOWED, targetId = OWNER_ID))
+
+        verify(actors).lockActive(listOf(ACTOR_ID, OWNER_ID))
         verifyNoInteractions(notifications)
     }
 
@@ -232,8 +257,7 @@ class NotificationServiceTest {
             targetId = COURSE_ID,
             actorCount = 1,
             lastActorId = ACTOR_ID,
-            actorNickname = "산책자",
-            actorProfileImageUrl = null,
+            actorNickname = null,
             courseTitle = "한강 산책",
             isRead = false,
             createdAt = OCCURRED_AT,

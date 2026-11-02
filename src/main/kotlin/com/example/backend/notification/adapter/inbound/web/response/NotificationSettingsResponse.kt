@@ -6,7 +6,6 @@ data class NotificationSettingsResponse(
     val activityLike: Boolean,
     val activityComment: Boolean,
     val activityFollow: Boolean,
-    val activityCourse: Boolean,
     val activityReview: Boolean,
 ) {
     companion object {
@@ -15,7 +14,6 @@ data class NotificationSettingsResponse(
                 settings.activityLike,
                 settings.activityComment,
                 settings.activityFollow,
-                settings.activityCourse,
                 settings.activityReview,
             )
     }

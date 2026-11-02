@@ -7,6 +7,9 @@ import com.example.backend.user.application.port.inbound.dto.UserProfileResult
  * 입출력은 도메인이 아니라 애플리케이션 DTO(Command/Result)로 주고받는다.
  */
 interface UserUseCase {
+    /** 활성 사용자 행을 잠가(SELECT FOR UPDATE) 그 id 만 돌려준다. 탈퇴와 직렬화해야 하는 다른 도메인 기록용. */
+    fun lockActive(userIds: List<Long>): Set<Long>
+
     /** 단건 프로필 조회 — 코스 상세의 작성자 카드 등에서 사용. */
     fun getProfile(
         userId: Long,

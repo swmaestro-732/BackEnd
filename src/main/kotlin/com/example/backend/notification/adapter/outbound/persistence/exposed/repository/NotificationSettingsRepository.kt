@@ -29,7 +29,6 @@ class NotificationSettingsRepository {
                 NotificationSettingsTable.activityLike to command.activityLike,
                 NotificationSettingsTable.activityComment to command.activityComment,
                 NotificationSettingsTable.activityFollow to command.activityFollow,
-                NotificationSettingsTable.activityCourse to command.activityCourse,
                 NotificationSettingsTable.activityReview to command.activityReview,
             )
         // 갱신은 요청에 온 필드만 SET 한다. null 필드는 DB 의 현재 값을 그대로 둬 동시 부분 수정끼리 덮어쓰지 않는다.
@@ -56,7 +55,6 @@ class NotificationSettingsRepository {
             activityLike = this[NotificationSettingsTable.activityLike],
             activityComment = this[NotificationSettingsTable.activityComment],
             activityFollow = this[NotificationSettingsTable.activityFollow],
-            activityCourse = this[NotificationSettingsTable.activityCourse],
             activityReview = this[NotificationSettingsTable.activityReview],
         )
 }

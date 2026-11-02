@@ -49,6 +49,9 @@ class UserService(
         )
     }
 
+    @Transactional
+    override fun lockActive(userIds: List<Long>): Set<Long> = userPersistencePort.lockActive(userIds)
+
     override fun getProfiles(
         userIds: List<Long>,
         viewerId: Long?,

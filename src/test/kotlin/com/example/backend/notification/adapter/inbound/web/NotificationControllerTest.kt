@@ -44,7 +44,6 @@ class NotificationControllerTest
                 .andExpect(jsonPath("$.data.items[0].actorCount").value(1))
                 .andExpect(jsonPath("$.data.items[0].lastActorId").value(OTHER_USER_ID))
                 .andExpect(jsonPath("$.data.items[0].actorNickname").value("알림함타인"))
-                .andExpect(jsonPath("$.data.items[0].actorProfileImageUrl").isEmpty)
                 .andExpect(jsonPath("$.data.items[0].courseTitle").isEmpty)
                 .andExpect(jsonPath("$.data.items[0].isRead").value(false))
                 .andExpect(jsonPath("$.data.items[0].createdAt").value("2026-10-24T09:20:01Z"))
@@ -150,7 +149,6 @@ class NotificationControllerTest
                 .andExpect(jsonPath("$.data.activityLike").value(true))
                 .andExpect(jsonPath("$.data.activityComment").value(true))
                 .andExpect(jsonPath("$.data.activityFollow").value(true))
-                .andExpect(jsonPath("$.data.activityCourse").value(true))
                 .andExpect(jsonPath("$.data.activityReview").value(true))
         }
 
@@ -166,7 +164,6 @@ class NotificationControllerTest
                 .andExpect(jsonPath("$.data.activityLike").value(false))
                 .andExpect(jsonPath("$.data.activityComment").value(true))
                 .andExpect(jsonPath("$.data.activityFollow").value(false))
-                .andExpect(jsonPath("$.data.activityCourse").value(true))
                 .andExpect(jsonPath("$.data.activityReview").value(true))
 
             mockMvc
@@ -175,7 +172,7 @@ class NotificationControllerTest
                         .header(HttpHeaders.AUTHORIZATION, tokenFor(USER_ID))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(
-                            """{"activityLike":null,"activityComment":false,"activityCourse":false,"activityReview":false}""",
+                            """{"activityLike":null,"activityComment":false,"activityReview":false}""",
                         ),
                 ).andExpect(status().isOk)
                 .andExpect(jsonPath("$.code").value(2000))
@@ -185,7 +182,6 @@ class NotificationControllerTest
                 .andExpect(jsonPath("$.data.activityLike").value(false))
                 .andExpect(jsonPath("$.data.activityComment").value(false))
                 .andExpect(jsonPath("$.data.activityFollow").value(false))
-                .andExpect(jsonPath("$.data.activityCourse").value(false))
                 .andExpect(jsonPath("$.data.activityReview").value(false))
         }
 
@@ -245,10 +241,8 @@ class NotificationControllerTest
                         .andExpect(jsonPath("$.data.items[0].targetType").value("COURSE"))
                         .andExpect(jsonPath("$.data.items[0].targetId").value(570001))
                         .andExpect(jsonPath("$.data.items[0].lastActorId").value(USER_ID))
-                        .andExpect(jsonPath("$.data.items[0].actorNickname").value("알림함주체"))
-                        .andExpect(
-                            jsonPath("$.data.items[0].actorProfileImageUrl").value("https://example.com/actor.jpg"),
-                        ).andExpect(jsonPath("$.data.items[0].courseTitle").value("좋아요 알림 코스"))
+                        .andExpect(jsonPath("$.data.items[0].actorNickname").isEmpty)
+                        .andExpect(jsonPath("$.data.items[0].courseTitle").value("좋아요 알림 코스"))
                         .andExpect(jsonPath("$.data.items[0].actorCount").value(1))
                         .andExpect(jsonPath("$.data.items[0].isRead").value(false))
                 }

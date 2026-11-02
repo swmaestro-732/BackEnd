@@ -57,13 +57,11 @@ class NotificationEventListener(
         when (kind) {
             CourseActivityKind.LIKED -> NotificationType.COURSE_LIKED
             CourseActivityKind.COMMENTED -> NotificationType.COURSE_COMMENTED
-            CourseActivityKind.TRACE_COMPLETED -> NotificationType.COURSE_TRACE_COMPLETED
             CourseActivityKind.REVIEWED -> NotificationType.COURSE_REVIEWED
         }
 
     private fun userType(kind: UserActivityKind): NotificationType =
         when (kind) {
             UserActivityKind.FOLLOWED -> NotificationType.USER_FOLLOWED
-            UserActivityKind.COURSE_BOOKMARKED -> NotificationType.COURSE_BOOKMARKED
         }
 }

@@ -8,7 +8,6 @@ import com.example.backend.notification.application.port.outbound.NotificationPe
 import com.example.backend.notification.application.port.outbound.NotificationSettingsPersistencePort
 import com.example.backend.notification.application.port.outbound.NotificationTargetLookupPort
 import com.example.backend.notification.domain.model.NotificationBundle
-import com.example.backend.notification.domain.model.NotificationPayload
 import com.example.backend.notification.domain.model.NotificationSettings
 import com.example.backend.notification.domain.model.NotificationTargetType
 import org.springframework.stereotype.Service
@@ -45,7 +44,11 @@ class NotificationService(
         ) {
             return
         }
-        val actor = notificationActorLookupPort.findActor(activity.actorId) ?: return
+        // 행동자와 받는 사람의 사용자 행을 잠가 탈퇴와 직렬화한다. 둘 중 하나라도 이미 탈퇴했으면 기록하지 않는다.
+        val participants = listOf(activity.actorId, recipientId)
+        if (!notificationActorLookupPort.lockActive(participants).containsAll(participants)) return
+        val actorNickname =
+            if (activity.type.showsActor) notificationActorLookupPort.findNickname(activity.actorId) ?: return else null
         // 사용자 대상 알림(팔로우)은 행동자를 대상으로 둬 행동자마다 따로 보이게 한다(맞팔로우 버튼, 프로필 이동).
         // 코스 알림은 코스를 대상으로 둬 같은 코스의 활동끼리 묶는다.
         val bundleTargetId =
@@ -61,7 +64,8 @@ class NotificationService(
                 targetId = bundleTargetId,
                 windowStart = NotificationBundle.windowStart(activity.occurredAt),
                 lastActorId = activity.actorId,
-                payload = NotificationPayload(actor.nickname, actor.profileImageUrl, course?.title),
+                actorNickname = actorNickname,
+                courseTitle = course?.title,
             ),
         )
     }

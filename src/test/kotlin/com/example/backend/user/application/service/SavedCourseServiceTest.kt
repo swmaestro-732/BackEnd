@@ -4,8 +4,6 @@ import com.example.backend.common.exception.BusinessException
 import com.example.backend.common.response.CommonErrorCode
 import com.example.backend.common.response.CourseErrorCode
 import com.example.backend.common.response.UserErrorCode
-import com.example.backend.user.application.event.UserActivityEvent
-import com.example.backend.user.application.port.inbound.UserActivityKind
 import com.example.backend.user.application.port.inbound.dto.SavedCoursesCommand
 import com.example.backend.user.application.port.outbound.CourseAccessPort
 import com.example.backend.user.application.port.outbound.CourseFolderCountRow
@@ -24,14 +22,7 @@ import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
-import org.mockito.Mockito.mock
-import org.mockito.Mockito.verify
-import org.mockito.Mockito.verifyNoInteractions
-import org.mockito.Mockito.verifyNoMoreInteractions
-import org.springframework.context.ApplicationEventPublisher
-import java.time.Clock
 import java.time.Instant
-import java.time.ZoneOffset
 
 class SavedCourseServiceTest {
     private val fakeCourseAccess =
@@ -210,10 +201,7 @@ class SavedCourseServiceTest {
             override fun reactivate(user: User): User = TODO()
         }
 
-    private val eventPublisher = mock(ApplicationEventPublisher::class.java)
-    private val occurredAt = Instant.parse("2026-10-24T10:09:59Z")
-    private val clock = Clock.fixed(occurredAt, ZoneOffset.UTC)
-    private val service = SavedCourseService(fakePort, fakeCourseAccess, fakeUserPort, eventPublisher, clock)
+    private val service = SavedCourseService(fakePort, fakeCourseAccess, fakeUserPort)
 
     private fun row(id: Long) = SavedCourseRow(id = id, folderId = null, courseId = id * 10, savedAt = Instant.EPOCH)
 
@@ -228,7 +216,6 @@ class SavedCourseServiceTest {
 
         assertEquals(UserErrorCode.USER_NOT_FOUND, ex.errorCode)
         assertNull(fakePort.insertArgs)
-        verifyNoInteractions(eventPublisher)
     }
 
     @Test
@@ -239,7 +226,6 @@ class SavedCourseServiceTest {
         val ex = assertThrows<BusinessException> { service.save(userId = 1L, courseId = 42L, folderId = null) }
 
         assertEquals(CourseErrorCode.COURSE_NOT_FOUND, ex.errorCode)
-        verifyNoInteractions(eventPublisher)
     }
 
     @Test
@@ -250,7 +236,6 @@ class SavedCourseServiceTest {
 
         assertEquals(CourseErrorCode.COURSE_NOT_FOUND, ex.errorCode)
         assertNull(fakePort.insertArgs)
-        verifyNoInteractions(eventPublisher)
     }
 
     @Test
@@ -262,7 +247,6 @@ class SavedCourseServiceTest {
 
         assertEquals(CommonErrorCode.INVALID_INPUT, ex.errorCode)
         assertNull(fakePort.insertArgs)
-        verifyNoInteractions(eventPublisher)
     }
 
     @Test
@@ -274,7 +258,6 @@ class SavedCourseServiceTest {
 
         assertEquals(UserErrorCode.COURSE_ALREADY_SAVED, ex.errorCode)
         assertNull(fakePort.insertArgs)
-        verifyNoInteractions(eventPublisher)
     }
 
     @Test
@@ -287,9 +270,6 @@ class SavedCourseServiceTest {
         assertEquals(Triple(1L, 42L, 7L), fakePort.insertArgs)
         assertEquals(42L, result.courseId)
         assertEquals(7L, result.folderId)
-        assertEquals(listOf(42L), fakeCourseAccess.increasedCourseIds)
-        verify(eventPublisher).publishEvent(UserActivityEvent(UserActivityKind.COURSE_BOOKMARKED, 1L, 42L, occurredAt))
-        verifyNoMoreInteractions(eventPublisher)
     }
 
     @Test
@@ -301,8 +281,6 @@ class SavedCourseServiceTest {
 
         assertEquals(Triple(1L, 42L, null), fakePort.insertArgs)
         assertNull(result.folderId)
-        verify(eventPublisher).publishEvent(UserActivityEvent(UserActivityKind.COURSE_BOOKMARKED, 1L, 42L, occurredAt))
-        verifyNoMoreInteractions(eventPublisher)
     }
 
     // --- unsave ---
@@ -312,7 +290,6 @@ class SavedCourseServiceTest {
         service.unsave(userId = 1L, courseId = 42L)
 
         assertEquals(1L to 42L, fakePort.deleteArgs)
-        verifyNoInteractions(eventPublisher)
     }
 
     // --- getSavedCourses ---

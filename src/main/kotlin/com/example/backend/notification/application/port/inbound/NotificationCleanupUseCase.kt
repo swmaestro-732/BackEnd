@@ -10,4 +10,11 @@ interface NotificationCleanupUseCase {
      * 같은 user id 로 재가입해도 "처음 계정처럼" 시작하게 한다.
      */
     fun purgeByUser(userId: Long)
+
+    /** 보관 기간([RETENTION])이 지난 알림을 지우고 지운 수를 돌려준다. */
+    fun purgeExpired(): Int
+
+    companion object {
+        val RETENTION: java.time.Duration = java.time.Duration.ofDays(90)
+    }
 }

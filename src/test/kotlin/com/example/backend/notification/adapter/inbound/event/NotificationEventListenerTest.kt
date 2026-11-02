@@ -27,7 +27,6 @@ class NotificationEventListenerTest {
     @CsvSource(
         "LIKED, COURSE_LIKED",
         "COMMENTED, COURSE_COMMENTED",
-        "TRACE_COMPLETED, COURSE_TRACE_COMPLETED",
         "REVIEWED, COURSE_REVIEWED",
     )
     fun `코스 활동 계약을 알림 명령으로 변환한다`(
@@ -41,7 +40,7 @@ class NotificationEventListenerTest {
     }
 
     @ParameterizedTest
-    @CsvSource("FOLLOWED, USER_FOLLOWED", "COURSE_BOOKMARKED, COURSE_BOOKMARKED")
+    @CsvSource("FOLLOWED, USER_FOLLOWED")
     fun `사용자 활동 계약을 알림 명령으로 변환한다`(
         kind: UserActivityKind,
         type: NotificationType,

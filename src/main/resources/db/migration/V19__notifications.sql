@@ -10,9 +10,10 @@ CREATE TABLE notifications (
     window_start timestamptz NOT NULL,
     last_actor_id bigint NOT NULL,
     actor_count integer NOT NULL DEFAULT 1,
-    -- 기록 시점 스냅샷(마지막 행동자 프로필, 코스 제목). 코스가 아닌 알림은 course_title 이 NULL.
-    actor_nickname varchar(20) NOT NULL,
-    actor_profile_image_url text,
+    -- 이 묶음에서 센 행동자. 같은 사람이 다시 하면(좋아요 취소 후 재좋아요 등) 인원을 늘리지 않는다.
+    actor_ids bigint[] NOT NULL,
+    -- 기록 시점 스냅샷. 좋아요처럼 인원 수만 보이는 알림은 actor_nickname 이 NULL, 코스가 아닌 알림은 course_title 이 NULL.
+    actor_nickname varchar(20),
     course_title varchar(200),
     read_at timestamptz,
     created_at timestamptz NOT NULL DEFAULT now(),
@@ -24,6 +25,8 @@ CREATE INDEX idx_notifications_user_id ON notifications (user_id, id DESC);
 CREATE INDEX idx_notifications_unread ON notifications (user_id) WHERE read_at IS NULL;
 -- 탈퇴 정리(받는 사람 또는 마지막 행위자 기준 삭제)가 전체 스캔하지 않도록 행위자 쪽 인덱스를 둔다.
 CREATE INDEX idx_notifications_last_actor_id ON notifications (last_actor_id);
+-- 보관 기간 정리 잡이 오래된 알림을 지울 때 쓴다.
+CREATE INDEX idx_notifications_created_at ON notifications (created_at);
 
 -- 설정 행이 없으면 모든 활동 알림을 허용하며 가입 시에는 행을 만들지 않는다.
 CREATE TABLE notification_settings (
@@ -31,7 +34,6 @@ CREATE TABLE notification_settings (
     activity_like boolean NOT NULL DEFAULT true,
     activity_comment boolean NOT NULL DEFAULT true,
     activity_follow boolean NOT NULL DEFAULT true,
-    activity_course boolean NOT NULL DEFAULT true,
     activity_review boolean NOT NULL DEFAULT true,
     updated_at timestamptz NOT NULL DEFAULT now()
 );

@@ -4,7 +4,6 @@ import com.example.backend.notification.application.port.inbound.dto.UpdateNotif
 import com.example.backend.notification.application.port.outbound.NotificationPersistencePort
 import com.example.backend.notification.application.port.outbound.NotificationSettingsPersistencePort
 import com.example.backend.notification.domain.model.NotificationBundle
-import com.example.backend.notification.domain.model.NotificationPayload
 import com.example.backend.notification.domain.model.NotificationSettings
 import com.example.backend.notification.domain.model.NotificationTargetType
 import com.example.backend.notification.domain.model.NotificationType
@@ -33,7 +32,8 @@ class NotificationPersistenceTest
                 val latest =
                     first.copy(
                         lastActorId = 570_902L,
-                        payload = NotificationPayload("새로운 '작성자' \"인용\"", "https://example.com/new.jpg", "바뀐 코스"),
+                        actorNickname = "새로운 '작성자'",
+                        courseTitle = "바뀐 코스",
                     )
 
                 notificationPersistencePort.upsert(latest)
@@ -46,9 +46,8 @@ class NotificationPersistenceTest
                 assertThat(updated.targetId).isEqualTo(first.targetId)
                 assertThat(updated.actorCount).isEqualTo(2)
                 assertThat(updated.lastActorId).isEqualTo(latest.lastActorId)
-                assertThat(updated.actorNickname).isEqualTo(latest.payload.actorNickname)
-                assertThat(updated.actorProfileImageUrl).isEqualTo(latest.payload.actorProfileImageUrl)
-                assertThat(updated.courseTitle).isEqualTo(latest.payload.courseTitle)
+                assertThat(updated.actorNickname).isEqualTo(latest.actorNickname)
+                assertThat(updated.courseTitle).isEqualTo(latest.courseTitle)
                 assertThat(updated.isRead).isFalse()
                 assertThat(updated.createdAt).isEqualTo(inserted.createdAt)
                 assertThat(updated.updatedAt).isAfter(pastUpdatedAt)
@@ -135,6 +134,39 @@ class NotificationPersistenceTest
         }
 
         @Test
+        fun `이미 센 행동자는 다른 행동자 뒤에 다시 와도 인원에 넣지 않는다`() {
+            transaction {
+                val a = bundle()
+                notificationPersistencePort.upsert(a)
+                notificationPersistencePort.upsert(a.copy(lastActorId = 570_903L))
+                notificationPersistencePort.upsert(a)
+
+                val row = notificationPersistencePort.findPage(USER_ID, null, 10).single()
+                assertThat(row.actorCount).isEqualTo(2)
+                assertThat(row.lastActorId).isEqualTo(a.lastActorId)
+                rollback()
+            }
+        }
+
+        @Test
+        fun `보관 기간 기준 시각 이전에 만든 알림만 지운다`() {
+            transaction {
+                notificationPersistencePort.upsert(bundle())
+                notificationPersistencePort.upsert(bundle().copy(targetId = 2L))
+                exec("UPDATE notifications SET created_at = now() - interval '91 days' WHERE target_id = 2")
+
+                assertThat(
+                    notificationPersistencePort.deleteCreatedBefore(Instant.now().minusSeconds(90L * 86_400)),
+                ).isEqualTo(1)
+
+                assertThat(
+                    notificationPersistencePort.findPage(USER_ID, null, 10).map { it.targetId },
+                ).containsExactly(570_901L)
+                rollback()
+            }
+        }
+
+        @Test
         fun `모두 읽음은 본인의 미읽음 수만 반환하고 다른 사용자는 유지한다`() {
             transaction {
                 notificationPersistencePort.upsert(bundle())
@@ -186,12 +218,11 @@ class NotificationPersistenceTest
                         USER_ID,
                         UpdateNotificationSettingsCommand(
                             activityComment = false,
-                            activityCourse = false,
                             activityReview = false,
                         ),
                     )
 
-                assertThat(saved).isEqualTo(NotificationSettings(false, false, false, false, false))
+                assertThat(saved).isEqualTo(NotificationSettings(false, false, false, false))
                 assertThat(
                     notificationSettingsPersistencePort.update(USER_ID, UpdateNotificationSettingsCommand()),
                 ).isEqualTo(saved)
@@ -213,7 +244,8 @@ class NotificationPersistenceTest
                 targetId = 570_901L,
                 windowStart = Instant.parse("2026-10-24T09:50:00Z"),
                 lastActorId = 570_900L,
-                payload = NotificationPayload("첫 행동자", null, "알림 코스"),
+                actorNickname = null,
+                courseTitle = "알림 코스",
             )
 
         private companion object {

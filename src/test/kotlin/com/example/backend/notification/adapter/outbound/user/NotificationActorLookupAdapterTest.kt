@@ -1,6 +1,5 @@
 package com.example.backend.notification.adapter.outbound.user
 
-import com.example.backend.notification.application.port.outbound.NotificationActor
 import com.example.backend.user.application.port.inbound.UserUseCase
 import com.example.backend.user.application.port.inbound.dto.UserProfileResult
 import org.assertj.core.api.Assertions.assertThat
@@ -14,7 +13,7 @@ class NotificationActorLookupAdapterTest {
     private val adapter = NotificationActorLookupAdapter(users)
 
     @Test
-    fun `행위자 프로필에서 닉네임과 프로필 이미지를 반환한다`() {
+    fun `행위자 프로필에서 닉네임을 반환한다`() {
         val profile =
             UserProfileResult(
                 id = 7L,
@@ -32,7 +31,7 @@ class NotificationActorLookupAdapterTest {
             )
         `when`(users.getProfiles(listOf(7L), null)).thenReturn(listOf(profile))
 
-        assertThat(adapter.findActor(7L)).isEqualTo(NotificationActor("산책자", "https://example.com/profile.jpg"))
+        assertThat(adapter.findNickname(7L)).isEqualTo("산책자")
         verify(users).getProfiles(listOf(7L), null)
     }
 
@@ -40,7 +39,14 @@ class NotificationActorLookupAdapterTest {
     fun `행위자가 조회 결과에 없으면 null을 반환한다`() {
         `when`(users.getProfiles(listOf(7L), null)).thenReturn(emptyList())
 
-        assertThat(adapter.findActor(7L)).isNull()
+        assertThat(adapter.findNickname(7L)).isNull()
         verify(users).getProfiles(listOf(7L), null)
+    }
+
+    @Test
+    fun `잠금은 user 유스케이스의 활성 사용자 잠금에 위임한다`() {
+        `when`(users.lockActive(listOf(7L, 8L))).thenReturn(setOf(7L))
+
+        assertThat(adapter.lockActive(listOf(7L, 8L))).containsExactly(7L)
     }
 }

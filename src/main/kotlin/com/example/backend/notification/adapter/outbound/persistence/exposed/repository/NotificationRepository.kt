@@ -3,12 +3,15 @@ package com.example.backend.notification.adapter.outbound.persistence.exposed.re
 import com.example.backend.notification.adapter.outbound.persistence.exposed.NotificationTable
 import com.example.backend.notification.application.port.inbound.dto.NotificationSummary
 import com.example.backend.notification.domain.model.NotificationBundle
+import org.jetbrains.exposed.v1.core.CustomFunction
+import org.jetbrains.exposed.v1.core.IntegerColumnType
 import org.jetbrains.exposed.v1.core.Op
 import org.jetbrains.exposed.v1.core.SortOrder
 import org.jetbrains.exposed.v1.core.and
 import org.jetbrains.exposed.v1.core.case
 import org.jetbrains.exposed.v1.core.eq
 import org.jetbrains.exposed.v1.core.intLiteral
+import org.jetbrains.exposed.v1.core.isNotNull
 import org.jetbrains.exposed.v1.core.isNull
 import org.jetbrains.exposed.v1.core.less
 import org.jetbrains.exposed.v1.core.or
@@ -33,15 +36,31 @@ class NotificationRepository {
             NotificationTable.targetId,
             NotificationTable.windowStart,
             onUpdate = {
-                // 직전 행동자와 같으면(좋아요 토글 반복 등) 인원을 늘리지 않고 읽음 상태도 되돌리지 않는다.
-                // ponytail: 직전 행동자만 비교하므로 A, B, A 순서면 A 가 두 번 센다. 정확한 고유 인원이 필요하면 행동자 목록을 따로 둔다.
-                val sameActor = NotificationTable.lastActorId eq insertValue(NotificationTable.lastActorId)
+                // 이 묶음에서 이미 센 행동자(좋아요 취소 후 다시 좋아요 등)면 인원을 늘리지 않고 읽음 상태도 되돌리지 않는다.
+                val actorId = insertValue(NotificationTable.lastActorId)
+                val counted =
+                    CustomFunction(
+                        "array_position",
+                        IntegerColumnType(),
+                        NotificationTable.actorIds,
+                        actorId,
+                    ).isNotNull()
+                it[NotificationTable.actorIds] =
+                    case()
+                        .When(counted, NotificationTable.actorIds)
+                        .Else(
+                            CustomFunction(
+                                "array_append",
+                                NotificationTable.actorIds.columnType,
+                                NotificationTable.actorIds,
+                                actorId,
+                            ),
+                        )
                 it[NotificationTable.actorCount] =
-                    NotificationTable.actorCount + case().When(sameActor, intLiteral(0)).Else(intLiteral(1))
-                it[NotificationTable.readAt] = case().When(sameActor, NotificationTable.readAt).Else(Op.nullOp())
-                it[NotificationTable.lastActorId] = insertValue(NotificationTable.lastActorId)
+                    NotificationTable.actorCount + case().When(counted, intLiteral(0)).Else(intLiteral(1))
+                it[NotificationTable.readAt] = case().When(counted, NotificationTable.readAt).Else(Op.nullOp())
+                it[NotificationTable.lastActorId] = actorId
                 it[NotificationTable.actorNickname] = insertValue(NotificationTable.actorNickname)
-                it[NotificationTable.actorProfileImageUrl] = insertValue(NotificationTable.actorProfileImageUrl)
                 it[NotificationTable.courseTitle] = insertValue(NotificationTable.courseTitle)
                 it[NotificationTable.updatedAt] = CurrentTimestamp
             },
@@ -52,10 +71,10 @@ class NotificationRepository {
             it[targetId] = bundle.targetId
             it[windowStart] = bundle.windowStart.toKotlinInstant()
             it[lastActorId] = bundle.lastActorId
+            it[actorIds] = listOf(bundle.lastActorId)
             it[actorCount] = 1
-            it[actorNickname] = bundle.payload.actorNickname
-            it[actorProfileImageUrl] = bundle.payload.actorProfileImageUrl
-            it[courseTitle] = bundle.payload.courseTitle
+            it[actorNickname] = bundle.actorNickname
+            it[courseTitle] = bundle.courseTitle
         }
     }
 
@@ -75,7 +94,6 @@ class NotificationRepository {
                 actorCount = row[NotificationTable.actorCount],
                 lastActorId = row[NotificationTable.lastActorId],
                 actorNickname = row[NotificationTable.actorNickname],
-                actorProfileImageUrl = row[NotificationTable.actorProfileImageUrl],
                 courseTitle = row[NotificationTable.courseTitle],
                 isRead = row[NotificationTable.readAt] != null,
                 createdAt = row[NotificationTable.createdAt].toJavaInstant(),
@@ -113,4 +131,7 @@ class NotificationRepository {
                 (NotificationTable.lastActorId eq userId)
         }
     }
+
+    fun deleteCreatedBefore(cutoff: kotlin.time.Instant): Int =
+        NotificationTable.deleteWhere { NotificationTable.createdAt less cutoff }
 }
