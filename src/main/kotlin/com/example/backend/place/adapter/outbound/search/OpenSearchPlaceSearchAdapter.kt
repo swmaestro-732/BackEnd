@@ -6,6 +6,7 @@ import com.example.backend.common.geo.Coordinate
 import com.example.backend.common.response.PlaceErrorCode
 import com.example.backend.place.application.port.inbound.dto.PlaceMapSort
 import com.example.backend.place.application.port.outbound.PlaceMapBucket
+import com.example.backend.place.application.port.outbound.PlaceMapHit
 import com.example.backend.place.application.port.outbound.PlaceMapHits
 import com.example.backend.place.application.port.outbound.PlaceMapSearchPort
 import com.example.backend.place.application.port.outbound.PlaceSearchCriteria
@@ -31,7 +32,8 @@ import org.springframework.stereotype.Component
  * 아웃바운드 어댑터 — [PlaceSearchQueryPort] 를 OpenSearch 검색으로 구현한다.
  *
  * [OpenSearchClient] 가 없거나(=opensearch.endpoint 미주입) 검색이 실패하면 `PLACE_SEARCH_UNAVAILABLE`(503)로
- * 실패시킨다 — DB 폴백은 두지 않는다. alias `place`(환경 prefix 적용)를 조회하며, id 만 필요하므로 _source 는 내리지 않는다.
+ * 실패시킨다 — DB 폴백은 두지 않는다. alias `place`(환경 prefix 적용)를 조회한다. 목록 검색은 id 만 필요하므로 _source 를
+ * 내리지 않고, 지도 검색은 마커 본문([PlaceDocument])을 _source 로 받아 DB 재조회 없이 그대로 쓴다.
  *
  * 정렬: 텍스트 토큰이 있으면 관련도(_score) 내림차순 + _doc 타이브레이크, 필터-only 브라우즈면 _doc.
  * (_id 정렬은 fielddata 요구로 피한다. _doc 은 페이지 간 순서 결정성만 보장하는 근사 — 최신순 정렬은
@@ -131,7 +133,6 @@ class OpenSearchPlaceSearchAdapter(
                         .Builder()
                         .index(indexAlias)
                         .size(criteria.size)
-                        .source { it.fetch(false) }
                         .trackTotalHits { it.enabled(true) }
                         .query { q -> q.bool { b -> buildBool(b, criteria) } }
                         .sort(sortOptions)
@@ -145,13 +146,11 @@ class OpenSearchPlaceSearchAdapter(
                                         .shardSize(256)
                                 }.aggregations("center") { it.geoCentroid { c -> c.field("location") } }
                                 .aggregations("sample") {
-                                    // 단일 셀 마커의 정렬값(거리 m·점수)을 엔진에서 받아 셀 순서를 정한다.
-                                    it.topHits { t ->
-                                        t.size(1).sort(sortOptions).source { source -> source.fetch(false) }
-                                    }
+                                    // 단일 셀 마커의 정렬값(거리 m·점수)과 본문을 엔진에서 받아 셀 순서·마커를 만든다.
+                                    it.topHits { t -> t.size(1).sort(sortOptions) }
                                 }
                         }.build(),
-                    Void::class.java,
+                    PlaceDocument::class.java,
                 )
             check(!response.timedOut() && response.shards().failed() == 0) { "지도 검색이 일부만 완료되었습니다." }
             val total = response.hits().total()!!.value()
@@ -179,17 +178,33 @@ class OpenSearchPlaceSearchAdapter(
                             key = bucket.key(),
                             center = Coordinate(center.lat(), center.lon()),
                             count = bucket.docCount(),
-                            singlePlaceId = if (bucket.docCount() == 1L) sample.id()!!.toLong() else null,
+                            single =
+                                if (bucket.docCount() == 1L) {
+                                    mapHit(sample.id()!!, sample.source()!!.to(PlaceDocument::class.java))
+                                } else {
+                                    null
+                                },
                         ) to sample.sort().first().toDouble()
                     }.let { parsed -> orderBuckets(parsed, sort) }
             // 집계가 잘리면 일부 마커만 성공으로 내려주지 않고 실패시킨다.
             check(buckets.sumOf { it.count } == total) { "지도 집계가 전체 검색 결과를 포함하지 않습니다." }
-            PlaceMapHits(total, response.hits().hits().map { it.id()!!.toLong() }, buckets)
+            PlaceMapHits(total, response.hits().hits().map { mapHit(it.id()!!, it.source()!!) }, buckets)
         } catch (e: Exception) {
             log.warn { "지도 장소 검색 실패: ${e.message}" }
             throw unavailable()
         }
     }
+
+    private fun mapHit(
+        id: String,
+        document: PlaceDocument,
+    ): PlaceMapHit =
+        PlaceMapHit(
+            id = id.toLong(),
+            name = document.name,
+            category = document.category,
+            location = Coordinate(document.location.lat, document.location.lon),
+        )
 
     private fun unavailable() = BusinessException(PlaceErrorCode.PLACE_SEARCH_UNAVAILABLE)
 
@@ -198,7 +213,7 @@ class OpenSearchPlaceSearchAdapter(
         parsed: List<Pair<PlaceMapBucket, Double>>,
         sort: PlaceMapSort,
     ): List<PlaceMapBucket> {
-        val (singles, clusters) = parsed.partition { (bucket, _) -> bucket.singlePlaceId != null }
+        val (singles, clusters) = parsed.partition { (bucket, _) -> bucket.single != null }
         val orderedSingles =
             when (sort) {
                 PlaceMapSort.DISTANCE -> singles.sortedBy { (_, value) -> value }
