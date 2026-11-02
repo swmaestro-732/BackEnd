@@ -5,6 +5,7 @@ import com.example.backend.user.adapter.outbound.persistence.exposed.DeviceTable
 import com.example.backend.user.application.port.inbound.dto.DeviceConsent
 import com.example.backend.user.application.port.inbound.dto.RegisterDeviceTokenCommand
 import com.example.backend.user.application.port.outbound.DevicePersistencePort
+import com.example.backend.user.application.port.outbound.LockedDevice
 import org.jetbrains.exposed.v1.core.eq
 import org.jetbrains.exposed.v1.jdbc.selectAll
 import org.jetbrains.exposed.v1.jdbc.transactions.TransactionManager
@@ -63,16 +64,19 @@ class DevicePersistenceTest
         }
 
         @Test
-        fun `userId가 null이면 기존 계정 연결을 유지하고 새 행은 연결 없이 만든다`() {
+        fun `userId가 null이면 같은 토큰일 때만 연결을 유지하고 토큰이 바뀌면 연결을 끊는다`() {
             transaction {
                 insertUsers()
                 devicePersistencePort.saveToken(command("fid-keep", "token-keep"), ME)
+                devicePersistencePort.saveToken(command("fid-swap", "token-swap"), ME)
 
-                devicePersistencePort.saveToken(command("fid-keep", "token-keep-2"), null)
+                devicePersistencePort.saveToken(command("fid-keep", "token-keep"), null)
+                devicePersistencePort.saveToken(command("fid-swap", "token-attacker"), null)
                 devicePersistencePort.saveToken(command("fid-guest", "token-guest"), null)
 
                 assertEquals(ME, row("fid-keep")[DeviceTable.userId])
-                assertEquals("token-keep-2", row("fid-keep")[DeviceTable.fcmToken])
+                assertNull(row("fid-swap")[DeviceTable.userId])
+                assertEquals("token-attacker", row("fid-swap")[DeviceTable.fcmToken])
                 assertNull(row("fid-guest")[DeviceTable.userId])
                 rollback()
             }
@@ -167,7 +171,7 @@ class DevicePersistenceTest
         @Test
         fun `lockConsent는 행이 없으면 토큰 없는 빈 행을 만들고 미동의를 돌려준다`() {
             transaction {
-                assertEquals(DeviceConsent.NONE, devicePersistencePort.lockConsent("fid-lock"))
+                assertEquals(LockedDevice(null, DeviceConsent.NONE), devicePersistencePort.lockConsent("fid-lock"))
 
                 val row = row("fid-lock")
                 assertNull(row[DeviceTable.fcmToken])

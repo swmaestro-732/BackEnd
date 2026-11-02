@@ -3,7 +3,10 @@ package com.example.backend.user.adapter.outbound.persistence.exposed.repository
 import com.example.backend.user.adapter.outbound.persistence.exposed.DeviceTable
 import com.example.backend.user.application.port.inbound.dto.DeviceConsent
 import com.example.backend.user.application.port.inbound.dto.RegisterDeviceTokenCommand
+import com.example.backend.user.application.port.outbound.LockedDevice
+import org.jetbrains.exposed.v1.core.Op
 import org.jetbrains.exposed.v1.core.and
+import org.jetbrains.exposed.v1.core.case
 import org.jetbrains.exposed.v1.core.eq
 import org.jetbrains.exposed.v1.core.neq
 import org.jetbrains.exposed.v1.datetime.CurrentTimestamp
@@ -35,7 +38,16 @@ class DeviceRepository {
                 it[DeviceTable.fcmToken] = insertValue(DeviceTable.fcmToken)
                 it[DeviceTable.platform] = insertValue(DeviceTable.platform)
                 it[DeviceTable.appBuild] = insertValue(DeviceTable.appBuild)
-                if (userId != null) it[DeviceTable.userId] = insertValue(DeviceTable.userId)
+                // 비로그인 경로는 인증이 없어 기기 ID 만으로 계정에 연결된 행의 토큰을 바꿀 수 있다.
+                // 토큰이 바뀌면 연결을 끊어, 남의 기기 ID 로 그 계정의 활동 알림을 가로채지 못하게 한다.
+                it[DeviceTable.userId] =
+                    if (userId != null) {
+                        insertValue(DeviceTable.userId)
+                    } else {
+                        case()
+                            .When(DeviceTable.fcmToken eq insertValue(DeviceTable.fcmToken), DeviceTable.userId)
+                            .Else(Op.nullOp())
+                    }
                 it[DeviceTable.lastSeenAt] = CurrentTimestamp
             },
         ) {
@@ -47,14 +59,14 @@ class DeviceRepository {
         }
     }
 
-    fun lockConsent(deviceId: String): DeviceConsent {
+    fun lockConsent(deviceId: String): LockedDevice {
         DeviceTable.insertIgnore { it[DeviceTable.deviceId] = deviceId }
         return DeviceTable
             .selectAll()
             .where { DeviceTable.deviceId eq deviceId }
             .forUpdate()
             .single()
-            .let(::toConsent)
+            .let { LockedDevice(it[DeviceTable.fcmToken], toConsent(it)) }
     }
 
     fun updateConsent(

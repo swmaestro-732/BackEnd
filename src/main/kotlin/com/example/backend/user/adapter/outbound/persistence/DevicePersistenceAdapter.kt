@@ -4,6 +4,7 @@ import com.example.backend.user.adapter.outbound.persistence.exposed.repository.
 import com.example.backend.user.application.port.inbound.dto.DeviceConsent
 import com.example.backend.user.application.port.inbound.dto.RegisterDeviceTokenCommand
 import com.example.backend.user.application.port.outbound.DevicePersistencePort
+import com.example.backend.user.application.port.outbound.LockedDevice
 import org.springframework.stereotype.Component
 import java.time.Instant
 
@@ -16,7 +17,7 @@ class DevicePersistenceAdapter(
         userId: Long?,
     ) = deviceRepository.saveToken(command, userId)
 
-    override fun lockConsent(deviceId: String): DeviceConsent = deviceRepository.lockConsent(deviceId)
+    override fun lockConsent(deviceId: String): LockedDevice = deviceRepository.lockConsent(deviceId)
 
     override fun updateConsent(
         deviceId: String,

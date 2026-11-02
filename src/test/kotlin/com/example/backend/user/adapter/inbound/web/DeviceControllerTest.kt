@@ -55,14 +55,45 @@ class DeviceControllerTest
         }
 
         @Test
-        fun `계정에 연결된 기기에 토큰을 보내도 연결은 유지된다`() {
+        fun `계정에 연결된 기기에 같은 토큰을 보내면 연결을 유지한다`() {
+            jdbcTemplate.update("INSERT INTO users (id, nickname) VALUES (?, '기기주인')", ME)
+            jdbcTemplate.update(
+                "INSERT INTO devices (device_id, user_id, fcm_token) VALUES (?, ?, ?)",
+                DEVICE,
+                ME,
+                TOKEN,
+            )
+
+            mockMvc.perform(put("""{"token":"$TOKEN"}""")).andExpect(status().isOk)
+
+            assertEquals(ME, row()["user_id"])
+        }
+
+        @Test
+        fun `계정에 연결된 기기의 토큰을 비로그인 경로로 바꾸면 계정 연결을 끊는다`() {
             jdbcTemplate.update("INSERT INTO users (id, nickname) VALUES (?, '기기주인')", ME)
             jdbcTemplate.update("INSERT INTO devices (device_id, user_id, fcm_token) VALUES (?, ?, 'old')", DEVICE, ME)
 
             mockMvc.perform(put("""{"token":"$TOKEN"}""")).andExpect(status().isOk)
 
-            assertEquals(ME, row()["user_id"])
+            assertNull(row()["user_id"])
             assertEquals(TOKEN, row()["fcm_token"])
+        }
+
+        @Test
+        fun `토큰이 있는 기기의 동의는 같은 토큰 없이 바꿀 수 없다`() {
+            jdbcTemplate.update("INSERT INTO devices (device_id, fcm_token) VALUES (?, ?)", DEVICE, TOKEN)
+
+            mockMvc
+                .perform(put("""{"marketing":true}"""))
+                .andExpect(status().isBadRequest)
+                .andExpect(jsonPath("$.code").value(4001))
+            assertNull(row()["marketing_agreed_at"])
+
+            mockMvc
+                .perform(put("""{"token":"$TOKEN","marketing":true}"""))
+                .andExpect(status().isOk)
+                .andExpect(jsonPath("$.data.marketingAgreedAt").isNotEmpty)
         }
 
         @Test

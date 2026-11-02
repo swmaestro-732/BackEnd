@@ -6,6 +6,7 @@ import com.example.backend.user.application.port.inbound.dto.DeviceConsent
 import com.example.backend.user.application.port.inbound.dto.RegisterDeviceTokenCommand
 import com.example.backend.user.application.port.inbound.dto.UpdateDeviceCommand
 import com.example.backend.user.application.port.outbound.DevicePersistencePort
+import com.example.backend.user.application.port.outbound.LockedDevice
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Assertions.assertTrue
@@ -118,6 +119,7 @@ class DeviceServiceTest {
 
     private class FakeDevicePersistencePort : DevicePersistencePort {
         var consent = DeviceConsent.NONE
+        var storedToken: String? = null
         var exists = true
         var updateCount = 0
         val saved = mutableListOf<Pair<RegisterDeviceTokenCommand, Long?>>()
@@ -129,7 +131,7 @@ class DeviceServiceTest {
             saved += command to userId
         }
 
-        override fun lockConsent(deviceId: String): DeviceConsent = consent
+        override fun lockConsent(deviceId: String): LockedDevice = LockedDevice(storedToken, consent)
 
         override fun updateConsent(
             deviceId: String,

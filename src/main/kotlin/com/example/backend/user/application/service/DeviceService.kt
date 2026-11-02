@@ -28,7 +28,13 @@ class DeviceService(
         if (command.marketing == null && command.night == null) {
             return devicePersistencePort.findConsent(command.deviceId) ?: DeviceConsent.NONE
         }
-        val current = devicePersistencePort.lockConsent(command.deviceId)
+        val locked = devicePersistencePort.lockConsent(command.deviceId)
+        // 인증 없는 경로라, 토큰이 이미 있는 기기의 동의는 그 토큰(실제 설치만 가진 값)을 함께 보내야 바꿀 수 있다.
+        // 기기 ID 만 아는 제3자가 남의 기기에 광고 동의를 켜거나 끄지 못하게 한다.
+        if (locked.fcmToken != null && locked.fcmToken != command.fcmToken) {
+            throw BusinessException(CommonErrorCode.INVALID_INPUT, "동의 변경에는 이 기기의 현재 토큰이 필요합니다.")
+        }
+        val current = locked.consent
         val now = clock.instant()
         // 이미 동의한 상태에서 다시 동의하면 처음 동의 시각을 유지한다(2년 재확인 기준).
         val marketingAgreedAt =
