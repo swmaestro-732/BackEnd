@@ -20,6 +20,7 @@ data class PlaceMapResponse(
                             it.category,
                             it.latitude,
                             it.longitude,
+                            it.categoryDetail,
                         )
                     },
                 clusters =
@@ -41,6 +42,7 @@ data class PlaceMapMarkerResponse(
     val category: String,
     val latitude: Double,
     val longitude: Double,
+    val categoryDetail: String? = null,
 )
 
 data class PlaceMapClusterResponse(

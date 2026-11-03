@@ -51,5 +51,6 @@ data class SavedPlaceScreenResult(
         val imageUrl: String?,
         val latitude: Double,
         val longitude: Double,
+        val categoryDetail: String? = null,
     )
 }

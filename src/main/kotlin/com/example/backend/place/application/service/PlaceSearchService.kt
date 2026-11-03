@@ -104,6 +104,7 @@ class PlaceSearchService(
                 latitude = ext.coordinate.latitude,
                 longitude = ext.coordinate.longitude,
                 telephone = ext.telephone,
+                categoryDetail = place.categoryDetail,
             )
         }
     }

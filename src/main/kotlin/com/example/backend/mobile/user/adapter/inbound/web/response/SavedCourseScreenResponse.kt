@@ -389,6 +389,7 @@ data class SavedCourseScreenResponse(
                                 imageUrls = coursePlace.images.sortedBy { it.orderNo }.map { it.imageUrl },
                                 caption = coursePlace.caption,
                                 location = PlaceLocationResponse(p.latitude, p.longitude),
+                                categoryDetail = p.categoryDetail,
                             )
                         }
                     }
@@ -488,4 +489,6 @@ data class SavedCoursePlaceResponse(
     // 이 코스에서 이 장소에 붙인 캡션(course_places.caption). 없으면 null.
     val caption: String?,
     val location: PlaceLocationResponse,
+    // 카카오 상세 분류 원문(예: "제과,베이커리") — 클라이언트 아이콘 매핑용, 없으면 null.
+    val categoryDetail: String? = null,
 )

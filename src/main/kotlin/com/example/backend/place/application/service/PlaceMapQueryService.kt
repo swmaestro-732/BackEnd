@@ -118,6 +118,7 @@ class PlaceMapQueryService(
             longitude = location.longitude,
             address = address,
             areaCode = areaCode,
+            categoryDetail = categoryDetail,
         )
 
     private fun Viewport.center() =
