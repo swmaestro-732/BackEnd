@@ -141,9 +141,14 @@ class OpenSearchPlaceSearchAdapterTest {
         assertThat(hits.totalCount).isEqualTo(12L)
         assertThat(hits.hits.map { it.id }).containsExactly(7L, 3L)
         // 마커 본문은 DB 재조회 없이 _source 에서 읽는다.
-        assertThat(hits.hits.first()).isEqualTo(PlaceMapHit(7L, "장소 7", "CAFE", Coordinate(37.07, 127.07)))
+        assertThat(hits.hits).containsExactly(
+            PlaceMapHit(7L, "장소 7", "CAFE", Coordinate(37.07, 127.07)),
+            PlaceMapHit(3L, "장소 3", "RESTAURANT", Coordinate(37.03, 127.03)),
+        )
         assertThat(hits.buckets.map { it.single?.id }).containsExactly(3L, 7L, null)
-        assertThat(hits.buckets.first().single).isEqualTo(PlaceMapHit(3L, "장소 3", "CAFE", Coordinate(37.03, 127.03)))
+        assertThat(
+            hits.buckets.first().single,
+        ).isEqualTo(PlaceMapHit(3L, "장소 3", "RESTAURANT", Coordinate(37.03, 127.03)))
         assertThat(hits.buckets.last().count).isEqualTo(10L)
         assertThat(hits.buckets.last().center).isEqualTo(Coordinate(37.3, 127.3))
         val request = capturedRequest()
@@ -307,7 +312,7 @@ class OpenSearchPlaceSearchAdapterTest {
     private fun document(id: String): PlaceMapSource =
         PlaceMapSource(
             name = "장소 $id",
-            category = "CAFE",
+            category = if (id == "3") "RESTAURANT" else "CAFE",
             location = GeoLocation(lat = 37.0 + id.toInt() / 100.0, lon = 127.0 + id.toInt() / 100.0),
         )
 
