@@ -62,7 +62,7 @@ class KakaoLocalSearchClient(
             kakaoPlaceId = kakaoId,
             name = placeName.orEmpty(),
             // 외부(카카오) 원시 분류 → 내부 도메인 카테고리 번역은 어댑터 책임(anti-corruption).
-            category = KakaoCategoryMapper.toPlaceCategory(categoryGroupCode?.takeIf(String::isNotBlank)),
+            category = KakaoCategoryMapper.toPlaceCategory(categoryName, categoryGroupCode?.takeIf(String::isNotBlank)),
             roadAddress = roadAddressName?.takeIf(String::isNotBlank),
             address = addressName?.takeIf(String::isNotBlank),
             coordinate = Coordinate(latitude = latitude, longitude = longitude),
