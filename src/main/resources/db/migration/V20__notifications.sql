@@ -9,9 +9,8 @@ CREATE TABLE notifications (
     target_id bigint NOT NULL,
     window_start timestamptz NOT NULL,
     last_actor_id bigint NOT NULL,
+    -- 묶인 활동 횟수(사람 수 아님). 좋아요 중복은 보내는 쪽(이미 좋아요면 409)에서 막는다.
     actor_count integer NOT NULL DEFAULT 1,
-    -- 이 묶음에서 센 행동자. 같은 사람이 다시 하면(좋아요 취소 후 재좋아요 등) 인원을 늘리지 않는다.
-    actor_ids bigint[] NOT NULL,
     -- 기록 시점 스냅샷. 좋아요처럼 인원 수만 보이는 알림은 actor_nickname 이 NULL, 코스가 아닌 알림은 course_title 이 NULL.
     actor_nickname varchar(20),
     course_title varchar(200),

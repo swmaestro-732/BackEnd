@@ -60,10 +60,10 @@ import org.springframework.test.context.jdbc.Sql
         "INSERT INTO plan_places (plan_id, place_id, order_no) VALUES (1, 1, 0)",
         // 알림: A 가 받은 알림, C 알림함에 A 닉네임 스냅샷이 남은 묶음, A 와 무관한 B 의 알림, A 의 수신 설정.
         "INSERT INTO notifications " +
-            "(user_id, type, target_type, target_id, window_start, last_actor_id, actor_ids, actor_nickname) VALUES " +
-            "(1, 'USER_FOLLOWED', 'USER', 2, now(), 2, '{2}', 'a'), " +
-            "(3, 'COURSE_LIKED', 'COURSE', 3, now(), 1, '{1}', NULL), " +
-            "(2, 'USER_FOLLOWED', 'USER', 3, now(), 3, '{3}', 'c')",
+            "(user_id, type, target_type, target_id, window_start, last_actor_id, actor_nickname) VALUES " +
+            "(1, 'USER_FOLLOWED', 'USER', 2, now(), 2, 'a'), " +
+            "(3, 'COURSE_LIKED', 'COURSE', 3, now(), 1, NULL), " +
+            "(2, 'USER_FOLLOWED', 'USER', 3, now(), 3, 'c')",
         "INSERT INTO notification_settings (user_id, activity_like) VALUES (1, false)",
     ],
     executionPhase = Sql.ExecutionPhase.BEFORE_TEST_METHOD,

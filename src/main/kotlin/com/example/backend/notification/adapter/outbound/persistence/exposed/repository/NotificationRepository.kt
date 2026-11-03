@@ -3,15 +3,9 @@ package com.example.backend.notification.adapter.outbound.persistence.exposed.re
 import com.example.backend.notification.adapter.outbound.persistence.exposed.NotificationTable
 import com.example.backend.notification.application.port.inbound.dto.NotificationSummary
 import com.example.backend.notification.domain.model.NotificationBundle
-import org.jetbrains.exposed.v1.core.CustomFunction
-import org.jetbrains.exposed.v1.core.IntegerColumnType
-import org.jetbrains.exposed.v1.core.Op
 import org.jetbrains.exposed.v1.core.SortOrder
 import org.jetbrains.exposed.v1.core.and
-import org.jetbrains.exposed.v1.core.case
 import org.jetbrains.exposed.v1.core.eq
-import org.jetbrains.exposed.v1.core.intLiteral
-import org.jetbrains.exposed.v1.core.isNotNull
 import org.jetbrains.exposed.v1.core.isNull
 import org.jetbrains.exposed.v1.core.less
 import org.jetbrains.exposed.v1.core.or
@@ -36,30 +30,10 @@ class NotificationRepository {
             NotificationTable.targetId,
             NotificationTable.windowStart,
             onUpdate = {
-                // 이 묶음에서 이미 센 행동자(좋아요 취소 후 다시 좋아요 등)면 인원을 늘리지 않고 읽음 상태도 되돌리지 않는다.
-                val actorId = insertValue(NotificationTable.lastActorId)
-                val counted =
-                    CustomFunction(
-                        "array_position",
-                        IntegerColumnType(),
-                        NotificationTable.actorIds,
-                        actorId,
-                    ).isNotNull()
-                it[NotificationTable.actorIds] =
-                    case()
-                        .When(counted, NotificationTable.actorIds)
-                        .Else(
-                            CustomFunction(
-                                "array_append",
-                                NotificationTable.actorIds.columnType,
-                                NotificationTable.actorIds,
-                                actorId,
-                            ),
-                        )
-                it[NotificationTable.actorCount] =
-                    NotificationTable.actorCount + case().When(counted, intLiteral(0)).Else(intLiteral(1))
-                it[NotificationTable.readAt] = case().When(counted, NotificationTable.readAt).Else(Op.nullOp())
-                it[NotificationTable.lastActorId] = actorId
+                // 묶인 활동 횟수를 늘리고, 새 활동이 생겼으니 다시 안 읽음으로 돌린다.
+                it[NotificationTable.actorCount] = NotificationTable.actorCount + 1
+                it[NotificationTable.readAt] = null
+                it[NotificationTable.lastActorId] = insertValue(NotificationTable.lastActorId)
                 it[NotificationTable.actorNickname] = insertValue(NotificationTable.actorNickname)
                 it[NotificationTable.courseTitle] = insertValue(NotificationTable.courseTitle)
                 it[NotificationTable.updatedAt] = CurrentTimestamp
@@ -71,7 +45,6 @@ class NotificationRepository {
             it[targetId] = bundle.targetId
             it[windowStart] = bundle.windowStart.toKotlinInstant()
             it[lastActorId] = bundle.lastActorId
-            it[actorIds] = listOf(bundle.lastActorId)
             it[actorCount] = 1
             it[actorNickname] = bundle.actorNickname
             it[courseTitle] = bundle.courseTitle

@@ -21,7 +21,7 @@ class NotificationPersistenceTest
         private val notificationSettingsPersistencePort: NotificationSettingsPersistencePort,
     ) : IntegrationTestBase() {
         @Test
-        fun `같은 묶음을 업서트하면 한 행의 인원과 마지막 행동자 스냅샷을 갱신한다`() {
+        fun `같은 묶음을 업서트하면 한 행의 활동 횟수와 마지막 행동자 스냅샷을 갱신한다`() {
             transaction {
                 val first = bundle()
                 notificationPersistencePort.upsert(first)
@@ -96,7 +96,7 @@ class NotificationPersistenceTest
         }
 
         @Test
-        fun `읽은 묶음에 다른 행동자가 기록되면 인원이 늘고 미읽음으로 돌아간다`() {
+        fun `읽은 묶음에 다른 행동자가 기록되면 활동 횟수가 늘고 미읽음으로 돌아간다`() {
             transaction {
                 val activity = bundle()
                 notificationPersistencePort.upsert(activity)
@@ -115,7 +115,7 @@ class NotificationPersistenceTest
         }
 
         @Test
-        fun `직전 행동자가 반복하면 인원과 읽음 상태를 유지한다`() {
+        fun `같은 행동자가 다시 기록해도 활동 횟수를 늘리고 미읽음으로 돌린다`() {
             transaction {
                 val activity = bundle()
                 notificationPersistencePort.upsert(activity)
@@ -123,27 +123,10 @@ class NotificationPersistenceTest
                 notificationPersistencePort.markRead(USER_ID, id)
 
                 notificationPersistencePort.upsert(activity)
-                notificationPersistencePort.upsert(activity)
-
-                val row = notificationPersistencePort.findPage(USER_ID, null, 10).single()
-                assertThat(row.actorCount).isEqualTo(1)
-                assertThat(row.isRead).isTrue()
-                assertThat(notificationPersistencePort.countUnread(USER_ID)).isZero()
-                rollback()
-            }
-        }
-
-        @Test
-        fun `이미 센 행동자는 다른 행동자 뒤에 다시 와도 인원에 넣지 않는다`() {
-            transaction {
-                val a = bundle()
-                notificationPersistencePort.upsert(a)
-                notificationPersistencePort.upsert(a.copy(lastActorId = 570_903L))
-                notificationPersistencePort.upsert(a)
 
                 val row = notificationPersistencePort.findPage(USER_ID, null, 10).single()
                 assertThat(row.actorCount).isEqualTo(2)
-                assertThat(row.lastActorId).isEqualTo(a.lastActorId)
+                assertThat(row.isRead).isFalse()
                 rollback()
             }
         }

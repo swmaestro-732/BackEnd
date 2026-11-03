@@ -13,7 +13,6 @@ internal object NotificationTable : LongIdTable("notifications") {
     val windowStart = timestamp("window_start")
     val lastActorId = long("last_actor_id")
     val actorCount = integer("actor_count")
-    val actorIds = array<Long>("actor_ids")
     val actorNickname = varchar("actor_nickname", 20).nullable()
     val courseTitle = varchar("course_title", 200).nullable()
     val readAt = timestamp("read_at").nullable()

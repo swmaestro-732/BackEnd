@@ -4,7 +4,7 @@ package com.example.backend.notification.domain.model
 enum class NotificationType(
     val category: NotificationCategory,
     val targetType: NotificationTargetType,
-    /** false 면 누가 했는지 남기지 않고 인원 수만 보여 준다("N명이 좋아요"). */
+    /** false 면 누가 했는지 남기지 않고 활동 횟수만 보여 준다(좋아요). */
     val showsActor: Boolean,
 ) {
     COURSE_LIKED(NotificationCategory.LIKE, NotificationTargetType.COURSE, showsActor = false),
