@@ -79,6 +79,20 @@ class PushServiceTest {
     }
 
     @Test
+    fun `발송 생략 사유 카운터가 모두 0으로 등록된다`() {
+        for (reason in listOf("firebase_not_configured", "queue_not_configured", "stale", "invalid_message")) {
+            assertEquals(
+                0.0,
+                meterRegistry
+                    .get("push.skipped")
+                    .tag("reason", reason)
+                    .counter()
+                    .count(),
+            )
+        }
+    }
+
+    @Test
     fun `토큰 1001개를 500개씩 나누어 메시지 내용을 유지하고 결과를 합산한다`() {
         val tokens = (1..1001).map { "token-$it" }
         sendResults.addAll(

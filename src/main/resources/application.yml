@@ -125,6 +125,11 @@ aws:
 firebase:
   credentials-json: ${FIREBASE_CREDENTIALS_JSON:}   # 서비스 계정 JSON, 비어있으면 발송 no-op
 
+push:
+  max-age: PT1H                    # 큐에서 이보다 오래된 메시지는 늦은 알림이라 발송하지 않고 버린다
+  android-ttl: P1D                 # 기기가 오프라인일 때 FCM 보관 기간
+  android-channel-id: courmy_activity   # 안드로이드 앱 활동 알림 채널
+
 docdb:
   endpoint: ${DOCDB_ENDPOINT:}
   port: ${DOCDB_PORT:27017}

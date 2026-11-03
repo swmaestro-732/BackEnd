@@ -1,18 +1,25 @@
 package com.example.backend.push.adapter.inbound.messaging
 
-import com.example.backend.push.application.port.inbound.PushUseCase
+import com.example.backend.bootstrap.config.PushProperties
+import com.example.backend.push.application.port.inbound.PushDeliveryUseCase
+import io.micrometer.core.instrument.MeterRegistry
+import io.micrometer.core.instrument.simple.SimpleMeterRegistry
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.Test
 import org.mockito.Mockito.mock
 import org.springframework.boot.test.context.runner.ApplicationContextRunner
 import org.springframework.context.annotation.Configuration
 import org.springframework.context.annotation.Import
+import java.time.Clock
 
 /** 큐와 Firebase 키가 모두 있을 때만 리스너 빈이 생기는지 확인한다(키 없이 수신하면 메시지가 사라진다). */
 class PushSqsConsumerConditionTest {
     private val contextRunner =
         ApplicationContextRunner()
-            .withBean(PushUseCase::class.java, { mock(PushUseCase::class.java) })
+            .withBean(PushDeliveryUseCase::class.java, { mock(PushDeliveryUseCase::class.java) })
+            .withBean(PushProperties::class.java, { PushProperties() })
+            .withBean(Clock::class.java, { Clock.systemUTC() })
+            .withBean(MeterRegistry::class.java, { SimpleMeterRegistry() })
             // 실제 앱처럼 컨텍스트 준비 뒤(@Import 처리 시점)에 조건을 평가하도록 설정 클래스로 감싼다.
             .withUserConfiguration(ConsumerImport::class.java)
 
