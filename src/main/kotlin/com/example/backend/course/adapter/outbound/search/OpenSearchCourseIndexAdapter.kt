@@ -5,7 +5,10 @@ import com.example.backend.bootstrap.config.OpenSearchProperties
 import com.example.backend.course.application.port.outbound.CourseSearchIndexPort
 import com.example.backend.course.domain.model.Course
 import io.github.oshai.kotlinlogging.KotlinLogging
+import org.opensearch.client.json.JsonData
 import org.opensearch.client.opensearch.OpenSearchClient
+import org.opensearch.client.opensearch._types.OpenSearchException
+import org.opensearch.client.opensearch.core.UpdateRequest
 import org.springframework.beans.factory.ObjectProvider
 import org.springframework.beans.factory.annotation.Qualifier
 import org.springframework.stereotype.Component
@@ -79,6 +82,44 @@ class OpenSearchCourseIndexAdapter(
         }
     }
 
+    override fun adjustSavesCount(
+        courseId: Long,
+        delta: Int,
+    ) {
+        if (delta == 0) return
+        val client = clientProvider.ifAvailable ?: return // endpoint 미설정 → no-op
+        try {
+            // 델타 가산 스크립트라 동시 저장/취소 이벤트의 도착 순서와 무관하게 수렴한다(스냅샷 덮어쓰기와 달리 순서 역전에 안전).
+            client.update(
+                { req: UpdateRequest.Builder<CourseDocument, CourseDocument> ->
+                    req
+                        .index(indexAlias)
+                        .requireAlias(true)
+                        .id(courseId.toString())
+                        .retryOnConflict(SAVES_COUNT_RETRY_ON_CONFLICT)
+                        .script { s ->
+                            s.inline { i ->
+                                i
+                                    .lang("painless")
+                                    .source(ADJUST_SAVES_COUNT_SCRIPT)
+                                    .params("delta", JsonData.of(delta))
+                            }
+                        }
+                },
+                CourseDocument::class.java,
+            )
+        } catch (e: OpenSearchException) {
+            // 아직 색인되지 않은 코스(미백필·색인 실패분)는 다음 전체 색인이 채운다 — 404 는 정상 경로로 본다.
+            if (e.status() == NOT_FOUND_STATUS) {
+                log.debug { "course 저장수 갱신 대상 문서 없음(무시): id=$courseId" }
+            } else {
+                log.error(e) { "course 저장수 갱신 실패(무시): id=$courseId delta=$delta — ${e.message}" }
+            }
+        } catch (e: Exception) {
+            log.error(e) { "course 저장수 갱신 실패(무시): id=$courseId delta=$delta — ${e.message}" }
+        }
+    }
+
     override fun deleteByAuthor(authorId: Long) {
         val client = clientProvider.ifAvailable ?: return // endpoint 미설정 → no-op
         try {
@@ -99,6 +140,8 @@ class OpenSearchCourseIndexAdapter(
             title = title,
             description = description,
             area = area,
+            areaCode = areaCode,
+            sigunguCode = areaCode?.take(SIGUNGU_CODE_LENGTH),
             category = category?.name,
             tags = tags,
             coverImageUrl = coverImageUrl,
@@ -109,4 +152,15 @@ class OpenSearchCourseIndexAdapter(
             savesCnt = savesCnt,
             createdAt = createdAt?.toEpochMilliseconds(),
         )
+
+    private companion object {
+        const val SIGUNGU_CODE_LENGTH = 5
+        const val SAVES_COUNT_RETRY_ON_CONFLICT = 3
+        const val NOT_FOUND_STATUS = 404
+
+        /** 색인 문서의 savesCnt 에 delta 를 더한다(음수 방지). 구 문서에 필드가 없으면 0 으로 본다. */
+        const val ADJUST_SAVES_COUNT_SCRIPT =
+            "int current = ctx._source.savesCnt == null ? 0 : (int) ctx._source.savesCnt; " +
+                "ctx._source.savesCnt = Math.max(0, current + (int) params.delta);"
+    }
 }

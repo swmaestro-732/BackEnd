@@ -2,11 +2,12 @@ package com.example.backend.mobile.home.application.service
 
 import com.example.backend.common.geo.Coordinate
 import com.example.backend.mobile.home.application.port.outbound.HomeFeedPort
+import com.example.backend.mobile.home.application.port.outbound.HomeInterestPort
 import com.example.backend.mobile.home.application.port.outbound.HomeNearbyPlacePort
 import com.example.backend.mobile.home.application.port.outbound.HomeProfilePort
 import com.example.backend.mobile.home.application.port.outbound.dto.HomeFeedCourse
 import com.example.backend.mobile.home.application.port.outbound.dto.HomeFeedCoursePage
-import com.example.backend.mobile.home.application.port.outbound.dto.HomeFeedCursor
+import com.example.backend.mobile.home.application.port.outbound.dto.HomeInterest
 import com.example.backend.mobile.home.application.port.outbound.dto.HomeNearbyPlace
 import com.example.backend.mobile.home.application.port.outbound.dto.HomeProfile
 import org.junit.jupiter.api.Assertions.assertEquals
@@ -16,25 +17,35 @@ import org.junit.jupiter.api.Test
 import java.time.Instant
 
 /**
- * [HomeFeedService] 단위 테스트 — 아웃바운드 포트 3개를 페이크로 대체해 홈 조합 규칙만 검증한다.
- * 검증 대상: 비로그인과 좌표 없음에서 근처 섹션 생략, 추천 코스 상위 5개 요청, 도보 분 올림, 피드 커서 인코딩.
+ * [HomeFeedService] 단위 테스트 — 아웃바운드 포트 4개를 페이크로 대체해 홈 조합 규칙만 검증한다.
+ * 검증 대상: 비로그인과 좌표 없음에서 근처 섹션 생략, 추천 코스 상위 5개 요청, 관심사 전달, 도보 분 올림, 커서 통과.
  */
 class HomeFeedServiceTest {
     private val fakeFeedPort =
         object : HomeFeedPort {
-            var page = HomeFeedCoursePage(courses = listOf(course(1)), hasNext = false)
-            val calls = mutableListOf<Pair<HomeFeedCursor?, Int>>()
+            var page = HomeFeedCoursePage(courses = listOf(course(1)), hasNext = false, nextCursor = null)
+            val calls = mutableListOf<Pair<String?, Int>>()
             val categories = mutableListOf<String?>()
+            val interests = mutableListOf<HomeInterest>()
 
-            override fun listPublicCandidates(
-                cursor: HomeFeedCursor?,
+            override fun listRecommended(
+                interest: HomeInterest,
+                cursor: String?,
                 size: Int,
                 category: String?,
             ): HomeFeedCoursePage {
+                interests += interest
                 calls += cursor to size
                 categories += category
                 return page
             }
+        }
+
+    private val fakeInterestPort =
+        object : HomeInterestPort {
+            var interest = HomeInterest(likeThemes = listOf("CAFETOUR"), areaCodes = listOf("1168000000"))
+
+            override fun findInterests(userId: Long): HomeInterest = interest
         }
 
     private val fakeProfilePort =
@@ -62,7 +73,7 @@ class HomeFeedServiceTest {
             }
         }
 
-    private val service = HomeFeedService(fakeFeedPort, fakeProfilePort, fakeNearbyPort)
+    private val service = HomeFeedService(fakeFeedPort, fakeInterestPort, fakeProfilePort, fakeNearbyPort)
 
     @Test
     fun `비로그인이면 프로필은 null 이고 근처 저장 장소는 조회하지 않는다`() {
@@ -87,7 +98,15 @@ class HomeFeedServiceTest {
     fun `추천 코스는 피드 첫 페이지 상위 5개를 요청한다`() {
         service.getHome(viewerId = null, userLocation = null)
 
-        assertEquals(listOf<Pair<HomeFeedCursor?, Int>>(null to 5), fakeFeedPort.calls)
+        assertEquals(listOf<Pair<String?, Int>>(null to 5), fakeFeedPort.calls)
+    }
+
+    @Test
+    fun `로그인하면 관심사를 추천 포트에 넘기고 비로그인은 빈 관심사다`() {
+        service.getHome(viewerId = USER_ID, userLocation = null)
+        service.getHome(viewerId = null, userLocation = null)
+
+        assertEquals(listOf(fakeInterestPort.interest, HomeInterest.NONE), fakeFeedPort.interests)
     }
 
     @Test
@@ -135,18 +154,20 @@ class HomeFeedServiceTest {
     }
 
     @Test
-    fun `전체보기 피드는 다음 페이지가 있으면 마지막 코스로 커서를 만든다`() {
-        fakeFeedPort.page = HomeFeedCoursePage(courses = listOf(course(3), course(2)), hasNext = true)
+    fun `전체보기 피드는 포트가 준 커서와 hasNext 를 그대로 내려준다`() {
+        fakeFeedPort.page =
+            HomeFeedCoursePage(courses = listOf(course(3), course(2)), hasNext = true, nextCursor = "next")
 
-        val result = service.getFeed(cursor = null, size = 2)
+        val result = service.getFeed(viewerId = null, cursor = "prev", size = 2)
 
         assertTrue(result.hasNext)
-        assertEquals(2L, HomeFeedCursorCodec.decode(result.nextCursor)?.id)
+        assertEquals("next", result.nextCursor)
+        assertEquals(listOf<Pair<String?, Int>>("prev" to 2), fakeFeedPort.calls)
     }
 
     @Test
     fun `전체보기 피드는 카테고리를 포트에 그대로 넘긴다`() {
-        service.getFeed(cursor = null, size = 2, category = "DATE")
+        service.getFeed(viewerId = null, cursor = null, size = 2, category = "DATE")
 
         assertEquals(listOf<String?>("DATE"), fakeFeedPort.categories)
     }
