@@ -14,16 +14,16 @@ VALUES
 INSERT INTO courses (id, user_id, title, is_published, visibility)
 VALUES (570001, 570003, '좋아요 알림 코스', true, 'PUBLIC');
 
-INSERT INTO notifications (id, user_id, type, target_type, target_id, window_start, last_actor_id, actor_count, actor_nickname, course_title, read_at, created_at, updated_at)
+INSERT INTO notifications (id, user_id, type, target_type, target_id, window_start, last_actor_id, actor_count, actor_nickname, course_title, course_image_url, read_at, created_at, updated_at)
 VALUES
     (570101, 570001, 'COURSE_LIKED', 'COURSE', 570001, '2026-10-24T09:00:00Z', 570002, 1,
-     NULL, '좋아요 알림 코스', NULL, '2026-10-24T09:00:01Z', '2026-10-24T09:00:01Z'),
+     NULL, '좋아요 알림 코스', 'https://example.com/course.jpg', NULL, '2026-10-24T09:00:01Z', '2026-10-24T09:00:01Z'),
     (570102, 570001, 'COURSE_COMMENTED', 'COURSE', 570001, '2026-10-24T09:10:00Z', 570002, 2,
-     '알림함타인', '좋아요 알림 코스', '2026-10-24T09:12:00Z', '2026-10-24T09:10:01Z', '2026-10-24T09:11:00Z'),
+     '알림함타인', '좋아요 알림 코스', NULL, '2026-10-24T09:12:00Z', '2026-10-24T09:10:01Z', '2026-10-24T09:11:00Z'),
     (570103, 570001, 'USER_FOLLOWED', 'USER', 570002, '2026-10-24T09:20:00Z', 570002, 1,
-     '알림함타인', NULL, NULL, '2026-10-24T09:20:01Z', '2026-10-24T09:20:01Z'),
+     '알림함타인', NULL, NULL, NULL, '2026-10-24T09:20:01Z', '2026-10-24T09:20:01Z'),
     (570104, 570002, 'USER_FOLLOWED', 'USER', 570001, '2026-10-24T09:20:00Z', 570001, 1,
-     '알림함주체', NULL, NULL, '2026-10-24T09:20:01Z', '2026-10-24T09:20:01Z');
+     '알림함주체', NULL, NULL, NULL, '2026-10-24T09:20:01Z', '2026-10-24T09:20:01Z');
 
 INSERT INTO app_version_policies (feature, platform, min_build)
 VALUES ('notification', 'android', 5)

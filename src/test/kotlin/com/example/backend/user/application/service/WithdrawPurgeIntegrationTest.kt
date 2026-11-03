@@ -58,12 +58,16 @@ import org.springframework.test.context.jdbc.Sql
         "INSERT INTO plans (user_id, title) VALUES (1, 'A계획2')",
         "INSERT INTO plans (user_id, title) VALUES (3, 'C계획')",
         "INSERT INTO plan_places (plan_id, place_id, order_no) VALUES (1, 1, 0)",
-        // 알림: A 가 받은 알림, C 알림함에 A 닉네임 스냅샷이 남은 묶음, A 와 무관한 B 의 알림, A 의 수신 설정.
+        // 알림: A 가 받은 알림(1), B 와 A 가 좋아요한 C 의 묶음(2, 마지막 행동자 A), A 와 무관한 B 의 알림(3),
+        // C 알림함에 A 닉네임 스냅샷이 남은 댓글 묶음(4), A 의 수신 설정.
         "INSERT INTO notifications " +
-            "(user_id, type, target_type, target_id, window_start, last_actor_id, actor_nickname) VALUES " +
-            "(1, 'USER_FOLLOWED', 'USER', 2, now(), 2, 'a'), " +
-            "(3, 'COURSE_LIKED', 'COURSE', 3, now(), 1, NULL), " +
-            "(2, 'USER_FOLLOWED', 'USER', 3, now(), 3, 'c')",
+            "(user_id, type, target_type, target_id, window_start, last_actor_id, actor_count, actor_nickname) " +
+            "VALUES " +
+            "(1, 'USER_FOLLOWED', 'USER', 2, now(), 2, 1, 'a'), " +
+            "(3, 'COURSE_LIKED', 'COURSE', 3, now(), 1, 2, NULL), " +
+            "(2, 'USER_FOLLOWED', 'USER', 3, now(), 3, 1, 'c'), " +
+            "(3, 'COURSE_COMMENTED', 'COURSE', 3, now(), 1, 1, 'a')",
+        "INSERT INTO notification_actors (notification_id, actor_id) VALUES (1, 2), (2, 2), (2, 1), (3, 3), (4, 1)",
         "INSERT INTO notification_settings (user_id, activity_like) VALUES (1, false)",
     ],
     executionPhase = Sql.ExecutionPhase.BEFORE_TEST_METHOD,
@@ -120,8 +124,21 @@ class WithdrawPurgeIntegrationTest
             assertEquals(0L, count("SELECT count(*) FROM tracing_courses WHERE user_id = 1"))
             assertEquals(0L, count("SELECT count(*) FROM tracing_course_places"))
 
-            // 알림 — A 가 받은 알림과 A 가 마지막 행위자인 남의 묶음, A 의 수신 설정이 사라지고 무관한 알림은 남는다.
-            assertEquals(0L, count("SELECT count(*) FROM notifications WHERE user_id = 1 OR last_actor_id = 1"))
+            // 알림: A 가 받은 알림, A 닉네임 스냅샷이 남은 댓글 묶음, A 의 수신 설정이 사라지고 무관한 알림은 남는다.
+            // 좋아요 묶음은 마지막 행동자가 A 여도 남고, A 의 행동자 행만 지워지며 인원 수는 그대로다.
+            assertEquals(0L, count("SELECT count(*) FROM notifications WHERE user_id = 1"))
+            assertEquals(
+                listOf("COURSE_LIKED"),
+                jdbc.queryForList("SELECT type FROM notifications WHERE last_actor_id = 1", String::class.java),
+            )
+            assertEquals(2, intOf("SELECT actor_count FROM notifications WHERE id = 2"))
+            assertEquals(
+                listOf(2L, 3L),
+                jdbc.queryForList(
+                    "SELECT actor_id FROM notification_actors ORDER BY actor_id",
+                    Long::class.java,
+                ),
+            )
             assertEquals(1L, count("SELECT count(*) FROM notifications WHERE user_id = 2"))
             assertEquals(0L, count("SELECT count(*) FROM notification_settings WHERE user_id = 1"))
 

@@ -66,6 +66,7 @@ class NotificationService(
                 lastActorId = activity.actorId,
                 actorNickname = actorNickname,
                 courseTitle = course?.title,
+                courseImageUrl = course?.imageUrl,
             ),
         )
     }

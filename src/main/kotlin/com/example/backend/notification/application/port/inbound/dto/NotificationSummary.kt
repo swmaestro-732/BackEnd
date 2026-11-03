@@ -13,6 +13,7 @@ data class NotificationSummary(
     val lastActorId: Long,
     val actorNickname: String?,
     val courseTitle: String?,
+    val courseImageUrl: String?,
     val isRead: Boolean,
     val createdAt: Instant,
     val updatedAt: Instant,

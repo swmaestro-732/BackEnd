@@ -45,6 +45,7 @@ class NotificationControllerTest
                 .andExpect(jsonPath("$.data.items[0].lastActorId").value(OTHER_USER_ID))
                 .andExpect(jsonPath("$.data.items[0].actorNickname").value("알림함타인"))
                 .andExpect(jsonPath("$.data.items[0].courseTitle").isEmpty)
+                .andExpect(jsonPath("$.data.items[0].courseImageUrl").isEmpty)
                 .andExpect(jsonPath("$.data.items[0].isRead").value(false))
                 .andExpect(jsonPath("$.data.items[0].createdAt").value("2026-10-24T09:20:01Z"))
                 .andExpect(jsonPath("$.data.items[0].updatedAt").value("2026-10-24T09:20:01Z"))
@@ -60,6 +61,7 @@ class NotificationControllerTest
                 ).andExpect(status().isOk)
                 .andExpect(jsonPath("$.data.items[*].id", contains(570101)))
                 .andExpect(jsonPath("$.data.items[0].courseTitle").value("좋아요 알림 코스"))
+                .andExpect(jsonPath("$.data.items[0].courseImageUrl").value("https://example.com/course.jpg"))
                 .andExpect(jsonPath("$.data.hasNext").value(false))
                 .andExpect(jsonPath("$.data.nextCursor").isEmpty)
         }

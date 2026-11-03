@@ -8,7 +8,7 @@ import org.junit.jupiter.params.provider.EnumSource
 
 class NotificationSettingsTest {
     @Test
-    fun `기본 설정은 다섯 활동을 모두 허용한다`() {
+    fun `기본 설정은 네 활동을 모두 허용한다`() {
         assertThat(NotificationSettings.DEFAULT).isEqualTo(NotificationSettings(true, true, true, true))
         assertThat(NotificationType.entries.filter(NotificationSettings.DEFAULT::allows))
             .containsExactly(*NotificationType.entries.toTypedArray())

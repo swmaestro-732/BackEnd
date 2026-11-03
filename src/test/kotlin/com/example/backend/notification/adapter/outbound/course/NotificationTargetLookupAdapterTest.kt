@@ -14,10 +14,10 @@ class NotificationTargetLookupAdapterTest {
     private val adapter = NotificationTargetLookupAdapter(courses)
 
     @Test
-    fun `코스 소유자 요약에서 받는 사람과 제목을 반환한다`() {
-        `when`(courses.findOwnerSummary(10L)).thenReturn(CourseOwnerSummary(10L, 7L, "한강 산책"))
+    fun `코스 소유자 요약에서 받는 사람과 제목과 커버 이미지를 반환한다`() {
+        `when`(courses.findOwnerSummary(10L)).thenReturn(CourseOwnerSummary(10L, 7L, "한강 산책", "https://cdn/c.jpg"))
 
-        assertThat(adapter.findCourse(10L)).isEqualTo(NotificationCourseTarget(7L, "한강 산책"))
+        assertThat(adapter.findCourse(10L)).isEqualTo(NotificationCourseTarget(7L, "한강 산책", "https://cdn/c.jpg"))
         verify(courses).findOwnerSummary(10L)
     }
 

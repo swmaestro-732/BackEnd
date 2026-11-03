@@ -11,6 +11,6 @@ class NotificationTargetLookupAdapter(
 ) : NotificationTargetLookupPort {
     override fun findCourse(courseId: Long): NotificationCourseTarget? =
         courseQueryUseCase.findOwnerSummary(courseId)?.let {
-            NotificationCourseTarget(it.authorId, it.title)
+            NotificationCourseTarget(it.authorId, it.title, it.coverImageUrl)
         }
 }

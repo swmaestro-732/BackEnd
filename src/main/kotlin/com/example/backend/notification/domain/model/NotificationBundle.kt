@@ -13,6 +13,7 @@ data class NotificationBundle(
     /** 기록 시점 행동자 닉네임 스냅샷. 활동 횟수만 보이는 종류는 null. */
     val actorNickname: String?,
     val courseTitle: String?,
+    val courseImageUrl: String?,
 ) {
     companion object {
         val BUNDLE_WINDOW: Duration = Duration.ofMinutes(10)

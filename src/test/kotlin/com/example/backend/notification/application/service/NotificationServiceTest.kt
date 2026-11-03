@@ -45,7 +45,7 @@ class NotificationServiceTest {
     @ParameterizedTest
     @EnumSource(value = NotificationType::class, names = ["USER_FOLLOWED"], mode = EnumSource.Mode.EXCLUDE)
     fun `코스 활동은 작성자에게 10분 묶음으로 기록하고 좋아요만 행동자를 남기지 않는다`(type: NotificationType) {
-        `when`(targets.findCourse(COURSE_ID)).thenReturn(NotificationCourseTarget(OWNER_ID, "한강 산책"))
+        `when`(targets.findCourse(COURSE_ID)).thenReturn(NotificationCourseTarget(OWNER_ID, "한강 산책", COVER_URL))
         `when`(settings.findByUser(OWNER_ID)).thenReturn(null)
         active(ACTOR_ID, OWNER_ID)
         `when`(actors.findNickname(ACTOR_ID)).thenReturn("산책자")
@@ -66,6 +66,7 @@ class NotificationServiceTest {
                 lastActorId = ACTOR_ID,
                 actorNickname = if (type == NotificationType.COURSE_LIKED) null else "산책자",
                 courseTitle = "한강 산책",
+                courseImageUrl = COVER_URL,
             ),
         )
     }
@@ -90,6 +91,7 @@ class NotificationServiceTest {
                 lastActorId = ACTOR_ID,
                 actorNickname = "새 팔로워",
                 courseTitle = null,
+                courseImageUrl = null,
             ),
         )
     }
@@ -118,6 +120,7 @@ class NotificationServiceTest {
                     lastActorId = followerId,
                     actorNickname = nickname,
                     courseTitle = null,
+                    courseImageUrl = null,
                 ),
             )
         }
@@ -136,7 +139,7 @@ class NotificationServiceTest {
     @ParameterizedTest
     @EnumSource(value = NotificationType::class, names = ["USER_FOLLOWED"], mode = EnumSource.Mode.EXCLUDE)
     fun `자기 코스에 한 행동은 기록하지 않는다`(type: NotificationType) {
-        `when`(targets.findCourse(COURSE_ID)).thenReturn(NotificationCourseTarget(ACTOR_ID, "내 코스"))
+        `when`(targets.findCourse(COURSE_ID)).thenReturn(NotificationCourseTarget(ACTOR_ID, "내 코스", null))
 
         service.record(command(type))
 
@@ -153,7 +156,7 @@ class NotificationServiceTest {
     @ParameterizedTest
     @EnumSource(NotificationType::class)
     fun `받는 사람이 해당 활동 알림을 껐으면 기록하지 않는다`(type: NotificationType) {
-        `when`(targets.findCourse(COURSE_ID)).thenReturn(NotificationCourseTarget(OWNER_ID, "한강 산책"))
+        `when`(targets.findCourse(COURSE_ID)).thenReturn(NotificationCourseTarget(OWNER_ID, "한강 산책", COVER_URL))
         `when`(settings.findByUser(OWNER_ID)).thenReturn(
             NotificationSettings(
                 activityLike = type.category != NotificationCategory.LIKE,
@@ -171,7 +174,7 @@ class NotificationServiceTest {
 
     @Test
     fun `행위자가 탈퇴했으면 잠금 결과에 없어 기록하지 않는다`() {
-        `when`(targets.findCourse(COURSE_ID)).thenReturn(NotificationCourseTarget(OWNER_ID, "한강 산책"))
+        `when`(targets.findCourse(COURSE_ID)).thenReturn(NotificationCourseTarget(OWNER_ID, "한강 산책", COVER_URL))
         active(OWNER_ID)
 
         service.record(command(NotificationType.COURSE_COMMENTED))
@@ -259,6 +262,7 @@ class NotificationServiceTest {
             lastActorId = ACTOR_ID,
             actorNickname = null,
             courseTitle = "한강 산책",
+            courseImageUrl = COVER_URL,
             isRead = false,
             createdAt = OCCURRED_AT,
             updatedAt = OCCURRED_AT,
@@ -273,6 +277,7 @@ class NotificationServiceTest {
         const val OWNER_ID = 1L
         const val ACTOR_ID = 2L
         const val COURSE_ID = 10L
+        const val COVER_URL = "https://cdn.example.com/course-10.jpg"
         val OCCURRED_AT: Instant = Instant.parse("2026-10-24T09:59:59.999Z")
         val WINDOW_START: Instant = Instant.parse("2026-10-24T09:50:00Z")
     }

@@ -21,7 +21,7 @@ class NotificationPersistenceTest
         private val notificationSettingsPersistencePort: NotificationSettingsPersistencePort,
     ) : IntegrationTestBase() {
         @Test
-        fun `같은 묶음을 업서트하면 한 행의 활동 횟수와 마지막 행동자 스냅샷을 갱신한다`() {
+        fun `같은 묶음에 다른 행동자를 업서트하면 한 행의 인원과 마지막 행동자 스냅샷을 갱신한다`() {
             transaction {
                 val first = bundle()
                 notificationPersistencePort.upsert(first)
@@ -34,6 +34,7 @@ class NotificationPersistenceTest
                         lastActorId = 570_902L,
                         actorNickname = "새로운 '작성자'",
                         courseTitle = "바뀐 코스",
+                        courseImageUrl = "https://cdn/changed.jpg",
                     )
 
                 notificationPersistencePort.upsert(latest)
@@ -48,6 +49,7 @@ class NotificationPersistenceTest
                 assertThat(updated.lastActorId).isEqualTo(latest.lastActorId)
                 assertThat(updated.actorNickname).isEqualTo(latest.actorNickname)
                 assertThat(updated.courseTitle).isEqualTo(latest.courseTitle)
+                assertThat(updated.courseImageUrl).isEqualTo(latest.courseImageUrl)
                 assertThat(updated.isRead).isFalse()
                 assertThat(updated.createdAt).isEqualTo(inserted.createdAt)
                 assertThat(updated.updatedAt).isAfter(pastUpdatedAt)
@@ -96,7 +98,7 @@ class NotificationPersistenceTest
         }
 
         @Test
-        fun `읽은 묶음에 다른 행동자가 기록되면 활동 횟수가 늘고 미읽음으로 돌아간다`() {
+        fun `읽은 묶음에 다른 행동자가 기록되면 인원이 늘고 미읽음으로 돌아간다`() {
             transaction {
                 val activity = bundle()
                 notificationPersistencePort.upsert(activity)
@@ -115,18 +117,34 @@ class NotificationPersistenceTest
         }
 
         @Test
-        fun `같은 행동자가 다시 기록해도 활동 횟수를 늘리고 미읽음으로 돌린다`() {
+        fun `이미 센 행동자가 다시 기록하면 인원과 읽음 상태와 스냅샷을 건드리지 않는다`() {
             transaction {
                 val activity = bundle()
                 notificationPersistencePort.upsert(activity)
                 val id = notificationPersistencePort.findPage(USER_ID, null, 10).single().id
                 notificationPersistencePort.markRead(USER_ID, id)
+                val before = notificationPersistencePort.findPage(USER_ID, null, 10).single()
 
-                notificationPersistencePort.upsert(activity)
+                notificationPersistencePort.upsert(activity.copy(courseTitle = "바뀐 코스"))
+
+                assertThat(notificationPersistencePort.findPage(USER_ID, null, 10).single()).isEqualTo(before)
+                assertThat(before.actorCount).isEqualTo(1)
+                assertThat(before.isRead).isTrue()
+                rollback()
+            }
+        }
+
+        @Test
+        fun `A 다음 B 다음 A 가 기록하면 서로 다른 사람 수인 2로 센다`() {
+            transaction {
+                val actorA = bundle()
+                val actorB = actorA.copy(lastActorId = 570_902L)
+
+                listOf(actorA, actorB, actorA).forEach { notificationPersistencePort.upsert(it) }
 
                 val row = notificationPersistencePort.findPage(USER_ID, null, 10).single()
                 assertThat(row.actorCount).isEqualTo(2)
-                assertThat(row.isRead).isFalse()
+                assertThat(row.lastActorId).isEqualTo(actorB.lastActorId)
                 rollback()
             }
         }
@@ -229,6 +247,7 @@ class NotificationPersistenceTest
                 lastActorId = 570_900L,
                 actorNickname = null,
                 courseTitle = "알림 코스",
+                courseImageUrl = "https://cdn/course.jpg",
             )
 
         private companion object {

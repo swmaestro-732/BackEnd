@@ -15,6 +15,7 @@ import com.example.backend.user.application.port.outbound.UserLikeThemePort
 import com.example.backend.user.application.port.outbound.UserPersistencePort
 import com.example.backend.user.application.port.outbound.UserProfileRow
 import org.springframework.stereotype.Service
+import org.springframework.transaction.annotation.Propagation
 import org.springframework.transaction.annotation.Transactional
 
 /**
@@ -49,7 +50,8 @@ class UserService(
         )
     }
 
-    @Transactional
+    // 잠금은 호출한 쪽 트랜잭션이 끝날 때까지 유지돼야 하므로 바깥 트랜잭션 없이 부르면 실패시킨다.
+    @Transactional(propagation = Propagation.MANDATORY)
     override fun lockActiveShared(userIds: List<Long>): Set<Long> = userPersistencePort.lockActiveShared(userIds)
 
     override fun getProfiles(

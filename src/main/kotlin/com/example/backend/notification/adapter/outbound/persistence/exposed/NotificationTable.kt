@@ -15,6 +15,7 @@ internal object NotificationTable : LongIdTable("notifications") {
     val actorCount = integer("actor_count")
     val actorNickname = varchar("actor_nickname", 20).nullable()
     val courseTitle = varchar("course_title", 200).nullable()
+    val courseImageUrl = text("course_image_url").nullable()
     val readAt = timestamp("read_at").nullable()
     val createdAt = timestamp("created_at")
     val updatedAt = timestamp("updated_at")
