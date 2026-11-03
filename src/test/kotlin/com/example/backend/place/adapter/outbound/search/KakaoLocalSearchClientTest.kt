@@ -6,6 +6,7 @@ import com.example.backend.place.domain.model.ExternalPlaceSource
 import com.example.backend.place.domain.model.PlaceCategory
 import org.hamcrest.Matchers.containsString
 import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Test
 import org.springframework.http.MediaType
 import org.springframework.test.web.client.MockRestServiceServer
@@ -47,11 +48,34 @@ class KakaoLocalSearchClientTest {
         assertEquals("12345", place.kakaoPlaceId)
         assertEquals("콤포트 성수", place.name)
         assertEquals(PlaceCategory.CAFE, place.category)
+        assertEquals("카페", place.categoryDetail)
+        assertEquals("음식점 > 카페", place.kakaoCategoryName)
         assertEquals("서울 성동구 서울숲2길 3", place.roadAddress)
         assertEquals(127.0561, place.coordinate.longitude, 1e-9)
         assertEquals(37.5432, place.coordinate.latitude, 1e-9)
         assertEquals("02-9876-5432", place.telephone)
         assertEquals(ExternalPlaceSource.KAKAO, place.source)
+    }
+
+    @Test
+    fun `category_name 이 비어 있으면 상세 분류와 원문은 null 이다`() {
+        val body =
+            """
+            {"documents":[
+              {"id":"777","place_name":"이마트 성수점","category_name":"","category_group_code":"MT1",
+               "address_name":"서울 성동구 성수동2가","x":"127.0560","y":"37.5400"}
+            ]}
+            """.trimIndent()
+        server
+            .expect(requestTo(containsString("/v2/local/search/keyword.json")))
+            .andRespond(withSuccess(body, MediaType.APPLICATION_JSON))
+
+        val place = client.search("이마트", null).single()
+
+        server.verify()
+        assertEquals(PlaceCategory.SHOPPING, place.category)
+        assertNull(place.categoryDetail)
+        assertNull(place.kakaoCategoryName)
     }
 
     @Test

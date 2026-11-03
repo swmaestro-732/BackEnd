@@ -20,6 +20,7 @@ class ExternalPlaceSearchResponseTest {
                     latitude = 37.5445,
                     longitude = 127.0578,
                     telephone = "02-1234-5678",
+                    categoryDetail = "카페",
                 ),
                 PlaceSearchResult(
                     id = 102L,
@@ -45,12 +46,14 @@ class ExternalPlaceSearchResponseTest {
         assertEquals(37.5445, first.latitude)
         assertEquals(127.0578, first.longitude)
         assertEquals("02-1234-5678", first.telephone)
+        assertEquals("카페", first.categoryDetail)
 
         val second = response.places[1]
         assertEquals(102L, second.id)
         assertNull(second.roadAddress)
         assertNull(second.address)
         assertNull(second.telephone)
+        assertNull(second.categoryDetail)
     }
 
     @Test

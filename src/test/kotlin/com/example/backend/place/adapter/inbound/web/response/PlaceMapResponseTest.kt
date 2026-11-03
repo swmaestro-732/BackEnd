@@ -23,6 +23,7 @@ class PlaceMapResponseTest {
                             127.0592,
                             "서울 성동구",
                             "1120011400",
+                            categoryDetail = "문화시설",
                         ),
                     ),
                 clusters = listOf(PlaceMapCluster("wydm9q", 37.5441, 127.0563, 100L)),
@@ -31,7 +32,9 @@ class PlaceMapResponseTest {
         val response = PlaceMapResponse.from(result)
 
         assertThat(response.totalCount).isEqualTo(101L)
-        assertThat(response.places).containsExactly(PlaceMapMarkerResponse(7L, "대림창고", "CULTURE", 37.5418, 127.0592))
+        assertThat(
+            response.places,
+        ).containsExactly(PlaceMapMarkerResponse(7L, "대림창고", "CULTURE", 37.5418, 127.0592, "문화시설"))
         assertThat(response.clusters).containsExactly(PlaceMapClusterResponse("wydm9q", 37.5441, 127.0563, 100L))
     }
 }
