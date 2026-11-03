@@ -33,6 +33,13 @@ interface UserPersistencePort {
      */
     fun lockActive(userIds: List<Long>): Set<Long>
 
+    /**
+     * [lockActive] 와 같지만 `SELECT … FOR SHARE`(공유 행 잠금)로 잠근다. 탈퇴(사용자 행 UPDATE)와는 직렬화되고,
+     * 같은 사용자를 잠그는 공유 잠금끼리는 기다리지 않는다. 잠근 뒤 사용자 행을 고치지 않는 기록(알림)에만 쓴다.
+     * 잠근 뒤 사용자 행을 UPDATE 하는 쓰기(팔로우 카운터 등)는 공유 잠금끼리 데드락이 나므로 [lockActive] 를 쓴다.
+     */
+    fun lockActiveShared(userIds: List<Long>): Set<Long>
+
     /** 핸들로 조회한다(deleted_at IS NULL, findById 와 동일한 소프트 삭제 시맨틱). 없으면 null. */
     fun findByHandle(handle: String): User?
 

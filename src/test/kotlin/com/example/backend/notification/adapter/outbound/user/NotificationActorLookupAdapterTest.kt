@@ -44,8 +44,8 @@ class NotificationActorLookupAdapterTest {
     }
 
     @Test
-    fun `잠금은 user 유스케이스의 활성 사용자 잠금에 위임한다`() {
-        `when`(users.lockActive(listOf(7L, 8L))).thenReturn(setOf(7L))
+    fun `잠금은 user 유스케이스의 활성 사용자 공유 잠금에 위임한다`() {
+        `when`(users.lockActiveShared(listOf(7L, 8L))).thenReturn(setOf(7L))
 
         assertThat(adapter.lockActive(listOf(7L, 8L))).containsExactly(7L)
     }

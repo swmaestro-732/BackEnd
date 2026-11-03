@@ -8,7 +8,7 @@ import org.springframework.stereotype.Component
 class NotificationActorLookupAdapter(
     private val userUseCase: UserUseCase,
 ) : NotificationActorLookupPort {
-    override fun lockActive(userIds: List<Long>): Set<Long> = userUseCase.lockActive(userIds)
+    override fun lockActive(userIds: List<Long>): Set<Long> = userUseCase.lockActiveShared(userIds)
 
     override fun findNickname(actorId: Long): String? =
         userUseCase.getProfiles(listOf(actorId), null).firstOrNull()?.nickname

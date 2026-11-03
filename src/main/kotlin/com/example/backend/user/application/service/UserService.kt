@@ -50,7 +50,7 @@ class UserService(
     }
 
     @Transactional
-    override fun lockActive(userIds: List<Long>): Set<Long> = userPersistencePort.lockActive(userIds)
+    override fun lockActiveShared(userIds: List<Long>): Set<Long> = userPersistencePort.lockActiveShared(userIds)
 
     override fun getProfiles(
         userIds: List<Long>,
