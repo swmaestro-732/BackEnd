@@ -36,7 +36,7 @@ class KakaoCategoryMapperTest {
 
     @Test
     fun `접두는 단계 단위로 비교한다`() {
-        assertEquals(PlaceCategory.WELLNESS, KakaoCategoryMapper.toPlaceCategory("여행 > 공원시설물", null))
+        assertEquals(PlaceCategory.ETC, KakaoCategoryMapper.toPlaceCategory("여행 > 공원시설물", null))
     }
 
     @ParameterizedTest
@@ -47,7 +47,7 @@ class KakaoCategoryMapperTest {
         "AT4, LANDMARK",
         "MT1, SHOPPING",
         "CS2, SHOPPING",
-        "HP8, WELLNESS",
+        "HP8, ETC",
     )
     fun `category_name 매칭이 없으면 그룹 코드로 매핑한다`(
         groupCode: String,
@@ -57,7 +57,7 @@ class KakaoCategoryMapperTest {
     }
 
     @Test
-    fun `분류 정보가 없으면 WELLNESS 로 둔다`() {
-        assertEquals(PlaceCategory.WELLNESS, KakaoCategoryMapper.toPlaceCategory("", null))
+    fun `분류 정보가 없으면 ETC 로 둔다`() {
+        assertEquals(PlaceCategory.ETC, KakaoCategoryMapper.toPlaceCategory("", null))
     }
 }
