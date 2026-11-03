@@ -5,7 +5,7 @@ import com.example.backend.place.domain.model.PlaceCategory
 /**
  * 카카오 분류 → 내부 [PlaceCategory] 매핑.
  * `category_name`(대 > 중 > 소분류)을 단계 단위 접두로 매칭하고(가장 긴 접두 우선), 매칭이 없으면 `category_group_code` 로,
- * 그것도 없으면 코스와 무관한 장소로 보고 [PlaceCategory.WELLNESS] 로 둔다.
+ * 그것도 없으면 [PlaceCategory.ETC] 로 둔다.
  */
 object KakaoCategoryMapper {
     private val RULES: List<Pair<List<String>, PlaceCategory>> =
@@ -66,6 +66,7 @@ object KakaoCategoryMapper {
         groupCode: String?,
     ): PlaceCategory {
         val nameSegments = categoryName?.let(::segments).orEmpty()
+        // RULES 는 긴 접두 순 정렬이라 첫 매칭이 가장 구체적인 규칙이다(예: "음식점 > 카페" 가 "음식점" 보다 먼저).
         return RULES.firstOrNull { (prefix, _) -> nameSegments.take(prefix.size) == prefix }?.second
             ?: when (groupCode) {
                 "CE7" -> PlaceCategory.CAFE
@@ -73,7 +74,7 @@ object KakaoCategoryMapper {
                 "CT1" -> PlaceCategory.CULTURE
                 "AT4" -> PlaceCategory.LANDMARK
                 "MT1", "CS2" -> PlaceCategory.SHOPPING
-                else -> PlaceCategory.WELLNESS
+                else -> PlaceCategory.ETC
             }
     }
 
