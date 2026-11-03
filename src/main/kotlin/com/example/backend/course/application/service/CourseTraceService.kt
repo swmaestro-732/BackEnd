@@ -97,6 +97,11 @@ class CourseTraceService(
         )
     }
 
+    override fun findLatestInProgress(userId: Long): CourseTraceSummary? =
+        list(CourseTracesQuery(userId = userId, status = CourseTraceStatus.IN_PROGRESS, cursor = null, size = 1))
+            .traces
+            .firstOrNull()
+
     @Transactional
     override fun checkIn(command: CheckInPlaceCommand) {
         val trace = ownedInProgress(command.userId, command.traceId)

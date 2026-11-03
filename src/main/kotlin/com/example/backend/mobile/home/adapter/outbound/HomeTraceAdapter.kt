@@ -2,8 +2,6 @@ package com.example.backend.mobile.home.adapter.outbound
 
 import com.example.backend.course.application.port.inbound.CourseQueryUseCase
 import com.example.backend.course.application.port.inbound.CourseTraceUseCase
-import com.example.backend.course.application.port.inbound.dto.CourseTracesQuery
-import com.example.backend.course.domain.model.CourseTraceStatus
 import com.example.backend.mobile.home.application.port.outbound.HomeTracePort
 import com.example.backend.mobile.home.application.port.outbound.dto.HomeTracingCourse
 import org.springframework.stereotype.Component
@@ -18,12 +16,7 @@ class HomeTraceAdapter(
     private val courseQueryUseCase: CourseQueryUseCase,
 ) : HomeTracePort {
     override fun findLatestInProgress(userId: Long): HomeTracingCourse? {
-        val trace =
-            courseTraceUseCase
-                .list(
-                    CourseTracesQuery(userId = userId, status = CourseTraceStatus.IN_PROGRESS, cursor = null, size = 1),
-                ).traces
-                .firstOrNull() ?: return null
+        val trace = courseTraceUseCase.findLatestInProgress(userId) ?: return null
         val course = courseQueryUseCase.getDetails(listOf(trace.courseId), userId).firstOrNull() ?: return null
         return HomeTracingCourse(
             traceId = trace.id,
