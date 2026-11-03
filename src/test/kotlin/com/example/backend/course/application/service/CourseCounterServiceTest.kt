@@ -6,10 +6,11 @@ import org.junit.jupiter.api.Test
 import org.mockito.Mockito.mock
 import org.mockito.Mockito.verify
 import org.mockito.Mockito.`when`
+import org.springframework.context.ApplicationEventPublisher
 
 class CourseCounterServiceTest {
     private val persistence = mock(CoursePersistencePort::class.java)
-    private val service = CourseCounterService(persistence)
+    private val service = CourseCounterService(persistence, mock(ApplicationEventPublisher::class.java))
 
     @Test
     fun `저장 수 증가 결과를 반환한다`() {

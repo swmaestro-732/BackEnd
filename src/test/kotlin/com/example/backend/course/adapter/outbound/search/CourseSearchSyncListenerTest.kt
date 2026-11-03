@@ -35,6 +35,11 @@ class CourseSearchSyncListenerTest {
             override fun deleteByAuthor(authorId: Long) {
                 deletedAuthorIds += authorId
             }
+
+            override fun adjustSavesCount(
+                courseId: Long,
+                delta: Int,
+            ) = Unit
         }
 
     private val listener = CourseSearchSyncListener(port)
