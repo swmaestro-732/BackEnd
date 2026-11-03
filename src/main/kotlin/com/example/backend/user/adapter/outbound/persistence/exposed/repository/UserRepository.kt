@@ -113,6 +113,7 @@ class UserRepository(
                     id = it.id.value,
                     nickname = it.nickname,
                     profileImageUrl = it.profileImageUrl,
+                    handle = it.handle,
                 )
             }
 

@@ -13,5 +13,5 @@ class CommentAuthorAdapter(
     override fun findAuthors(userIds: Collection<Long>): Map<Long, CommentAuthor> =
         userSummaryUseCase
             .findSummaries(userIds)
-            .associate { it.id to CommentAuthor(it.id, it.nickname, it.profileImageUrl) }
+            .associate { it.id to CommentAuthor(it.id, it.nickname, it.profileImageUrl, it.handle) }
 }
