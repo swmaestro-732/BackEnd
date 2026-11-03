@@ -13,6 +13,7 @@ enum class CommonErrorCode(
     INVALID_REFRESH_TOKEN(401, 4012, "유효하지 않은 리프레시 토큰입니다."),
     ACCOUNT_SUSPENDED(403, 4030, "정지된 계정입니다."),
     ACCOUNT_INACTIVE(403, 4031, "이용할 수 없는 계정입니다."),
+    ADMIN_FORBIDDEN(403, 4032, "관리자 계정이 아닙니다."),
     NOT_FOUND(404, 4040, "요청한 리소스를 찾을 수 없습니다."),
     METHOD_NOT_ALLOWED(405, 4050, "허용되지 않은 HTTP 메서드입니다."),
     SOCIAL_ACCOUNT_ALREADY_REGISTERED(409, 4090, "이미 가입된 소셜 계정입니다."),

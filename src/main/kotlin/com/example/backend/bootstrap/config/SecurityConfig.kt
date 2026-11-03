@@ -55,6 +55,19 @@ class SecurityConfig {
                                         resolved.token.getClaimAsString("purpose") == "access"
                                 ),
                         )
+                    }
+                    // 어드민 토큰(purpose=admin)은 앱 토큰과 별개다. 로그인만 공개하고 나머지는 어드민 토큰만 통과한다.
+                    // 앱 access token 은 여기서, 어드민 토큰은 위 앱 경로(purpose=access 검사)에서 각각 거부된다.
+                    // `/api/**` permitAll 보다 앞에 둬야 하고, 안 적으면 아래 anyRequest 에 걸려 앱 토큰도 통과한다.
+                    .requestMatchers("/admin/v1/auth/login")
+                    .permitAll()
+                    .requestMatchers("/admin/v1/**")
+                    .access { authentication, _ ->
+                        val resolved = authentication.get()
+                        AuthorizationDecision(
+                            resolved is JwtAuthenticationToken &&
+                                resolved.token.getClaimAsString("purpose") == "admin",
+                        )
                     }.requestMatchers(
                         "/actuator/health",
                         "/actuator/health/liveness",
