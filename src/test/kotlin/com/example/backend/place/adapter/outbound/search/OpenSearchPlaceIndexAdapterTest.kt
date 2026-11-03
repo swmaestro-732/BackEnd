@@ -32,6 +32,8 @@ class OpenSearchPlaceIndexAdapterTest {
             name = "테스트 장소",
             description = null,
             category = PlaceCategory.CAFE,
+            categoryDetail = "카페",
+            kakaoCategoryName = "음식점 > 카페 > 커피전문점",
             location = Coordinate(latitude = 37.5445, longitude = 127.0578),
             address = "서울 성동구 테스트로 1",
             areaCode = null,
@@ -126,6 +128,27 @@ class OpenSearchPlaceIndexAdapterTest {
         assertThat(capturedRequest!!.operations()[0].index<Any>()!!.index()).isEqualTo("place")
         // alias 가 없으면 같은 이름 인덱스를 자동 생성하지 않고 실패하도록 alias 필수로 보낸다
         assertThat(capturedRequest!!.requireAlias()).isTrue()
+    }
+
+    @Test
+    fun `색인 문서에 상세 분류와 카카오 분류 원문을 싣는다`() {
+        val client = mock(OpenSearchClient::class.java)
+        org.mockito.Mockito
+            .`when`(clientProvider.ifAvailable)
+            .thenReturn(client)
+        var capturedRequest: BulkRequest? = null
+        doAnswer { inv ->
+            @Suppress("UNCHECKED_CAST")
+            val fn = inv.arguments[0] as java.util.function.Function<BulkRequest.Builder, ObjectBuilder<BulkRequest>>
+            capturedRequest = fn.apply(BulkRequest.Builder()).build()
+            null
+        }.`when`(client).bulk(anyArg<java.util.function.Function<BulkRequest.Builder, ObjectBuilder<BulkRequest>>>())
+
+        adapter.save(listOf(placeWithId(1L)))
+
+        val document = capturedRequest!!.operations()[0].index<Any>()!!.document() as PlaceDocument
+        assertThat(document.categoryDetail).isEqualTo("카페")
+        assertThat(document.kakaoCategoryName).isEqualTo("음식점 > 카페 > 커피전문점")
     }
 
     @Test

@@ -8,6 +8,7 @@ import com.example.backend.place.domain.model.PlaceCategory
 import com.example.backend.place.domain.model.PlaceStatus
 import com.example.backend.support.IntegrationTestBase
 import com.example.backend.support.NoriOpenSearchContainer
+import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import org.opensearch.client.opensearch.OpenSearchClient
@@ -180,6 +181,48 @@ class OpenSearchIndexIntegrationTest
                     Map::class.java,
                 )
             assertTrue(result.hits().hits().isNotEmpty()) { "색인한 place 를 '카페'로 찾지 못함" }
+        }
+
+        @Test
+        fun `place 상세 분류는 keyword 로 검색되고 카카오 분류 원문은 문서에 담긴다`() {
+            val place =
+                Place.reconstitute(
+                    id = 1003L,
+                    status = PlaceStatus.ACTIVE,
+                    name = "국립수목원",
+                    description = null,
+                    category = PlaceCategory.NATURE,
+                    categoryDetail = "수목원,식물원",
+                    kakaoCategoryName = "여행 > 관광,명소 > 수목원,식물원",
+                    location = Coordinate(latitude = 37.75, longitude = 127.16),
+                    address = "경기 포천시 소흘읍",
+                    areaCode = null,
+                    imageUrl = null,
+                    businessStatus = PlaceBusinessStatus.UNKNOWN,
+                    kakaoPlaceId = null,
+                    createdAt = null,
+                    updatedAt = null,
+                    deletedAt = null,
+                )
+            placeSearchIndexPort.save(listOf(place))
+            client.indices().refresh { it.index("place") }
+
+            val result =
+                client.search(
+                    { s ->
+                        s.index("place").query { q ->
+                            q.term { t -> t.field("categoryDetail").value { v -> v.stringValue("수목원,식물원") } }
+                        }
+                    },
+                    Map::class.java,
+                )
+            val source =
+                result
+                    .hits()
+                    .hits()
+                    .single()
+                    .source()!!
+            assertEquals("여행 > 관광,명소 > 수목원,식물원", source["kakaoCategoryName"])
         }
 
         @Test

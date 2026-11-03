@@ -26,6 +26,8 @@
       },
       "description": { "type": "text", "analyzer": "korean" },
       "category": { "type": "keyword" },
+      "categoryDetail": { "type": "keyword" },
+      "kakaoCategoryName": { "type": "keyword", "index": false },
       "address": {
         "type": "text",
         "analyzer": "korean",
