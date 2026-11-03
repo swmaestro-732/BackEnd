@@ -2,6 +2,7 @@ package com.example.backend.mobile.home.adapter.inbound.web.v1
 
 import com.example.backend.bootstrap.appversion.AppFeature
 import com.example.backend.bootstrap.appversion.RequiresAppFeature
+import com.example.backend.bootstrap.security.CurrentUserId
 import com.example.backend.common.response.ApiResponse
 import com.example.backend.mobile.home.adapter.inbound.web.v1.response.HomeFeedResponse
 import com.example.backend.mobile.home.application.port.inbound.HomeFeedUseCase
@@ -31,6 +32,7 @@ class HomeFeedController(
 ) {
     @GetMapping("/home")
     fun getHomeFeed(
+        @CurrentUserId viewerId: Long?,
         @RequestParam(required = false) cursor: String?,
         @RequestParam(required = false)
         @Min(1, message = "1 이상이어야 합니다")
@@ -40,6 +42,6 @@ class HomeFeedController(
     ): ApiResponse<HomeFeedResponse> {
         if (mock) return ApiResponse.success(HomeFeedResponse.MOCK)
 
-        return ApiResponse.success(HomeFeedResponse.from(homeFeedUseCase.getFeed(cursor, size)))
+        return ApiResponse.success(HomeFeedResponse.from(homeFeedUseCase.getFeed(viewerId, cursor, size)))
     }
 }

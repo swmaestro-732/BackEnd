@@ -6,7 +6,7 @@ import com.example.backend.mobile.home.application.port.inbound.dto.HomeResult
 
 /**
  * 홈 화면 조합 (BFF). 헤더 프로필(user) + 추천 코스(course) + 근처 저장 장소(user, place)를 한 화면으로 묶고,
- * 추천 코스 "전체보기"용 공개 코스 피드(저장수 내림차순, 최신순)를 커서 페이지로 내려준다. 비로그인도 조회 가능하다.
+ * 추천 코스 "전체보기"를 커서 페이지로 내려준다. 추천은 로그인 사용자의 관심 테마·지역으로 개인화되며 비로그인도 조회 가능하다.
  */
 interface HomeFeedUseCase {
     /**
@@ -18,8 +18,9 @@ interface HomeFeedUseCase {
         userLocation: Coordinate?,
     ): HomeResult
 
-    /** 저장수 내림차순·최신순으로 랭킹한 공개 코스 피드를 [cursor] 이후부터 [size] 개 내려준다. [category]가 있으면 그 카테고리만. */
+    /** 추천 점수순(최신성 + 관심 테마·지역 일치 + 저장수) 코스를 [cursor] 이후부터 [size] 개 내려준다. [category]가 있으면 그 카테고리만. */
     fun getFeed(
+        viewerId: Long?,
         cursor: String?,
         size: Int,
         category: String? = null,
