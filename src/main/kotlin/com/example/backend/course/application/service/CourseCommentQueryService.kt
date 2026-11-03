@@ -35,6 +35,7 @@ class CourseCommentQueryService(
                         authorId = it.authorId,
                         authorNickname = authors[it.authorId]?.nickname ?: UNKNOWN_AUTHOR_NICKNAME,
                         authorProfileImageUrl = authors[it.authorId]?.profileImageUrl,
+                        authorHandle = authors[it.authorId]?.handle,
                         content = it.content,
                         createdAt = it.createdAt,
                         updatedAt = it.updatedAt,

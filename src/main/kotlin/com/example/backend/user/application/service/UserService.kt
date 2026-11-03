@@ -5,7 +5,7 @@ import com.example.backend.common.response.UserErrorCode
 import com.example.backend.user.application.port.inbound.UserUseCase
 import com.example.backend.user.application.port.inbound.dto.UserProfileResult
 import com.example.backend.user.application.port.outbound.CourseCleanupPort
-import com.example.backend.user.application.port.outbound.DeviceTokenPersistencePort
+import com.example.backend.user.application.port.outbound.DevicePersistencePort
 import com.example.backend.user.application.port.outbound.FollowPersistencePort
 import com.example.backend.user.application.port.outbound.RefreshTokenPort
 import com.example.backend.user.application.port.outbound.SavedCoursePersistencePort
@@ -31,7 +31,7 @@ class UserService(
     private val userAreaPersistencePort: UserAreaPersistencePort,
     private val userLikeThemePort: UserLikeThemePort,
     private val courseCleanupPort: CourseCleanupPort,
-    private val deviceTokenPersistencePort: DeviceTokenPersistencePort,
+    private val devicePersistencePort: DevicePersistencePort,
 ) : UserUseCase {
     override fun getProfile(
         userId: Long,
@@ -122,8 +122,8 @@ class UserService(
         courseCleanupPort.purgeTracesByUser(userId)
         // 2) 팔로우: 양방향 삭제 + 상대 카운터 보정.
         followPersistencePort.purgeFollowsOf(userId)
-        // 2-1) 기기 토큰(FCM): 이 사용자의 기기를 모두 지운다.
-        deviceTokenPersistencePort.deleteAllByUser(userId)
+        // 2-1) 기기: 이 사용자와의 연결만 끊는다. 토큰과 광고 동의는 기기 단위라 남는다.
+        devicePersistencePort.unlinkAllByUser(userId)
         // 3) 관심 지역·테마: 빈 목록으로 전체 치환(=전부 삭제).
         userAreaPersistencePort.replaceAreas(userId, emptyList())
         userLikeThemePort.replaceLikeThemes(userId, emptyList())
