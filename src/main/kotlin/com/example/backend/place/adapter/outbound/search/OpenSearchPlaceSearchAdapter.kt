@@ -33,7 +33,7 @@ import org.springframework.stereotype.Component
  *
  * [OpenSearchClient] 가 없거나(=opensearch.endpoint 미주입) 검색이 실패하면 `PLACE_SEARCH_UNAVAILABLE`(503)로
  * 실패시킨다 — DB 폴백은 두지 않는다. alias `place`(환경 prefix 적용)를 조회한다. 목록 검색은 id 만 필요하므로 _source 를
- * 내리지 않고, 지도 검색은 마커 본문([PlaceDocument])을 _source 로 받아 DB 재조회 없이 그대로 쓴다.
+ * 내리지 않고, 지도 검색은 마커 필드([PlaceMapSource])만 _source 로 받아 DB 재조회 없이 그대로 쓴다.
  *
  * 정렬: 텍스트 토큰이 있으면 관련도(_score) 내림차순 + _doc 타이브레이크, 필터-only 브라우즈면 _doc.
  * (_id 정렬은 fielddata 요구로 피한다. _doc 은 페이지 간 순서 결정성만 보장하는 근사 — 최신순 정렬은
@@ -134,6 +134,7 @@ class OpenSearchPlaceSearchAdapter(
                         .index(indexAlias)
                         .size(criteria.size)
                         .trackTotalHits { it.enabled(true) }
+                        .source { it.filter { f -> f.includes(MAP_SOURCE_FIELDS) } }
                         .query { q -> q.bool { b -> buildBool(b, criteria) } }
                         .sort(sortOptions)
                         .aggregations("grid") { a ->
@@ -147,10 +148,15 @@ class OpenSearchPlaceSearchAdapter(
                                 }.aggregations("center") { it.geoCentroid { c -> c.field("location") } }
                                 .aggregations("sample") {
                                     // 단일 셀 마커의 정렬값(거리 m·점수)과 본문을 엔진에서 받아 셀 순서·마커를 만든다.
-                                    it.topHits { t -> t.size(1).sort(sortOptions) }
+                                    it.topHits { t ->
+                                        t
+                                            .size(1)
+                                            .sort(sortOptions)
+                                            .source { s -> s.filter { f -> f.includes(MAP_SOURCE_FIELDS) } }
+                                    }
                                 }
                         }.build(),
-                    PlaceDocument::class.java,
+                    PlaceMapSource::class.java,
                 )
             check(!response.timedOut() && response.shards().failed() == 0) { "지도 검색이 일부만 완료되었습니다." }
             val total = response.hits().total()!!.value()
@@ -180,7 +186,7 @@ class OpenSearchPlaceSearchAdapter(
                             count = bucket.docCount(),
                             single =
                                 if (bucket.docCount() == 1L) {
-                                    mapHit(sample.id()!!, sample.source()!!.to(PlaceDocument::class.java))
+                                    mapHit(sample.id()!!, sample.source()!!.to(PlaceMapSource::class.java))
                                 } else {
                                     null
                                 },
@@ -197,7 +203,7 @@ class OpenSearchPlaceSearchAdapter(
 
     private fun mapHit(
         id: String,
-        document: PlaceDocument,
+        document: PlaceMapSource,
     ): PlaceMapHit =
         PlaceMapHit(
             id = id.toLong(),
@@ -307,5 +313,6 @@ class OpenSearchPlaceSearchAdapter(
 
     private companion object {
         const val STATUS_ACTIVE = "ACTIVE"
+        val MAP_SOURCE_FIELDS = listOf("name", "category", "location")
     }
 }

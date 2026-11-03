@@ -148,7 +148,7 @@ class OpenSearchPlaceSearchAdapterTest {
         assertThat(hits.buckets.last().center).isEqualTo(Coordinate(37.3, 127.3))
         val request = capturedRequest()
         assertThat(request.index()).containsExactly("dev-place")
-        assertThat(request.source()).isNull()
+        assertThat(request.source()!!.filter().includes()).containsExactly("name", "category", "location")
         assertThat(
             request
                 .query()!!
@@ -161,6 +161,14 @@ class OpenSearchPlaceSearchAdapterTest {
         assertThat(grid.geohashGrid().precision()!!.geohashLength()).isEqualTo(6)
         assertThat(grid.aggregations().keys).containsExactlyInAnyOrder("center", "sample")
         assertThat(grid.aggregations()["sample"]!!.topHits().sort()).hasSize(2)
+        assertThat(
+            grid
+                .aggregations()["sample"]!!
+                .topHits()
+                .source()!!
+                .filter()
+                .includes(),
+        ).containsExactly("name", "category", "location")
     }
 
     @Test
@@ -234,8 +242,8 @@ class OpenSearchPlaceSearchAdapterTest {
         `when`(client.search(any(SearchRequest::class.java), eq(Void::class.java))).thenReturn(response)
     }
 
-    private fun stubMap(response: SearchResponse<PlaceDocument>) {
-        `when`(client.search(any(SearchRequest::class.java), eq(PlaceDocument::class.java))).thenReturn(response)
+    private fun stubMap(response: SearchResponse<PlaceMapSource>) {
+        `when`(client.search(any(SearchRequest::class.java), eq(PlaceMapSource::class.java))).thenReturn(response)
     }
 
     private fun capturedRequest(): SearchRequest {
@@ -287,24 +295,20 @@ class OpenSearchPlaceSearchAdapterTest {
     private fun mapHit(
         id: String,
         sortValue: String,
-    ): Hit<PlaceDocument> =
+    ): Hit<PlaceMapSource> =
         Hit
-            .Builder<PlaceDocument>()
+            .Builder<PlaceMapSource>()
             .index("place")
             .id(id)
             .sort(listOf(sortValue, "0"))
             .source(document(id))
             .build()
 
-    private fun document(id: String): PlaceDocument =
-        PlaceDocument(
+    private fun document(id: String): PlaceMapSource =
+        PlaceMapSource(
             name = "장소 $id",
-            description = null,
             category = "CAFE",
-            address = "서울",
-            areaCode = null,
             location = GeoLocation(lat = 37.0 + id.toInt() / 100.0, lon = 127.0 + id.toInt() / 100.0),
-            status = "ACTIVE",
         )
 
     private fun bucket(
