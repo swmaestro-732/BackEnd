@@ -5,12 +5,15 @@ import com.example.backend.notification.adapter.outbound.persistence.exposed.Not
 import com.example.backend.notification.application.port.inbound.dto.NotificationSummary
 import com.example.backend.notification.domain.model.NotificationBundle
 import com.example.backend.notification.domain.model.NotificationType
+import org.jetbrains.exposed.v1.core.JoinType
 import org.jetbrains.exposed.v1.core.SortOrder
 import org.jetbrains.exposed.v1.core.and
+import org.jetbrains.exposed.v1.core.count
 import org.jetbrains.exposed.v1.core.eq
 import org.jetbrains.exposed.v1.core.inList
 import org.jetbrains.exposed.v1.core.isNull
 import org.jetbrains.exposed.v1.core.less
+import org.jetbrains.exposed.v1.core.max
 import org.jetbrains.exposed.v1.core.or
 import org.jetbrains.exposed.v1.core.plus
 import org.jetbrains.exposed.v1.datetime.CurrentTimestamp
@@ -133,7 +136,9 @@ class NotificationRepository {
 
     /**
      * 받은 알림과 닉네임 스냅샷을 남긴 묶음(마지막 행동자가 [userId] 이고 행동자를 보이는 종류)을 지운다.
-     * 좋아요 묶음은 인원 수만 보이므로 남기고, 남는 묶음에서 [userId] 의 행동자 행만 지운다(인원 수는 줄이지 않는다).
+     * 남는 묶음(좋아요 등)에서는 [userId] 의 행동자 행을 지우고 인원을 남은 사람 수로 맞추며, 마지막 행동자가
+     * [userId] 였으면 남은 행동자 중 id 가 가장 큰 사람으로 바꿔 탈퇴자 id 가 남의 알림함에 남지 않게 한다.
+     * 남은 행동자가 없으면 묶음을 지운다.
      */
     fun deleteAllInvolving(userId: Long) {
         NotificationTable.deleteWhere {
@@ -143,7 +148,33 @@ class NotificationRepository {
                         (NotificationTable.type inList NotificationType.entries.filter { it.showsActor })
                 )
         }
+        // 묶음 id 와 현재 마지막 행동자.
+        val affected =
+            NotificationActorTable
+                .join(NotificationTable, JoinType.INNER, NotificationActorTable.notificationId, NotificationTable.id)
+                .select(NotificationTable.id, NotificationTable.lastActorId)
+                .where { NotificationActorTable.actorId eq userId }
+                .associate { it[NotificationTable.id].value to it[NotificationTable.lastActorId] }
         NotificationActorTable.deleteWhere { NotificationActorTable.actorId eq userId }
+        if (affected.isEmpty()) return
+        val actorCount = NotificationActorTable.actorId.count()
+        val maxActorId = NotificationActorTable.actorId.max()
+        val remaining =
+            NotificationActorTable
+                .select(NotificationActorTable.notificationId, actorCount, maxActorId)
+                .where { NotificationActorTable.notificationId inList affected.keys }
+                .groupBy(NotificationActorTable.notificationId)
+                .associate { it[NotificationActorTable.notificationId] to (it[actorCount].toInt() to it[maxActorId]!!) }
+        val emptied = affected.keys - remaining.keys
+        if (emptied.isNotEmpty()) NotificationTable.deleteWhere { NotificationTable.id inList emptied }
+        // 묶음마다 UPDATE 한 번이지만 탈퇴 때 한 번뿐이라 둔다. 느려지면 집계 서브쿼리 UPDATE 한 문장으로 바꾼다.
+        remaining.forEach { (id, counted) ->
+            val (count, latestActorId) = counted
+            NotificationTable.update({ NotificationTable.id eq id }) {
+                it[NotificationTable.actorCount] = count
+                if (affected[id] == userId) it[lastActorId] = latestActorId
+            }
+        }
     }
 
     fun deleteCreatedBefore(cutoff: kotlin.time.Instant): Int =

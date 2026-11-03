@@ -5,6 +5,6 @@ package com.example.backend.user.application.port.outbound
  * user 애플리케이션이 notification 을 직접 알지 않게 하는 경계([CourseCleanupPort] 와 같은 방식).
  */
 interface NotificationCleanupPort {
-    /** 탈퇴자가 받은 알림, 탈퇴자가 마지막 행위자인 알림, 수신 설정을 지운다. */
+    /** 탈퇴자가 받은 알림, 탈퇴자 닉네임 스냅샷이 남은 알림, 수신 설정을 지우고 남는 묶음에서 탈퇴자를 뺀다. */
     fun purgeByUser(userId: Long)
 }
