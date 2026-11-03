@@ -19,4 +19,5 @@ enum class SavedPlaceCategory {
     LANDMARK,
     ENTERTAINMENT,
     WELLNESS,
+    ETC,
 }
