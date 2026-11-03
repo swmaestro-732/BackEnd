@@ -37,6 +37,7 @@ class SavedPlaceSearchSyncListener(
                 imageUrl = event.imageUrl,
                 rating = event.rating,
                 ratingCount = event.ratingCount,
+                categoryDetail = event.categoryDetail,
             )
         try {
             port.index(document) // 동기 우선

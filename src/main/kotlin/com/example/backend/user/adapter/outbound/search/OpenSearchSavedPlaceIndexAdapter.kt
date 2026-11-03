@@ -59,6 +59,7 @@ class OpenSearchSavedPlaceIndexAdapter(
                                             "imageUrl" to document.imageUrl,
                                             "rating" to document.rating,
                                             "ratingCount" to document.ratingCount,
+                                            "categoryDetail" to document.categoryDetail,
                                         ),
                                     )
                                 }.build()

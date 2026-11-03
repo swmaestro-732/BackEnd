@@ -15,4 +15,5 @@ data class SavedPlaceIndexedEvent(
     val imageUrl: String?,
     val rating: Double,
     val ratingCount: Int,
+    val categoryDetail: String? = null,
 )
