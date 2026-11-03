@@ -14,6 +14,7 @@ import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc
 import org.springframework.http.HttpHeaders
 import org.springframework.http.MediaType
+import org.springframework.jdbc.core.JdbcTemplate
 import org.springframework.test.context.bean.override.mockito.MockitoBean
 import org.springframework.test.context.jdbc.Sql
 import org.springframework.test.web.servlet.MockMvc
@@ -38,6 +39,7 @@ class AdminAuthControllerTest
         private val mockMvc: MockMvc,
         private val adminTokenPort: AdminTokenPort,
         private val jwtTokenProvider: JwtTokenProvider,
+        private val jdbcTemplate: JdbcTemplate,
     ) : IntegrationTestBase() {
         @MockitoBean
         private lateinit var adminIdentityPort: AdminIdentityPort
@@ -88,6 +90,24 @@ class AdminAuthControllerTest
             mockMvc
                 .perform(get("/admin/v1/me"))
                 .andExpect(status().isUnauthorized)
+        }
+
+        @Test
+        fun `admins 에 남아 있는 어드민의 토큰은 어드민 경로를 통과한다`() {
+            mockMvc
+                .perform(get("/admin/v1/me").header(HttpHeaders.AUTHORIZATION, "Bearer ${adminToken()}"))
+                .andExpect(status().isOk)
+                .andExpect(jsonPath("$.data.email").value("admin@example.com"))
+        }
+
+        @Test
+        fun `admins 에서 삭제된 어드민은 만료 전 토큰이어도 즉시 403 이다`() {
+            val token = adminToken()
+            jdbcTemplate.update("DELETE FROM admins WHERE email = ?", "admin@example.com")
+
+            mockMvc
+                .perform(get("/admin/v1/me").header(HttpHeaders.AUTHORIZATION, "Bearer $token"))
+                .andExpect(status().isForbidden)
         }
 
         @Test

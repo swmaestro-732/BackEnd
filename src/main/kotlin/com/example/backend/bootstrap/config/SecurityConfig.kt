@@ -1,5 +1,6 @@
 package com.example.backend.bootstrap.config
 
+import com.example.backend.admin.application.port.inbound.AdminAccessUseCase
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
 import org.springframework.security.authentication.AnonymousAuthenticationToken
@@ -21,7 +22,10 @@ import org.springframework.security.web.SecurityFilterChain
 @EnableMethodSecurity
 class SecurityConfig {
     @Bean
-    fun filterChain(http: HttpSecurity): SecurityFilterChain {
+    fun filterChain(
+        http: HttpSecurity,
+        adminAccessUseCase: AdminAccessUseCase,
+    ): SecurityFilterChain {
         http
             .csrf { it.disable() } // 토큰 기반 무상태 API
             .httpBasic { it.disable() }
@@ -62,11 +66,13 @@ class SecurityConfig {
                     .requestMatchers("/admin/v1/auth/login")
                     .permitAll()
                     .requestMatchers("/admin/v1/**")
+                    // 토큰 서명만 믿지 않고 매 요청 admins 를 다시 조회한다. 행을 지우면 남은 토큰도 즉시 403 이 된다.
                     .access { authentication, _ ->
                         val resolved = authentication.get()
                         AuthorizationDecision(
                             resolved is JwtAuthenticationToken &&
-                                resolved.token.getClaimAsString("purpose") == "admin",
+                                resolved.token.getClaimAsString("purpose") == "admin" &&
+                                resolved.token.subject?.let(adminAccessUseCase::isAdmin) == true,
                         )
                     }.requestMatchers(
                         "/actuator/health",

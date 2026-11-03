@@ -17,7 +17,7 @@ import org.springframework.web.bind.annotation.RestController
 /**
  * 인바운드 어댑터: 어드민 인증.
  *
- * 로그인은 공개이고, 그 밖의 어드민 경로는 purpose=admin 토큰만 통과한다(SecurityConfig).
+ * 로그인은 공개이고, 그 밖의 어드민 경로는 purpose=admin 토큰이면서 지금도 admins 에 있는 계정만 통과한다(SecurityConfig).
  */
 @RestController
 @RequestMapping("/admin/v1")

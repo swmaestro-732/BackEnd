@@ -5,7 +5,7 @@ import com.example.backend.admin.application.port.outbound.AdminPersistencePort
 import com.example.backend.admin.application.port.outbound.AdminTokenPort
 import com.example.backend.admin.application.port.outbound.IssuedAdminToken
 import com.example.backend.common.exception.BusinessException
-import com.example.backend.common.response.CommonErrorCode
+import com.example.backend.common.response.AdminErrorCode
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertTrue
@@ -58,7 +58,7 @@ class AdminAuthServiceTest {
 
         val exception = assertThrows<BusinessException> { service.login("google-id-token") }
 
-        assertEquals(CommonErrorCode.ADMIN_FORBIDDEN, exception.errorCode)
+        assertEquals(AdminErrorCode.ADMIN_FORBIDDEN, exception.errorCode)
         assertTrue(issuedFor.isEmpty())
     }
 
@@ -71,6 +71,13 @@ class AdminAuthServiceTest {
         assertEquals(listOf(ADMIN_EMAIL), checkedEmails)
         assertEquals(listOf(ADMIN_EMAIL), issuedFor)
         assertEquals(ADMIN_EMAIL, result.email)
+    }
+
+    @Test
+    fun `요청별 어드민 확인은 이메일을 소문자로 바꿔 admins 를 조회한다`() {
+        assertTrue(service.isAdmin("Admin@Example.COM"))
+        assertFalse(service.isAdmin("someone@example.com"))
+        assertEquals(listOf(ADMIN_EMAIL, "someone@example.com"), checkedEmails)
     }
 
     private companion object {
