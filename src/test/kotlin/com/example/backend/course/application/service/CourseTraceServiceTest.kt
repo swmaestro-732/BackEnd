@@ -27,6 +27,7 @@ import java.time.Instant
 /**
  * [CourseTraceService] 단위 테스트 — 포트를 목으로 대체해 서비스 규칙만 검증한다.
  * - findRoute: 출발·도착 장소 검증(같으면 400, 없으면 404), 조회 순서 보정, 도보 경로 → 결과 DTO 변환, 도보 불가(null) 전파.
+ * - findLatestInProgress: 진행 중 1건 조회.
  * - list: 커서 디코딩 → beforeId 전달, size+1 조회로 hasNext 판정·페이지 절단·nextCursor 생성, 행 → Summary 변환.
  */
 class CourseTraceServiceTest {
@@ -182,6 +183,18 @@ class CourseTraceServiceTest {
             ),
             summary,
         )
+    }
+
+    @Test
+    fun `최근 진행 중 — 진행 중 세션을 1건만 조회해 돌려주고 없으면 null 이다`() {
+        val row = completedRow(5L).copy(status = CourseTraceStatus.IN_PROGRESS, endedAt = null)
+        `when`(courseTracePersistencePort.findByUserAndStatus(1L, CourseTraceStatus.IN_PROGRESS, null, 2))
+            .thenReturn(listOf(row))
+        `when`(courseTracePersistencePort.findByUserAndStatus(2L, CourseTraceStatus.IN_PROGRESS, null, 2))
+            .thenReturn(emptyList())
+
+        assertEquals(5L, service.findLatestInProgress(1L)?.id)
+        assertNull(service.findLatestInProgress(2L))
     }
 
     @Test
