@@ -64,6 +64,8 @@ class PlaceSearchService(
                         name = ext.name,
                         description = null,
                         category = ext.category,
+                        categoryDetail = ext.categoryDetail,
+                        kakaoCategoryName = ext.kakaoCategoryName,
                         location = ext.coordinate,
                         address = address,
                         // 신규 저장 장소에만 좌표→법정동 변환을 호출한다(dedup 이후라 호출 수가 신규분으로 제한됨).
