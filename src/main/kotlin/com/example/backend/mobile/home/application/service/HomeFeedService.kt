@@ -7,6 +7,7 @@ import com.example.backend.mobile.home.application.port.inbound.dto.HomeResult
 import com.example.backend.mobile.home.application.port.outbound.HomeFeedPort
 import com.example.backend.mobile.home.application.port.outbound.HomeNearbyPlacePort
 import com.example.backend.mobile.home.application.port.outbound.HomeProfilePort
+import com.example.backend.mobile.home.application.port.outbound.HomeTracePort
 import com.example.backend.mobile.home.application.port.outbound.dto.HomeFeedCursor
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Propagation
@@ -14,7 +15,7 @@ import org.springframework.transaction.annotation.Transactional
 import kotlin.math.ceil
 
 /**
- * 홈 화면 조합 서비스 (BFF). 자신의 아웃바운드 포트([HomeFeedPort], [HomeProfilePort], [HomeNearbyPlacePort])만 호출해
+ * 홈 화면 조합 서비스 (BFF). 자신의 아웃바운드 포트([HomeFeedPort], [HomeProfilePort], [HomeNearbyPlacePort], [HomeTracePort])만 호출해
  * 한 화면 응답 재료를 만든다.
  * 타 도메인 인바운드에 직접 의존하지 않아 MSA 분리 시 어댑터만 교체하면 된다.
  *
@@ -28,6 +29,7 @@ class HomeFeedService(
     private val homeFeedPort: HomeFeedPort,
     private val homeProfilePort: HomeProfilePort,
     private val homeNearbyPlacePort: HomeNearbyPlacePort,
+    private val homeTracePort: HomeTracePort,
 ) : HomeFeedUseCase {
     /**
      * 바깥 트랜잭션 없이 조합한다 — OS 조회 동안 DB 트랜잭션을 잡아두지 않고,
@@ -40,6 +42,7 @@ class HomeFeedService(
     ): HomeResult =
         HomeResult(
             profile = viewerId?.let(homeProfilePort::findProfile),
+            tracingCourse = viewerId?.let(homeTracePort::findLatestInProgress),
             recommendedCourses = homeFeedPort.listPublicCandidates(null, HOME_SECTION_SIZE).courses,
             nearbySavedPlaces =
                 if (viewerId == null || userLocation == null) {

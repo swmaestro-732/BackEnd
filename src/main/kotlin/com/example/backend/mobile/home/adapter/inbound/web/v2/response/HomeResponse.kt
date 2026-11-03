@@ -2,22 +2,35 @@ package com.example.backend.mobile.home.adapter.inbound.web.v2.response
 
 import com.example.backend.mobile.home.application.port.inbound.dto.HomeResult
 import com.example.backend.mobile.home.application.port.outbound.dto.HomeFeedCourse
+import java.time.Instant
 import kotlin.math.roundToInt
 
 /**
  * 웹 응답 DTO — 홈 화면 조합(BFF). 프론트 화면 계약 형태.
- * 헤더 프로필([Profile], 비로그인이면 null), 추천 코스([Course], 피드 랭킹 상위 5개),
+ * 헤더 프로필([Profile], 비로그인이면 null), 따라가는 중 코스([TracingCourse], 없으면 null), 추천 코스([Course], 피드 랭킹 상위 5개),
  * 근처 저장 장소([NearbySavedPlace], 거리순 최대 5개)를 내려준다.
  * 목([MOCK]) 응답에만 고정 예시를 채워 프론트가 형태를 확인할 수 있게 한다.
  */
 data class HomeResponse(
     val profile: Profile?,
+    val tracingCourse: TracingCourse?,
     val recommendedCourses: List<Course>,
     val nearbySavedPlaces: List<NearbySavedPlace>,
 ) {
     data class Profile(
         val nickname: String,
         val profileImageUrl: String?,
+    )
+
+    /** 따라가는 중 코스 카드 — 가장 최근에 시작한 진행 중 세션 1건. 이어가기는 traceId 가 아니라 courseId 로 시작 API 를 다시 부른다. */
+    data class TracingCourse(
+        val traceId: Long,
+        val courseId: Long,
+        val title: String,
+        val coverImageUrl: String?,
+        val area: String?,
+        val placeCount: Int,
+        val startedAt: Instant,
     )
 
     /** 코스 카드 한 장 — 홈 추천 코스와 추천 코스 전체보기([RecommendedCoursesResponse])가 함께 쓴다. */
@@ -66,6 +79,18 @@ data class HomeResponse(
         fun from(result: HomeResult): HomeResponse =
             HomeResponse(
                 profile = result.profile?.let { Profile(nickname = it.nickname, profileImageUrl = it.profileImageUrl) },
+                tracingCourse =
+                    result.tracingCourse?.let {
+                        TracingCourse(
+                            traceId = it.traceId,
+                            courseId = it.courseId,
+                            title = it.title,
+                            coverImageUrl = it.coverImageUrl,
+                            area = it.area,
+                            placeCount = it.placeCount,
+                            startedAt = it.startedAt,
+                        )
+                    },
                 recommendedCourses = result.recommendedCourses.map(Course::from),
                 nearbySavedPlaces =
                     result.nearbySavedPlaces.map {
@@ -89,6 +114,16 @@ data class HomeResponse(
         val MOCK: HomeResponse =
             HomeResponse(
                 profile = Profile(nickname = "칠삼이", profileImageUrl = null),
+                tracingCourse =
+                    TracingCourse(
+                        traceId = 10,
+                        courseId = 3,
+                        title = "을지로 노포 골목 투어",
+                        coverImageUrl = image("photo-1498654896293-37aacf113fd9"),
+                        area = "을지로",
+                        placeCount = 5,
+                        startedAt = Instant.parse("2026-11-03T05:30:00Z"),
+                    ),
                 recommendedCourses =
                     listOf(
                         Course(

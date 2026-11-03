@@ -27,6 +27,7 @@ class HomeResponseTest {
             HomeResponse.from(
                 HomeResult(
                     profile = HomeProfile("칠삼이", null),
+                    tracingCourse = null,
                     recommendedCourses = emptyList(),
                     nearbySavedPlaces = listOf(HomeResult.NearbySavedPlace(place, walkingMinutes = 6)),
                 ),
