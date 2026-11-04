@@ -7,6 +7,9 @@ import com.example.backend.common.response.PlaceErrorCode
 import com.example.backend.course.application.port.inbound.CourseTraceUseCase
 import com.example.backend.course.application.port.inbound.dto.CheckInPlaceCommand
 import com.example.backend.course.application.port.inbound.dto.CompletedCourseTrace
+import com.example.backend.course.application.port.inbound.dto.CoursePlaceImageResult
+import com.example.backend.course.application.port.inbound.dto.CoursePlaceResult
+import com.example.backend.course.application.port.inbound.dto.CourseTraceDetailResult
 import com.example.backend.course.application.port.inbound.dto.CourseTraceResult
 import com.example.backend.course.application.port.inbound.dto.CourseTraceSummary
 import com.example.backend.course.application.port.inbound.dto.CourseTracesQuery
@@ -18,6 +21,7 @@ import com.example.backend.course.application.port.inbound.dto.TraceRouteResult
 import com.example.backend.course.application.port.inbound.dto.TraceWalkingRouteResult
 import com.example.backend.course.application.port.inbound.dto.TracedCourseSummary
 import com.example.backend.course.application.port.outbound.CoursePersistencePort
+import com.example.backend.course.application.port.outbound.CoursePlaceRow
 import com.example.backend.course.application.port.outbound.CourseTracePersistencePort
 import com.example.backend.course.application.port.outbound.CourseTraceRow
 import com.example.backend.course.application.port.outbound.PlaceLookupPort
@@ -96,8 +100,34 @@ class CourseTraceService(
         )
     }
 
-    override fun findInProgress(userId: Long): CourseTraceResult? =
-        courseTracePersistencePort.findInProgress(userId)?.toResult()
+    override fun findInProgress(userId: Long): CourseTraceDetailResult? =
+        courseTracePersistencePort.findInProgress(userId)?.let { toDetail(userId, it) }
+
+    override fun getDetail(
+        userId: Long,
+        traceId: Long,
+    ): CourseTraceDetailResult {
+        val trace = requireOwned(courseTracePersistencePort.readById(traceId), userId, traceId)
+        return toDetail(userId, trace)
+    }
+
+    private fun toDetail(
+        viewerId: Long,
+        trace: CourseTraceRow,
+    ) = CourseTraceDetailResult(
+        traceId = trace.id,
+        status = trace.status,
+        startedAt = trace.startedAt,
+        endedAt = trace.endedAt,
+        durationMinutes = trace.durationMinutes,
+        distanceMeters = trace.distanceMeters,
+        course =
+            findTracedCourses(viewerId, listOf(trace.courseId))[trace.courseId]
+                ?: TracedCourseSummary.deleted(trace.courseId),
+        // 코스 장소는 코스 삭제·비공개와 무관하게 내려준다 — 따라가던 화면을 그대로 이어 그리기 위해.
+        places = coursePersistencePort.findPlaces(trace.courseId).map { it.toResult() },
+        visitedPlaces = courseTracePersistencePort.findVisitedPlaces(trace.id),
+    )
 
     @Transactional
     override fun checkIn(command: CheckInPlaceCommand) {
@@ -217,6 +247,16 @@ class CourseTraceService(
             visitedPlaces = courseTracePersistencePort.findVisitedPlaces(id),
         )
 
+    private fun CoursePlaceRow.toResult() =
+        CoursePlaceResult(
+            id = id,
+            placeId = placeId,
+            orderNo = orderNo,
+            caption = caption,
+            walkingMinutesToNext = walkingMinutes,
+            images = images.map { CoursePlaceImageResult(it.imageUrl, it.orderNo) },
+        )
+
     private fun CourseTraceRow.toSummary() =
         CourseTraceSummary(
             id = id,
@@ -237,16 +277,32 @@ class CourseTraceService(
         }
     }
 
-    /** 내 세션이 아니면(없음 포함) 404 — 타인 세션의 존재를 드러내지 않는다. 진행 중이 아니면 409. */
+    /** 세션을 잠그고 읽어 검사한다 — 체크인·종료·포기가 같은 잠금으로 직렬화된다. */
     private fun ownedInProgress(
         userId: Long,
         traceId: Long,
+    ): CourseTraceRow = requireOwnedInProgress(courseTracePersistencePort.findById(traceId), userId, traceId)
+
+    /** 내 세션이 아니면(없음 포함) 404 — 타인 세션의 존재를 드러내지 않는다. */
+    private fun requireOwned(
+        trace: CourseTraceRow?,
+        userId: Long,
+        traceId: Long,
     ): CourseTraceRow {
-        val trace = courseTracePersistencePort.findById(traceId)
         if (trace == null || trace.userId != userId) {
             throw BusinessException(CourseErrorCode.COURSE_TRACE_NOT_FOUND, "따라가기를 찾을 수 없습니다: traceId=$traceId")
         }
-        if (trace.status != CourseTraceStatus.IN_PROGRESS) {
+        return trace
+    }
+
+    /** [requireOwned] 에 더해 진행 중이 아니면 409. */
+    private fun requireOwnedInProgress(
+        trace: CourseTraceRow?,
+        userId: Long,
+        traceId: Long,
+    ): CourseTraceRow {
+        requireOwned(trace, userId, traceId)
+        if (trace!!.status != CourseTraceStatus.IN_PROGRESS) {
             throw BusinessException(CourseErrorCode.COURSE_TRACE_ALREADY_ENDED, "이미 종료된 따라가기입니다: traceId=$traceId")
         }
         return trace

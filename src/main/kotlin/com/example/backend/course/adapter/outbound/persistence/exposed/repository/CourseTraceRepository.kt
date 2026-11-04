@@ -75,6 +75,14 @@ class CourseTraceRepository {
             .singleOrNull()
             ?.toRow()
 
+    /** 잠금 없이 읽는다 — 읽기 전용 트랜잭션에서는 FOR UPDATE 를 쓸 수 없다. */
+    fun readById(traceId: Long): CourseTraceRow? =
+        CourseTraceTable
+            .selectAll()
+            .where { CourseTraceTable.id eq traceId }
+            .singleOrNull()
+            ?.toRow()
+
     fun findVisitedPlaces(traceId: Long): List<VisitedPlaceResult> =
         CourseTracePlaceTable
             .select(CourseTracePlaceTable.placeId, CourseTracePlaceTable.visitedAt)

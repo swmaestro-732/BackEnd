@@ -37,6 +37,9 @@ interface CourseTracePersistencePort {
     /** 세션 행을 잠그고 읽는다(FOR UPDATE) — 쓰기 트랜잭션 안에서만 호출한다. */
     fun findById(traceId: Long): CourseTraceRow?
 
+    /** 세션 행을 잠그지 않고 읽는다 — 읽기 트랜잭션(화면 조회)용. */
+    fun readById(traceId: Long): CourseTraceRow?
+
     /** 세션의 체크인 장소를 체크인 순서대로. */
     fun findVisitedPlaces(traceId: Long): List<VisitedPlaceResult>
 

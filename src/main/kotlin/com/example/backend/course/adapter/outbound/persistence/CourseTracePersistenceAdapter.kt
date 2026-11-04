@@ -27,6 +27,8 @@ class CourseTracePersistenceAdapter(
 
     override fun findById(traceId: Long): CourseTraceRow? = courseTraceRepository.findById(traceId)
 
+    override fun readById(traceId: Long): CourseTraceRow? = courseTraceRepository.readById(traceId)
+
     override fun findVisitedPlaces(traceId: Long): List<VisitedPlaceResult> =
         courseTraceRepository.findVisitedPlaces(traceId)
 

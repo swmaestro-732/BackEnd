@@ -1,6 +1,7 @@
 package com.example.backend.course.application.port.inbound
 
 import com.example.backend.course.application.port.inbound.dto.CheckInPlaceCommand
+import com.example.backend.course.application.port.inbound.dto.CourseTraceDetailResult
 import com.example.backend.course.application.port.inbound.dto.CourseTraceResult
 import com.example.backend.course.application.port.inbound.dto.CourseTracesQuery
 import com.example.backend.course.application.port.inbound.dto.CourseTracesResult
@@ -26,8 +27,17 @@ interface CourseTraceUseCase {
     /** 내 완주 목록 — 최근 시작순 커서 페이지. */
     fun listCompleted(query: CourseTracesQuery): CourseTracesResult
 
-    /** 진행 중 세션(사용자당 최대 하나)과 체크인 목록. 없으면 null — 홈 "따라가는 중" 카드용. */
-    fun findInProgress(userId: Long): CourseTraceResult?
+    /** 진행 중 세션(사용자당 최대 하나)의 상세 — [getDetail] 과 같은 내용. 없으면 null — 홈 "따라가는 중" 카드용. */
+    fun findInProgress(userId: Long): CourseTraceDetailResult?
+
+    /**
+     * 따라가기 상세 — 세션·코스 요약·코스 장소(순서·캡션·사진)·체크인. 진행 중이면 따라가기 화면을 다시 그리고, 완주면 기록을 본다.
+     * 코스가 삭제·비공개됐어도 장소는 내려주고 요약만 isDeleted 다. 내 세션이 아니거나 없으면 404.
+     */
+    fun getDetail(
+        userId: Long,
+        traceId: Long,
+    ): CourseTraceDetailResult
 
     /** 장소 체크인. 내 세션이 아니거나 없으면 404, 이미 종료된 세션이면 409, 코스에 없는 장소면 400. 같은 장소 재전송은 무시한다. */
     fun checkIn(command: CheckInPlaceCommand)
