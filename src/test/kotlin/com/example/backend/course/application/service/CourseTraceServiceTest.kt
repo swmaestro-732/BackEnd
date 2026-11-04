@@ -4,6 +4,7 @@ import com.example.backend.common.domain.CourseVisibility
 import com.example.backend.common.exception.BusinessException
 import com.example.backend.common.geo.Coordinate
 import com.example.backend.common.response.CommonErrorCode
+import com.example.backend.common.response.CourseErrorCode
 import com.example.backend.common.response.PlaceErrorCode
 import com.example.backend.course.application.port.inbound.dto.CourseTraceSummary
 import com.example.backend.course.application.port.inbound.dto.CourseTracesQuery
@@ -11,6 +12,7 @@ import com.example.backend.course.application.port.inbound.dto.TracedCourseSumma
 import com.example.backend.course.application.port.inbound.dto.VisitedPlaceResult
 import com.example.backend.course.application.port.outbound.CourseDetailRow
 import com.example.backend.course.application.port.outbound.CoursePersistencePort
+import com.example.backend.course.application.port.outbound.CoursePlaceRow
 import com.example.backend.course.application.port.outbound.CoursePlaceStats
 import com.example.backend.course.application.port.outbound.CourseTracePersistencePort
 import com.example.backend.course.application.port.outbound.CourseTraceRow
@@ -25,7 +27,10 @@ import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
+import org.mockito.ArgumentMatchers.anyLong
 import org.mockito.Mockito.mock
+import org.mockito.Mockito.never
+import org.mockito.Mockito.verify
 import org.mockito.Mockito.verifyNoInteractions
 import org.mockito.Mockito.`when`
 import java.time.Instant
@@ -215,6 +220,72 @@ class CourseTraceServiceTest {
         }
     }
 
+    // --- getDetail ---
+
+    @Test
+    fun `상세 — 세션·코스 요약·코스 장소·체크인을 묶어 돌려준다`() {
+        val row = completedRow(5L).copy(status = CourseTraceStatus.IN_PROGRESS, endedAt = null)
+        val visited = listOf(VisitedPlaceResult(placeId = 22L, visitedAt = row.startedAt))
+        `when`(courseTracePersistencePort.readById(5L)).thenReturn(row)
+        `when`(coursePersistencePort.findCourseDetails(listOf(1L))).thenReturn(listOf(courseRow(CourseStatus.ACTIVE)))
+        `when`(courseViewPolicy.isViewable(CourseVisibility.PUBLIC, 2L, 1L)).thenReturn(true)
+        `when`(coursePersistencePort.findPlaceStats(listOf(1L))).thenReturn(mapOf(1L to CoursePlaceStats(2, 6)))
+        `when`(coursePersistencePort.findPlaces(1L)).thenReturn(listOf(coursePlaceRow(22L, 0), coursePlaceRow(23L, 1)))
+        `when`(courseTracePersistencePort.findVisitedPlaces(5L)).thenReturn(visited)
+
+        val detail = service.getDetail(1L, 5L)
+
+        assertEquals(5L, detail.traceId)
+        assertEquals(CourseTraceStatus.IN_PROGRESS, detail.status)
+        assertEquals("성수 코스", detail.course.title)
+        assertEquals(false, detail.course.isDeleted)
+        assertEquals(listOf(22L to 0, 23L to 1), detail.places.map { it.placeId to it.orderNo })
+        assertEquals(visited, detail.visitedPlaces)
+    }
+
+    @Test
+    fun `상세 — 코스가 삭제됐어도 장소는 내려주고 요약만 isDeleted 다`() {
+        val row = completedRow(5L).copy(status = CourseTraceStatus.IN_PROGRESS, endedAt = null)
+        `when`(courseTracePersistencePort.readById(5L)).thenReturn(row)
+        `when`(coursePersistencePort.findCourseDetails(listOf(1L))).thenReturn(emptyList())
+        `when`(coursePersistencePort.findPlaces(1L)).thenReturn(listOf(coursePlaceRow(22L, 0)))
+        `when`(courseTracePersistencePort.findVisitedPlaces(5L)).thenReturn(emptyList())
+
+        val detail = service.getDetail(1L, 5L)
+
+        assertEquals(TracedCourseSummary.deleted(1L), detail.course)
+        assertEquals(listOf(22L), detail.places.map { it.placeId })
+    }
+
+    @Test
+    fun `상세 — 완주 세션은 종료 시각·소요 시간·거리와 함께 돌려주고 잠금 없이 읽는다`() {
+        `when`(courseTracePersistencePort.readById(5L)).thenReturn(completedRow(5L))
+        `when`(coursePersistencePort.findCourseDetails(listOf(1L))).thenReturn(emptyList())
+        `when`(coursePersistencePort.findPlaces(1L)).thenReturn(emptyList())
+        `when`(courseTracePersistencePort.findVisitedPlaces(5L)).thenReturn(emptyList())
+
+        val detail = service.getDetail(1L, 5L)
+
+        assertEquals(CourseTraceStatus.COMPLETED, detail.status)
+        assertEquals(Instant.parse("2026-11-02T10:00:00Z"), detail.endedAt)
+        assertEquals(60, detail.durationMinutes)
+        assertEquals(1200, detail.distanceMeters)
+        verify(courseTracePersistencePort, never()).findById(anyLong())
+    }
+
+    @Test
+    fun `상세 — 없거나 타인의 세션은 404 다`() {
+        `when`(courseTracePersistencePort.readById(6L)).thenReturn(completedRow(6L).copy(userId = 9L))
+        `when`(courseTracePersistencePort.readById(7L)).thenReturn(null)
+
+        listOf(6L, 7L).forEach { traceId ->
+            assertEquals(
+                CourseErrorCode.COURSE_TRACE_NOT_FOUND,
+                assertThrows<BusinessException> { service.getDetail(1L, traceId) }.errorCode,
+            )
+        }
+    }
+
     @Test
     fun `진행 중 — 진행 중 세션을 체크인 목록과 함께 돌려주고 없으면 null 이다`() {
         val row = completedRow(5L).copy(status = CourseTraceStatus.IN_PROGRESS, endedAt = null)
@@ -269,6 +340,18 @@ class CourseTraceServiceTest {
             isPublished = true,
             duplicatedFromId = null,
         )
+
+    private fun coursePlaceRow(
+        placeId: Long,
+        orderNo: Int,
+    ) = CoursePlaceRow(
+        id = orderNo + 1L,
+        placeId = placeId,
+        orderNo = orderNo,
+        caption = null,
+        walkingMinutes = null,
+        images = emptyList(),
+    )
 
     private fun placeRef(
         id: Long,

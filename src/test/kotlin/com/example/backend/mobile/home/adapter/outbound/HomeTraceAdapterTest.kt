@@ -1,47 +1,34 @@
 package com.example.backend.mobile.home.adapter.outbound
 
-import com.example.backend.common.domain.CourseVisibility
-import com.example.backend.course.application.port.inbound.CourseQueryUseCase
 import com.example.backend.course.application.port.inbound.CourseTraceUseCase
-import com.example.backend.course.application.port.inbound.dto.CourseDetailResult
 import com.example.backend.course.application.port.inbound.dto.CoursePlaceResult
-import com.example.backend.course.application.port.inbound.dto.CourseTraceResult
+import com.example.backend.course.application.port.inbound.dto.CourseTraceDetailResult
+import com.example.backend.course.application.port.inbound.dto.TracedCourseSummary
 import com.example.backend.course.application.port.inbound.dto.VisitedPlaceResult
+import com.example.backend.course.domain.model.CourseTraceStatus
 import com.example.backend.mobile.home.application.port.outbound.dto.HomeTracingCourse
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Test
 import org.mockito.Mockito.mock
-import org.mockito.Mockito.verifyNoInteractions
 import org.mockito.Mockito.`when`
 import java.time.Instant
 
 class HomeTraceAdapterTest {
     private val courseTraceUseCase = mock(CourseTraceUseCase::class.java)
-    private val courseQueryUseCase = mock(CourseQueryUseCase::class.java)
-    private val adapter = HomeTraceAdapter(courseTraceUseCase, courseQueryUseCase)
+    private val adapter = HomeTraceAdapter(courseTraceUseCase)
     private val startedAt = Instant.parse("2026-11-03T05:30:00Z")
 
     @Test
-    fun `진행 중 세션이 없으면 null 이고 코스를 조회하지 않는다`() {
+    fun `진행 중 세션이 없으면 null 이다`() {
         `when`(courseTraceUseCase.findInProgress(1L)).thenReturn(null)
-
-        assertNull(adapter.findInProgress(1L))
-        verifyNoInteractions(courseQueryUseCase)
-    }
-
-    @Test
-    fun `코스를 더 볼 수 없으면 null 이다`() {
-        `when`(courseTraceUseCase.findInProgress(1L)).thenReturn(summary())
-        `when`(courseQueryUseCase.getDetails(listOf(3L), 1L)).thenReturn(emptyList())
 
         assertNull(adapter.findInProgress(1L))
     }
 
     @Test
     fun `세션과 코스 요약을 합치고 장소 수는 코스 장소 개수, 방문 수는 체크인 개수다`() {
-        `when`(courseTraceUseCase.findInProgress(1L)).thenReturn(summary())
-        `when`(courseQueryUseCase.getDetails(listOf(3L), 1L)).thenReturn(listOf(course()))
+        `when`(courseTraceUseCase.findInProgress(1L)).thenReturn(detail(viewableCourse()))
 
         assertEquals(
             HomeTracingCourse(
@@ -53,45 +40,56 @@ class HomeTraceAdapterTest {
                 placeCount = 2,
                 visitedPlaceCount = 1,
                 startedAt = startedAt,
+                isDeleted = false,
             ),
             adapter.findInProgress(1L),
         )
     }
 
-    private fun summary() =
-        CourseTraceResult(
+    @Test
+    fun `코스를 더 볼 수 없어도 카드는 남기고 isDeleted 로 표시한다`() {
+        `when`(courseTraceUseCase.findInProgress(1L)).thenReturn(detail(TracedCourseSummary.deleted(3L)))
+
+        val card = adapter.findInProgress(1L)
+
+        assertEquals(true, card?.isDeleted)
+        assertEquals(10L, card?.traceId)
+        assertNull(card?.title)
+        assertEquals(2, card?.placeCount)
+    }
+
+    private fun detail(course: TracedCourseSummary) =
+        CourseTraceDetailResult(
             traceId = 10L,
-            courseId = 3L,
+            status = CourseTraceStatus.IN_PROGRESS,
             startedAt = startedAt,
-            visitedPlaces = listOf(VisitedPlaceResult(placeId = 22L, visitedAt = startedAt)),
+            endedAt = null,
+            durationMinutes = 0,
+            distanceMeters = 0,
+            course = course,
+            places = listOf(coursePlace(101L, 0), coursePlace(102L, 1)),
+            visitedPlaces = listOf(VisitedPlaceResult(placeId = 101L, visitedAt = startedAt)),
         )
 
-    private fun course() =
-        CourseDetailResult(
-            id = 3L,
+    private fun viewableCourse() =
+        TracedCourseSummary(
+            courseId = 3L,
             title = "을지로 노포 골목 투어",
             coverImageUrl = "https://img/cover.jpg",
-            theme = "FOOD",
             area = "을지로",
-            tags = emptyList(),
-            description = "",
-            visibility = CourseVisibility.PUBLIC,
-            isPublished = true,
-            authorId = 2L,
-            tracingsCnt = 0,
-            places = listOf(place(1L), place(2L)),
-            hasSaved = false,
-            hasLiked = false,
-            hasStartedCourse = true,
+            placeCount = 2,
+            isDeleted = false,
         )
 
-    private fun place(id: Long) =
-        CoursePlaceResult(
-            id = id,
-            placeId = id,
-            orderNo = id.toInt(),
-            caption = null,
-            walkingMinutesToNext = null,
-            images = emptyList(),
-        )
+    private fun coursePlace(
+        placeId: Long,
+        orderNo: Int,
+    ) = CoursePlaceResult(
+        id = orderNo + 1L,
+        placeId = placeId,
+        orderNo = orderNo,
+        caption = null,
+        walkingMinutesToNext = null,
+        images = emptyList(),
+    )
 }

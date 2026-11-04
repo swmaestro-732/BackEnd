@@ -68,6 +68,7 @@ class HomeResponseTest {
                 placeCount = 5,
                 visitedPlaceCount = 2,
                 startedAt = startedAt,
+                isDeleted = false,
             )
 
         val response = HomeResponse.from(HomeResult(null, tracing, emptyList(), emptyList()))
@@ -82,6 +83,7 @@ class HomeResponseTest {
                 placeCount = 5,
                 visitedPlaceCount = 2,
                 startedAt = startedAt,
+                isDeleted = false,
             ),
             response.tracingCourse,
         )
