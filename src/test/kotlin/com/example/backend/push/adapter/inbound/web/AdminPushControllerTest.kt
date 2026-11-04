@@ -1,0 +1,96 @@
+package com.example.backend.push.adapter.inbound.web
+
+import com.example.backend.admin.application.port.outbound.AdminTokenPort
+import com.example.backend.bootstrap.security.JwtTokenProvider
+import com.example.backend.support.IntegrationTestBase
+import com.jayway.jsonpath.JsonPath
+import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Test
+import org.springframework.beans.factory.annotation.Autowired
+import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc
+import org.springframework.http.HttpHeaders
+import org.springframework.http.MediaType
+import org.springframework.jdbc.core.JdbcTemplate
+import org.springframework.test.context.jdbc.Sql
+import org.springframework.test.web.servlet.MockMvc
+import org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post
+import org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath
+import org.springframework.test.web.servlet.result.MockMvcResultMatchers.status
+
+@AutoConfigureMockMvc
+@Sql(
+    statements =
+        [
+            "DELETE FROM push_campaigns",
+            "DELETE FROM devices",
+            "DELETE FROM admins",
+            "INSERT INTO admins (email) VALUES ('admin@example.com')",
+            // 야간 동의까지 있어 발송 시각과 무관하게 대상이 된다.
+            "INSERT INTO devices (device_id, fcm_token, marketing_agreed_at, night_agreed_at) " +
+                "VALUES ('fid-push-admin', 'token-push-admin', now(), now())",
+        ],
+    executionPhase = Sql.ExecutionPhase.BEFORE_TEST_METHOD,
+)
+class AdminPushControllerTest
+    @Autowired
+    constructor(
+        private val mockMvc: MockMvc,
+        private val adminTokenPort: AdminTokenPort,
+        private val jwtTokenProvider: JwtTokenProvider,
+        private val jdbcTemplate: JdbcTemplate,
+    ) : IntegrationTestBase() {
+        @Test
+        fun `어드민 토큰으로 발송하면 캠페인을 기록하고 id 와 대상 수를 돌려준다`() {
+            val body =
+                mockMvc
+                    .perform(sendRequest(adminTokenPort.issue("admin@example.com").token, validBody))
+                    .andExpect(status().isOk)
+                    .andExpect(jsonPath("$.code").value(2000))
+                    .andExpect(jsonPath("$.data.recipientCount").value(1))
+                    .andReturn()
+                    .response.contentAsString
+            val campaignId = (JsonPath.read<Number>(body, "$.data.campaignId")).toLong()
+
+            val row = jdbcTemplate.queryForMap("SELECT * FROM push_campaigns WHERE id = ?", campaignId)
+            assertEquals("admin@example.com", row["admin_email"])
+            assertEquals("(광고) 가을 코스", row["title"])
+            assertEquals(1, row["recipient_count"])
+        }
+
+        @Test
+        fun `제목이 50자를 넘으면 400 으로 거부한다`() {
+            val tooLong = """{"title":"${"가".repeat(51)}","body":"본문","link":"https://example.com"}"""
+
+            mockMvc
+                .perform(sendRequest(adminTokenPort.issue("admin@example.com").token, tooLong))
+                .andExpect(status().isBadRequest)
+                .andExpect(jsonPath("$.code").value(4002))
+        }
+
+        @Test
+        fun `https 가 아닌 링크는 400 4001 로 거부한다`() {
+            val httpLink = """{"title":"가을 코스","body":"본문","link":"http://example.com"}"""
+
+            mockMvc
+                .perform(sendRequest(adminTokenPort.issue("admin@example.com").token, httpLink))
+                .andExpect(status().isBadRequest)
+                .andExpect(jsonPath("$.code").value(4001))
+        }
+
+        @Test
+        fun `앱 access token 은 403 으로 거부한다`() {
+            mockMvc
+                .perform(sendRequest(jwtTokenProvider.issueAccessToken(1L), validBody))
+                .andExpect(status().isForbidden)
+        }
+
+        private val validBody = """{"title":"가을 코스","body":"단풍 코스를 만나보세요","link":"https://example.com/events/1"}"""
+
+        private fun sendRequest(
+            token: String,
+            content: String,
+        ) = post("/admin/v1/pushes")
+            .header(HttpHeaders.AUTHORIZATION, "Bearer $token")
+            .contentType(MediaType.APPLICATION_JSON)
+            .content(content)
+    }

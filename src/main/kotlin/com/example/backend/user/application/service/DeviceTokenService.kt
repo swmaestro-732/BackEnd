@@ -3,6 +3,7 @@ package com.example.backend.user.application.service
 import com.example.backend.common.exception.BusinessException
 import com.example.backend.common.response.UserErrorCode
 import com.example.backend.user.application.port.inbound.DeviceTokenUseCase
+import com.example.backend.user.application.port.inbound.MarketingDeviceUseCase
 import com.example.backend.user.application.port.inbound.dto.RegisterDeviceTokenCommand
 import com.example.backend.user.application.port.outbound.DevicePersistencePort
 import com.example.backend.user.application.port.outbound.UserPersistencePort
@@ -14,7 +15,8 @@ import org.springframework.transaction.annotation.Transactional
 class DeviceTokenService(
     private val devicePersistencePort: DevicePersistencePort,
     private val userPersistencePort: UserPersistencePort,
-) : DeviceTokenUseCase {
+) : DeviceTokenUseCase,
+    MarketingDeviceUseCase {
     override fun register(
         userId: Long,
         command: RegisterDeviceTokenCommand,
@@ -35,4 +37,7 @@ class DeviceTokenService(
         if (fcmTokens.isEmpty()) return
         devicePersistencePort.clearTokens(fcmTokens)
     }
+
+    @Transactional(readOnly = true)
+    override fun findMarketingTokens(night: Boolean): List<String> = devicePersistencePort.findMarketingTokens(night)
 }

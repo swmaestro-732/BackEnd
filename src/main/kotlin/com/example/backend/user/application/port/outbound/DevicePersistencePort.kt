@@ -49,4 +49,7 @@ interface DevicePersistencePort {
 
     /** 이 토큰을 가진 기기 행의 토큰만 비운다. 행과 연결, 동의는 남는다. */
     fun clearTokens(fcmTokens: Collection<String>)
+
+    /** 토큰이 있고 광고성 수신에 동의한 기기의 토큰. [night] 이면 야간 수신 동의도 있어야 한다. */
+    fun findMarketingTokens(night: Boolean): List<String>
 }
