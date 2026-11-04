@@ -25,7 +25,7 @@ internal object PlaceTable : LongIdTable("places") {
     val description = text("description").nullable()
     val category = enumerationByName<PlaceCategory>("category", 50)
 
-    // 상세 분류·카카오 분류 원문(V19). 기존 장소·그룹 코드로만 분류된 장소는 NULL.
+    // 상세 분류·카카오 분류 원문(V20). 기존 장소·그룹 코드로만 분류된 장소는 NULL.
     val categoryDetail = varchar("category_detail", 50).nullable()
     val kakaoCategoryName = varchar("kakao_category_name", 255).nullable()
     val location = geographyPoint("location")

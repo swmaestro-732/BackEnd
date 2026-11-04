@@ -10,7 +10,7 @@ import com.example.backend.user.application.port.inbound.dto.SignupResult
 import com.example.backend.user.application.port.inbound.dto.SignupUserResult
 import com.example.backend.user.application.port.inbound.dto.TokenPair
 import com.example.backend.user.application.port.outbound.AuthTokenPort
-import com.example.backend.user.application.port.outbound.DeviceTokenPersistencePort
+import com.example.backend.user.application.port.outbound.DevicePersistencePort
 import com.example.backend.user.application.port.outbound.RefreshTokenPort
 import com.example.backend.user.application.port.outbound.SocialVerificationPort
 import com.example.backend.user.application.port.outbound.UserAreaPersistencePort
@@ -32,7 +32,7 @@ class AuthService(
     private val userLikeThemePort: UserLikeThemePort,
     private val authTokenPort: AuthTokenPort,
     private val refreshTokenPort: RefreshTokenPort,
-    private val deviceTokenPersistencePort: DeviceTokenPersistencePort,
+    private val devicePersistencePort: DevicePersistencePort,
     private val userAreaResolver: UserAreaResolver,
     private val userLikeThemeResolver: UserLikeThemeResolver,
 ) : AuthUseCase {
@@ -145,13 +145,13 @@ class AuthService(
         refreshToken: String,
         deviceId: String?,
     ) {
-        // 클라이언트가 기기 해제(DELETE /my/devices)를 빠뜨려도 로그아웃한 기기로 알림이 가지 않게 서버에서도 지운다.
-        // 유효한 refresh token 으로 사용자를 확인한 경우에만 지운다(기기 ID 만으로 남의 행을 건드리지 않음).
+        // 클라이언트가 기기 해제(DELETE /my/devices)를 빠뜨려도 로그아웃한 기기로 활동 알림이 가지 않게 서버에서도 계정 연결을 끊는다.
+        // 유효한 refresh token 으로 사용자를 확인한 경우에만 끊는다(기기 ID 만으로 남의 연결을 건드리지 않음).
         // 기기 등록, 탈퇴와 같은 사용자 행 잠금을 잡아, 진행 중인 등록이 로그아웃 뒤에 행을 다시 만들지 않게 한다.
         if (deviceId != null) {
             refreshTokenPort.findValid(refreshToken)?.let {
                 userPersistencePort.lockActive(listOf(it.userId))
-                deviceTokenPersistencePort.deleteByUserAndDevice(it.userId, deviceId)
+                devicePersistencePort.unlink(it.userId, deviceId)
             }
         }
         refreshTokenPort.revoke(refreshToken)

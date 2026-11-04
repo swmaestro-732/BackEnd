@@ -48,6 +48,7 @@ data class SavedPlaceScreenResult(
         val category: String,
         // 읍면동 등 표시용 지역 이름. 장소의 area_code 가 없거나 해석되지 않으면 null
         val area: String?,
+        val address: String,
         val imageUrl: String?,
         val latitude: Double,
         val longitude: Double,

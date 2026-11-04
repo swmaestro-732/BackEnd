@@ -7,7 +7,7 @@ import java.time.Instant
 /**
  * 웹 응답 DTO — 저장함 · 장소 탭 화면 조합(BFF). 프론트 화면 계약 형태.
  * 도메인 조회(`GET /api/v1/saved-places`)의 저장 레코드·카운트·페이지 메타를 유지하고,
- * 각 저장 항목에 장소 요약(이름·카테고리·지역·이미지·좌표 — 디자인 J 밴드)을 덧붙여 내려준다.
+ * 각 저장 항목에 장소 요약(이름·카테고리·지역·주소·이미지·좌표 — 디자인 J 밴드)을 덧붙여 내려준다.
  * [from] 이 포트 결과([SavedPlaceScreenResult])를 매핑하고, `?mock=true` 는 [mock] 고정 목을 쓴다.
  */
 data class SavedPlaceScreenResponse(
@@ -50,6 +50,7 @@ data class SavedPlaceScreenResponse(
                                     name = item.place.name,
                                     category = item.place.category,
                                     area = item.place.area,
+                                    address = item.place.address,
                                     imageUrl = item.place.imageUrl,
                                     // 거리는 1차 구현 범위 밖 — 항상 null 이다.
                                     walkingTime = null,
@@ -83,6 +84,7 @@ data class SavedPlaceScreenResponse(
                             name = "평화양조장",
                             category = "BAR",
                             area = "성수동",
+                            address = "서울 성동구 성수이로 74",
                             imageUrl = image("photo-1518176258769-f227c798150e"),
                             walkingTime = "도보 11분",
                             location = PlaceLocationResponse(latitude = 37.5437, longitude = 127.061),
@@ -99,6 +101,7 @@ data class SavedPlaceScreenResponse(
                             name = "자그마치",
                             category = "CULTURE",
                             area = "성수동",
+                            address = "서울 성동구 성수이로 88",
                             imageUrl = image("photo-1513151233558-d860c5398176"),
                             walkingTime = "도보 10분",
                             location = PlaceLocationResponse(latitude = 37.5426, longitude = 127.0554),
@@ -115,6 +118,7 @@ data class SavedPlaceScreenResponse(
                             name = "센터커피 성수",
                             category = "CAFE",
                             area = "성수동",
+                            address = "서울 성동구 성수이로 70",
                             imageUrl = image("photo-1442512595331-e89e73853f31"),
                             walkingTime = "도보 12분",
                             location = PlaceLocationResponse(latitude = 37.5463, longitude = 127.0537),
@@ -131,6 +135,7 @@ data class SavedPlaceScreenResponse(
                             name = "대림창고 카페",
                             category = "CAFE",
                             area = "성수동",
+                            address = "서울 성동구 성수이로 78",
                             imageUrl = image("photo-1509042239860-f550ce710b93"),
                             walkingTime = "도보 9분",
                             location = PlaceLocationResponse(latitude = 37.5418, longitude = 127.0592),
@@ -147,6 +152,7 @@ data class SavedPlaceScreenResponse(
                             name = "어니언 성수",
                             category = "CAFE",
                             area = "성수동",
+                            address = "서울 성동구 아차산로9길 8",
                             imageUrl = image("photo-1517433670267-08bbd4be890f"),
                             walkingTime = "도보 6분",
                             location = PlaceLocationResponse(latitude = 37.5445, longitude = 127.0578),
@@ -199,6 +205,7 @@ data class SavedPlaceSummaryResponse(
     val category: String,
     // 표시용 지역 이름(읍면동 등). 장소의 area_code 가 없거나 해석되지 않으면 null
     val area: String?,
+    val address: String,
     val imageUrl: String?,
     // 거리 — 표시용 도보 소요 텍스트(예: "도보 11분"). 1차 구현 범위 밖이라 실조회 응답은 항상 null(목은 값이 있다).
     val walkingTime: String?,

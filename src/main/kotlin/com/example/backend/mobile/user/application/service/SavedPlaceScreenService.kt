@@ -74,6 +74,7 @@ class SavedPlaceScreenService(
             name = name,
             category = category,
             area = areaCode?.let { areaNameByCode[it] },
+            address = address,
             imageUrl = imageUrl,
             latitude = latitude,
             longitude = longitude,

@@ -12,5 +12,6 @@ interface UserSummaryUseCase {
         val id: Long,
         val nickname: String,
         val profileImageUrl: String?,
+        val handle: String? = null,
     )
 }

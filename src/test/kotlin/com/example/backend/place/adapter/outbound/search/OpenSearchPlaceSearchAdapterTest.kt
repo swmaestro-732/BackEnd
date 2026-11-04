@@ -6,6 +6,7 @@ import com.example.backend.common.geo.Coordinate
 import com.example.backend.common.geo.Viewport
 import com.example.backend.common.response.PlaceErrorCode
 import com.example.backend.place.application.port.inbound.dto.PlaceMapSort
+import com.example.backend.place.application.port.outbound.PlaceMapHit
 import com.example.backend.place.application.port.outbound.PlaceSearchCriteria
 import com.example.backend.place.domain.model.PlaceCategory
 import org.assertj.core.api.Assertions.assertThat
@@ -14,7 +15,9 @@ import org.junit.jupiter.api.Test
 import org.mockito.ArgumentCaptor
 import org.mockito.ArgumentMatchers.any
 import org.mockito.ArgumentMatchers.eq
+import org.mockito.Mockito.atLeastOnce
 import org.mockito.Mockito.mock
+import org.mockito.Mockito.verify
 import org.mockito.Mockito.`when`
 import org.opensearch.client.json.JsonData
 import org.opensearch.client.opensearch.OpenSearchClient
@@ -115,9 +118,9 @@ class OpenSearchPlaceSearchAdapterTest {
 
     @Test
     fun `지도 검색은 뷰포트 필터와 격자 집계를 요청하고 단일 셀을 점수순, 클러스터를 키순으로 돌려준다`() {
-        stub(
+        stubMap(
             response(
-                hits = listOf(hit("7", "1.0"), hit("3", "5.0")),
+                hits = listOf(mapHit("7", "1.0"), mapHit("3", "5.0")),
                 total = 12,
                 buckets =
                     listOf(
@@ -136,12 +139,23 @@ class OpenSearchPlaceSearchAdapterTest {
             )
 
         assertThat(hits.totalCount).isEqualTo(12L)
-        assertThat(hits.ids).containsExactly(7L, 3L)
-        assertThat(hits.buckets.map { it.singlePlaceId }).containsExactly(3L, 7L, null)
+        assertThat(hits.hits.map { it.id }).containsExactly(7L, 3L)
+        // 마커 본문은 DB 재조회 없이 _source 에서 읽는다.
+        assertThat(hits.hits).containsExactly(
+            PlaceMapHit(7L, "장소 7", "CAFE", Coordinate(37.07, 127.07)),
+            PlaceMapHit(3L, "장소 3", "RESTAURANT", Coordinate(37.03, 127.03)),
+        )
+        assertThat(hits.buckets.map { it.single?.id }).containsExactly(3L, 7L, null)
+        assertThat(
+            hits.buckets.first().single,
+        ).isEqualTo(PlaceMapHit(3L, "장소 3", "RESTAURANT", Coordinate(37.03, 127.03)))
         assertThat(hits.buckets.last().count).isEqualTo(10L)
         assertThat(hits.buckets.last().center).isEqualTo(Coordinate(37.3, 127.3))
         val request = capturedRequest()
         assertThat(request.index()).containsExactly("dev-place")
+        assertThat(
+            request.source()!!.filter().includes(),
+        ).containsExactly("name", "category", "location", "categoryDetail")
         assertThat(
             request
                 .query()!!
@@ -154,13 +168,21 @@ class OpenSearchPlaceSearchAdapterTest {
         assertThat(grid.geohashGrid().precision()!!.geohashLength()).isEqualTo(6)
         assertThat(grid.aggregations().keys).containsExactlyInAnyOrder("center", "sample")
         assertThat(grid.aggregations()["sample"]!!.topHits().sort()).hasSize(2)
+        assertThat(
+            grid
+                .aggregations()["sample"]!!
+                .topHits()
+                .source()!!
+                .filter()
+                .includes(),
+        ).containsExactly("name", "category", "location", "categoryDetail")
     }
 
     @Test
     fun `거리순은 기준점 geo_distance 정렬을 걸고 단일 셀을 거리 오름차순으로 돌려준다`() {
-        stub(
+        stubMap(
             response(
-                hits = listOf(hit("3", "120.0"), hit("7", "900.0")),
+                hits = listOf(mapHit("3", "120.0"), mapHit("7", "900.0")),
                 total = 2,
                 buckets =
                     listOf(
@@ -177,7 +199,7 @@ class OpenSearchPlaceSearchAdapterTest {
                 PlaceMapSort.DISTANCE,
             )
 
-        assertThat(hits.buckets.map { it.singlePlaceId }).containsExactly(3L, 7L)
+        assertThat(hits.buckets.map { it.single?.id }).containsExactly(3L, 7L)
         val primary = capturedRequest().sort().first()
         assertThat(primary.isGeoDistance).isTrue()
         assertThat(
@@ -198,9 +220,9 @@ class OpenSearchPlaceSearchAdapterTest {
 
     @Test
     fun `격자 합이 전체 건수와 다르면 일부만 내려주지 않고 503 이다`() {
-        stub(
+        stubMap(
             response(
-                hits = listOf(hit("7", "1.0")),
+                hits = listOf(mapHit("7", "1.0")),
                 total = 300,
                 buckets =
                     listOf(
@@ -227,13 +249,13 @@ class OpenSearchPlaceSearchAdapterTest {
         `when`(client.search(any(SearchRequest::class.java), eq(Void::class.java))).thenReturn(response)
     }
 
+    private fun stubMap(response: SearchResponse<PlaceMapSource>) {
+        `when`(client.search(any(SearchRequest::class.java), eq(PlaceMapSource::class.java))).thenReturn(response)
+    }
+
     private fun capturedRequest(): SearchRequest {
         val captor = ArgumentCaptor.forClass(SearchRequest::class.java)
-        org.mockito.Mockito
-            .verify(
-                client,
-                org.mockito.Mockito.atLeastOnce(),
-            ).search(captor.capture(), eq(Void::class.java))
+        verify(client, atLeastOnce()).search(captor.capture(), any<Class<Any>>())
         return captor.value
     }
 
@@ -277,6 +299,25 @@ class OpenSearchPlaceSearchAdapterTest {
             .sort(listOf(sortValue, "0"))
             .build()
 
+    private fun mapHit(
+        id: String,
+        sortValue: String,
+    ): Hit<PlaceMapSource> =
+        Hit
+            .Builder<PlaceMapSource>()
+            .index("place")
+            .id(id)
+            .sort(listOf(sortValue, "0"))
+            .source(document(id))
+            .build()
+
+    private fun document(id: String): PlaceMapSource =
+        PlaceMapSource(
+            name = "장소 $id",
+            category = if (id == "3") "RESTAURANT" else "CAFE",
+            location = GeoLocation(lat = 37.0 + id.toInt() / 100.0, lon = 127.0 + id.toInt() / 100.0),
+        )
+
     private fun bucket(
         key: String,
         count: Long,
@@ -291,6 +332,7 @@ class OpenSearchPlaceSearchAdapterTest {
                 .index("place")
                 .id(sampleId)
                 .sort(listOf(sortValue, "0"))
+                .source(JsonData.of(document(sampleId)))
                 .build()
         val sampleHits = HitsMetadata.Builder<JsonData>().hits(listOf(sample)).build()
         return GeoHashGridBucket
@@ -308,16 +350,16 @@ class OpenSearchPlaceSearchAdapterTest {
             .build()
     }
 
-    private fun response(
-        hits: List<Hit<Void>>,
+    private fun <T> response(
+        hits: List<Hit<T>>,
         total: Long,
         buckets: List<GeoHashGridBucket>? = null,
         timedOut: Boolean = false,
         failedShards: Int = 0,
-    ): SearchResponse<Void> {
+    ): SearchResponse<T> {
         val builder =
             SearchResponse
-                .Builder<Void>()
+                .Builder<T>()
                 .took(1)
                 .timedOut(timedOut)
                 .shards { s -> s.total(1).successful(1 - failedShards).failed(failedShards) }

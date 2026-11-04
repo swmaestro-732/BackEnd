@@ -142,11 +142,11 @@ class AuthTokenFlowTest
         }
 
         @Test
-        fun `기기 헤더와 함께 로그아웃하면 그 사용자의 해당 기기 토큰만 지운다`() {
+        fun `기기 헤더와 함께 로그아웃하면 그 사용자의 해당 기기 연결만 끊고 행과 토큰은 남긴다`() {
             jdbcTemplate.update("INSERT INTO users (nickname, handle) VALUES ('다른유저', 'other_handle')")
             jdbcTemplate.update(
-                "INSERT INTO device_tokens (user_id, device_id, fcm_token) VALUES " +
-                    "(1, 'device-a', 'token-a'), (1, 'device-b', 'token-b'), (2, 'device-a', 'token-c')",
+                "INSERT INTO devices (user_id, device_id, fcm_token) VALUES " +
+                    "(1, 'device-a', 'token-a'), (1, 'device-b', 'token-b'), (2, 'device-c', 'token-c')",
             )
 
             mockMvc
@@ -154,12 +154,13 @@ class AuthTokenFlowTest
                 .andExpect(status().isOk)
                 .andExpect(jsonPath("$.code").value(2000))
 
-            val remaining =
+            val rows =
                 jdbcTemplate.queryForList(
-                    "SELECT user_id || ':' || device_id FROM device_tokens ORDER BY user_id, device_id",
+                    "SELECT device_id || ':' || coalesce(user_id::text, '-') || ':' || fcm_token " +
+                        "FROM devices ORDER BY device_id",
                     String::class.java,
                 )
-            assertEquals(listOf("1:device-b", "2:device-a"), remaining)
+            assertEquals(listOf("device-a:-:token-a", "device-b:1:token-b", "device-c:2:token-c"), rows)
         }
 
         @Test
