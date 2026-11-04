@@ -10,7 +10,6 @@ data class PlaceDocument(
     val location: GeoLocation,
     val status: String,
     val categoryDetail: String? = null,
-    val kakaoCategoryName: String? = null,
 )
 
 /** geo_point 직렬화용 — OpenSearch 는 {lat, lon} 형태를 geo_point 로 받는다. */

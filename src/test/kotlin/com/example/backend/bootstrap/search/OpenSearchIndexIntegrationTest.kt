@@ -184,7 +184,7 @@ class OpenSearchIndexIntegrationTest
         }
 
         @Test
-        fun `place 상세 분류는 keyword 로 검색되고 카카오 분류 원문은 문서에 담긴다`() {
+        fun `place 상세 분류는 keyword 로 검색된다`() {
             val place =
                 Place.reconstitute(
                     id = 1003L,
@@ -222,7 +222,7 @@ class OpenSearchIndexIntegrationTest
                     .hits()
                     .single()
                     .source()!!
-            assertEquals("여행 > 관광,명소 > 수목원,식물원", source["kakaoCategoryName"])
+            assertEquals("수목원,식물원", source["categoryDetail"])
         }
 
         @Test

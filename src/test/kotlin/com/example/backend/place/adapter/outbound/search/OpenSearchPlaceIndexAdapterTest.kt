@@ -148,7 +148,6 @@ class OpenSearchPlaceIndexAdapterTest {
 
         val document = capturedRequest!!.operations()[0].index<Any>()!!.document() as PlaceDocument
         assertThat(document.categoryDetail).isEqualTo("카페")
-        assertThat(document.kakaoCategoryName).isEqualTo("음식점 > 카페 > 커피전문점")
     }
 
     @Test

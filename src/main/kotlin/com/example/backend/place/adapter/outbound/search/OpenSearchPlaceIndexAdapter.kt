@@ -65,6 +65,5 @@ class OpenSearchPlaceIndexAdapter(
             location = GeoLocation(lat = location.latitude, lon = location.longitude),
             status = status.name,
             categoryDetail = categoryDetail,
-            kakaoCategoryName = kakaoCategoryName,
         )
 }
