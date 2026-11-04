@@ -33,14 +33,15 @@ class PushSqsConsumerConditionTest {
     @Test
     fun `키가 없으면 큐가 있어도 리스너를 만들지 않는다`() {
         contextRunner
-            .withPropertyValues("aws.sqs.push-queue-url=$QUEUE_URL")
+            // 실행 환경 변수에 키가 있어도 테스트가 흔들리지 않게 빈 값으로 덮는다.
+            .withPropertyValues("aws.sqs.push-queue-url=$QUEUE_URL", "firebase.credentials-json=")
             .run { assertThat(it).doesNotHaveBean(PushSqsConsumer::class.java) }
     }
 
     @Test
     fun `큐가 없으면 키가 있어도 리스너를 만들지 않는다`() {
         contextRunner
-            .withPropertyValues("firebase.credentials-json={}")
+            .withPropertyValues("aws.sqs.push-queue-url=", "firebase.credentials-json={}")
             .run { assertThat(it).doesNotHaveBean(PushSqsConsumer::class.java) }
     }
 

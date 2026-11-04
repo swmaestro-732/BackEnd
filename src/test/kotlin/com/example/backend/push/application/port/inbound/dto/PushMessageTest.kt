@@ -76,4 +76,10 @@ class PushMessageTest {
             PushMessage(listOf("token-1"), "제목", "가".repeat(1400))
         }
     }
+
+    @ParameterizedTest
+    @ValueSource(strings = ["", " "])
+    fun `빈 토큰이 하나라도 있으면 거부한다`(token: String) {
+        assertThrows(IllegalArgumentException::class.java) { PushMessage(listOf("token-1", token), "제목", "본문") }
+    }
 }

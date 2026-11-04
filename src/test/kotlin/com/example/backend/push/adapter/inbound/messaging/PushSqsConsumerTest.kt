@@ -71,12 +71,17 @@ class PushSqsConsumerTest {
     }
 
     @Test
-    fun `발송 중 IllegalArgumentException 은 재시도하지 않도록 정상 반환하고 invalid_message 로 센다`() {
-        deliveryFailure = IllegalArgumentException("잘못된 메시지")
+    fun `발송 중 IllegalArgumentException 은 메시지를 버리지 않고 재전송되도록 전파한다`() {
+        val failure = IllegalArgumentException("설정 오류")
+        deliveryFailure = failure
 
-        assertDoesNotThrow { pushSqsConsumer.onMessage(PushQueueMessage(message, now)) }
+        val thrown =
+            assertThrows(
+                IllegalArgumentException::class.java,
+            ) { pushSqsConsumer.onMessage(PushQueueMessage(message, now)) }
 
-        assertEquals(2.0, skippedCount("invalid_message"))
+        assertSame(failure, thrown)
+        assertEquals(0.0, skippedCount("invalid_message"))
     }
 
     @Test

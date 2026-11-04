@@ -40,12 +40,16 @@ class PushSqsConsumer(
             log.warn { "오래된 푸시 메시지라 발송하지 않고 버림: tokenCount=${message.tokens.size}, createdAt=$createdAt" }
             return
         }
-        try {
-            pushDeliveryUseCase.deliver(message.toPushMessage())
-        } catch (e: IllegalArgumentException) {
-            // 같은 메시지는 몇 번을 다시 받아도 실패하므로 재시도하지 않는다. 예외 메시지는 키 이름 수준이라 토큰은 남지 않는다.
-            invalidMessageCounter.increment(message.tokens.size.toDouble())
-            log.error { "잘못된 푸시 메시지라 발송하지 않고 버림: tokenCount=${message.tokens.size}, error=${e.message}" }
-        }
+        // 메시지 내용 검증만 버림 대상으로 본다. 발송 중 예외(설정 오류 등)는 전파해 재전송과 DLQ 로 남긴다.
+        val pushMessage =
+            try {
+                message.toPushMessage()
+            } catch (e: IllegalArgumentException) {
+                // 같은 메시지는 몇 번을 다시 받아도 실패하므로 재시도하지 않는다. 예외 메시지는 키 이름 수준이라 토큰은 남지 않는다.
+                invalidMessageCounter.increment(message.tokens.size.toDouble())
+                log.error { "잘못된 푸시 메시지라 발송하지 않고 버림: tokenCount=${message.tokens.size}, error=${e.message}" }
+                return
+            }
+        pushDeliveryUseCase.deliver(pushMessage)
     }
 }

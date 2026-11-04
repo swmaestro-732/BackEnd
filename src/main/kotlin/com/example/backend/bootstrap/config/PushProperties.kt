@@ -14,4 +14,9 @@ data class PushProperties(
     val maxAge: Duration = Duration.ofHours(1),
     val androidTtl: Duration = Duration.ofDays(1),
     val androidChannelId: String = "courmy_activity",
-)
+) {
+    init {
+        // FCM SDK 는 음수 TTL 을 발송 시점에 거부하므로 기동 시점에 막는다.
+        require(!androidTtl.isNegative) { "push.android-ttl 은 음수일 수 없다: $androidTtl" }
+    }
+}
