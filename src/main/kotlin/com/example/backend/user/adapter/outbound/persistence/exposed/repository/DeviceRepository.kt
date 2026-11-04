@@ -8,6 +8,7 @@ import org.jetbrains.exposed.v1.core.Op
 import org.jetbrains.exposed.v1.core.and
 import org.jetbrains.exposed.v1.core.case
 import org.jetbrains.exposed.v1.core.eq
+import org.jetbrains.exposed.v1.core.inList
 import org.jetbrains.exposed.v1.core.neq
 import org.jetbrains.exposed.v1.datetime.CurrentTimestamp
 import org.jetbrains.exposed.v1.jdbc.insertIgnore
@@ -99,6 +100,10 @@ class DeviceRepository {
 
     fun unlinkAllByUser(userId: Long) {
         DeviceTable.update({ DeviceTable.userId eq userId }) { it[DeviceTable.userId] = null }
+    }
+
+    fun clearTokens(fcmTokens: Collection<String>) {
+        DeviceTable.update({ DeviceTable.fcmToken inList fcmTokens }) { it[fcmToken] = null }
     }
 
     private fun toConsent(row: org.jetbrains.exposed.v1.core.ResultRow): DeviceConsent =

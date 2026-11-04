@@ -42,4 +42,7 @@ interface DevicePersistencePort {
     )
 
     fun unlinkAllByUser(userId: Long)
+
+    /** 이 토큰을 가진 기기 행의 토큰만 비운다. 행과 연결, 동의는 남는다. */
+    fun clearTokens(fcmTokens: Collection<String>)
 }

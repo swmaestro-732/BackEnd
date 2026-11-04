@@ -164,6 +164,22 @@ class DevicePersistenceTest
         }
 
         @Test
+        fun `clearTokens는 그 토큰의 행만 토큰을 비우고 연결과 다른 행은 남긴다`() {
+            transaction {
+                insertUsers()
+                devicePersistencePort.saveToken(command("fid-bad", "token-bad"), ME)
+                devicePersistencePort.saveToken(command("fid-ok", "token-ok"), ME)
+
+                devicePersistencePort.clearTokens(listOf("token-bad", "token-unknown"))
+
+                assertNull(row("fid-bad")[DeviceTable.fcmToken])
+                assertEquals(ME, row("fid-bad")[DeviceTable.userId])
+                assertEquals("token-ok", row("fid-ok")[DeviceTable.fcmToken])
+                rollback()
+            }
+        }
+
+        @Test
         fun `lockConsent는 행이 없으면 토큰 없는 빈 행을 만들고 미동의를 돌려준다`() {
             transaction {
                 assertEquals(LockedDevice(null, DeviceConsent.NONE), devicePersistencePort.lockConsent("fid-lock"))

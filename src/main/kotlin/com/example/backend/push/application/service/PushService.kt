@@ -5,6 +5,7 @@ import com.example.backend.push.application.port.inbound.PushUseCase
 import com.example.backend.push.application.port.inbound.dto.PushMessage
 import com.example.backend.push.application.port.outbound.PushQueuePort
 import com.example.backend.push.application.port.outbound.PushSenderPort
+import com.example.backend.push.application.port.outbound.PushTokenCleanupPort
 import io.github.oshai.kotlinlogging.KotlinLogging
 import io.micrometer.core.instrument.MeterRegistry
 import org.springframework.stereotype.Service
@@ -14,6 +15,7 @@ import org.springframework.stereotype.Service
 class PushService(
     private val pushQueuePort: PushQueuePort,
     private val pushSenderPort: PushSenderPort,
+    private val pushTokenCleanupPort: PushTokenCleanupPort,
     meterRegistry: MeterRegistry,
 ) : PushUseCase,
     PushDeliveryUseCase {
@@ -39,17 +41,16 @@ class PushService(
     }
 
     override fun deliver(message: PushMessage) {
-        var invalidTokenCount = 0
         for (tokens in message.tokens.chunked(FCM_MULTICAST_LIMIT)) {
             val result = pushSenderPort.send(message.copy(tokens = tokens))
             successCounter.increment(result.successCount.toDouble())
             invalidTokenCounter.increment(result.invalidTokens.size.toDouble())
             failedCounter.increment(result.failedCount.toDouble())
-            invalidTokenCount += result.invalidTokens.size
-        }
-        // 무효 토큰 정리는 devices 테이블 반영 후 연결한다(SCRUM-765 후속).
-        if (invalidTokenCount > 0) {
-            log.warn { "푸시 발송 무효 토큰: count=$invalidTokenCount" }
+            // 묶음마다 바로 정리해, 다음 묶음 발송이 예외로 재전송되어도 이미 받은 무효 판정을 잃지 않는다.
+            if (result.invalidTokens.isNotEmpty()) {
+                pushTokenCleanupPort.removeInvalid(result.invalidTokens)
+                log.info { "푸시 무효 토큰 정리: count=${result.invalidTokens.size}" }
+            }
         }
     }
 

@@ -4,6 +4,7 @@ import com.example.backend.push.application.port.inbound.dto.PushMessage
 import com.example.backend.push.application.port.outbound.PushQueuePort
 import com.example.backend.push.application.port.outbound.PushSendResult
 import com.example.backend.push.application.port.outbound.PushSenderPort
+import com.example.backend.push.application.port.outbound.PushTokenCleanupPort
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertSame
@@ -34,7 +35,16 @@ class PushServiceTest {
             }
         }
 
-    private val pushService = PushService(pushQueuePort, pushSenderPort, meterRegistry)
+    private val removedTokens = mutableListOf<List<String>>()
+
+    private val pushTokenCleanupPort =
+        object : PushTokenCleanupPort {
+            override fun removeInvalid(tokens: Collection<String>) {
+                removedTokens.add(tokens.toList())
+            }
+        }
+
+    private val pushService = PushService(pushQueuePort, pushSenderPort, pushTokenCleanupPort, meterRegistry)
     private val message = PushMessage(listOf("token-1"), "제목", "본문", mapOf("type" to "test"))
 
     @Test
@@ -136,6 +146,29 @@ class PushServiceTest {
                 .counter()
                 .count(),
         )
+    }
+
+    @Test
+    fun `무효 토큰은 묶음마다 정리하고 무효 토큰이 없는 묶음은 정리하지 않는다`() {
+        val tokens = (1..1001).map { "token-$it" }
+        sendResults.addAll(
+            listOf(
+                PushSendResult(498, listOf("token-3", "token-7"), 0),
+                PushSendResult(500, emptyList(), 0),
+                PushSendResult(0, listOf("token-1001"), 0),
+            ),
+        )
+
+        pushService.deliver(message.copy(tokens = tokens))
+
+        assertEquals(listOf(listOf("token-3", "token-7"), listOf("token-1001")), removedTokens)
+    }
+
+    @Test
+    fun `무효 토큰이 없으면 정리하지 않는다`() {
+        pushService.deliver(message)
+
+        assertTrue(removedTokens.isEmpty())
     }
 
     @Test
