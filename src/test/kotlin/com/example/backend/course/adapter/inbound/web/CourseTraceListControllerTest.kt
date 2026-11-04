@@ -18,7 +18,7 @@ import org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPat
 import org.springframework.test.web.servlet.result.MockMvcResultMatchers.status
 
 /**
- * 내 완주 목록(`GET /api/v1/traces?cursor&size`) 통합 테스트 — 완주만 노출·최근 시작순 커서 페이지·본인 세션 한정·입력 검증.
+ * 내 완주 목록(`GET /api/v1/my/traces?cursor&size`) 통합 테스트 — 완주만 노출·최근 시작순 커서 페이지·본인 세션 한정·입력 검증.
  * 픽스처(course-trace-fixture.sql): 사용자 1(주체)·2(타인), 코스 1(공개). 세션은 시작·종료·포기 API 로 만든다.
  */
 @AutoConfigureMockMvc
@@ -120,7 +120,7 @@ class CourseTraceListControllerTest
                 ).andExpect(status().isOk)
 
             mockMvc
-                .perform(get("/api/v1/traces").header(HttpHeaders.AUTHORIZATION, bearer(OTHER_USER_ID)))
+                .perform(get("/api/v1/my/traces").header(HttpHeaders.AUTHORIZATION, bearer(OTHER_USER_ID)))
                 .andExpect(jsonPath("$.data.traces[0].course.title").value("비공개코스2"))
                 .andExpect(jsonPath("$.data.traces[0].course.isDeleted").value(false))
         }
@@ -141,7 +141,7 @@ class CourseTraceListControllerTest
             end(start(), 0, 0)
 
             mockMvc
-                .perform(get("/api/v1/traces").header(HttpHeaders.AUTHORIZATION, bearer(OTHER_USER_ID)))
+                .perform(get("/api/v1/my/traces").header(HttpHeaders.AUTHORIZATION, bearer(OTHER_USER_ID)))
                 .andExpect(status().isOk)
                 .andExpect(jsonPath("$.data.traces").isEmpty)
         }
@@ -166,7 +166,7 @@ class CourseTraceListControllerTest
 
         @Test
         fun `토큰 없으면 401 이다`() {
-            mockMvc.perform(get("/api/v1/traces")).andExpect(status().isUnauthorized)
+            mockMvc.perform(get("/api/v1/my/traces")).andExpect(status().isUnauthorized)
         }
 
         // --- helpers ---
@@ -186,7 +186,7 @@ class CourseTraceListControllerTest
         private fun bearer(userId: Long) = "Bearer ${jwtTokenProvider.issueAccessToken(userId)}"
 
         private fun list(vararg params: Pair<String, String>): ResultActions {
-            val request = get("/api/v1/traces").header(HttpHeaders.AUTHORIZATION, bearer(USER_ID))
+            val request = get("/api/v1/my/traces").header(HttpHeaders.AUTHORIZATION, bearer(USER_ID))
             params.forEach { (key, value) -> request.param(key, value) }
             return mockMvc.perform(request)
         }

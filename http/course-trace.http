@@ -32,14 +32,14 @@ Authorization: Bearer {{accessToken}}
 POST http://localhost:8080/api/v1/courses/999/traces
 Authorization: Bearer {{accessToken}}
 
-## 내 완주 목록 (GET /api/v1/traces?cursor&size)
+## 내 완주 목록 (GET /api/v1/my/traces?cursor&size)
 
 ### 1-1) 완주 기록 — 최근 시작순 커서 페이지(size 1~50, 기본 10). data = { nextCursor, hasNext, traces: [{ traceId, startedAt, endedAt, durationMinutes, distanceMeters, course: { courseId, title, coverImageUrl, area, placeCount, isDeleted } }] }. 삭제·비공개 코스는 isDeleted=true 에 courseId 외 null
-GET http://localhost:8080/api/v1/traces?size=10
+GET http://localhost:8080/api/v1/my/traces?size=10
 Authorization: Bearer {{accessToken}}
 
 ### 1-2) 잘못된 커서 → 400 / 4001 INVALID_INPUT
-GET http://localhost:8080/api/v1/traces?cursor=bad
+GET http://localhost:8080/api/v1/my/traces?cursor=bad
 Authorization: Bearer {{accessToken}}
 
 ## 장소 체크인 (POST /api/v1/traces/{traceId}/places)
