@@ -4,7 +4,6 @@ import com.example.backend.course.adapter.outbound.persistence.exposed.repositor
 import com.example.backend.course.application.port.inbound.dto.VisitedPlaceResult
 import com.example.backend.course.application.port.outbound.CourseTracePersistencePort
 import com.example.backend.course.application.port.outbound.CourseTraceRow
-import com.example.backend.course.domain.model.CourseTraceStatus
 import org.springframework.stereotype.Component
 import java.time.Instant
 
@@ -13,17 +12,13 @@ import java.time.Instant
 class CourseTracePersistenceAdapter(
     private val courseTraceRepository: CourseTraceRepository,
 ) : CourseTracePersistencePort {
-    override fun findInProgress(
-        userId: Long,
-        courseId: Long,
-    ): CourseTraceRow? = courseTraceRepository.findInProgress(userId, courseId)
+    override fun findInProgress(userId: Long): CourseTraceRow? = courseTraceRepository.findInProgress(userId)
 
-    override fun findByUserAndStatus(
+    override fun findCompleted(
         userId: Long,
-        status: CourseTraceStatus,
         beforeId: Long?,
         size: Int,
-    ): List<CourseTraceRow> = courseTraceRepository.findByUserAndStatus(userId, status, beforeId, size)
+    ): List<CourseTraceRow> = courseTraceRepository.findCompleted(userId, beforeId, size)
 
     override fun insertInProgress(
         userId: Long,
@@ -46,6 +41,8 @@ class CourseTracePersistenceAdapter(
         durationMinutes: Int,
         distanceMeters: Int,
     ): Int = courseTraceRepository.complete(traceId, durationMinutes, distanceMeters)
+
+    override fun abandon(traceId: Long) = courseTraceRepository.abandon(traceId)
 
     override fun findCompletedAt(
         userId: Long,

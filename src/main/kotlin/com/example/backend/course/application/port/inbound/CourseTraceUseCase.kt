@@ -17,23 +17,30 @@ interface CourseTraceUseCase {
     /**
      * 따라가기 시작. 볼 수 없는(비활성·비공개·미팔로우) 코스는 404.
      * 같은 코스에 진행 중 세션이 있으면 새로 만들지 않고 그 세션(체크인 포함)을 돌려준다 — 앱을 껐다 켠 뒤 이어가기.
+     * 따라가기는 사용자당 한 코스만 — 다른 코스를 진행 중이면 409.
      */
     fun start(
         userId: Long,
         courseId: Long,
     ): CourseTraceResult
 
-    /** 내 따라가기 목록 — 상태(진행 중·완주)별, 최근 시작순 커서 페이지. 진행 중 세션이 있는지 확인하는 용도도 겸한다. */
-    fun list(query: CourseTracesQuery): CourseTracesResult
+    /** 내 완주 목록 — 최근 시작순 커서 페이지. */
+    fun listCompleted(query: CourseTracesQuery): CourseTracesResult
 
-    /** 가장 최근에 시작한 진행 중 세션. 없으면 null — 홈 "따라가는 중" 카드용. */
-    fun findLatestInProgress(userId: Long): CourseTraceSummary?
+    /** 진행 중 세션(사용자당 최대 하나). 없으면 null — 홈 "따라가는 중" 카드용. */
+    fun findInProgress(userId: Long): CourseTraceSummary?
 
     /** 장소 체크인. 내 세션이 아니거나 없으면 404, 이미 종료된 세션이면 409, 코스에 없는 장소면 400. 같은 장소 재전송은 무시한다. */
     fun checkIn(command: CheckInPlaceCommand)
 
-    /** 따라가기 종료. 내 세션이 아니거나 없으면 404, 이미 종료된 세션이면 409, 병합할 장소가 코스에 없으면 400. 이때만 코스 tracings_cnt 를 올린다. */
+    /** 따라가기 종료. 내 세션이 아니거나 없으면 404, 이미 종료된 세션이면 409, 병합할 장소가 코스에 없으면 400. 이때만 코스 tracings_cnt 를 올린다. 진행 중 코스가 삭제됐어도 종료된다. */
     fun end(command: EndCourseTraceCommand)
+
+    /** 따라가기 포기 — 완주로 치지 않는다. 내 세션이 아니거나 없으면 404, 이미 종료된 세션이면 409. */
+    fun abandon(
+        userId: Long,
+        traceId: Long,
+    )
 
     /**
      * 출발 장소 → 도착 장소 도보 경로(Tmap). 세션·코스 소속은 보지 않는다 — 따라가는 중 코스 밖 장소를 끼워 넣는 경우도 같은 API 로 조회한다.

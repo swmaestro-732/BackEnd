@@ -29,8 +29,8 @@ import org.springframework.transaction.annotation.Transactional
 import java.time.Instant
 
 /**
- * 코스 따라가기 유스케이스 — 시작(IN_PROGRESS 세션 생성 또는 이어가기)·장소 체크인·다음 장소 도보 경로·종료(COMPLETED + tracings_cnt 원자적 +1)·
- * 내 따라가기 목록(상태별 커서 페이지)·완주 조회.
+ * 코스 따라가기 유스케이스 — 시작(IN_PROGRESS 세션 생성 또는 이어가기)·장소 체크인·다음 장소 도보 경로·종료(COMPLETED + tracings_cnt 원자적 +1)·포기·
+ * 내 완주 목록(커서 페이지)·완주 조회. 진행 중 세션은 사용자당 하나다.
  * 열람 권한 검사는 CourseLikeService 와 동일하다.
  */
 @Service
@@ -57,14 +57,20 @@ class CourseTraceService(
 
         // 진행 중 세션이 있으면 이어간다. 없으면 만들되, 동시 시작으로 삽입이 무시되면(부분 유니크) 그 사이 생긴 세션을 다시 읽는다.
         val trace =
-            courseTracePersistencePort.findInProgress(userId, courseId)
+            courseTracePersistencePort.findInProgress(userId)
                 ?: courseTracePersistencePort
                     .insertInProgress(
                         userId,
                         courseId,
                     )?.let { courseTracePersistencePort.findById(it) }
-                ?: courseTracePersistencePort.findInProgress(userId, courseId)
+                ?: courseTracePersistencePort.findInProgress(userId)
                 ?: error("따라가기 세션 생성 실패: userId=$userId, courseId=$courseId")
+        if (trace.courseId != courseId) {
+            throw BusinessException(
+                CourseErrorCode.COURSE_TRACE_ALREADY_IN_PROGRESS,
+                "이미 따라가는 중인 코스가 있습니다: traceId=${trace.id}, courseId=${trace.courseId}",
+            )
+        }
         return CourseTraceResult(
             traceId = trace.id,
             courseId = trace.courseId,
@@ -73,34 +79,22 @@ class CourseTraceService(
         )
     }
 
-    override fun list(query: CourseTracesQuery): CourseTracesResult {
+    override fun listCompleted(query: CourseTracesQuery): CourseTracesResult {
         val beforeId = CourseTraceCursorCodec.decode(query.cursor)
         // hasNext 판정을 위해 한 개 더 조회한 뒤 페이지 크기만큼 잘라낸다.
-        val rows = courseTracePersistencePort.findByUserAndStatus(query.userId, query.status, beforeId, query.size + 1)
+        val rows = courseTracePersistencePort.findCompleted(query.userId, beforeId, query.size + 1)
         val hasNext = rows.size > query.size
         val page = rows.take(query.size)
         return CourseTracesResult(
             nextCursor = if (hasNext) CourseTraceCursorCodec.encode(page.last().id) else null,
             hasNext = hasNext,
             traces =
-                page.map {
-                    CourseTraceSummary(
-                        id = it.id,
-                        courseId = it.courseId,
-                        status = it.status,
-                        startedAt = it.startedAt,
-                        endedAt = it.endedAt,
-                        durationMinutes = it.durationMinutes,
-                        distanceMeters = it.distanceMeters,
-                    )
-                },
+                page.map { it.toSummary() },
         )
     }
 
-    override fun findLatestInProgress(userId: Long): CourseTraceSummary? =
-        list(CourseTracesQuery(userId = userId, status = CourseTraceStatus.IN_PROGRESS, cursor = null, size = 1))
-            .traces
-            .firstOrNull()
+    override fun findInProgress(userId: Long): CourseTraceSummary? =
+        courseTracePersistencePort.findInProgress(userId)?.toSummary()
 
     @Transactional
     override fun checkIn(command: CheckInPlaceCommand) {
@@ -120,13 +114,17 @@ class CourseTraceService(
         if (courseTracePersistencePort.complete(trace.id, command.durationMinutes, command.distanceMeters) == 0) {
             throw BusinessException(CourseErrorCode.COURSE_TRACE_ALREADY_ENDED, "이미 종료된 따라가기입니다: traceId=${trace.id}")
         }
-        // 0행이면 코스가 그 사이 비활성된 것 → 종료까지 롤백해 기록·카운터 불일치를 막는다.
-        if (coursePersistencePort.increaseTracingsCount(trace.courseId) == 0) {
-            throw BusinessException(
-                CourseErrorCode.COURSE_NOT_FOUND,
-                "따라가기를 종료할 코스를 찾을 수 없습니다: courseId=${trace.courseId}",
-            )
-        }
+        // 코스가 삭제됐으면 0행 — 카운터만 건너뛰고 종료는 그대로 기록한다.
+        coursePersistencePort.increaseTracingsCount(trace.courseId)
+    }
+
+    @Transactional
+    override fun abandon(
+        userId: Long,
+        traceId: Long,
+    ) {
+        val trace = ownedInProgress(userId, traceId)
+        courseTracePersistencePort.abandon(trace.id)
     }
 
     /**
@@ -183,6 +181,16 @@ class CourseTraceService(
             )
         }
     }
+
+    private fun CourseTraceRow.toSummary() =
+        CourseTraceSummary(
+            id = id,
+            courseId = courseId,
+            startedAt = startedAt,
+            endedAt = endedAt,
+            durationMinutes = durationMinutes,
+            distanceMeters = distanceMeters,
+        )
 
     private fun PlaceRef.toTracePlace() = TracePlaceResult(placeId = id, name = name, coordinate = coordinate)
 

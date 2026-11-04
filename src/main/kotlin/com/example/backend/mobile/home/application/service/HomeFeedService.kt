@@ -42,7 +42,7 @@ class HomeFeedService(
     ): HomeResult =
         HomeResult(
             profile = viewerId?.let(homeProfilePort::findProfile),
-            tracingCourse = viewerId?.let(homeTracePort::findLatestInProgress),
+            tracingCourse = viewerId?.let(homeTracePort::findInProgress),
             recommendedCourses = homeFeedPort.listPublicCandidates(null, HOME_SECTION_SIZE).courses,
             nearbySavedPlaces =
                 if (viewerId == null || userLocation == null) {

@@ -28,27 +28,21 @@ import kotlin.time.toKotlinInstant
 /** tracing_courses·tracing_course_places 테이블 접근 리포지토리 — 따라가기 세션의 시작·체크인·종료와 완주 조회. */
 @Repository
 class CourseTraceRepository {
-    fun findInProgress(
-        userId: Long,
-        courseId: Long,
-    ): CourseTraceRow? =
+    fun findInProgress(userId: Long): CourseTraceRow? =
         CourseTraceTable
             .selectAll()
             .where {
-                (CourseTraceTable.userId eq userId) and
-                    (CourseTraceTable.courseId eq courseId) and
-                    (CourseTraceTable.status eq CourseTraceStatus.IN_PROGRESS)
+                (CourseTraceTable.userId eq userId) and (CourseTraceTable.status eq CourseTraceStatus.IN_PROGRESS)
             }.singleOrNull()
             ?.toRow()
 
-    /** 사용자의 [status] 세션을 id DESC 키셋으로 읽는다 — (user_id, course_id) 인덱스의 user_id 접두로 탄다. 한 사용자의 세션 수는 적다. */
-    fun findByUserAndStatus(
+    /** 사용자의 완주 세션을 id DESC 키셋으로 읽는다 — (user_id, course_id) 인덱스의 user_id 접두로 탄다. 한 사용자의 세션 수는 적다. */
+    fun findCompleted(
         userId: Long,
-        status: CourseTraceStatus,
         beforeId: Long?,
         size: Int,
     ): List<CourseTraceRow> {
-        var condition = (CourseTraceTable.userId eq userId) and (CourseTraceTable.status eq status)
+        var condition = (CourseTraceTable.userId eq userId) and (CourseTraceTable.status eq CourseTraceStatus.COMPLETED)
         beforeId?.let { condition = condition and (CourseTraceTable.id less it) }
         return CourseTraceTable
             .selectAll()
@@ -58,7 +52,7 @@ class CourseTraceRepository {
             .map { it.toRow() }
     }
 
-    /** 부분 유니크 인덱스(진행 중 세션은 (user, course) 당 하나)와 충돌하면 null — 동시 시작은 호출부가 기존 세션을 다시 읽는다. */
+    /** 부분 유니크 인덱스(진행 중 세션은 사용자당 하나)와 충돌하면 null — 동시 시작은 호출부가 기존 세션을 다시 읽는다. */
     fun insertInProgress(
         userId: Long,
         courseId: Long,
@@ -120,6 +114,15 @@ class CourseTraceRepository {
             it[CourseTraceTable.distanceMeters] = distanceMeters
             it[endedAt] = Clock.System.now()
         }
+
+    /** status = IN_PROGRESS 조건으로 갱신한다. 방문 기록은 남기고 종료 시각은 찍지 않는다. */
+    fun abandon(traceId: Long) {
+        CourseTraceTable.update({
+            (CourseTraceTable.id eq traceId) and (CourseTraceTable.status eq CourseTraceStatus.IN_PROGRESS)
+        }) {
+            it[status] = CourseTraceStatus.ABANDONED
+        }
+    }
 
     /** (user, courseIds) 중 완주한 코스의 가장 이른 ended_at 을 courseId 별로 반환한다(없으면 빈 맵). */
     fun findCompletedAt(

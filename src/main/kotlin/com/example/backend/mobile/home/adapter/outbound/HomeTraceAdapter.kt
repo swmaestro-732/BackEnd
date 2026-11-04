@@ -15,8 +15,8 @@ class HomeTraceAdapter(
     private val courseTraceUseCase: CourseTraceUseCase,
     private val courseQueryUseCase: CourseQueryUseCase,
 ) : HomeTracePort {
-    override fun findLatestInProgress(userId: Long): HomeTracingCourse? {
-        val trace = courseTraceUseCase.findLatestInProgress(userId) ?: return null
+    override fun findInProgress(userId: Long): HomeTracingCourse? {
+        val trace = courseTraceUseCase.findInProgress(userId) ?: return null
         val course = courseQueryUseCase.getDetails(listOf(trace.courseId), userId).firstOrNull() ?: return null
         return HomeTracingCourse(
             traceId = trace.id,
