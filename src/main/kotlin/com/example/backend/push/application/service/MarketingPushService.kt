@@ -12,14 +12,15 @@ import com.example.backend.push.application.port.outbound.PushCampaign
 import com.example.backend.push.application.port.outbound.PushCampaignPersistencePort
 import io.github.oshai.kotlinlogging.KotlinLogging
 import org.springframework.stereotype.Service
-import org.springframework.transaction.annotation.Transactional
 import java.net.URI
 import java.time.Clock
 import java.time.ZoneId
 
-/** 광고성 정보 전송 규정(정보통신망법 제50조)에 맞춰 광고 표기, 수신거부 안내, 야간 동의를 적용해 발송한다. */
+/**
+ * 광고성 정보 전송 규정(정보통신망법 제50조)에 맞춰 광고 표기, 수신거부 안내, 야간 동의를 적용해 발송한다.
+ * 트랜잭션으로 묶지 않는다. 발송 이력을 먼저 커밋해 두어, 큐 발행이 묶음 중간에 실패해도 이미 나간 광고의 기록이 남게 한다.
+ */
 @Service
-@Transactional
 class MarketingPushService(
     private val marketingRecipientPort: MarketingRecipientPort,
     private val pushCampaignPersistencePort: PushCampaignPersistencePort,
