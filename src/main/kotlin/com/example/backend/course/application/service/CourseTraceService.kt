@@ -6,6 +6,7 @@ import com.example.backend.common.response.CourseErrorCode
 import com.example.backend.common.response.PlaceErrorCode
 import com.example.backend.course.application.port.inbound.CourseTraceUseCase
 import com.example.backend.course.application.port.inbound.dto.CheckInPlaceCommand
+import com.example.backend.course.application.port.inbound.dto.CompletedCourseTrace
 import com.example.backend.course.application.port.inbound.dto.CourseTraceResult
 import com.example.backend.course.application.port.inbound.dto.CourseTraceSummary
 import com.example.backend.course.application.port.inbound.dto.CourseTracesQuery
@@ -15,6 +16,7 @@ import com.example.backend.course.application.port.inbound.dto.TracePlaceResult
 import com.example.backend.course.application.port.inbound.dto.TraceRouteGuideResult
 import com.example.backend.course.application.port.inbound.dto.TraceRouteResult
 import com.example.backend.course.application.port.inbound.dto.TraceWalkingRouteResult
+import com.example.backend.course.application.port.inbound.dto.TracedCourseSummary
 import com.example.backend.course.application.port.outbound.CoursePersistencePort
 import com.example.backend.course.application.port.outbound.CourseTracePersistencePort
 import com.example.backend.course.application.port.outbound.CourseTraceRow
@@ -85,11 +87,17 @@ class CourseTraceService(
         val rows = courseTracePersistencePort.findCompleted(query.userId, beforeId, query.size + 1)
         val hasNext = rows.size > query.size
         val page = rows.take(query.size)
+        val courses = findTracedCourses(query.userId, page.map { it.courseId }.distinct())
         return CourseTracesResult(
             nextCursor = if (hasNext) CourseTraceCursorCodec.encode(page.last().id) else null,
             hasNext = hasNext,
             traces =
-                page.map { it.toSummary() },
+                page.map {
+                    CompletedCourseTrace(
+                        trace = it.toSummary(),
+                        course = courses[it.courseId] ?: TracedCourseSummary.deleted(it.courseId),
+                    )
+                },
         )
     }
 
@@ -165,6 +173,30 @@ class CourseTraceService(
 
     @Transactional
     override fun purgeByUser(userId: Long) = courseTracePersistencePort.deleteAllByUser(userId)
+
+    /** 조회자가 볼 수 있는 코스의 요약만 돌려준다 — 삭제·비활성·비공개 전환된 코스는 결과에서 빠진다. */
+    private fun findTracedCourses(
+        viewerId: Long,
+        courseIds: List<Long>,
+    ): Map<Long, TracedCourseSummary> {
+        if (courseIds.isEmpty()) return emptyMap()
+        val viewable =
+            coursePersistencePort.findCourseDetails(courseIds).filter {
+                it.status == CourseStatus.ACTIVE && courseViewPolicy.isViewable(it.visibility, it.userId, viewerId)
+            }
+        val placeStats = coursePersistencePort.findPlaceStats(viewable.map { it.id })
+        return viewable.associate {
+            it.id to
+                TracedCourseSummary(
+                    courseId = it.id,
+                    title = it.title,
+                    coverImageUrl = it.coverImageUrl,
+                    area = it.area,
+                    placeCount = placeStats[it.id]?.placeCount ?: 0,
+                    isDeleted = false,
+                )
+        }
+    }
 
     /** 방문 기록은 코스 장소만 받는다 — 하나라도 코스에 없으면 400. 게시 코스는 장소 구성이 불변이라 요청 시점 검사로 충분하다. */
     private fun requirePlacesInCourse(

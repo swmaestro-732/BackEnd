@@ -34,7 +34,7 @@ Authorization: Bearer {{accessToken}}
 
 ## 내 완주 목록 (GET /api/v1/traces?cursor&size)
 
-### 1-1) 완주 기록 — 최근 시작순 커서 페이지(size 1~50, 기본 10). data = { nextCursor, hasNext, traces: [{ traceId, courseId, startedAt, endedAt, durationMinutes, distanceMeters }] }
+### 1-1) 완주 기록 — 최근 시작순 커서 페이지(size 1~50, 기본 10). data = { nextCursor, hasNext, traces: [{ traceId, startedAt, endedAt, durationMinutes, distanceMeters, course: { courseId, title, coverImageUrl, area, placeCount, isDeleted } }] }. 삭제·비공개 코스는 isDeleted=true 에 courseId 외 null
 GET http://localhost:8080/api/v1/traces?size=10
 Authorization: Bearer {{accessToken}}
 
