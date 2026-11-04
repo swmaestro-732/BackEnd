@@ -1,10 +1,10 @@
 package com.example.backend.course.adapter.outbound.persistence.exposed.repository
 
+import com.example.backend.common.domain.CourseTraceStatus
 import com.example.backend.course.adapter.outbound.persistence.exposed.CourseTracePlaceTable
 import com.example.backend.course.adapter.outbound.persistence.exposed.CourseTraceTable
 import com.example.backend.course.application.port.inbound.dto.VisitedPlaceResult
 import com.example.backend.course.application.port.outbound.CourseTraceRow
-import com.example.backend.course.domain.model.CourseTraceStatus
 import org.jetbrains.exposed.v1.core.ResultRow
 import org.jetbrains.exposed.v1.core.SortOrder
 import org.jetbrains.exposed.v1.core.and
@@ -122,15 +122,6 @@ class CourseTraceRepository {
             it[CourseTraceTable.distanceMeters] = distanceMeters
             it[endedAt] = Clock.System.now()
         }
-
-    /** status = IN_PROGRESS 조건으로 갱신한다. 방문 기록은 남기고 종료 시각은 찍지 않는다. */
-    fun abandon(traceId: Long) {
-        CourseTraceTable.update({
-            (CourseTraceTable.id eq traceId) and (CourseTraceTable.status eq CourseTraceStatus.IN_PROGRESS)
-        }) {
-            it[status] = CourseTraceStatus.ABANDONED
-        }
-    }
 
     /** (user, courseIds) 중 완주한 코스의 가장 이른 ended_at 을 courseId 별로 반환한다(없으면 빈 맵). */
     fun findCompletedAt(

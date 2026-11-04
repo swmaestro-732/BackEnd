@@ -118,19 +118,6 @@ class TraceScreenControllerTest
         }
 
         @Test
-        fun `포기한 세션도 status 만 ABANDONED 로 조회된다`() {
-            val traceId = start()
-            mockMvc
-                .perform(post("/api/v1/traces/$traceId/abandon").header(HttpHeaders.AUTHORIZATION, bearer(USER_ID)))
-                .andExpect(status().isOk)
-
-            screen(traceId, USER_ID)
-                .andExpect(status().isOk)
-                .andExpect(jsonPath("$.data.status").value("ABANDONED"))
-                .andExpect(jsonPath("$.data.endedAt").value(null))
-        }
-
-        @Test
         fun `mock=true 면 조회 없이 고정 목을 돌려준다`() {
             mockMvc
                 .perform(

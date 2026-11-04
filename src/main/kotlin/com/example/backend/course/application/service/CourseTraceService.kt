@@ -1,5 +1,6 @@
 package com.example.backend.course.application.service
 
+import com.example.backend.common.domain.CourseTraceStatus
 import com.example.backend.common.exception.BusinessException
 import com.example.backend.common.response.CommonErrorCode
 import com.example.backend.common.response.CourseErrorCode
@@ -28,14 +29,13 @@ import com.example.backend.course.application.port.outbound.PlaceLookupPort
 import com.example.backend.course.application.port.outbound.PlaceRef
 import com.example.backend.course.application.port.outbound.WalkingRoutePort
 import com.example.backend.course.domain.model.CourseStatus
-import com.example.backend.course.domain.model.CourseTraceStatus
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Propagation
 import org.springframework.transaction.annotation.Transactional
 import java.time.Instant
 
 /**
- * 코스 따라가기 유스케이스 — 시작(IN_PROGRESS 세션 생성 또는 이어가기)·장소 체크인·다음 장소 도보 경로·종료(COMPLETED + tracings_cnt 원자적 +1)·포기·
+ * 코스 따라가기 유스케이스 — 시작(IN_PROGRESS 세션 생성 또는 이어가기)·장소 체크인·다음 장소 도보 경로·종료(COMPLETED + tracings_cnt 원자적 +1)·
  * 내 완주 목록(커서 페이지)·완주 조회. 진행 중 세션은 사용자당 하나다.
  * 열람 권한 검사는 CourseLikeService 와 동일하다.
  */
@@ -149,15 +149,6 @@ class CourseTraceService(
         }
         // 코스가 삭제됐으면 0행 — 카운터만 건너뛰고 종료는 그대로 기록한다.
         coursePersistencePort.increaseTracingsCount(trace.courseId)
-    }
-
-    @Transactional
-    override fun abandon(
-        userId: Long,
-        traceId: Long,
-    ) {
-        val trace = ownedInProgress(userId, traceId)
-        courseTracePersistencePort.abandon(trace.id)
     }
 
     /**
@@ -277,7 +268,7 @@ class CourseTraceService(
         }
     }
 
-    /** 세션을 잠그고 읽어 검사한다 — 체크인·종료·포기가 같은 잠금으로 직렬화된다. */
+    /** 세션을 잠그고 읽어 검사한다 — 체크인·종료가 같은 잠금으로 직렬화된다. */
     private fun ownedInProgress(
         userId: Long,
         traceId: Long,

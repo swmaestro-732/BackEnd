@@ -1,12 +1,12 @@
 package com.example.backend.mobile.course.application.service
 
+import com.example.backend.common.domain.CourseTraceStatus
 import com.example.backend.common.exception.BusinessException
 import com.example.backend.common.response.CourseErrorCode
 import com.example.backend.course.application.port.inbound.CourseTraceUseCase
 import com.example.backend.course.application.port.inbound.dto.CoursePlaceResult
 import com.example.backend.course.application.port.inbound.dto.CourseTraceDetailResult
 import com.example.backend.course.application.port.inbound.dto.TracedCourseSummary
-import com.example.backend.course.domain.model.CourseTraceStatus
 import com.example.backend.place.application.port.inbound.PlaceQueryUseCase
 import com.example.backend.place.application.port.inbound.dto.PlaceSummary
 import org.junit.jupiter.api.Assertions.assertEquals

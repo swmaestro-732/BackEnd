@@ -18,7 +18,7 @@ import org.springframework.test.web.servlet.result.MockMvcResultMatchers.status
 
 /**
  * 따라가기 컨트롤러 통합 테스트 — 시작(`POST /api/v1/courses/{courseId}/traces`)·체크인(`POST /api/v1/traces/{traceId}/places`)·
- * 종료(`POST /api/v1/traces/{traceId}/end`)·포기(`POST /api/v1/traces/{traceId}/abandon`).
+ * 종료(`POST /api/v1/traces/{traceId}/end`).
  * 픽스처(course-trace-fixture.sql): 사용자 1(주체)·2(타인), 코스1(공개, 장소 22·23·25)·2(타인 비공개)·3(소프트 삭제)·4(공개).
  */
 @AutoConfigureMockMvc
@@ -347,76 +347,6 @@ class CourseTraceControllerTest
             assertThat(traceStatus(traceId)).isEqualTo("COMPLETED")
         }
 
-        // --- 포기 ---
-
-        @Test
-        fun `포기 — ABANDONED 로 바꾸고 방문 기록은 남기며 tracings_cnt 는 그대로다`() {
-            val traceId = start()
-            checkIn(traceId, 22L, "2026-10-10T05:00:00Z").andExpect(status().isOk)
-
-            abandon(traceId)
-                .andExpect(status().isOk)
-                .andExpect(jsonPath("$.code").value(2000))
-                .andExpect(jsonPath("$.message").value("따라가기를 포기했습니다."))
-
-            assertThat(traceStatus(traceId)).isEqualTo("ABANDONED")
-            assertThat(visitedPlaces(traceId)).hasSize(1)
-            assertThat(tracingsCnt(1L)).isZero()
-        }
-
-        @Test
-        fun `포기 — 포기하면 다른 코스를 시작할 수 있다`() {
-            abandon(start()).andExpect(status().isOk)
-
-            mockMvc
-                .perform(post("/api/v1/courses/4/traces").header(HttpHeaders.AUTHORIZATION, bearer(USER_ID)))
-                .andExpect(status().isOk)
-                .andExpect(jsonPath("$.data.courseId").value(4))
-        }
-
-        @Test
-        fun `포기 — 진행 중 코스가 삭제됐어도 포기할 수 있다`() {
-            val traceId = start()
-            jdbcTemplate.update("UPDATE courses SET deleted_at = now(), status = 'DELETED' WHERE id = 1")
-
-            abandon(traceId).andExpect(status().isOk)
-
-            assertThat(traceStatus(traceId)).isEqualTo("ABANDONED")
-        }
-
-        @Test
-        fun `포기 — 종료되거나 이미 포기한 세션은 409 와 4099 다`() {
-            val ended = start()
-            end(ended, """{"durationMinutes": 0, "distanceMeters": 0}""").andExpect(status().isOk)
-            val abandoned = start()
-            abandon(abandoned).andExpect(status().isOk)
-
-            listOf(ended, abandoned).forEach { traceId ->
-                abandon(traceId)
-                    .andExpect(status().isConflict)
-                    .andExpect(jsonPath("$.code").value(4099))
-            }
-            assertThat(traceStatus(ended)).isEqualTo("COMPLETED")
-        }
-
-        @Test
-        fun `포기 — 타인의 세션이나 없는 세션은 404 와 4049 다`() {
-            val traceId = start()
-
-            listOf(OTHER_USER_ID to traceId, USER_ID to 99999L).forEach { (userId, id) ->
-                mockMvc
-                    .perform(post("/api/v1/traces/$id/abandon").header(HttpHeaders.AUTHORIZATION, bearer(userId)))
-                    .andExpect(status().isNotFound)
-                    .andExpect(jsonPath("$.code").value(4049))
-            }
-            assertThat(traceStatus(traceId)).isEqualTo("IN_PROGRESS")
-        }
-
-        @Test
-        fun `포기 — 토큰 없으면 401 이다`() {
-            mockMvc.perform(post("/api/v1/traces/1/abandon")).andExpect(status().isUnauthorized)
-        }
-
         // --- helpers ---
 
         private fun bearer(userId: Long) = "Bearer ${jwtTokenProvider.issueAccessToken(userId)}"
@@ -452,11 +382,6 @@ class CourseTraceControllerTest
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(body),
         )
-
-        private fun abandon(traceId: Long) =
-            mockMvc.perform(
-                post("/api/v1/traces/$traceId/abandon").header(HttpHeaders.AUTHORIZATION, bearer(USER_ID)),
-            )
 
         private fun traceStatus(traceId: Long): String =
             jdbcTemplate.queryForObject(

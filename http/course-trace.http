@@ -2,7 +2,7 @@
 # 모든 요청은 @AccessTokenRequired 로 access 토큰을 강제하고 @CurrentUserId(JWT subject)로 userId 를 뽑는다.
 # 아래 첫 요청(mock 로그인)이 accessToken 을 전역 저장 → 이후 요청은 Authorization 헤더로 재사용한다.
 # (auth.http 를 먼저 실행해 두었다면 이 요청은 건너뛰어도 된다.)
-# 흐름: 시작(세션 생성 또는 이어가기) → 장소 체크인(방문 즉시) → 종료(소요 시간·이동 거리, tracings_cnt +1). 포기·완주 목록·경로(/traces/route)는 별도. 진행 중 코스는 사용자당 하나.
+# 흐름: 시작(세션 생성 또는 이어가기) → 장소 체크인(방문 즉시) → 종료(소요 시간·이동 거리, tracings_cnt +1). 완주 목록·경로(/traces/route)는 별도. 진행 중 코스는 사용자당 하나 — 다른 코스로 바꾸려면 종료한다.
 
 ### 0) 사전: mock 소셜 로그인 — dev accessToken(user id=1) 발급 + 전역 저장
 POST http://localhost:8080/api/v1/auth/social-login?mock=true
@@ -108,12 +108,6 @@ Authorization: Bearer {{accessToken}}
   "durationMinutes": -1,
   "distanceMeters": 2400
 }
-
-## 따라가기 포기 (POST /api/v1/traces/{traceId}/abandon)
-
-### 8-1) 포기 — 200 / 2000, data 없음. tracings_cnt 는 그대로. 이미 종료된 세션이면 409 / 4099 COURSE_TRACE_ALREADY_ENDED
-POST http://localhost:8080/api/v1/traces/{{traceId}}/abandon
-Authorization: Bearer {{accessToken}}
 
 ### 9) 토큰 없음 → 401
 POST http://localhost:8080/api/v1/courses/1/traces

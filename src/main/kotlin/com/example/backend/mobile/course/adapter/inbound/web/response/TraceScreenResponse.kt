@@ -1,8 +1,8 @@
 package com.example.backend.mobile.course.adapter.inbound.web.response
 
+import com.example.backend.common.domain.CourseTraceStatus
 import com.example.backend.course.application.port.inbound.dto.CoursePlaceResult
 import com.example.backend.course.application.port.inbound.dto.TracedCourseSummary
-import com.example.backend.course.domain.model.CourseTraceStatus
 import com.example.backend.mobile.course.application.port.inbound.dto.TraceScreenResult
 import com.example.backend.mobile.place.adapter.inbound.web.response.PlaceLocationResponse
 import com.example.backend.place.application.port.inbound.dto.PlaceSummary

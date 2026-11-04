@@ -19,7 +19,7 @@ import org.springframework.test.web.servlet.result.MockMvcResultMatchers.status
 
 /**
  * 내 완주 목록(`GET /api/v1/my/traces?cursor&size`) 통합 테스트 — 완주만 노출·최근 시작순 커서 페이지·본인 세션 한정·입력 검증.
- * 픽스처(course-trace-fixture.sql): 사용자 1(주체)·2(타인), 코스 1(공개). 세션은 시작·종료·포기 API 로 만든다.
+ * 픽스처(course-trace-fixture.sql): 사용자 1(주체)·2(타인), 코스 1(공개). 세션은 시작·종료 API 로 만든다.
  */
 @AutoConfigureMockMvc
 @Sql(scripts = ["/sql/course-trace-fixture.sql"], executionPhase = Sql.ExecutionPhase.BEFORE_TEST_METHOD)
@@ -126,11 +126,7 @@ class CourseTraceListControllerTest
         }
 
         @Test
-        fun `진행 중·포기한 세션은 목록에 나오지 않는다`() {
-            val abandoned = start()
-            mockMvc
-                .perform(post("/api/v1/traces/$abandoned/abandon").header(HttpHeaders.AUTHORIZATION, bearer(USER_ID)))
-                .andExpect(status().isOk)
+        fun `진행 중 세션은 목록에 나오지 않는다`() {
             start()
 
             list().andExpect(jsonPath("$.data.traces").isEmpty)

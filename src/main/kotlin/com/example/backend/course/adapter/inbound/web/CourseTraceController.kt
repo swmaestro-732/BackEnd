@@ -27,7 +27,7 @@ import org.springframework.web.bind.annotation.RestController
 
 /**
  * 인바운드 어댑터 — 코스 따라가기. 노션 API 명세서 Course › course-track 기준.
- * 시작은 코스 아래(`/courses/{courseId}/traces`), 그 뒤 체크인·종료·포기는 세션 id 로(`/traces/{traceId}/...`) 다룬다.
+ * 시작은 코스 아래(`/courses/{courseId}/traces`), 그 뒤 체크인·종료는 세션 id 로(`/traces/{traceId}/...`) 다룬다.
  * 내 완주 목록(`/my/traces`)은 커서 페이지다. 따라가는 중인 코스는 사용자당 하나이며 홈 응답으로 내려간다.
  * 경로 조회(`/traces/route?fromPlaceId&toPlaceId`)는 세션에 묶지 않는다 — 따라가는 중 코스 밖 장소를 끼워 넣어도 쓸 수 있게.
  * `/api` 하위는 permitAll 이라 access 토큰을 직접 강제한다.
@@ -117,16 +117,5 @@ class CourseTraceController(
             ),
         )
         return ApiResponse.ok("따라가기를 종료했습니다.")
-    }
-
-    /** 따라가기 포기 — 완주로 치지 않아 tracings_cnt 는 그대로다. */
-    @PostMapping("/api/v1/traces/{traceId}/abandon")
-    @AccessTokenRequired
-    fun abandon(
-        @CurrentUserId userId: Long,
-        @PathVariable traceId: Long,
-    ): ApiResponse<Nothing?> {
-        courseTraceUseCase.abandon(userId, traceId)
-        return ApiResponse.ok("따라가기를 포기했습니다.")
     }
 }

@@ -1,7 +1,7 @@
 package com.example.backend.course.application.port.outbound
 
+import com.example.backend.common.domain.CourseTraceStatus
 import com.example.backend.course.application.port.inbound.dto.VisitedPlaceResult
-import com.example.backend.course.domain.model.CourseTraceStatus
 import java.time.Instant
 
 /** 따라가기 세션 한 행. endedAt 은 COMPLETED 일 때만, 소요 시간·이동 거리는 종료 전엔 0. */
@@ -56,9 +56,6 @@ interface CourseTracePersistencePort {
         durationMinutes: Int,
         distanceMeters: Int,
     ): Int
-
-    /** 진행 중 세션을 ABANDONED 로 바꾼다. */
-    fun abandon(traceId: Long)
 
     /** 주어진 코스들 중 사용자가 완주한 코스의 가장 이른 종료 시각을 courseId 별로 반환한다. 완주하지 않은 코스는 없다. */
     fun findCompletedAt(

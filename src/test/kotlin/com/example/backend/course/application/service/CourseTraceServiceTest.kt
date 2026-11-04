@@ -1,5 +1,6 @@
 package com.example.backend.course.application.service
 
+import com.example.backend.common.domain.CourseTraceStatus
 import com.example.backend.common.domain.CourseVisibility
 import com.example.backend.common.exception.BusinessException
 import com.example.backend.common.geo.Coordinate
@@ -22,7 +23,6 @@ import com.example.backend.course.application.port.outbound.WalkingGuide
 import com.example.backend.course.application.port.outbound.WalkingRoute
 import com.example.backend.course.application.port.outbound.WalkingRoutePort
 import com.example.backend.course.domain.model.CourseStatus
-import com.example.backend.course.domain.model.CourseTraceStatus
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Test

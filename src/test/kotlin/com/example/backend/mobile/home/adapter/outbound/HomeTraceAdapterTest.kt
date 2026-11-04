@@ -1,11 +1,11 @@
 package com.example.backend.mobile.home.adapter.outbound
 
+import com.example.backend.common.domain.CourseTraceStatus
 import com.example.backend.course.application.port.inbound.CourseTraceUseCase
 import com.example.backend.course.application.port.inbound.dto.CoursePlaceResult
 import com.example.backend.course.application.port.inbound.dto.CourseTraceDetailResult
 import com.example.backend.course.application.port.inbound.dto.TracedCourseSummary
 import com.example.backend.course.application.port.inbound.dto.VisitedPlaceResult
-import com.example.backend.course.domain.model.CourseTraceStatus
 import com.example.backend.mobile.home.application.port.outbound.dto.HomeTracingCourse
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertNull

@@ -44,8 +44,6 @@ class CourseTracePersistenceAdapter(
         distanceMeters: Int,
     ): Int = courseTraceRepository.complete(traceId, durationMinutes, distanceMeters)
 
-    override fun abandon(traceId: Long) = courseTraceRepository.abandon(traceId)
-
     override fun findCompletedAt(
         userId: Long,
         courseIds: List<Long>,
