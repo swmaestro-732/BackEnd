@@ -6,7 +6,6 @@ import com.example.backend.course.application.port.inbound.CourseTraceUseCase
 import com.example.backend.course.application.port.inbound.dto.CourseDetailResult
 import com.example.backend.course.application.port.inbound.dto.CoursePlaceResult
 import com.example.backend.course.application.port.inbound.dto.CourseTraceSummary
-import com.example.backend.course.domain.model.CourseTraceStatus
 import com.example.backend.mobile.home.application.port.outbound.dto.HomeTracingCourse
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertNull
@@ -24,23 +23,23 @@ class HomeTraceAdapterTest {
 
     @Test
     fun `진행 중 세션이 없으면 null 이고 코스를 조회하지 않는다`() {
-        `when`(courseTraceUseCase.findLatestInProgress(1L)).thenReturn(null)
+        `when`(courseTraceUseCase.findInProgress(1L)).thenReturn(null)
 
-        assertNull(adapter.findLatestInProgress(1L))
+        assertNull(adapter.findInProgress(1L))
         verifyNoInteractions(courseQueryUseCase)
     }
 
     @Test
     fun `코스를 더 볼 수 없으면 null 이다`() {
-        `when`(courseTraceUseCase.findLatestInProgress(1L)).thenReturn(summary())
+        `when`(courseTraceUseCase.findInProgress(1L)).thenReturn(summary())
         `when`(courseQueryUseCase.getDetails(listOf(3L), 1L)).thenReturn(emptyList())
 
-        assertNull(adapter.findLatestInProgress(1L))
+        assertNull(adapter.findInProgress(1L))
     }
 
     @Test
     fun `세션과 코스 요약을 합치고 장소 수는 코스 장소 개수다`() {
-        `when`(courseTraceUseCase.findLatestInProgress(1L)).thenReturn(summary())
+        `when`(courseTraceUseCase.findInProgress(1L)).thenReturn(summary())
         `when`(courseQueryUseCase.getDetails(listOf(3L), 1L)).thenReturn(listOf(course()))
 
         assertEquals(
@@ -53,7 +52,7 @@ class HomeTraceAdapterTest {
                 placeCount = 2,
                 startedAt = startedAt,
             ),
-            adapter.findLatestInProgress(1L),
+            adapter.findInProgress(1L),
         )
     }
 
@@ -61,7 +60,6 @@ class HomeTraceAdapterTest {
         CourseTraceSummary(
             id = 10L,
             courseId = 3L,
-            status = CourseTraceStatus.IN_PROGRESS,
             startedAt = startedAt,
             endedAt = null,
             durationMinutes = 0,

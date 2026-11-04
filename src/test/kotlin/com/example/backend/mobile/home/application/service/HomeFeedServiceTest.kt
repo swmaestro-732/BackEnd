@@ -70,7 +70,7 @@ class HomeFeedServiceTest {
             fakeProfilePort,
             fakeNearbyPort,
             object : HomeTracePort {
-                override fun findLatestInProgress(userId: Long): HomeTracingCourse? = null
+                override fun findInProgress(userId: Long): HomeTracingCourse? = null
             },
         )
 

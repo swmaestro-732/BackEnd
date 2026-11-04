@@ -1,5 +1,5 @@
 -- 코스 따라가기 컨트롤러 통합 테스트 픽스처(course-like-fixture 미러).
--- RESTART IDENTITY 로 serial id 를 고정한다(users 1·2, courses 1~3).
+-- RESTART IDENTITY 로 serial id 를 고정한다(users 1·2, courses 1~4).
 TRUNCATE TABLE users, courses, course_places, tracing_courses, tracing_course_places, places
     RESTART IDENTITY CASCADE;
 
@@ -14,6 +14,9 @@ VALUES
 INSERT INTO courses (user_id, title, is_published, visibility, deleted_at)
 VALUES
     (2, '삭제된코스3', true, 'PUBLIC', now());
+-- 코스 4 = 공개(다른 코스를 진행 중일 때 시작하면 409 대상).
+INSERT INTO courses (user_id, title, is_published, visibility)
+VALUES (2, '코스4', true, 'PUBLIC');
 
 -- 코스 1 의 장소: 22·23·25 (체크인 허용 대상). place_id 는 cross-domain 이라 FK 없이 임의 값. 24 는 코스에 없는 장소(400 대상).
 INSERT INTO course_places (course_id, place_id, order_no)

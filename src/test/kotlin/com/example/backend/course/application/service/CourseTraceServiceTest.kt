@@ -27,8 +27,8 @@ import java.time.Instant
 /**
  * [CourseTraceService] 단위 테스트 — 포트를 목으로 대체해 서비스 규칙만 검증한다.
  * - findRoute: 출발·도착 장소 검증(같으면 400, 없으면 404), 조회 순서 보정, 도보 경로 → 결과 DTO 변환, 도보 불가(null) 전파.
- * - findLatestInProgress: 진행 중 1건 조회.
- * - list: 커서 디코딩 → beforeId 전달, size+1 조회로 hasNext 판정·페이지 절단·nextCursor 생성, 행 → Summary 변환.
+ * - findInProgress: 진행 중 세션 조회.
+ * - listCompleted: 커서 디코딩 → beforeId 전달, size+1 조회로 hasNext 판정·페이지 절단·nextCursor 생성, 행 → Summary 변환.
  */
 class CourseTraceServiceTest {
     private val courseTracePersistencePort = mock(CourseTracePersistencePort::class.java)
@@ -109,17 +109,14 @@ class CourseTraceServiceTest {
         verifyNoInteractions(walkingRoutePort)
     }
 
-    // --- list ---
+    // --- listCompleted ---
 
     @Test
     fun `목록 — size 보다 많이 조회되면 잘라내고 hasNext 와 마지막 행 id 커서를 돌려준다`() {
-        `when`(courseTracePersistencePort.findByUserAndStatus(1L, CourseTraceStatus.COMPLETED, null, 3))
+        `when`(courseTracePersistencePort.findCompleted(1L, null, 3))
             .thenReturn(listOf(completedRow(30L), completedRow(20L), completedRow(10L)))
 
-        val result =
-            service.list(
-                CourseTracesQuery(userId = 1L, status = CourseTraceStatus.COMPLETED, cursor = null, size = 2),
-            )
+        val result = service.listCompleted(CourseTracesQuery(userId = 1L, cursor = null, size = 2))
 
         assertEquals(true, result.hasNext)
         assertEquals(listOf(30L, 20L), result.traces.map { it.id })
@@ -128,14 +125,13 @@ class CourseTraceServiceTest {
 
     @Test
     fun `목록 — 커서를 beforeId 로 풀어 넘기고 마지막 페이지면 nextCursor 가 null 이다`() {
-        `when`(courseTracePersistencePort.findByUserAndStatus(1L, CourseTraceStatus.COMPLETED, 20L, 3))
+        `when`(courseTracePersistencePort.findCompleted(1L, 20L, 3))
             .thenReturn(listOf(completedRow(10L)))
 
         val result =
-            service.list(
+            service.listCompleted(
                 CourseTracesQuery(
                     userId = 1L,
-                    status = CourseTraceStatus.COMPLETED,
                     cursor = CourseTraceCursorCodec.encode(20L),
                     size = 2,
                 ),
@@ -147,63 +143,39 @@ class CourseTraceServiceTest {
     }
 
     @Test
-    fun `목록 — 세션 행을 상태·시각·소요 시간·거리 그대로 Summary 로 옮긴다`() {
-        val startedAt = Instant.parse("2026-11-02T10:00:00Z")
-        val row =
-            CourseTraceRow(
-                id = 5L,
-                userId = 1L,
-                courseId = 7L,
-                status = CourseTraceStatus.IN_PROGRESS,
-                startedAt = startedAt,
-                endedAt = null,
-                durationMinutes = 0,
-                distanceMeters = 0,
-            )
-        `when`(
-            courseTracePersistencePort.findByUserAndStatus(1L, CourseTraceStatus.IN_PROGRESS, null, 11),
-        ).thenReturn(listOf(row))
+    fun `목록 — 세션 행을 시각·소요 시간·거리 그대로 Summary 로 옮긴다`() {
+        `when`(courseTracePersistencePort.findCompleted(1L, null, 11)).thenReturn(listOf(completedRow(5L)))
 
-        val summary =
-            service
-                .list(
-                    CourseTracesQuery(userId = 1L, status = CourseTraceStatus.IN_PROGRESS, cursor = null, size = 10),
-                ).traces
-                .single()
+        val summary = service.listCompleted(CourseTracesQuery(userId = 1L, cursor = null, size = 10)).traces.single()
 
         assertEquals(
             CourseTraceSummary(
                 id = 5L,
-                courseId = 7L,
-                status = CourseTraceStatus.IN_PROGRESS,
-                startedAt = startedAt,
-                endedAt = null,
-                durationMinutes = 0,
-                distanceMeters = 0,
+                courseId = 1L,
+                startedAt = Instant.parse("2026-11-02T09:00:00Z"),
+                endedAt = Instant.parse("2026-11-02T10:00:00Z"),
+                durationMinutes = 60,
+                distanceMeters = 1200,
             ),
             summary,
         )
     }
 
     @Test
-    fun `최근 진행 중 — 진행 중 세션을 1건만 조회해 돌려주고 없으면 null 이다`() {
+    fun `진행 중 — 진행 중 세션을 돌려주고 없으면 null 이다`() {
         val row = completedRow(5L).copy(status = CourseTraceStatus.IN_PROGRESS, endedAt = null)
-        `when`(courseTracePersistencePort.findByUserAndStatus(1L, CourseTraceStatus.IN_PROGRESS, null, 2))
-            .thenReturn(listOf(row))
-        `when`(courseTracePersistencePort.findByUserAndStatus(2L, CourseTraceStatus.IN_PROGRESS, null, 2))
-            .thenReturn(emptyList())
+        `when`(courseTracePersistencePort.findInProgress(1L)).thenReturn(row)
+        `when`(courseTracePersistencePort.findInProgress(2L)).thenReturn(null)
 
-        assertEquals(5L, service.findLatestInProgress(1L)?.id)
-        assertNull(service.findLatestInProgress(2L))
+        assertEquals(5L, service.findInProgress(1L)?.id)
+        assertNull(service.findInProgress(2L))
     }
 
     @Test
     fun `목록 — 잘못된 커서는 INVALID_INPUT 이고 조회하지 않는다`() {
         val exception =
             assertThrows<BusinessException> {
-                service.list(
-                    CourseTracesQuery(userId = 1L, status = CourseTraceStatus.COMPLETED, cursor = "!!", size = 10),
-                )
+                service.listCompleted(CourseTracesQuery(userId = 1L, cursor = "!!", size = 10))
             }
 
         assertEquals(CommonErrorCode.INVALID_INPUT, exception.errorCode)
