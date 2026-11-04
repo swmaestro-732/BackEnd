@@ -66,6 +66,7 @@ class HomeResponseTest {
                 coverImageUrl = "https://img/cover.jpg",
                 area = "을지로",
                 placeCount = 5,
+                visitedPlaceCount = 2,
                 startedAt = startedAt,
             )
 
@@ -79,6 +80,7 @@ class HomeResponseTest {
                 coverImageUrl = "https://img/cover.jpg",
                 area = "을지로",
                 placeCount = 5,
+                visitedPlaceCount = 2,
                 startedAt = startedAt,
             ),
             response.tracingCourse,

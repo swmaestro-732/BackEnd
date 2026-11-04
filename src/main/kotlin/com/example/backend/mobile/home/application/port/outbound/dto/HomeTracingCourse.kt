@@ -10,5 +10,7 @@ data class HomeTracingCourse(
     val coverImageUrl: String?,
     val area: String?,
     val placeCount: Int,
+    /** 체크인한 장소 수 — 코스 장소 [placeCount] 중 어디까지 따라갔는지. */
+    val visitedPlaceCount: Int,
     val startedAt: Instant,
 )

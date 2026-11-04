@@ -19,12 +19,13 @@ class HomeTraceAdapter(
         val trace = courseTraceUseCase.findInProgress(userId) ?: return null
         val course = courseQueryUseCase.getDetails(listOf(trace.courseId), userId).firstOrNull() ?: return null
         return HomeTracingCourse(
-            traceId = trace.id,
+            traceId = trace.traceId,
             courseId = course.id,
             title = course.title,
             coverImageUrl = course.coverImageUrl,
             area = course.area,
             placeCount = course.places.size,
+            visitedPlaceCount = trace.visitedPlaces.size,
             startedAt = trace.startedAt,
         )
     }

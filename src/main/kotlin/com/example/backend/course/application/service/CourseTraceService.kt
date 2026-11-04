@@ -73,12 +73,7 @@ class CourseTraceService(
                 "이미 따라가는 중인 코스가 있습니다: traceId=${trace.id}, courseId=${trace.courseId}",
             )
         }
-        return CourseTraceResult(
-            traceId = trace.id,
-            courseId = trace.courseId,
-            startedAt = trace.startedAt,
-            visitedPlaces = courseTracePersistencePort.findVisitedPlaces(trace.id),
-        )
+        return trace.toResult()
     }
 
     override fun listCompleted(query: CourseTracesQuery): CourseTracesResult {
@@ -101,8 +96,8 @@ class CourseTraceService(
         )
     }
 
-    override fun findInProgress(userId: Long): CourseTraceSummary? =
-        courseTracePersistencePort.findInProgress(userId)?.toSummary()
+    override fun findInProgress(userId: Long): CourseTraceResult? =
+        courseTracePersistencePort.findInProgress(userId)?.toResult()
 
     @Transactional
     override fun checkIn(command: CheckInPlaceCommand) {
@@ -213,6 +208,14 @@ class CourseTraceService(
             )
         }
     }
+
+    private fun CourseTraceRow.toResult() =
+        CourseTraceResult(
+            traceId = id,
+            courseId = courseId,
+            startedAt = startedAt,
+            visitedPlaces = courseTracePersistencePort.findVisitedPlaces(id),
+        )
 
     private fun CourseTraceRow.toSummary() =
         CourseTraceSummary(

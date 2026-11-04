@@ -5,7 +5,8 @@ import com.example.backend.course.application.port.inbound.CourseQueryUseCase
 import com.example.backend.course.application.port.inbound.CourseTraceUseCase
 import com.example.backend.course.application.port.inbound.dto.CourseDetailResult
 import com.example.backend.course.application.port.inbound.dto.CoursePlaceResult
-import com.example.backend.course.application.port.inbound.dto.CourseTraceSummary
+import com.example.backend.course.application.port.inbound.dto.CourseTraceResult
+import com.example.backend.course.application.port.inbound.dto.VisitedPlaceResult
 import com.example.backend.mobile.home.application.port.outbound.dto.HomeTracingCourse
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertNull
@@ -38,7 +39,7 @@ class HomeTraceAdapterTest {
     }
 
     @Test
-    fun `세션과 코스 요약을 합치고 장소 수는 코스 장소 개수다`() {
+    fun `세션과 코스 요약을 합치고 장소 수는 코스 장소 개수, 방문 수는 체크인 개수다`() {
         `when`(courseTraceUseCase.findInProgress(1L)).thenReturn(summary())
         `when`(courseQueryUseCase.getDetails(listOf(3L), 1L)).thenReturn(listOf(course()))
 
@@ -50,6 +51,7 @@ class HomeTraceAdapterTest {
                 coverImageUrl = "https://img/cover.jpg",
                 area = "을지로",
                 placeCount = 2,
+                visitedPlaceCount = 1,
                 startedAt = startedAt,
             ),
             adapter.findInProgress(1L),
@@ -57,13 +59,11 @@ class HomeTraceAdapterTest {
     }
 
     private fun summary() =
-        CourseTraceSummary(
-            id = 10L,
+        CourseTraceResult(
+            traceId = 10L,
             courseId = 3L,
             startedAt = startedAt,
-            endedAt = null,
-            durationMinutes = 0,
-            distanceMeters = 0,
+            visitedPlaces = listOf(VisitedPlaceResult(placeId = 22L, visitedAt = startedAt)),
         )
 
     private fun course() =

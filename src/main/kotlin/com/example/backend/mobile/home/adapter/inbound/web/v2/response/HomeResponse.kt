@@ -30,6 +30,7 @@ data class HomeResponse(
         val coverImageUrl: String?,
         val area: String?,
         val placeCount: Int,
+        val visitedPlaceCount: Int,
         val startedAt: Instant,
     )
 
@@ -88,6 +89,7 @@ data class HomeResponse(
                             coverImageUrl = it.coverImageUrl,
                             area = it.area,
                             placeCount = it.placeCount,
+                            visitedPlaceCount = it.visitedPlaceCount,
                             startedAt = it.startedAt,
                         )
                     },
@@ -122,6 +124,7 @@ data class HomeResponse(
                         coverImageUrl = image("photo-1498654896293-37aacf113fd9"),
                         area = "을지로",
                         placeCount = 5,
+                        visitedPlaceCount = 2,
                         startedAt = Instant.parse("2026-11-03T05:30:00Z"),
                     ),
                 recommendedCourses =

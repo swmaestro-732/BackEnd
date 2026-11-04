@@ -8,6 +8,7 @@ import com.example.backend.common.response.PlaceErrorCode
 import com.example.backend.course.application.port.inbound.dto.CourseTraceSummary
 import com.example.backend.course.application.port.inbound.dto.CourseTracesQuery
 import com.example.backend.course.application.port.inbound.dto.TracedCourseSummary
+import com.example.backend.course.application.port.inbound.dto.VisitedPlaceResult
 import com.example.backend.course.application.port.outbound.CourseDetailRow
 import com.example.backend.course.application.port.outbound.CoursePersistencePort
 import com.example.backend.course.application.port.outbound.CoursePlaceStats
@@ -215,12 +216,17 @@ class CourseTraceServiceTest {
     }
 
     @Test
-    fun `진행 중 — 진행 중 세션을 돌려주고 없으면 null 이다`() {
+    fun `진행 중 — 진행 중 세션을 체크인 목록과 함께 돌려주고 없으면 null 이다`() {
         val row = completedRow(5L).copy(status = CourseTraceStatus.IN_PROGRESS, endedAt = null)
+        val visited = listOf(VisitedPlaceResult(placeId = 22L, visitedAt = row.startedAt))
         `when`(courseTracePersistencePort.findInProgress(1L)).thenReturn(row)
+        `when`(courseTracePersistencePort.findVisitedPlaces(5L)).thenReturn(visited)
         `when`(courseTracePersistencePort.findInProgress(2L)).thenReturn(null)
 
-        assertEquals(5L, service.findInProgress(1L)?.id)
+        val result = service.findInProgress(1L)
+
+        assertEquals(5L, result?.traceId)
+        assertEquals(visited, result?.visitedPlaces)
         assertNull(service.findInProgress(2L))
     }
 
