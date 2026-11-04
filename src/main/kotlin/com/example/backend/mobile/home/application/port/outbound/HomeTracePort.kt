@@ -7,6 +7,6 @@ import com.example.backend.mobile.home.application.port.outbound.dto.HomeTracing
  * MSA 분리 후엔 course 서비스 HTTP 클라이언트로 바꿔 끼운다.
  */
 interface HomeTracePort {
-    /** 진행 중 따라가기와 그 코스. 없거나 코스를 더 볼 수 없으면 null. */
+    /** 진행 중 따라가기와 그 코스. 없으면 null. 코스를 더 볼 수 없으면 isDeleted 로 표시한다. */
     fun findInProgress(userId: Long): HomeTracingCourse?
 }

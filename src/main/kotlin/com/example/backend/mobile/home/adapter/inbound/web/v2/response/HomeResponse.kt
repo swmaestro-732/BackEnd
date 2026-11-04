@@ -22,16 +22,20 @@ data class HomeResponse(
         val profileImageUrl: String?,
     )
 
-    /** 따라가는 중 코스 카드 — 가장 최근에 시작한 진행 중 세션 1건. 이어가기는 traceId 가 아니라 courseId 로 시작 API 를 다시 부른다. */
+    /**
+     * 따라가는 중 코스 카드 — 진행 중 세션(사용자당 하나). 화면 복귀는 traceId 로 따라가기 상세 BFF(`/service/v1/my/traces/{traceId}`)를 부른다.
+     * 코스를 더 볼 수 없으면 isDeleted 가 true 이고 제목·썸네일·지역은 null — 카드는 남겨 "비공개된 코스" 로 표시한다.
+     */
     data class TracingCourse(
         val traceId: Long,
         val courseId: Long,
-        val title: String,
+        val title: String?,
         val coverImageUrl: String?,
         val area: String?,
         val placeCount: Int,
         val visitedPlaceCount: Int,
         val startedAt: Instant,
+        val isDeleted: Boolean,
     )
 
     /** 코스 카드 한 장 — 홈 추천 코스와 추천 코스 전체보기([RecommendedCoursesResponse])가 함께 쓴다. */
@@ -91,6 +95,7 @@ data class HomeResponse(
                             placeCount = it.placeCount,
                             visitedPlaceCount = it.visitedPlaceCount,
                             startedAt = it.startedAt,
+                            isDeleted = it.isDeleted,
                         )
                     },
                 recommendedCourses = result.recommendedCourses.map(Course::from),
@@ -126,6 +131,7 @@ data class HomeResponse(
                         placeCount = 5,
                         visitedPlaceCount = 2,
                         startedAt = Instant.parse("2026-11-03T05:30:00Z"),
+                        isDeleted = false,
                     ),
                 recommendedCourses =
                     listOf(

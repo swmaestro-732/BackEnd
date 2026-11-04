@@ -7,7 +7,7 @@ import com.example.backend.mobile.home.application.port.outbound.dto.HomeTracing
 
 /**
  * 홈 화면 조합 결과 (BFF). profile 은 비로그인이면 null, 추천 코스는 피드 랭킹 상위, 근처 저장 장소는 거리순이다.
- * tracingCourse 는 가장 최근에 시작한 진행 중 따라가기(비로그인·없으면 null)다.
+ * tracingCourse 는 진행 중 따라가기(비로그인·없으면 null)다.
  * 재료는 도메인 타입이 아닌 BFF 격리 DTO 다.
  */
 data class HomeResult(
