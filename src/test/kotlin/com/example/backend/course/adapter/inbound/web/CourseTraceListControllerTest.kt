@@ -8,6 +8,7 @@ import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc
 import org.springframework.http.HttpHeaders
 import org.springframework.http.MediaType
+import org.springframework.jdbc.core.JdbcTemplate
 import org.springframework.test.context.jdbc.Sql
 import org.springframework.test.web.servlet.MockMvc
 import org.springframework.test.web.servlet.ResultActions
@@ -27,6 +28,7 @@ class CourseTraceListControllerTest
     constructor(
         private val mockMvc: MockMvc,
         private val jwtTokenProvider: JwtTokenProvider,
+        private val jdbcTemplate: JdbcTemplate,
     ) : IntegrationTestBase() {
         @Test
         fun `완주 기록이 없으면 빈 목록이다`() {
@@ -53,7 +55,7 @@ class CourseTraceListControllerTest
                     .andExpect(jsonPath("$.data.nextCursor").isNotEmpty)
                     .andExpect(jsonPath("$.data.traces.length()").value(1))
                     .andExpect(jsonPath("$.data.traces[0].traceId").value(second))
-                    .andExpect(jsonPath("$.data.traces[0].courseId").value(1))
+                    .andExpect(jsonPath("$.data.traces[0].course.courseId").value(1))
                     .andExpect(jsonPath("$.data.traces[0].startedAt").isNotEmpty)
                     .andExpect(jsonPath("$.data.traces[0].endedAt").isNotEmpty)
                     .andExpect(jsonPath("$.data.traces[0].durationMinutes").value(30))
@@ -70,6 +72,57 @@ class CourseTraceListControllerTest
                 .andExpect(jsonPath("$.data.traces[0].traceId").value(first))
                 .andExpect(jsonPath("$.data.traces[0].durationMinutes").value(192))
                 .andExpect(jsonPath("$.data.traces[0].distanceMeters").value(2400))
+        }
+
+        @Test
+        fun `코스 요약 — 제목·장소 수를 함께 내려주고 삭제 표시는 false 다`() {
+            end(start(), 0, 0)
+
+            list()
+                .andExpect(status().isOk)
+                .andExpect(jsonPath("$.data.traces[0].course.courseId").value(1))
+                .andExpect(jsonPath("$.data.traces[0].course.title").value("코스1"))
+                .andExpect(jsonPath("$.data.traces[0].course.placeCount").value(3))
+                .andExpect(jsonPath("$.data.traces[0].course.isDeleted").value(false))
+        }
+
+        @Test
+        fun `코스 요약 — 완주 후 삭제된 코스는 기록을 남기고 courseId 외 null 에 isDeleted 가 true 다`() {
+            end(start(), 192, 2400)
+            jdbcTemplate.update("UPDATE courses SET deleted_at = now(), status = 'DELETED' WHERE id = 1")
+
+            assertHiddenCourse()
+        }
+
+        @Test
+        fun `코스 요약 — 완주 후 타인이 비공개로 바꾼 코스도 삭제와 같이 내려준다`() {
+            end(start(), 192, 2400)
+            jdbcTemplate.update("UPDATE courses SET visibility = 'PRIVATE' WHERE id = 1")
+
+            assertHiddenCourse()
+        }
+
+        @Test
+        fun `코스 요약 — 내가 비공개로 둔 내 코스는 그대로 보인다`() {
+            val body =
+                mockMvc
+                    .perform(post("/api/v1/courses/2/traces").header(HttpHeaders.AUTHORIZATION, bearer(OTHER_USER_ID)))
+                    .andExpect(status().isOk)
+                    .andReturn()
+                    .response.contentAsString
+            val traceId = Regex("\"traceId\":(\\d+)").find(body)!!.groupValues[1].toLong()
+            mockMvc
+                .perform(
+                    post("/api/v1/traces/$traceId/end")
+                        .header(HttpHeaders.AUTHORIZATION, bearer(OTHER_USER_ID))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""{"durationMinutes": 0, "distanceMeters": 0}"""),
+                ).andExpect(status().isOk)
+
+            mockMvc
+                .perform(get("/api/v1/traces").header(HttpHeaders.AUTHORIZATION, bearer(OTHER_USER_ID)))
+                .andExpect(jsonPath("$.data.traces[0].course.title").value("비공개코스2"))
+                .andExpect(jsonPath("$.data.traces[0].course.isDeleted").value(false))
         }
 
         @Test
@@ -117,6 +170,18 @@ class CourseTraceListControllerTest
         }
 
         // --- helpers ---
+
+        private fun assertHiddenCourse() {
+            list()
+                .andExpect(status().isOk)
+                .andExpect(jsonPath("$.data.traces[0].durationMinutes").value(192))
+                .andExpect(jsonPath("$.data.traces[0].course.courseId").value(1))
+                .andExpect(jsonPath("$.data.traces[0].course.title").value(null))
+                .andExpect(jsonPath("$.data.traces[0].course.coverImageUrl").value(null))
+                .andExpect(jsonPath("$.data.traces[0].course.area").value(null))
+                .andExpect(jsonPath("$.data.traces[0].course.placeCount").value(null))
+                .andExpect(jsonPath("$.data.traces[0].course.isDeleted").value(true))
+        }
 
         private fun bearer(userId: Long) = "Bearer ${jwtTokenProvider.issueAccessToken(userId)}"
 

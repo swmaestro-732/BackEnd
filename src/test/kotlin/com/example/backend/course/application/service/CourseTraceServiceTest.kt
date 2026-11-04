@@ -1,12 +1,16 @@
 package com.example.backend.course.application.service
 
+import com.example.backend.common.domain.CourseVisibility
 import com.example.backend.common.exception.BusinessException
 import com.example.backend.common.geo.Coordinate
 import com.example.backend.common.response.CommonErrorCode
 import com.example.backend.common.response.PlaceErrorCode
 import com.example.backend.course.application.port.inbound.dto.CourseTraceSummary
 import com.example.backend.course.application.port.inbound.dto.CourseTracesQuery
+import com.example.backend.course.application.port.inbound.dto.TracedCourseSummary
+import com.example.backend.course.application.port.outbound.CourseDetailRow
 import com.example.backend.course.application.port.outbound.CoursePersistencePort
+import com.example.backend.course.application.port.outbound.CoursePlaceStats
 import com.example.backend.course.application.port.outbound.CourseTracePersistencePort
 import com.example.backend.course.application.port.outbound.CourseTraceRow
 import com.example.backend.course.application.port.outbound.PlaceLookupPort
@@ -14,6 +18,7 @@ import com.example.backend.course.application.port.outbound.PlaceRef
 import com.example.backend.course.application.port.outbound.WalkingGuide
 import com.example.backend.course.application.port.outbound.WalkingRoute
 import com.example.backend.course.application.port.outbound.WalkingRoutePort
+import com.example.backend.course.domain.model.CourseStatus
 import com.example.backend.course.domain.model.CourseTraceStatus
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertNull
@@ -32,13 +37,15 @@ import java.time.Instant
  */
 class CourseTraceServiceTest {
     private val courseTracePersistencePort = mock(CourseTracePersistencePort::class.java)
+    private val coursePersistencePort = mock(CoursePersistencePort::class.java)
+    private val courseViewPolicy = mock(CourseViewPolicy::class.java)
     private val placeLookupPort = mock(PlaceLookupPort::class.java)
     private val walkingRoutePort = mock(WalkingRoutePort::class.java)
     private val service =
         CourseTraceService(
             courseTracePersistencePort = courseTracePersistencePort,
-            coursePersistencePort = mock(CoursePersistencePort::class.java),
-            courseViewPolicy = mock(CourseViewPolicy::class.java),
+            coursePersistencePort = coursePersistencePort,
+            courseViewPolicy = courseViewPolicy,
             placeLookupPort = placeLookupPort,
             walkingRoutePort = walkingRoutePort,
         )
@@ -119,7 +126,7 @@ class CourseTraceServiceTest {
         val result = service.listCompleted(CourseTracesQuery(userId = 1L, cursor = null, size = 2))
 
         assertEquals(true, result.hasNext)
-        assertEquals(listOf(30L, 20L), result.traces.map { it.id })
+        assertEquals(listOf(30L, 20L), result.traces.map { it.trace.id })
         assertEquals(20L, CourseTraceCursorCodec.decode(result.nextCursor))
     }
 
@@ -139,14 +146,19 @@ class CourseTraceServiceTest {
 
         assertEquals(false, result.hasNext)
         assertNull(result.nextCursor)
-        assertEquals(listOf(10L), result.traces.map { it.id })
+        assertEquals(listOf(10L), result.traces.map { it.trace.id })
     }
 
     @Test
     fun `목록 — 세션 행을 시각·소요 시간·거리 그대로 Summary 로 옮긴다`() {
         `when`(courseTracePersistencePort.findCompleted(1L, null, 11)).thenReturn(listOf(completedRow(5L)))
 
-        val summary = service.listCompleted(CourseTracesQuery(userId = 1L, cursor = null, size = 10)).traces.single()
+        val summary =
+            service
+                .listCompleted(CourseTracesQuery(userId = 1L, cursor = null, size = 10))
+                .traces
+                .single()
+                .trace
 
         assertEquals(
             CourseTraceSummary(
@@ -159,6 +171,47 @@ class CourseTraceServiceTest {
             ),
             summary,
         )
+    }
+
+    @Test
+    fun `목록 — 볼 수 있는 코스는 요약을 채우고 코스 id 를 중복 없이 한 번에 조회한다`() {
+        `when`(courseTracePersistencePort.findCompleted(1L, null, 11))
+            .thenReturn(listOf(completedRow(20L), completedRow(10L)))
+        `when`(coursePersistencePort.findCourseDetails(listOf(1L))).thenReturn(listOf(courseRow(CourseStatus.ACTIVE)))
+        `when`(courseViewPolicy.isViewable(CourseVisibility.PUBLIC, 2L, 1L)).thenReturn(true)
+        `when`(coursePersistencePort.findPlaceStats(listOf(1L))).thenReturn(mapOf(1L to CoursePlaceStats(4, 30)))
+
+        val courses =
+            service.listCompleted(CourseTracesQuery(userId = 1L, cursor = null, size = 10)).traces.map { it.course }
+
+        val expected =
+            TracedCourseSummary(
+                courseId = 1L,
+                title = "성수 코스",
+                coverImageUrl = "cover.jpg",
+                area = "성수",
+                placeCount = 4,
+                isDeleted = false,
+            )
+        assertEquals(listOf(expected, expected), courses)
+    }
+
+    @Test
+    fun `목록 — 삭제됐거나 볼 수 없는 코스는 courseId 외 null 이고 isDeleted 다`() {
+        `when`(courseTracePersistencePort.findCompleted(1L, null, 11)).thenReturn(listOf(completedRow(10L)))
+        // 삭제된 코스는 조회 결과에서 빠지고, 비활성·비공개 전환 코스는 조회돼도 걸러진다.
+        listOf(emptyList(), listOf(courseRow(CourseStatus.DELETED)), listOf(courseRow(CourseStatus.ACTIVE))).forEach {
+            `when`(coursePersistencePort.findCourseDetails(listOf(1L))).thenReturn(it)
+
+            val course =
+                service
+                    .listCompleted(CourseTracesQuery(userId = 1L, cursor = null, size = 10))
+                    .traces
+                    .single()
+                    .course
+
+            assertEquals(TracedCourseSummary.deleted(1L), course)
+        }
     }
 
     @Test
@@ -192,6 +245,23 @@ class CourseTraceServiceTest {
             endedAt = Instant.parse("2026-11-02T10:00:00Z"),
             durationMinutes = 60,
             distanceMeters = 1200,
+        )
+
+    private fun courseRow(status: CourseStatus) =
+        CourseDetailRow(
+            id = 1L,
+            userId = 2L,
+            title = "성수 코스",
+            coverImageUrl = "cover.jpg",
+            description = null,
+            category = null,
+            area = "성수",
+            areaCode = null,
+            tracingsCnt = 0,
+            status = status,
+            visibility = CourseVisibility.PUBLIC,
+            isPublished = true,
+            duplicatedFromId = null,
         )
 
     private fun placeRef(
