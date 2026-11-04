@@ -5,13 +5,15 @@ import com.example.backend.bootstrap.appversion.RequiresAppFeature
 import com.example.backend.bootstrap.security.AccessTokenRequired
 import com.example.backend.bootstrap.security.CurrentUserId
 import com.example.backend.common.response.ApiResponse
+import com.example.backend.notification.adapter.inbound.web.request.NotificationReadRequest
 import com.example.backend.notification.adapter.inbound.web.response.NotificationCountResponse
 import com.example.backend.notification.adapter.inbound.web.response.NotificationListResponse
 import com.example.backend.notification.application.port.inbound.NotificationUseCase
+import jakarta.validation.Valid
 import org.springframework.web.bind.annotation.GetMapping
 import org.springframework.web.bind.annotation.PatchMapping
 import org.springframework.web.bind.annotation.PathVariable
-import org.springframework.web.bind.annotation.PostMapping
+import org.springframework.web.bind.annotation.RequestBody
 import org.springframework.web.bind.annotation.RequestMapping
 import org.springframework.web.bind.annotation.RequestParam
 import org.springframework.web.bind.annotation.RestController
@@ -37,18 +39,22 @@ class NotificationController(
     ): ApiResponse<NotificationCountResponse> =
         ApiResponse.success(NotificationCountResponse(notificationUseCase.unreadCount(userId)))
 
-    @PatchMapping("/{id}/read")
+    /** 알림 하나를 읽음으로 바꾼다. 남의 알림이나 없는 id 도 200(멱등). */
+    @PatchMapping("/{id}")
     fun markRead(
         @CurrentUserId userId: Long,
         @PathVariable id: Long,
+        @Valid @RequestBody request: NotificationReadRequest,
     ): ApiResponse<Nothing?> {
         notificationUseCase.markRead(userId, id)
         return ApiResponse.ok()
     }
 
-    @PostMapping("/read-all")
+    /** 내 알림 전체를 읽음으로 바꾸고 바뀐 개수를 돌려준다. */
+    @PatchMapping
     fun markAllRead(
         @CurrentUserId userId: Long,
+        @Valid @RequestBody request: NotificationReadRequest,
     ): ApiResponse<NotificationCountResponse> =
         ApiResponse.success(NotificationCountResponse(notificationUseCase.markAllRead(userId).toLong()))
 }

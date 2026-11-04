@@ -90,7 +90,7 @@ class NotificationControllerTest
         fun `남의 알림과 없는 알림을 읽어도 200이고 소유자 상태는 유지한다`() {
             listOf(570104L, Long.MAX_VALUE).forEach { id ->
                 mockMvc
-                    .perform(patch("$NOTIFICATIONS/$id/read").header(HttpHeaders.AUTHORIZATION, tokenFor(USER_ID)))
+                    .perform(readOne(id))
                     .andExpect(status().isOk)
                     .andExpect(jsonPath("$.code").value(2000))
             }
@@ -109,7 +109,7 @@ class NotificationControllerTest
         fun `본인 알림은 반복해서 읽어도 성공하고 미읽음은 한 번만 줄어든다`() {
             repeat(2) {
                 mockMvc
-                    .perform(patch("$NOTIFICATIONS/570103/read").header(HttpHeaders.AUTHORIZATION, tokenFor(USER_ID)))
+                    .perform(readOne(570103L))
                     .andExpect(status().isOk)
                     .andExpect(jsonPath("$.code").value(2000))
             }
@@ -126,12 +126,12 @@ class NotificationControllerTest
         @Test
         fun `모두 읽음은 갱신한 개수를 반환하고 다른 사용자 알림은 유지한다`() {
             mockMvc
-                .perform(post("$NOTIFICATIONS/read-all").header(HttpHeaders.AUTHORIZATION, tokenFor(USER_ID)))
+                .perform(readAll())
                 .andExpect(status().isOk)
                 .andExpect(jsonPath("$.code").value(2000))
                 .andExpect(jsonPath("$.data.count").value(2))
             mockMvc
-                .perform(post("$NOTIFICATIONS/read-all").header(HttpHeaders.AUTHORIZATION, tokenFor(USER_ID)))
+                .perform(readAll())
                 .andExpect(status().isOk)
                 .andExpect(jsonPath("$.data.count").value(0))
             mockMvc
@@ -188,12 +188,40 @@ class NotificationControllerTest
         }
 
         @Test
+        fun `읽음 요청 본문이 없거나 read 가 true 가 아니면 400 이다`() {
+            listOf("{}", """{"read":false}""").forEach { body ->
+                mockMvc
+                    .perform(
+                        patch(NOTIFICATIONS)
+                            .header(HttpHeaders.AUTHORIZATION, tokenFor(USER_ID))
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(body),
+                    ).andExpect(status().isBadRequest)
+            }
+            mockMvc
+                .perform(get("$NOTIFICATIONS/unread-count").header(HttpHeaders.AUTHORIZATION, tokenFor(USER_ID)))
+                .andExpect(jsonPath("$.data.count").value(2))
+        }
+
+        private fun readOne(id: Long) =
+            patch("$NOTIFICATIONS/$id")
+                .header(HttpHeaders.AUTHORIZATION, tokenFor(USER_ID))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(READ_BODY)
+
+        private fun readAll() =
+            patch(NOTIFICATIONS)
+                .header(HttpHeaders.AUTHORIZATION, tokenFor(USER_ID))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(READ_BODY)
+
+        @Test
         fun `알림 API는 로그인하지 않으면 모두 401을 반환한다`() {
             listOf(
                 get(NOTIFICATIONS),
                 get("$NOTIFICATIONS/unread-count"),
-                patch("$NOTIFICATIONS/570101/read"),
-                post("$NOTIFICATIONS/read-all"),
+                patch("$NOTIFICATIONS/570101").contentType(MediaType.APPLICATION_JSON).content(READ_BODY),
+                patch(NOTIFICATIONS).contentType(MediaType.APPLICATION_JSON).content(READ_BODY),
                 get(SETTINGS),
                 patch(SETTINGS).contentType(MediaType.APPLICATION_JSON).content("{}"),
             ).forEach { request -> mockMvc.perform(request).andExpect(status().isUnauthorized) }
@@ -255,6 +283,7 @@ class NotificationControllerTest
         private companion object {
             const val NOTIFICATIONS = "/api/v1/my/notifications"
             const val SETTINGS = "/api/v1/my/notification-settings"
+            const val READ_BODY = """{"read":true}"""
             const val USER_ID = 570001L
             const val OTHER_USER_ID = 570002L
             const val AUTHOR_ID = 570003L
