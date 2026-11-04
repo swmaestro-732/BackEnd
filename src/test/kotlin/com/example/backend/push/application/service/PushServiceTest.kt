@@ -36,10 +36,12 @@ class PushServiceTest {
         }
 
     private val removedTokens = mutableListOf<List<String>>()
+    private var cleanupFailure: RuntimeException? = null
 
     private val pushTokenCleanupPort =
         object : PushTokenCleanupPort {
             override fun removeInvalid(tokens: Collection<String>) {
+                cleanupFailure?.let { throw it }
                 removedTokens.add(tokens.toList())
             }
         }
@@ -162,6 +164,17 @@ class PushServiceTest {
         pushService.deliver(message.copy(tokens = tokens))
 
         assertEquals(listOf(listOf("token-3", "token-7"), listOf("token-1001")), removedTokens)
+    }
+
+    @Test
+    fun `토큰 정리가 실패해도 발송은 계속하고 예외를 전파하지 않는다`() {
+        val tokens = (1..501).map { "token-$it" }
+        sendResults.addAll(listOf(PushSendResult(499, listOf("token-1"), 0), PushSendResult(1, emptyList(), 0)))
+        cleanupFailure = IllegalStateException("DB 오류")
+
+        pushService.deliver(message.copy(tokens = tokens))
+
+        assertEquals(listOf(500, 1), sentMessages.map { it.tokens.size })
     }
 
     @Test
