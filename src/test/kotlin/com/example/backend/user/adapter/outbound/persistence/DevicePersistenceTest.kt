@@ -180,6 +180,38 @@ class DevicePersistenceTest
         }
 
         @Test
+        fun `같은 계정에 연결된 기기는 로그인 상태로 토큰이 바뀌어도 동의를 유지한다`() {
+            transaction {
+                insertUsers()
+                devicePersistencePort.saveToken(command("fid-rotate", "token-old"), ME)
+                devicePersistencePort.updateConsent("fid-rotate", AGREED_AT, AGREED_AT)
+                devicePersistencePort.clearTokens(listOf("token-old"))
+
+                devicePersistencePort.saveToken(command("fid-rotate", "token-new"), ME)
+
+                assertEquals(DeviceConsent(AGREED_AT, AGREED_AT), devicePersistencePort.findConsent("fid-rotate"))
+                rollback()
+            }
+        }
+
+        @Test
+        fun `다른 계정이나 비로그인 경로로 토큰이 바뀌면 동의를 지운다`() {
+            transaction {
+                insertUsers()
+                devicePersistencePort.saveToken(command("fid-other", "token-1"), ME)
+                devicePersistencePort.updateConsent("fid-other", AGREED_AT, AGREED_AT)
+                devicePersistencePort.saveToken(command("fid-other", "token-2"), OTHER)
+                assertEquals(DeviceConsent.NONE, devicePersistencePort.findConsent("fid-other"))
+
+                devicePersistencePort.saveToken(command("fid-guest", "token-3"), ME)
+                devicePersistencePort.updateConsent("fid-guest", AGREED_AT, AGREED_AT)
+                devicePersistencePort.saveToken(command("fid-guest", "token-4"), null)
+                assertEquals(DeviceConsent.NONE, devicePersistencePort.findConsent("fid-guest"))
+                rollback()
+            }
+        }
+
+        @Test
         fun `lockConsent는 행이 없으면 토큰 없는 빈 행을 만들고 미동의를 돌려준다`() {
             transaction {
                 assertEquals(LockedDevice(null, DeviceConsent.NONE), devicePersistencePort.lockConsent("fid-lock"))
@@ -226,5 +258,6 @@ class DevicePersistenceTest
             const val ME = 730101L
             const val OTHER = 730102L
             val OLD = Instant.parse("2000-01-01T00:00:00Z")
+            val AGREED_AT: java.time.Instant = java.time.Instant.parse("2026-11-01T00:00:00Z")
         }
     }
