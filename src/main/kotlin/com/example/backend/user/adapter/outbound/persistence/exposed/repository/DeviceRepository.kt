@@ -70,7 +70,7 @@ class DeviceRepository {
             .where { DeviceTable.deviceId eq deviceId }
             .forUpdate()
             .single()
-            .let { LockedDevice(it[DeviceTable.fcmToken], toConsent(it)) }
+            .let { LockedDevice(it[DeviceTable.fcmToken], toConsent(it), it[DeviceTable.userId] != null) }
     }
 
     fun updateConsent(

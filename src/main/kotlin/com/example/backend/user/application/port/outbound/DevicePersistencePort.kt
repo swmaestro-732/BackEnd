@@ -4,12 +4,16 @@ import com.example.backend.user.application.port.inbound.dto.DeviceConsent
 import com.example.backend.user.application.port.inbound.dto.RegisterDeviceTokenCommand
 import java.time.Instant
 
-/** 동의 변경을 위해 잠근 기기 행. 저장된 토큰은 요청이 실제 설치에서 왔는지 확인하는 데 쓴다. */
+/**
+ * 동의 변경을 위해 잠근 기기 행. 저장된 토큰은 요청이 실제 설치에서 왔는지 확인하는 데 쓴다.
+ * [linked] 는 계정 연결 여부다. 토큰이 비어도 계정에 연결된 행은 그 계정의 동의로 이어지므로 따로 막는다.
+ */
 data class LockedDevice(
     val fcmToken: String?,
     val consent: DeviceConsent,
+    val linked: Boolean = false,
 ) {
-    override fun toString(): String = "LockedDevice(fcmToken=[REDACTED], consent=$consent)"
+    override fun toString(): String = "LockedDevice(fcmToken=[REDACTED], consent=$consent, linked=$linked)"
 }
 
 interface DevicePersistencePort {
