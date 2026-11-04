@@ -28,7 +28,9 @@ class DeviceService(
         // 무효 토큰 정리로 토큰만 비워진 계정 기기는 같은 계정이 다시 등록할 때 동의를 이어받는다(saveToken).
         // 그 사이 토큰 없이 심은 동의가 이어지지 않게, 토큰을 함께 보내지 않으면 바꾸지 못하게 한다.
         // 토큰을 보내면 비로그인 등록이 계정 연결과 동의를 끊으므로 그 동의는 이어지지 않는다.
-        if (locked != null && locked.fcmToken == null && locked.linked && command.fcmToken == null) {
+        // 철회는 심어도 해가 없고 쉽게 할 수 있어야 하므로 동의를 켜는 요청만 막는다.
+        val grantsConsent = command.marketing == true || command.night == true
+        if (locked != null && locked.fcmToken == null && locked.linked && command.fcmToken == null && grantsConsent) {
             throw BusinessException(CommonErrorCode.INVALID_INPUT, "계정에 연결된 기기의 동의 변경에는 토큰이 필요합니다.")
         }
         command.fcmToken?.let {
