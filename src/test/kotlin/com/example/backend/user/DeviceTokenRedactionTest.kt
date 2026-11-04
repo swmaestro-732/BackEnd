@@ -1,0 +1,55 @@
+package com.example.backend.user
+
+import com.example.backend.user.adapter.inbound.web.request.DeviceRequest
+import com.example.backend.user.adapter.inbound.web.request.DeviceTokenRequest
+import com.example.backend.user.application.port.inbound.dto.RegisterDeviceTokenCommand
+import com.example.backend.user.application.port.inbound.dto.UpdateDeviceCommand
+import org.junit.jupiter.api.Assertions.assertFalse
+import org.junit.jupiter.api.Assertions.assertTrue
+import org.junit.jupiter.api.Test
+
+class DeviceTokenRedactionTest {
+    @Test
+    fun `요청 객체를 문자열로 변환해도 토큰이 노출되지 않는다`() {
+        val token = "secret-request-device-token"
+
+        val representation = DeviceTokenRequest(token).toString()
+
+        assertFalse(representation.contains(token))
+        assertTrue(representation.contains("[REDACTED]"))
+    }
+
+    @Test
+    fun `커맨드는 토큰을 숨기고 기기 ID는 표시한다`() {
+        val token = "secret-command-device-token"
+
+        val representation = RegisterDeviceTokenCommand("fid-1", token).toString()
+
+        assertFalse(representation.contains(token))
+        assertTrue(representation.contains("[REDACTED]"))
+        assertTrue(representation.contains("deviceId=fid-1"))
+    }
+
+    @Test
+    fun `기기 갱신 요청은 토큰을 숨기고 동의 값은 표시한다`() {
+        val token = "secret-device-request-token"
+
+        val representation = DeviceRequest(token, true, false).toString()
+
+        assertFalse(representation.contains(token))
+        assertTrue(representation.contains("[REDACTED]"))
+        assertTrue(representation.contains("marketing=true"))
+        assertTrue(representation.contains("night=false"))
+    }
+
+    @Test
+    fun `기기 갱신 커맨드는 토큰을 숨기고 나머지는 표시한다`() {
+        val token = "secret-update-command-token"
+
+        val representation = UpdateDeviceCommand("fid-1", token, true, null).toString()
+
+        assertFalse(representation.contains(token))
+        assertTrue(representation.contains("[REDACTED]"))
+        assertTrue(representation.contains("marketing=true"))
+    }
+}
