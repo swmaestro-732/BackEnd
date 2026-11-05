@@ -6,9 +6,14 @@ import com.example.backend.push.application.port.inbound.dto.MarketingPushResult
 data class MarketingPushResponse(
     val campaignId: Long,
     val recipientCount: Int,
+    val enqueuedCount: Int,
 ) {
     companion object {
         fun from(result: MarketingPushResult): MarketingPushResponse =
-            MarketingPushResponse(campaignId = result.campaignId, recipientCount = result.recipientCount)
+            MarketingPushResponse(
+                campaignId = result.campaignId,
+                recipientCount = result.recipientCount,
+                enqueuedCount = result.enqueuedCount,
+            )
     }
 }

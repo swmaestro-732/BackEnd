@@ -64,6 +64,16 @@ class PushSqsConsumerTest {
     }
 
     @Test
+    fun `TTL 30분 메시지는 최대 보관 시간 안이어도 31분이 지나면 stale 로 버린다`() {
+        val marketing = message.copy(androidTtl = Duration.ofMinutes(30))
+
+        pushSqsConsumer.onMessage(PushQueueMessage(marketing, now.minus(Duration.ofMinutes(31))))
+
+        assertTrue(deliveredMessages.isEmpty())
+        assertEquals(2.0, skippedCount("stale"))
+    }
+
+    @Test
     fun `생성 시각이 없는 이전 형식 메시지는 오래되지 않은 것으로 보고 발송한다`() {
         pushSqsConsumer.onMessage(PushQueueMessage(message.tokens, message.title, message.body, message.data))
 

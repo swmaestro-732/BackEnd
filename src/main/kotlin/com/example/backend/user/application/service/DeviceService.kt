@@ -3,6 +3,7 @@ package com.example.backend.user.application.service
 import com.example.backend.common.exception.BusinessException
 import com.example.backend.common.response.CommonErrorCode
 import com.example.backend.user.application.port.inbound.DeviceUseCase
+import com.example.backend.user.application.port.inbound.MarketingDeviceUseCase
 import com.example.backend.user.application.port.inbound.dto.DeviceConsent
 import com.example.backend.user.application.port.inbound.dto.RegisterDeviceTokenCommand
 import com.example.backend.user.application.port.inbound.dto.UpdateDeviceCommand
@@ -16,7 +17,8 @@ import java.time.Clock
 class DeviceService(
     private val devicePersistencePort: DevicePersistencePort,
     private val clock: Clock,
-) : DeviceUseCase {
+) : DeviceUseCase,
+    MarketingDeviceUseCase {
     override fun update(command: UpdateDeviceCommand): DeviceConsent {
         val changesConsent = command.marketing != null || command.night != null
         // 동의를 바꾸는 요청은 쓰기 전에 행을 잠그고 권한부터 확인한다. 토큰을 먼저 저장하면 확인을 우회할 수 있다.
@@ -71,4 +73,7 @@ class DeviceService(
     @Transactional(readOnly = true)
     override fun getConsent(deviceId: String): DeviceConsent =
         devicePersistencePort.findConsent(deviceId) ?: DeviceConsent.NONE
+
+    @Transactional(readOnly = true)
+    override fun findMarketingTokens(night: Boolean): List<String> = devicePersistencePort.findMarketingTokens(night)
 }

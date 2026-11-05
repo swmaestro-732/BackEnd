@@ -7,6 +7,7 @@ import com.example.backend.common.response.CourseErrorCode
 import com.example.backend.common.response.DirectionErrorCode
 import com.example.backend.common.response.ErrorCode
 import com.example.backend.common.response.PlaceErrorCode
+import com.example.backend.common.response.PushErrorCode
 import com.example.backend.common.response.ReportErrorCode
 import com.example.backend.common.response.UserErrorCode
 
@@ -24,7 +25,8 @@ object MockErrors {
             PlaceErrorCode.entries +
             AreaErrorCode.entries +
             DirectionErrorCode.entries +
-            ReportErrorCode.entries
+            ReportErrorCode.entries +
+            PushErrorCode.entries
 
     fun throwIfRequested(mockError: Int?) {
         if (mockError == null) return

@@ -35,7 +35,11 @@ class PushSqsConsumer(
     @SqsListener("\${aws.sqs.push-queue-url}")
     fun onMessage(message: PushQueueMessage) {
         val createdAt = message.createdAt
-        if (createdAt != null && Duration.between(createdAt, clock.instant()) > pushProperties.maxAge) {
+        // TTL 을 지정한 메시지(마케팅 등)는 그 기간이 지나면 기기에도 보관되지 않으므로 큐에서도 그 기준으로 버린다.
+        val maxAge =
+            message.androidTtlSeconds?.let { minOf(pushProperties.maxAge, Duration.ofSeconds(it)) }
+                ?: pushProperties.maxAge
+        if (createdAt != null && Duration.between(createdAt, clock.instant()) > maxAge) {
             staleCounter.increment(message.tokens.size.toDouble())
             log.warn { "오래된 푸시 메시지라 발송하지 않고 버림: tokenCount=${message.tokens.size}, createdAt=$createdAt" }
             return

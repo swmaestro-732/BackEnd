@@ -17,6 +17,7 @@ import org.junit.jupiter.api.Assertions.assertSame
 import org.junit.jupiter.api.Assertions.assertThrows
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
+import org.mockito.ArgumentCaptor
 import org.mockito.ArgumentMatchers.any
 import org.mockito.Mockito.mock
 import org.mockito.Mockito.`when`
@@ -131,6 +132,28 @@ class FcmPushSenderTest {
 
         assertSame(failure, thrown)
     }
+
+    @Test
+    fun `메시지에 TTL 이 있으면 설정값 대신 그 TTL 로 보낸다`() {
+        val firebaseMessaging = mock(FirebaseMessaging::class.java)
+        val beanFactory = DefaultListableBeanFactory()
+        beanFactory.registerSingleton("firebaseMessaging", firebaseMessaging)
+        val fcmPushSender =
+            FcmPushSender(beanFactory.getBeanProvider(FirebaseMessaging::class.java), PushProperties(), meterRegistry)
+        val batchResponse = mock(BatchResponse::class.java)
+        `when`(batchResponse.responses).thenReturn(emptyList())
+        val captor = ArgumentCaptor.forClass(MulticastMessage::class.java)
+        `when`(firebaseMessaging.sendEachForMulticast(captor.capture())).thenReturn(batchResponse)
+
+        fcmPushSender.send(PushMessage(listOf("token-1"), "제목", "본문", androidTtl = Duration.ofMinutes(30)))
+
+        // MulticastMessage 는 안드로이드 설정을 감춰 두므로 필드를 꺼내 요청 JSON 으로 확인한다.
+        val field = MulticastMessage::class.java.getDeclaredField("androidConfig").apply { isAccessible = true }
+        val json =
+            JsonMapper.builder().build().readTree(
+                GsonFactory.getDefaultInstance().toString(field.get(captor.value)),
+            )
+        assertEquals("1800s", json.get("ttl").asString())
 
     @Test
     fun `일시 오류와 코드 없는 오류만 재시도 가능으로 본다`() {

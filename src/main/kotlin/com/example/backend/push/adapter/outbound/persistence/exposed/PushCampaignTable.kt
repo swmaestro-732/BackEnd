@@ -10,5 +10,6 @@ internal object PushCampaignTable : LongIdTable("push_campaigns") {
     val link = text("link")
     val night = bool("night")
     val recipientCount = integer("recipient_count")
+    val enqueuedCount = integer("enqueued_count").default(0)
     val createdAt = timestamp("created_at").databaseGenerated()
 }

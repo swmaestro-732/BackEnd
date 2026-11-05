@@ -22,19 +22,21 @@ class PushQueueAdapter(
     private val log = KotlinLogging.logger {}
     private val queueNotConfiguredCounter = meterRegistry.counter("push.skipped", "reason", "queue_not_configured")
 
-    override fun enqueue(message: PushMessage) {
+    override fun enqueue(message: PushMessage): Boolean {
         val queueUrl = sqsProperties.pushQueueUrl
         val template = sqsTemplateProvider.ifAvailable
         if (queueUrl.isBlank() || template == null) {
             queueNotConfiguredCounter.increment(message.tokens.size.toDouble())
             log.warn { "SQS 푸시 큐 미설정으로 발행 생략: tokenCount=${message.tokens.size}" }
-            return
+            return false
         }
-        try {
+        return try {
             template.send { to -> to.queue(queueUrl).payload(PushQueueMessage(message, clock.instant())) }
+            true
         } catch (e: Exception) {
             // 예외 메시지에 토큰이 포함될 수 있어 오류 종류만 기록한다.
             log.error { "푸시 큐 발행 실패(발송 유실 가능): error=${e.javaClass.simpleName}" }
+            false
         }
     }
 }

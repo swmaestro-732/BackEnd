@@ -45,8 +45,9 @@ class FcmPushSender(
                         .setBody(message.body)
                         .build(),
                 ).putAllData(message.data)
-                .setAndroidConfig(androidConfig(pushProperties.androidTtl, pushProperties.androidChannelId))
-                .build()
+                .setAndroidConfig(
+                    androidConfig(message.androidTtl ?: pushProperties.androidTtl, pushProperties.androidChannelId),
+                ).build()
         // 토큰별 실패는 예외 없이 응답에 담겨 온다. 호출 자체의 예외만 그대로 전파된다.
         val batchResponse = firebaseMessaging.sendEachForMulticast(multicastMessage)
         val invalidTokens = mutableListOf<String>()

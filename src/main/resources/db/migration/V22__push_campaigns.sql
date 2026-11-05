@@ -9,5 +9,7 @@ CREATE TABLE push_campaigns (
     -- 야간(KST 21시~8시) 발송이면 야간 수신 동의 기기에만 보냈다.
     night boolean NOT NULL,
     recipient_count int NOT NULL,
+    -- 대상 중 큐에 실제로 넣은 수. 큐 미설정이나 발행 실패로 빠지면 recipient_count 보다 작다.
+    enqueued_count int NOT NULL DEFAULT 0,
     created_at timestamptz NOT NULL DEFAULT now()
 );

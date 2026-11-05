@@ -113,10 +113,10 @@ class DeviceRepository {
 
     fun findMarketingTokens(night: Boolean): List<String> {
         val agreed = DeviceTable.fcmToken.isNotNull() and DeviceTable.marketingAgreedAt.isNotNull()
+        // fcm_token 은 UNIQUE 라 중복 제거(DISTINCT)가 필요 없다.
         return DeviceTable
             .select(DeviceTable.fcmToken)
             .where { if (night) agreed and DeviceTable.nightAgreedAt.isNotNull() else agreed }
-            .withDistinct()
             .map { checkNotNull(it[DeviceTable.fcmToken]) }
     }
 
