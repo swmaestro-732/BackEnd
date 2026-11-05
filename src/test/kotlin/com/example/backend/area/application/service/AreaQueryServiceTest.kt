@@ -31,6 +31,8 @@ class AreaQueryServiceTest {
                 searchedCode = code
                 return areaByCode
             }
+
+            override fun existsByPrefix(prefix: String): Boolean = false
         }
     private val service = AreaQueryService(fakePort)
 

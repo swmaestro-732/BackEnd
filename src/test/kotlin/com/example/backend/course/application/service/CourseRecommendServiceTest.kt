@@ -1,5 +1,6 @@
 package com.example.backend.course.application.service
 
+import com.example.backend.area.application.port.inbound.AreaQueryUseCase
 import com.example.backend.common.domain.CourseVisibility
 import com.example.backend.course.application.port.inbound.dto.CourseRecommendQuery
 import com.example.backend.course.application.port.inbound.dto.FeedCursor
@@ -36,7 +37,8 @@ import java.time.temporal.ChronoUnit
 class CourseRecommendServiceTest {
     private val recommendPort = mock(CourseRecommendQueryPort::class.java)
     private val persistence = mock(CoursePersistencePort::class.java)
-    private val service = CourseRecommendService(recommendPort, persistence)
+    private val areaQueryUseCase = mock(AreaQueryUseCase::class.java)
+    private val service = CourseRecommendService(recommendPort, persistence, CourseRegionResolver(areaQueryUseCase))
 
     private val createdAt = Instant.parse("2026-09-01T00:00:00Z")
 
@@ -144,7 +146,7 @@ class CourseRecommendServiceTest {
         assertThat(next.origin).isEqualTo(criteria.origin.truncatedTo(ChronoUnit.MILLIS)) // 커서는 밀리초 정밀도
         assertThat(next.score).isEqualTo(8.0)
         assertThat(next.id).isEqualTo(2L)
-        verify(persistence, never()).findPublishedPublic(any(), anyInt(), any())
+        verify(persistence, never()).findPublishedPublic(any(), anyInt(), any(), any())
     }
 
     @Test
@@ -183,13 +185,13 @@ class CourseRecommendServiceTest {
         assertThat(page.items).isEmpty()
         assertThat(page.hasNext).isFalse()
         assertThat(page.nextCursor).isNull()
-        verify(persistence, never()).findPublishedPublic(any(), anyInt(), any())
+        verify(persistence, never()).findPublishedPublic(any(), anyInt(), any(), any())
     }
 
     @Test
     fun `첫 페이지에서 엔진이 없으면 공개 피드 정렬로 폴백하고 db 커서를 만든다`() {
         `when`(recommendPort.recommend(anyArg<CourseRecommendCriteria>())).thenReturn(null)
-        `when`(persistence.findPublishedPublic(isNull(), eq(2), eq(CourseCategory.FOOD)))
+        `when`(persistence.findPublishedPublic(isNull(), eq(2), eq(CourseCategory.FOOD), isNull()))
             .thenReturn(listOf(summaryRow(10, savesCnt = 9), summaryRow(11, savesCnt = 8), summaryRow(12)))
         `when`(persistence.findPlaceStats(listOf(10L, 11L))).thenReturn(mapOf(11L to CoursePlaceStats(3, 20)))
 
@@ -213,7 +215,9 @@ class CourseRecommendServiceTest {
     fun `db 커서는 엔진을 부르지 않고 키셋으로 이어 조회한다`() {
         val feedCursor = FeedCursor(savesCnt = 8, createdAt = createdAt, id = 11L)
         val cursor = CourseRecommendCursorCodec.encode(CourseRecommendCursor.Feed(feedCursor))
-        `when`(persistence.findPublishedPublic(eq(feedCursor), eq(2), isNull())).thenReturn(listOf(summaryRow(12)))
+        `when`(
+            persistence.findPublishedPublic(eq(feedCursor), eq(2), isNull(), isNull()),
+        ).thenReturn(listOf(summaryRow(12)))
         `when`(persistence.findPlaceStats(listOf(12L))).thenReturn(emptyMap())
 
         val page = service.recommend(query(cursor = cursor))

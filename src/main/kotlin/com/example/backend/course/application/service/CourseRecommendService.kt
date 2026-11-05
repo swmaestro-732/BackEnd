@@ -10,6 +10,7 @@ import com.example.backend.course.application.port.outbound.CoursePlaceStats
 import com.example.backend.course.application.port.outbound.CourseRecommendAfter
 import com.example.backend.course.application.port.outbound.CourseRecommendCriteria
 import com.example.backend.course.application.port.outbound.CourseRecommendQueryPort
+import com.example.backend.course.application.port.outbound.CourseRegionFilter
 import com.example.backend.course.application.port.outbound.CourseSearchRow
 import com.example.backend.course.domain.model.CourseCategory
 import org.springframework.stereotype.Service
@@ -27,6 +28,7 @@ import java.time.Instant
 class CourseRecommendService(
     private val courseRecommendQueryPort: CourseRecommendQueryPort,
     private val coursePersistencePort: CoursePersistencePort,
+    private val courseRegionResolver: CourseRegionResolver,
 ) : CourseRecommendUseCase {
     override fun recommend(query: CourseRecommendQuery): CourseRecommendPage {
         val size = query.size.coerceAtLeast(1)
@@ -34,17 +36,19 @@ class CourseRecommendService(
             query.category?.let { name ->
                 requireNotNull(CourseCategory.entries.find { it.name == name }) { "알 수 없는 코스 카테고리입니다: $name" }
             }
+        val region = courseRegionResolver.resolve(query.region)
         return when (val cursor = CourseRecommendCursorCodec.decode(query.cursor)) {
             null -> {
-                fromEngine(query, Instant.now(), null, size, category) ?: fromFeed(null, size, category)
+                fromEngine(query, Instant.now(), null, size, category, region) ?: fromFeed(null, size, category, region)
             }
 
             is CourseRecommendCursor.Engine -> {
-                fromEngine(query, cursor.origin, CourseRecommendAfter(cursor.score, cursor.id), size, category) ?: EMPTY
+                fromEngine(query, cursor.origin, CourseRecommendAfter(cursor.score, cursor.id), size, category, region)
+                    ?: EMPTY
             }
 
             is CourseRecommendCursor.Feed -> {
-                fromFeed(cursor.value, size, category)
+                fromFeed(cursor.value, size, category, region)
             }
         }
     }
@@ -56,6 +60,7 @@ class CourseRecommendService(
         after: CourseRecommendAfter?,
         size: Int,
         category: CourseCategory?,
+        region: CourseRegionFilter?,
     ): CourseRecommendPage? {
         val criteria =
             CourseRecommendCriteria(
@@ -64,6 +69,7 @@ class CourseRecommendService(
                 sigunguCodes = query.areaCodes.map { it.take(SIGUNGU_CODE_LENGTH) }.distinct(),
                 dongCodes = query.areaCodes.filterNot { it.endsWith(SIGUNGU_LEVEL_SUFFIX) }.distinct(),
                 category = category?.name,
+                region = region,
                 origin = origin,
                 after = after,
                 size = size,
@@ -86,8 +92,9 @@ class CourseRecommendService(
         cursor: FeedCursor?,
         size: Int,
         category: CourseCategory?,
+        region: CourseRegionFilter?,
     ): CourseRecommendPage {
-        val rows = coursePersistencePort.findPublishedPublic(cursor, size, category)
+        val rows = coursePersistencePort.findPublishedPublic(cursor, size, category, region)
         val page = rows.take(size)
         val hasNext = rows.size > size
         val statsByCourse = coursePersistencePort.findPlaceStats(page.map { it.id })

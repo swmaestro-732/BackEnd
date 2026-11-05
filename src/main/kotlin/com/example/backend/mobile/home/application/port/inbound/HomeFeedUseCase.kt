@@ -18,11 +18,15 @@ interface HomeFeedUseCase {
         userLocation: Coordinate?,
     ): HomeResult
 
-    /** 추천 점수순(최신성 + 관심 테마·지역 일치 + 저장수) 코스를 [cursor] 이후부터 [size] 개 내려준다. [category]가 있으면 그 카테고리만. */
+    /**
+     * 추천 점수순(최신성 + 관심 테마·지역 일치 + 저장수) 코스를 [cursor] 이후부터 [size] 개 내려준다.
+     * [category]가 있으면 그 카테고리만, [region](법정동코드 prefix)이 있으면 그 지역만.
+     */
     fun getFeed(
         viewerId: Long?,
         cursor: String?,
         size: Int,
         category: String? = null,
+        region: String? = null,
     ): HomeFeedResult
 }

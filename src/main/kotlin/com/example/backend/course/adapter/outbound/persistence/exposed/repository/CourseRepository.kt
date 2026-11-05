@@ -8,12 +8,14 @@ import com.example.backend.course.adapter.outbound.persistence.exposed.CourseTab
 import com.example.backend.course.application.port.inbound.dto.AuthorCourseCursor
 import com.example.backend.course.application.port.inbound.dto.FeedCursor
 import com.example.backend.course.application.port.outbound.CourseDetailRow
+import com.example.backend.course.application.port.outbound.CourseRegionFilter
 import com.example.backend.course.application.port.outbound.CourseSummaryRow
 import com.example.backend.course.domain.model.Course
 import com.example.backend.course.domain.model.CourseCategory
 import com.example.backend.course.domain.model.CourseStatus
 import org.jetbrains.exposed.v1.core.Expression
 import org.jetbrains.exposed.v1.core.LessOp
+import org.jetbrains.exposed.v1.core.Op
 import org.jetbrains.exposed.v1.core.QueryBuilder
 import org.jetbrains.exposed.v1.core.QueryParameter
 import org.jetbrains.exposed.v1.core.ResultRow
@@ -25,7 +27,9 @@ import org.jetbrains.exposed.v1.core.greater
 import org.jetbrains.exposed.v1.core.inList
 import org.jetbrains.exposed.v1.core.isNull
 import org.jetbrains.exposed.v1.core.less
+import org.jetbrains.exposed.v1.core.like
 import org.jetbrains.exposed.v1.core.minus
+import org.jetbrains.exposed.v1.core.notLike
 import org.jetbrains.exposed.v1.core.or
 import org.jetbrains.exposed.v1.core.plus
 import org.jetbrains.exposed.v1.jdbc.select
@@ -288,14 +292,20 @@ class CourseRepository {
         cursor: FeedCursor?,
         size: Int,
         category: CourseCategory? = null,
+        region: CourseRegionFilter? = null,
     ): List<CourseSummaryRow> {
         var condition =
             (CourseTable.isPublished eq true) and
                 (CourseTable.status eq CourseStatus.ACTIVE) and
                 CourseTable.deletedAt.isNull() and
                 (CourseTable.visibility eq CourseVisibility.PUBLIC)
-        // 카테고리는 부분 인덱스(idx_courses_public_feed) 정렬 순서로 읽으며 거르는 필터라 정렬과 커서는 그대로다.
+        // 카테고리·지역은 부분 인덱스(idx_courses_public_feed) 정렬 순서로 읽으며 거르는 필터라 정렬과 커서는 그대로다.
         category?.let { condition = condition and (CourseTable.category eq it) }
+        region?.let { filter ->
+            val includes = filter.includePrefixes.map<String, Op<Boolean>> { CourseTable.areaCode like "$it%" }
+            condition = condition and includes.reduce { a, b -> a or b }
+            filter.excludePrefixes.forEach { condition = condition and (CourseTable.areaCode notLike "$it%") }
+        }
 
         cursor?.let {
             // 행 비교 (saves_cnt, created_at, id) < (?, ?, ?) — 세 키가 모두 DESC 라 정렬과 방향이 같고,

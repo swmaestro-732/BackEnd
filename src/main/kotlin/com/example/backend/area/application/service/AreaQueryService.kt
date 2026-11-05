@@ -22,4 +22,6 @@ class AreaQueryService(
     override fun resolveSearchPrefixes(keyword: String): List<String> = areaDirectoryPort.resolveSearchPrefixes(keyword)
 
     override fun findAreaByCode(code: String): AreaDescriptor? = areaDirectoryPort.findByCode(code)
+
+    override fun existsAreaWithPrefix(prefix: String): Boolean = areaDirectoryPort.existsByPrefix(prefix)
 }
