@@ -17,7 +17,8 @@ import java.util.concurrent.ConcurrentHashMap
 class DeviceActivityRecorder(
     private val clock: Clock,
 ) {
-    // ponytail: 하루치 기기 ID 를 메모리에 들고 있다. DAU 가 수십만을 넘으면 Caffeine 등 크기 제한 캐시로 바꾼다.
+    // 헤더는 비로그인 요청도 보내므로 무작위 ID 를 뿌리면 집합이 끝없이 커진다. [MAX_SEEN] 을 넘으면 비우고 다시 채운다
+    // (비운 뒤에는 이미 기록한 기기도 한 번 더 insert 하지만 ON CONFLICT 로 끝난다).
     @Volatile
     private var seen = DaySeen(LocalDate.MIN)
 
@@ -27,7 +28,7 @@ class DeviceActivityRecorder(
         userId: Long?,
     ) {
         val today = LocalDate.now(clock.withZone(KST))
-        val current = seen.takeIf { it.date == today } ?: DaySeen(today).also { seen = it }
+        val current = seen.takeIf { it.date == today && it.ids.size < MAX_SEEN } ?: DaySeen(today).also { seen = it }
         if (deviceId in current.ids) return
 
         transaction {
@@ -48,5 +49,6 @@ class DeviceActivityRecorder(
 
     private companion object {
         val KST: ZoneId = ZoneId.of("Asia/Seoul")
+        const val MAX_SEEN = 100_000
     }
 }
