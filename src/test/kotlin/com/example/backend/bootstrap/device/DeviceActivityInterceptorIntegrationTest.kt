@@ -19,6 +19,7 @@ import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc
 import org.springframework.http.HttpHeaders
 import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor
 import org.springframework.test.web.servlet.MockMvc
+import org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete
 import org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get
 import org.springframework.test.web.servlet.result.MockMvcResultMatchers.status
 import java.util.UUID
@@ -69,6 +70,16 @@ class DeviceActivityInterceptorIntegrationTest
 
             deviceActivityExecutor.awaitIdle()
             assertThat(transaction { DeviceActivityTable.selectAll().count() }).isEqualTo(before)
+        }
+
+        @Test
+        fun `백그라운드 기기 API 요청은 활동으로 세지 않는다`() {
+            val device = UUID.randomUUID().toString()
+            mockMvc.perform(get("/api/v1/devices").header(HEADER, device))
+            mockMvc.perform(delete("/api/v1/my/devices").header(HEADER, device))
+
+            deviceActivityExecutor.awaitIdle()
+            assertThat(activityOf(device)).isEmpty()
         }
 
         @Test

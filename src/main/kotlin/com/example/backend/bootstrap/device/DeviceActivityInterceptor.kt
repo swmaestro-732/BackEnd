@@ -16,7 +16,7 @@ import org.springframework.web.servlet.HandlerInterceptor
 
 /**
  * `X-Device-Id` 를 보낸 모든 API 요청을 리텐션 측정용 일별 활동으로 남긴다(SCRUM-783). `X-App-Platform` 으로 OS 도 남긴다.
- * 헤더가 없거나 형식이 틀리면 건너뛴다. 쓰기는 비동기라 기록이 늦거나 실패해도 요청에 영향이 없다.
+ * 헤더가 없거나 형식이 틀리거나 [NotUserActivity] 가 붙은 API 면 건너뛴다. 쓰기는 비동기라 기록이 늦거나 실패해도 요청에 영향이 없다.
  */
 @Component
 class DeviceActivityInterceptor(
@@ -27,7 +27,7 @@ class DeviceActivityInterceptor(
         response: HttpServletResponse,
         handler: Any,
     ): Boolean {
-        if (handler !is HandlerMethod) return true
+        if (handler !is HandlerMethod || isNotUserActivity(handler)) return true
         val deviceId = request.getHeader(DEVICE_ID_HEADER)
         if (deviceId.isNullOrBlank() || deviceId.length > MAX_DEVICE_ID_LENGTH) return true
 
@@ -40,6 +40,10 @@ class DeviceActivityInterceptor(
         deviceActivityUseCase.record(deviceId, currentUserId(), platform)
         return true
     }
+
+    private fun isNotUserActivity(handler: HandlerMethod): Boolean =
+        handler.hasMethodAnnotation(NotUserActivity::class.java) ||
+            handler.beanType.isAnnotationPresent(NotUserActivity::class.java)
 
     private fun currentUserId(): Long? =
         (SecurityContextHolder.getContext().authentication as? JwtAuthenticationToken)
