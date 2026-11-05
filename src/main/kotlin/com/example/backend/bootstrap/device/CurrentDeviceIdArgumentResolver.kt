@@ -29,6 +29,6 @@ class CurrentDeviceIdArgumentResolver : HandlerMethodArgumentResolver {
 
     companion object {
         const val DEVICE_ID_HEADER = "X-Device-Id"
-        private const val MAX_DEVICE_ID_LENGTH = 128
+        const val MAX_DEVICE_ID_LENGTH = 128
     }
 }
