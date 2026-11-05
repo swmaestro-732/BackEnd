@@ -23,13 +23,13 @@ class UserLastLocationPersistenceTest
         @Test
         fun `갱신한 지 오래됐으면 같은 자리여도 한 행의 좌표와 갱신 시각을 바꾼다`() {
             transaction {
-                insertUser()
-                userLastLocationPersistencePort.save(ME, SEOUL)
-                ageRow()
+                insertUsers()
+                userLastLocationPersistencePort.saveIfActive(ME, SEOUL)
+                UserLastLocationTable.update({ UserLastLocationTable.userId eq ME }) { it[updatedAt] = OLD }
 
-                userLastLocationPersistencePort.save(ME, SEOUL_NEAR)
+                userLastLocationPersistencePort.saveIfActive(ME, SEOUL_NEAR)
 
-                val rows = rows()
+                val rows = rows(ME)
                 assertEquals(1, rows.size)
                 assertEquals(SEOUL_NEAR, rows.single()[UserLastLocationTable.location])
                 assertTrue(rows.single()[UserLastLocationTable.updatedAt] > OLD)
@@ -40,12 +40,12 @@ class UserLastLocationPersistenceTest
         @Test
         fun `최근에 갱신했고 500m 안이면 덮어쓰지 않는다`() {
             transaction {
-                insertUser()
-                userLastLocationPersistencePort.save(ME, SEOUL)
+                insertUsers()
+                userLastLocationPersistencePort.saveIfActive(ME, SEOUL)
 
-                userLastLocationPersistencePort.save(ME, SEOUL_NEAR)
+                userLastLocationPersistencePort.saveIfActive(ME, SEOUL_NEAR)
 
-                assertEquals(SEOUL, rows().single()[UserLastLocationTable.location])
+                assertEquals(SEOUL, rows(ME).single()[UserLastLocationTable.location])
                 rollback()
             }
         }
@@ -53,41 +53,59 @@ class UserLastLocationPersistenceTest
         @Test
         fun `최근에 갱신했어도 500m 넘게 움직였으면 덮어쓴다`() {
             transaction {
-                insertUser()
-                userLastLocationPersistencePort.save(ME, SEOUL)
+                insertUsers()
+                userLastLocationPersistencePort.saveIfActive(ME, SEOUL)
 
-                userLastLocationPersistencePort.save(ME, BUSAN)
+                userLastLocationPersistencePort.saveIfActive(ME, BUSAN)
 
-                assertEquals(BUSAN, rows().single()[UserLastLocationTable.location])
+                assertEquals(BUSAN, rows(ME).single()[UserLastLocationTable.location])
                 rollback()
             }
         }
 
         @Test
-        fun `deleteByUser는 그 사용자의 위치를 지운다`() {
+        fun `탈퇴했거나 없는 사용자면 저장하지 않는다`() {
             transaction {
-                insertUser()
-                userLastLocationPersistencePort.save(ME, SEOUL)
+                insertUsers()
+                TransactionManager.current().exec("UPDATE users SET deleted_at = now() WHERE id = $ME")
 
-                userLastLocationPersistencePort.deleteByUser(ME)
+                userLastLocationPersistencePort.saveIfActive(ME, SEOUL)
+                userLastLocationPersistencePort.saveIfActive(NOBODY, SEOUL)
 
-                assertTrue(rows().isEmpty())
+                assertTrue(rows(ME).isEmpty())
+                assertTrue(rows(NOBODY).isEmpty())
                 rollback()
             }
         }
 
-        private fun insertUser() {
-            TransactionManager.current().exec("INSERT INTO users (id, nickname) VALUES ($ME, '위치주인')")
+        @Test
+        fun `deleteByUser는 그 사용자의 위치만 지운다`() {
+            transaction {
+                insertUsers()
+                userLastLocationPersistencePort.saveIfActive(ME, SEOUL)
+                userLastLocationPersistencePort.saveIfActive(OTHER, BUSAN)
+
+                userLastLocationPersistencePort.deleteByUser(ME)
+
+                assertTrue(rows(ME).isEmpty())
+                assertEquals(BUSAN, rows(OTHER).single()[UserLastLocationTable.location])
+                rollback()
+            }
         }
 
-        private fun ageRow() {
-            UserLastLocationTable.update({ UserLastLocationTable.userId eq ME }) { it[updatedAt] = OLD }
+        private fun insertUsers() {
+            TransactionManager.current().exec(
+                "INSERT INTO users (id, nickname) VALUES ($ME, '위치주인'), ($OTHER, '다른사용자')",
+            )
         }
 
-        private fun rows() = UserLastLocationTable.selectAll().where { UserLastLocationTable.userId eq ME }.toList()
+        private fun rows(userId: Long) =
+            UserLastLocationTable.selectAll().where { UserLastLocationTable.userId eq userId }.toList()
 
         private companion object {
             const val ME = 780101L
+            const val OTHER = 780102L
+            const val NOBODY = 780199L
             val SEOUL = Coordinate(37.544, 127.056)
 
             // SEOUL 에서 약 110m.

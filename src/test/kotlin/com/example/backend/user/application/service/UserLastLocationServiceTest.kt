@@ -2,37 +2,18 @@ package com.example.backend.user.application.service
 
 import com.example.backend.common.geo.Coordinate
 import com.example.backend.user.application.port.outbound.UserLastLocationPersistencePort
-import com.example.backend.user.application.port.outbound.UserPersistencePort
 import org.junit.jupiter.api.Test
 import org.mockito.Mockito.mock
 import org.mockito.Mockito.verify
-import org.mockito.Mockito.verifyNoInteractions
-import org.mockito.Mockito.`when`
 
 class UserLastLocationServiceTest {
     private val userLastLocationPersistencePort = mock(UserLastLocationPersistencePort::class.java)
-    private val userPersistencePort = mock(UserPersistencePort::class.java)
-    private val service = UserLastLocationService(userLastLocationPersistencePort, userPersistencePort)
+    private val service = UserLastLocationService(userLastLocationPersistencePort)
 
     @Test
-    fun `활성 사용자면 최근 위치를 소수 3자리로 반올림해 저장한다`() {
-        `when`(userPersistencePort.lockActive(listOf(1L))).thenReturn(setOf(1L))
-
+    fun `최근 위치를 소수 3자리로 반올림해 저장을 맡긴다`() {
         service.record(1L, Coordinate(37.5445678, 127.0561234))
 
-        verify(userLastLocationPersistencePort).save(1L, Coordinate(37.545, 127.056))
-    }
-
-    @Test
-    fun `탈퇴했거나 없는 사용자면 저장하지 않는다`() {
-        `when`(userPersistencePort.lockActive(listOf(1L))).thenReturn(emptySet())
-
-        service.record(1L, LOCATION)
-
-        verifyNoInteractions(userLastLocationPersistencePort)
-    }
-
-    private companion object {
-        val LOCATION = Coordinate(37.544, 127.056)
+        verify(userLastLocationPersistencePort).saveIfActive(1L, Coordinate(37.545, 127.056))
     }
 }
