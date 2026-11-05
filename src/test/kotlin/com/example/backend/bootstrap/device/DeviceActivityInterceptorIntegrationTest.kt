@@ -1,8 +1,10 @@
 package com.example.backend.bootstrap.device
 
 import com.example.backend.bootstrap.config.AsyncConfig
+import com.example.backend.bootstrap.security.JwtTokenProvider
 import com.example.backend.support.IntegrationTestBase
 import org.assertj.core.api.Assertions.assertThat
+import org.jetbrains.exposed.v1.core.eq
 import org.jetbrains.exposed.v1.core.inList
 import org.jetbrains.exposed.v1.jdbc.deleteAll
 import org.jetbrains.exposed.v1.jdbc.selectAll
@@ -12,6 +14,7 @@ import org.junit.jupiter.api.Test
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.beans.factory.annotation.Qualifier
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc
+import org.springframework.http.HttpHeaders
 import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor
 import org.springframework.test.web.servlet.MockMvc
 import org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get
@@ -23,6 +26,7 @@ class DeviceActivityInterceptorIntegrationTest
     @Autowired
     constructor(
         private val mockMvc: MockMvc,
+        private val jwtTokenProvider: JwtTokenProvider,
         @Qualifier(AsyncConfig.DEVICE_ACTIVITY_EXECUTOR) private val deviceActivityExecutor: ThreadPoolTaskExecutor,
     ) : IntegrationTestBase() {
         @AfterEach
@@ -64,6 +68,28 @@ class DeviceActivityInterceptorIntegrationTest
             assertThat(transaction { DeviceActivityTable.selectAll().count() }).isEqualTo(before)
         }
 
+        @Test
+        fun `비로그인으로 먼저 기록된 기기가 그날 로그인하면 user_id 를 채운다`() {
+            val device = UUID.randomUUID().toString()
+            mockMvc.perform(get("/api/v1/courses/999999").header(HEADER, device))
+            deviceActivityExecutor.awaitIdle()
+            mockMvc.perform(
+                get("/api/v1/courses/999999")
+                    .header(HEADER, device)
+                    .header(HttpHeaders.AUTHORIZATION, "Bearer ${jwtTokenProvider.issueAccessToken(USER_ID)}"),
+            )
+            deviceActivityExecutor.awaitIdle()
+
+            val userIds =
+                transaction {
+                    DeviceActivityTable
+                        .selectAll()
+                        .where { DeviceActivityTable.deviceId eq device }
+                        .map { it[DeviceActivityTable.userId] }
+                }
+            assertThat(userIds).containsExactly(USER_ID)
+        }
+
         private fun ThreadPoolTaskExecutor.awaitIdle() {
             val deadline = System.nanoTime() + 5_000_000_000
             while ((threadPoolExecutor.queue.isNotEmpty() || activeCount > 0) && System.nanoTime() < deadline) {
@@ -73,5 +99,6 @@ class DeviceActivityInterceptorIntegrationTest
 
         private companion object {
             const val HEADER = CurrentDeviceIdArgumentResolver.DEVICE_ID_HEADER
+            const val USER_ID = 987_654_321L
         }
     }

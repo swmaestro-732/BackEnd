@@ -37,6 +37,9 @@ class AsyncConfig {
             corePoolSize = 1
             maxPoolSize = 1
             queueCapacity = DEVICE_ACTIVITY_QUEUE_CAPACITY
+            // 배포 때 큐에 남은 기록을 잃지 않게 잠깐 기다린다.
+            setWaitForTasksToCompleteOnShutdown(true)
+            setAwaitTerminationSeconds(10)
             setThreadNamePrefix("device-activity-")
         }
 

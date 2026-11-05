@@ -3,8 +3,9 @@ package com.example.backend.bootstrap.device
 import com.example.backend.bootstrap.config.AsyncConfig
 import io.github.oshai.kotlinlogging.KotlinLogging
 import kotlinx.datetime.toKotlinLocalDate
-import org.jetbrains.exposed.v1.jdbc.insertIgnore
+import org.jetbrains.exposed.v1.core.Coalesce
 import org.jetbrains.exposed.v1.jdbc.transactions.transaction
+import org.jetbrains.exposed.v1.jdbc.upsert
 import org.springframework.beans.factory.annotation.Qualifier
 import org.springframework.core.task.TaskExecutor
 import org.springframework.core.task.TaskRejectedException
@@ -27,24 +28,29 @@ class DeviceActivityRecorder(
     private val log = KotlinLogging.logger {}
 
     // 헤더는 비로그인 요청도 보내므로 무작위 ID 를 뿌리면 집합이 끝없이 커진다. [MAX_SEEN] 을 넘으면 비우고 다시 채운다
-    // (비운 뒤에는 이미 기록한 기기도 한 번 더 insert 하지만 ON CONFLICT 로 끝난다).
+    // (비운 뒤에는 이미 기록한 기기도 한 번 더 쓰지만 ON CONFLICT 로 끝난다).
     @Volatile
     private var seen = DaySeen(LocalDate.MIN)
 
-    /** 처음 본 기기만 쓰기를 넘긴다. 쓰기가 실패하면 집합에서 빼 다음 요청에 다시 시도한다. */
+    /**
+     * 처음 본 (기기, 로그인 여부) 만 쓰기를 넘긴다. 비로그인으로 먼저 기록된 기기가 그날 로그인하면 한 번 더 써서 user_id 를 채운다.
+     * 쓰기가 실패하면 집합에서 빼 다음 요청에 다시 시도한다.
+     */
     fun record(
         deviceId: String,
         userId: Long?,
     ) {
         val today = LocalDate.now(clock.withZone(KST))
         val current = seen.takeIf { it.date == today && it.ids.size < MAX_SEEN } ?: DaySeen(today).also { seen = it }
-        if (!current.ids.add(deviceId)) return
+        val key = if (userId == null) deviceId else "$deviceId$LOGGED_IN_SUFFIX"
+        if (!current.ids.add(key)) return
 
         try {
-            deviceActivityExecutor.execute { insert(deviceId, userId, today, current) }
+            deviceActivityExecutor.execute { insert(deviceId, userId, today, current, key) }
         } catch (e: TaskRejectedException) {
-            current.ids.remove(deviceId)
-            log.warn { "기기 활동 기록 큐가 가득 차 이번 기록을 건너뜀" }
+            current.ids.remove(key)
+            // 폭주 때 요청마다 쌓이지 않게 debug 로 둔다.
+            log.debug { "기기 활동 기록 큐가 가득 차 이번 기록을 건너뜀" }
         }
     }
 
@@ -53,18 +59,25 @@ class DeviceActivityRecorder(
         userId: Long?,
         today: LocalDate,
         current: DaySeen,
+        key: String,
     ) {
         runCatching {
             transaction {
-                DeviceActivityTable.insertIgnore {
+                DeviceActivityTable.upsert(
+                    onUpdate = {
+                        it[DeviceActivityTable.userId] =
+                            Coalesce(DeviceActivityTable.userId, insertValue(DeviceActivityTable.userId))
+                    },
+                ) {
                     it[DeviceActivityTable.deviceId] = deviceId
                     it[activeDate] = today.toKotlinLocalDate()
                     it[DeviceActivityTable.userId] = userId
                 }
             }
         }.onFailure {
-            current.ids.remove(deviceId)
-            log.warn(it) { "기기 활동 기록 실패" }
+            current.ids.remove(key)
+            // 예외 메시지에는 바인딩 값을 펼친 SQL(기기 ID 포함)이 들어가므로 예외 종류만 남긴다.
+            log.warn { "기기 활동 기록 실패: error=${it.javaClass.name}" }
         }
     }
 
@@ -77,5 +90,6 @@ class DeviceActivityRecorder(
     private companion object {
         val KST: ZoneId = ZoneId.of("Asia/Seoul")
         const val MAX_SEEN = 100_000
+        const val LOGGED_IN_SUFFIX = "#user"
     }
 }
