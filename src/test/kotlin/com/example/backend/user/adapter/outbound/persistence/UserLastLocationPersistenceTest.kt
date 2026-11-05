@@ -10,7 +10,6 @@ import org.jetbrains.exposed.v1.jdbc.transactions.TransactionManager
 import org.jetbrains.exposed.v1.jdbc.transactions.transaction
 import org.jetbrains.exposed.v1.jdbc.update
 import org.junit.jupiter.api.Assertions.assertEquals
-import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import org.springframework.beans.factory.annotation.Autowired
@@ -22,18 +21,44 @@ class UserLastLocationPersistenceTest
         private val userLastLocationPersistencePort: UserLastLocationPersistencePort,
     ) : IntegrationTestBase() {
         @Test
-        fun `같은 사용자를 다시 저장하면 한 행의 좌표와 갱신 시각만 바뀐다`() {
+        fun `갱신한 지 오래됐으면 같은 자리여도 한 행의 좌표와 갱신 시각을 바꾼다`() {
             transaction {
                 insertUser()
-                userLastLocationPersistencePort.save(ME, FIRST)
-                UserLastLocationTable.update({ UserLastLocationTable.userId eq ME }) { it[updatedAt] = OLD }
+                userLastLocationPersistencePort.save(ME, SEOUL)
+                ageRow()
 
-                userLastLocationPersistencePort.save(ME, SECOND)
+                userLastLocationPersistencePort.save(ME, SEOUL_NEAR)
 
-                assertEquals(SECOND, userLastLocationPersistencePort.find(ME))
-                val rows = UserLastLocationTable.selectAll().where { UserLastLocationTable.userId eq ME }.toList()
+                val rows = rows()
                 assertEquals(1, rows.size)
+                assertEquals(SEOUL_NEAR, rows.single()[UserLastLocationTable.location])
                 assertTrue(rows.single()[UserLastLocationTable.updatedAt] > OLD)
+                rollback()
+            }
+        }
+
+        @Test
+        fun `최근에 갱신했고 500m 안이면 덮어쓰지 않는다`() {
+            transaction {
+                insertUser()
+                userLastLocationPersistencePort.save(ME, SEOUL)
+
+                userLastLocationPersistencePort.save(ME, SEOUL_NEAR)
+
+                assertEquals(SEOUL, rows().single()[UserLastLocationTable.location])
+                rollback()
+            }
+        }
+
+        @Test
+        fun `최근에 갱신했어도 500m 넘게 움직였으면 덮어쓴다`() {
+            transaction {
+                insertUser()
+                userLastLocationPersistencePort.save(ME, SEOUL)
+
+                userLastLocationPersistencePort.save(ME, BUSAN)
+
+                assertEquals(BUSAN, rows().single()[UserLastLocationTable.location])
                 rollback()
             }
         }
@@ -42,11 +67,11 @@ class UserLastLocationPersistenceTest
         fun `deleteByUser는 그 사용자의 위치를 지운다`() {
             transaction {
                 insertUser()
-                userLastLocationPersistencePort.save(ME, FIRST)
+                userLastLocationPersistencePort.save(ME, SEOUL)
 
                 userLastLocationPersistencePort.deleteByUser(ME)
 
-                assertNull(userLastLocationPersistencePort.find(ME))
+                assertTrue(rows().isEmpty())
                 rollback()
             }
         }
@@ -55,10 +80,19 @@ class UserLastLocationPersistenceTest
             TransactionManager.current().exec("INSERT INTO users (id, nickname) VALUES ($ME, '위치주인')")
         }
 
+        private fun ageRow() {
+            UserLastLocationTable.update({ UserLastLocationTable.userId eq ME }) { it[updatedAt] = OLD }
+        }
+
+        private fun rows() = UserLastLocationTable.selectAll().where { UserLastLocationTable.userId eq ME }.toList()
+
         private companion object {
             const val ME = 780101L
-            val FIRST = Coordinate(37.544, 127.056)
-            val SECOND = Coordinate(35.1796, 129.0756)
+            val SEOUL = Coordinate(37.544, 127.056)
+
+            // SEOUL 에서 약 110m.
+            val SEOUL_NEAR = Coordinate(37.545, 127.056)
+            val BUSAN = Coordinate(35.18, 129.076)
             val OLD = Instant.parse("2000-01-01T00:00:00Z")
         }
     }

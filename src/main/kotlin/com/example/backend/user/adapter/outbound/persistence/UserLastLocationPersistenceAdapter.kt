@@ -15,7 +15,5 @@ class UserLastLocationPersistenceAdapter(
         location: Coordinate,
     ) = userLastLocationRepository.upsert(userId, location)
 
-    override fun find(userId: Long): Coordinate? = userLastLocationRepository.findByUserId(userId)
-
     override fun deleteByUser(userId: Long) = userLastLocationRepository.deleteByUserId(userId)
 }

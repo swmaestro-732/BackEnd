@@ -15,12 +15,12 @@ class UserLastLocationServiceTest {
     private val service = UserLastLocationService(userLastLocationPersistencePort, userPersistencePort)
 
     @Test
-    fun `활성 사용자면 최근 위치를 저장한다`() {
+    fun `활성 사용자면 최근 위치를 소수 3자리로 반올림해 저장한다`() {
         `when`(userPersistencePort.lockActive(listOf(1L))).thenReturn(setOf(1L))
 
-        service.record(1L, LOCATION)
+        service.record(1L, Coordinate(37.5445678, 127.0561234))
 
-        verify(userLastLocationPersistencePort).save(1L, LOCATION)
+        verify(userLastLocationPersistencePort).save(1L, Coordinate(37.545, 127.056))
     }
 
     @Test

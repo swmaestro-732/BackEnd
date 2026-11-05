@@ -68,7 +68,10 @@ class HomeFeedService(
         )
     }
 
-    /** 위치 저장은 홈 응답의 부수 효과라 실패해도 홈은 그대로 내려준다. 좌표는 로그에 남기지 않는다. */
+    /**
+     * 위치 저장은 홈 응답의 부수 효과라 실패해도 홈은 그대로 내려준다.
+     * 예외 메시지(ExposedSQLException 의 바인딩 펼친 SQL 등)에 좌표가 실리므로 예외 객체는 로그에 넘기지 않는다.
+     */
     private fun recordLocation(
         userId: Long,
         location: Coordinate,
@@ -76,7 +79,7 @@ class HomeFeedService(
         try {
             homeUserLocationPort.record(userId, location)
         } catch (e: Exception) {
-            log.warn(e) { "홈 최근 위치 저장 실패: userId=$userId" }
+            log.warn { "홈 최근 위치 저장 실패: userId=$userId, error=${e.javaClass.name}" }
         }
     }
 
