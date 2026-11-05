@@ -73,7 +73,7 @@ class AdminPushControllerTest
             mockMvc
                 .perform(sendRequest(adminTokenPort.issue("admin@example.com").token, validBody))
                 .andExpect(status().isConflict)
-                .andExpect(jsonPath("$.code").value(4100))
+                .andExpect(jsonPath("$.code").value(4300))
         }
 
         @Test
