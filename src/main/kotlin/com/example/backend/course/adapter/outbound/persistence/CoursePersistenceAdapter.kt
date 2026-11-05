@@ -12,6 +12,7 @@ import com.example.backend.course.application.port.outbound.CourseDetailRow
 import com.example.backend.course.application.port.outbound.CoursePersistencePort
 import com.example.backend.course.application.port.outbound.CoursePlaceRow
 import com.example.backend.course.application.port.outbound.CoursePlaceStats
+import com.example.backend.course.application.port.outbound.CourseRegionFilter
 import com.example.backend.course.application.port.outbound.CourseSummaryRow
 import com.example.backend.course.application.port.outbound.FeedCursor
 import com.example.backend.course.domain.model.Course
@@ -54,7 +55,8 @@ class CoursePersistenceAdapter(
         cursor: FeedCursor?,
         size: Int,
         category: CourseCategory?,
-    ): List<CourseSummaryRow> = courseRepository.findPublishedPublic(cursor, size, category)
+        region: CourseRegionFilter?,
+    ): List<CourseSummaryRow> = courseRepository.findPublishedPublic(cursor, size, category, region)
 
     override fun existsById(courseId: Long): Boolean = courseRepository.existsById(courseId)
 

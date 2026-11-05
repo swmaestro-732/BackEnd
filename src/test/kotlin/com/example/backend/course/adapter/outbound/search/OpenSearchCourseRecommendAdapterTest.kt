@@ -112,6 +112,7 @@ class OpenSearchCourseRecommendAdapterTest {
         sigunguCodes = sigunguCodes,
         dongCodes = dongCodes,
         category = category,
+        region = null,
         origin = origin,
         after = after,
         size = size,

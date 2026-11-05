@@ -51,6 +51,8 @@ class AreaPersistenceAdapter(
     override fun findByCode(code: String): AreaDescriptor? =
         if (code.endsWith(SIGUNGU_LEVEL_SUFFIX)) sigunguMap[code.take(SIGUNGU_CODE_LENGTH)] else dongMap[code]
 
+    override fun existsByPrefix(prefix: String): Boolean = activeAreas.any { it.code.value.startsWith(prefix) }
+
     override fun search(keyword: String): List<AreaDescriptor> {
         val trimmed = keyword.trim()
         if (trimmed.isEmpty()) return emptyList()

@@ -70,8 +70,9 @@ class HomeFeedService(
         cursor: String?,
         size: Int,
         category: String?,
+        region: String?,
     ): HomeFeedResult {
-        val page = homeFeedPort.listRecommended(interestOf(viewerId), cursor, size, category)
+        val page = homeFeedPort.listRecommended(interestOf(viewerId), cursor, size, category, region)
         return HomeFeedResult(
             courses = page.courses,
             nextCursor = page.nextCursor,
