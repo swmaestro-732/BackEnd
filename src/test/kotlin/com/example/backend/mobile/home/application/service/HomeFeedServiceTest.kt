@@ -33,6 +33,7 @@ class HomeFeedServiceTest {
                 cursor: String?,
                 size: Int,
                 category: String?,
+                region: String?,
             ): HomeFeedCoursePage {
                 interests += interest
                 calls += cursor to size

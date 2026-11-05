@@ -21,6 +21,7 @@ class HomeFeedAdapter(
         cursor: String?,
         size: Int,
         category: String?,
+        region: String?,
     ): HomeFeedCoursePage {
         val page =
             courseRecommendUseCase.recommend(
@@ -30,6 +31,7 @@ class HomeFeedAdapter(
                     cursor = cursor,
                     size = size,
                     category = category,
+                    region = region,
                 ),
             )
         return HomeFeedCoursePage(

@@ -9,13 +9,14 @@ import com.example.backend.mobile.home.application.port.outbound.dto.HomeInteres
  */
 interface HomeFeedPort {
     /**
-     * [interest] 로 개인화한 추천 코스를 불투명 [cursor] 이후부터 [size] 개 조회한다. [category]가 있으면 그 카테고리만.
-     * 커서의 해석·다음 커서 생성은 course 도메인 몫이다.
+     * [interest] 로 개인화한 추천 코스를 불투명 [cursor] 이후부터 [size] 개 조회한다.
+     * [category]가 있으면 그 카테고리만, [region](법정동코드 prefix)이 있으면 그 지역만. 커서의 해석·다음 커서 생성은 course 도메인 몫이다.
      */
     fun listRecommended(
         interest: HomeInterest,
         cursor: String?,
         size: Int,
         category: String? = null,
+        region: String? = null,
     ): HomeFeedCoursePage
 }
