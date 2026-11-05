@@ -25,7 +25,8 @@ class DeviceActivityRecorderTest {
 
     @Test
     fun `쓰기가 실패하면 다음 요청에 같은 기기를 다시 기록하려 한다`() {
-        // DB 연결 없이 transaction 을 열어 쓰기를 실패시킨다.
+        // 컬럼 길이(128)를 넘는 값은 Exposed 가 쓰기 전에 거절한다. DB 연결 여부와 상관없이 실패한다.
+        val tooLong = "x".repeat(129)
         var calls = 0
         val sync =
             TaskExecutor {
@@ -34,8 +35,8 @@ class DeviceActivityRecorderTest {
             }
         val recorder = DeviceActivityRecorder(Clock.systemUTC(), sync)
 
-        recorder.record("device-a", null)
-        recorder.record("device-a", null)
+        recorder.record(tooLong, null)
+        recorder.record(tooLong, null)
 
         assertEquals(2, calls)
     }
