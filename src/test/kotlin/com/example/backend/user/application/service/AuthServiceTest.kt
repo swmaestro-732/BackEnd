@@ -210,6 +210,13 @@ class AuthServiceTest {
             }
 
             override fun unlinkAllByUser(userId: Long) = Unit
+
+            override fun recordActivity(
+                deviceId: String,
+                date: java.time.LocalDate,
+                userId: Long?,
+                platform: String?,
+            ) = Unit
         }
 
     private val service =

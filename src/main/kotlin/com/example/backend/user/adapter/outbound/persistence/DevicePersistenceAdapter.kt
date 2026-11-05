@@ -7,6 +7,7 @@ import com.example.backend.user.application.port.outbound.DevicePersistencePort
 import com.example.backend.user.application.port.outbound.LockedDevice
 import org.springframework.stereotype.Component
 import java.time.Instant
+import java.time.LocalDate
 
 @Component
 class DevicePersistenceAdapter(
@@ -33,4 +34,11 @@ class DevicePersistenceAdapter(
     ) = deviceRepository.unlink(userId, deviceId)
 
     override fun unlinkAllByUser(userId: Long) = deviceRepository.unlinkAllByUser(userId)
+
+    override fun recordActivity(
+        deviceId: String,
+        date: LocalDate,
+        userId: Long?,
+        platform: String?,
+    ) = deviceRepository.recordActivity(deviceId, date, userId, platform)
 }

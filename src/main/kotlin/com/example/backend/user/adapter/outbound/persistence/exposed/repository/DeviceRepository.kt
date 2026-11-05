@@ -1,9 +1,12 @@
 package com.example.backend.user.adapter.outbound.persistence.exposed.repository
 
+import com.example.backend.user.adapter.outbound.persistence.exposed.DeviceActivityTable
 import com.example.backend.user.adapter.outbound.persistence.exposed.DeviceTable
 import com.example.backend.user.application.port.inbound.dto.DeviceConsent
 import com.example.backend.user.application.port.inbound.dto.RegisterDeviceTokenCommand
 import com.example.backend.user.application.port.outbound.LockedDevice
+import kotlinx.datetime.toKotlinLocalDate
+import org.jetbrains.exposed.v1.core.Coalesce
 import org.jetbrains.exposed.v1.core.Op
 import org.jetbrains.exposed.v1.core.and
 import org.jetbrains.exposed.v1.core.case
@@ -15,7 +18,9 @@ import org.jetbrains.exposed.v1.jdbc.selectAll
 import org.jetbrains.exposed.v1.jdbc.update
 import org.jetbrains.exposed.v1.jdbc.upsert
 import org.springframework.stereotype.Repository
+import org.springframework.transaction.annotation.Transactional
 import java.time.Instant
+import java.time.LocalDate
 import kotlin.time.toJavaInstant
 import kotlin.time.toKotlinInstant
 
@@ -99,6 +104,30 @@ class DeviceRepository {
 
     fun unlinkAllByUser(userId: Long) {
         DeviceTable.update({ DeviceTable.userId eq userId }) { it[DeviceTable.userId] = null }
+        // 활동 기록은 기기 단위 리텐션 집계에 남기고, 누구의 기록인지만 지운다.
+        DeviceActivityTable.update({ DeviceActivityTable.userId eq userId }) { it[DeviceActivityTable.userId] = null }
+    }
+
+    @Transactional
+    fun recordActivity(
+        deviceId: String,
+        date: LocalDate,
+        userId: Long?,
+        platform: String?,
+    ) {
+        DeviceActivityTable.upsert(
+            onUpdate = {
+                it[DeviceActivityTable.userId] =
+                    Coalesce(DeviceActivityTable.userId, insertValue(DeviceActivityTable.userId))
+                it[DeviceActivityTable.platform] =
+                    Coalesce(DeviceActivityTable.platform, insertValue(DeviceActivityTable.platform))
+            },
+        ) {
+            it[DeviceActivityTable.deviceId] = deviceId
+            it[activeDate] = date.toKotlinLocalDate()
+            it[DeviceActivityTable.userId] = userId
+            it[DeviceActivityTable.platform] = platform
+        }
     }
 
     private fun toConsent(row: org.jetbrains.exposed.v1.core.ResultRow): DeviceConsent =

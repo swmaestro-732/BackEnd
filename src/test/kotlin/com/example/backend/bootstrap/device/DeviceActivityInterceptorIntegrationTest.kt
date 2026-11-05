@@ -3,6 +3,8 @@ package com.example.backend.bootstrap.device
 import com.example.backend.bootstrap.config.AsyncConfig
 import com.example.backend.bootstrap.security.JwtTokenProvider
 import com.example.backend.support.IntegrationTestBase
+import com.example.backend.user.adapter.outbound.persistence.exposed.DeviceActivityTable
+import com.example.backend.user.application.port.outbound.DevicePersistencePort
 import org.assertj.core.api.Assertions.assertThat
 import org.jetbrains.exposed.v1.core.eq
 import org.jetbrains.exposed.v1.core.inList
@@ -27,6 +29,7 @@ class DeviceActivityInterceptorIntegrationTest
     constructor(
         private val mockMvc: MockMvc,
         private val jwtTokenProvider: JwtTokenProvider,
+        private val devicePersistencePort: DevicePersistencePort,
         @Qualifier(AsyncConfig.DEVICE_ACTIVITY_EXECUTOR) private val deviceActivityExecutor: ThreadPoolTaskExecutor,
     ) : IntegrationTestBase() {
         @AfterEach
@@ -69,9 +72,14 @@ class DeviceActivityInterceptorIntegrationTest
         }
 
         @Test
-        fun `비로그인으로 먼저 기록된 기기가 그날 로그인하면 user_id 를 채운다`() {
+        fun `비로그인으로 먼저 기록된 기기가 그날 로그인하면 user_id 를 채우고 탈퇴하면 지운다`() {
             val device = UUID.randomUUID().toString()
-            mockMvc.perform(get("/api/v1/courses/999999").header(HEADER, device))
+            mockMvc.perform(
+                get("/api/v1/courses/999999")
+                    .header(HEADER, device)
+                    .header("X-App-Platform", "Android")
+                    .header("X-App-Build", "999"),
+            )
             deviceActivityExecutor.awaitIdle()
             mockMvc.perform(
                 get("/api/v1/courses/999999")
@@ -80,15 +88,19 @@ class DeviceActivityInterceptorIntegrationTest
             )
             deviceActivityExecutor.awaitIdle()
 
-            val userIds =
-                transaction {
-                    DeviceActivityTable
-                        .selectAll()
-                        .where { DeviceActivityTable.deviceId eq device }
-                        .map { it[DeviceActivityTable.userId] }
-                }
-            assertThat(userIds).containsExactly(USER_ID)
+            assertThat(activityOf(device)).containsExactly(USER_ID to "android")
+
+            transaction { devicePersistencePort.unlinkAllByUser(USER_ID) }
+            assertThat(activityOf(device)).containsExactly(null to "android")
         }
+
+        private fun activityOf(device: String): List<Pair<Long?, String?>> =
+            transaction {
+                DeviceActivityTable
+                    .selectAll()
+                    .where { DeviceActivityTable.deviceId eq device }
+                    .map { it[DeviceActivityTable.userId] to it[DeviceActivityTable.platform] }
+            }
 
         private fun ThreadPoolTaskExecutor.awaitIdle() {
             val deadline = System.nanoTime() + 5_000_000_000

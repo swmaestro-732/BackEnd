@@ -1,7 +1,10 @@
 package com.example.backend.bootstrap.device
 
+import com.example.backend.bootstrap.appversion.AppPlatform
+import com.example.backend.bootstrap.appversion.AppVersionInterceptor.Companion.PLATFORM_HEADER
 import com.example.backend.bootstrap.device.CurrentDeviceIdArgumentResolver.Companion.DEVICE_ID_HEADER
 import com.example.backend.bootstrap.device.CurrentDeviceIdArgumentResolver.Companion.MAX_DEVICE_ID_LENGTH
+import com.example.backend.user.application.port.inbound.DeviceActivityUseCase
 import jakarta.servlet.http.HttpServletRequest
 import jakarta.servlet.http.HttpServletResponse
 import org.springframework.security.core.context.SecurityContextHolder
@@ -12,12 +15,12 @@ import org.springframework.web.method.HandlerMethod
 import org.springframework.web.servlet.HandlerInterceptor
 
 /**
- * `X-Device-Id` 를 보낸 모든 API 요청을 리텐션 측정용 일별 활동으로 남긴다(SCRUM-783).
+ * `X-Device-Id` 를 보낸 모든 API 요청을 리텐션 측정용 일별 활동으로 남긴다(SCRUM-783). `X-App-Platform` 으로 OS 도 남긴다.
  * 헤더가 없거나 형식이 틀리면 건너뛴다. 쓰기는 비동기라 기록이 늦거나 실패해도 요청에 영향이 없다.
  */
 @Component
 class DeviceActivityInterceptor(
-    private val deviceActivityRecorder: DeviceActivityRecorder,
+    private val deviceActivityUseCase: DeviceActivityUseCase,
 ) : HandlerInterceptor {
     override fun preHandle(
         request: HttpServletRequest,
@@ -28,7 +31,13 @@ class DeviceActivityInterceptor(
         val deviceId = request.getHeader(DEVICE_ID_HEADER)
         if (deviceId.isNullOrBlank() || deviceId.length > MAX_DEVICE_ID_LENGTH) return true
 
-        deviceActivityRecorder.record(deviceId, currentUserId())
+        val platform =
+            request
+                .getHeader(PLATFORM_HEADER)
+                ?.let(AppPlatform::fromHeader)
+                ?.name
+                ?.lowercase()
+        deviceActivityUseCase.record(deviceId, currentUserId(), platform)
         return true
     }
 
