@@ -19,7 +19,7 @@ import org.springframework.test.web.servlet.result.MockMvcResultMatchers.status
 /**
  * 따라가기 컨트롤러 통합 테스트 — 시작(`POST /api/v1/courses/{courseId}/traces`)·체크인(`POST /api/v1/traces/{traceId}/places`)·
  * 종료(`POST /api/v1/traces/{traceId}/end`).
- * 픽스처(course-trace-fixture.sql): 사용자 1(주체)·2(타인), 코스1(공개, 장소 22·23·25)·2(타인 비공개)·3(소프트 삭제).
+ * 픽스처(course-trace-fixture.sql): 사용자 1(주체)·2(타인), 코스1(공개, 장소 22·23·25)·2(타인 비공개)·3(소프트 삭제)·4(공개).
  */
 @AutoConfigureMockMvc
 @Sql(scripts = ["/sql/course-trace-fixture.sql"], executionPhase = Sql.ExecutionPhase.BEFORE_TEST_METHOD)
@@ -74,6 +74,30 @@ class CourseTraceControllerTest
             assertThat(second).isNotEqualTo(first)
             assertThat(traceStatus(first)).isEqualTo("COMPLETED")
             assertThat(traceStatus(second)).isEqualTo("IN_PROGRESS")
+        }
+
+        @Test
+        fun `시작 — 다른 코스를 진행 중이면 409 와 4100 이고 새 세션을 만들지 않는다`() {
+            val traceId = start()
+
+            mockMvc
+                .perform(post("/api/v1/courses/4/traces").header(HttpHeaders.AUTHORIZATION, bearer(USER_ID)))
+                .andExpect(status().isConflict)
+                .andExpect(jsonPath("$.code").value(4100))
+
+            assertThat(traceStatus(traceId)).isEqualTo("IN_PROGRESS")
+            assertThat(traceCount(USER_ID, 4L)).isZero()
+        }
+
+        @Test
+        fun `시작 — 진행 중 세션은 사용자별이라 타인은 같은 코스를 시작할 수 있다`() {
+            start()
+
+            mockMvc
+                .perform(post("/api/v1/courses/1/traces").header(HttpHeaders.AUTHORIZATION, bearer(OTHER_USER_ID)))
+                .andExpect(status().isOk)
+
+            assertThat(traceCount(OTHER_USER_ID, 1L)).isEqualTo(1)
         }
 
         @Test
@@ -300,6 +324,27 @@ class CourseTraceControllerTest
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""{"durationMinutes": 0, "distanceMeters": 0}"""),
                 ).andExpect(status().isUnauthorized)
+        }
+
+        @Test
+        fun `종료 — 진행 중 코스가 삭제됐어도 COMPLETED 로 기록하고 tracings_cnt 만 올리지 않는다`() {
+            val traceId = start()
+            jdbcTemplate.update("UPDATE courses SET deleted_at = now(), status = 'DELETED' WHERE id = 1")
+
+            end(traceId, """{"durationMinutes": 10, "distanceMeters": 100}""").andExpect(status().isOk)
+
+            assertThat(traceStatus(traceId)).isEqualTo("COMPLETED")
+            assertThat(tracingsCnt(1L)).isZero()
+        }
+
+        @Test
+        fun `종료 — 진행 중 코스가 비공개로 바뀌어도 COMPLETED 로 기록한다`() {
+            val traceId = start()
+            jdbcTemplate.update("UPDATE courses SET visibility = 'PRIVATE' WHERE id = 1")
+
+            end(traceId, """{"durationMinutes": 10, "distanceMeters": 100}""").andExpect(status().isOk)
+
+            assertThat(traceStatus(traceId)).isEqualTo("COMPLETED")
         }
 
         // --- helpers ---

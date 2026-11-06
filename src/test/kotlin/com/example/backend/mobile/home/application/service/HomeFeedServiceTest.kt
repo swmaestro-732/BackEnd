@@ -4,11 +4,13 @@ import com.example.backend.common.geo.Coordinate
 import com.example.backend.mobile.home.application.port.outbound.HomeFeedPort
 import com.example.backend.mobile.home.application.port.outbound.HomeNearbyPlacePort
 import com.example.backend.mobile.home.application.port.outbound.HomeProfilePort
+import com.example.backend.mobile.home.application.port.outbound.HomeTracePort
 import com.example.backend.mobile.home.application.port.outbound.dto.HomeFeedCourse
 import com.example.backend.mobile.home.application.port.outbound.dto.HomeFeedCoursePage
 import com.example.backend.mobile.home.application.port.outbound.dto.HomeFeedCursor
 import com.example.backend.mobile.home.application.port.outbound.dto.HomeNearbyPlace
 import com.example.backend.mobile.home.application.port.outbound.dto.HomeProfile
+import com.example.backend.mobile.home.application.port.outbound.dto.HomeTracingCourse
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Assertions.assertTrue
@@ -62,7 +64,15 @@ class HomeFeedServiceTest {
             }
         }
 
-    private val service = HomeFeedService(fakeFeedPort, fakeProfilePort, fakeNearbyPort)
+    private val service =
+        HomeFeedService(
+            fakeFeedPort,
+            fakeProfilePort,
+            fakeNearbyPort,
+            object : HomeTracePort {
+                override fun findInProgress(userId: Long): HomeTracingCourse? = null
+            },
+        )
 
     @Test
     fun `비로그인이면 프로필은 null 이고 근처 저장 장소는 조회하지 않는다`() {
