@@ -9,7 +9,8 @@ data class NotificationResponse(
     val targetType: String,
     val targetId: Long,
     val actorCount: Int,
-    val lastActorId: Long,
+    /** 행동자를 보이지 않는 종류(좋아요)는 누가 했는지 숨기려 null 이다. */
+    val lastActorId: Long?,
     val actorNickname: String?,
     val courseTitle: String?,
     val courseImageUrl: String?,
@@ -25,7 +26,7 @@ data class NotificationResponse(
                 targetType = item.targetType.name,
                 targetId = item.targetId,
                 actorCount = item.actorCount,
-                lastActorId = item.lastActorId,
+                lastActorId = item.lastActorId.takeIf { item.type.showsActor },
                 actorNickname = item.actorNickname,
                 courseTitle = item.courseTitle,
                 courseImageUrl = item.courseImageUrl,

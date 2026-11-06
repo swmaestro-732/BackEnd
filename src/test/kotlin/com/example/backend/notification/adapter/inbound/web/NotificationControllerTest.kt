@@ -270,7 +270,7 @@ class NotificationControllerTest
                         .andExpect(jsonPath("$.data.items[0].type").value("COURSE_LIKED"))
                         .andExpect(jsonPath("$.data.items[0].targetType").value("COURSE"))
                         .andExpect(jsonPath("$.data.items[0].targetId").value(570001))
-                        .andExpect(jsonPath("$.data.items[0].lastActorId").value(USER_ID))
+                        .andExpect(jsonPath("$.data.items[0].lastActorId").isEmpty)
                         .andExpect(jsonPath("$.data.items[0].actorNickname").isEmpty)
                         .andExpect(jsonPath("$.data.items[0].courseTitle").value("좋아요 알림 코스"))
                         .andExpect(jsonPath("$.data.items[0].actorCount").value(1))
