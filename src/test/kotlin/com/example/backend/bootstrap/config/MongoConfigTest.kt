@@ -13,7 +13,6 @@ import org.junit.jupiter.params.provider.ValueSource
 import org.springframework.boot.autoconfigure.ImportAutoConfiguration
 import org.springframework.boot.context.properties.EnableConfigurationProperties
 import org.springframework.boot.data.mongodb.autoconfigure.DataMongoAutoConfiguration
-import org.springframework.boot.data.mongodb.autoconfigure.DataMongoRepositoriesAutoConfiguration
 import org.springframework.boot.mongodb.autoconfigure.MongoAutoConfiguration
 import org.springframework.boot.test.context.ConfigDataApplicationContextInitializer
 import org.springframework.boot.test.context.runner.ApplicationContextRunner
@@ -30,7 +29,7 @@ class MongoConfigTest {
     @ParameterizedTest
     @NullAndEmptySource
     @ValueSource(strings = ["   "])
-    fun `endpoint 가 없거나 공백이면 Mongo 빈을 생성하지 않는다`(endpoint: String?) {
+    fun `endpoint 가 없거나 공백이면 DocumentDB 대신 spring_mongodb_uri 로 자동 구성한다`(endpoint: String?) {
         val runner =
             when (endpoint) {
                 null -> contextRunner
@@ -39,9 +38,22 @@ class MongoConfigTest {
 
         runner.run { context ->
             assertThat(context).hasNotFailed()
-            assertThat(context).doesNotHaveBean(MongoClient::class.java)
-            assertThat(context).doesNotHaveBean(MongoClientSettings::class.java)
-            assertThat(context).doesNotHaveBean(MongoDatabaseFactory::class.java)
+            assertThat(context).doesNotHaveBean(MongoConfig::class.java)
+            assertThat(context).hasSingleBean(MongoClient::class.java)
+            assertThat(context).hasSingleBean(MongoDatabaseFactory::class.java)
+            assertThat(context.getBean(MongoClientSettings::class.java).credential).isNull()
+        }
+    }
+
+    @Test
+    fun `endpoint 가 있으면 자동 구성 대신 DocumentDB 설정을 쓴다`() {
+        contextRunner.withPropertyValues("docdb.endpoint=docdb.example.com").run { context ->
+            assertThat(context).hasNotFailed()
+            assertThat(context).hasSingleBean(MongoClient::class.java)
+            assertThat(context).hasSingleBean(MongoClientSettings::class.java)
+            assertThat(context.getBean(MongoClientSettings::class.java).credential!!.authenticationMechanism)
+                .isEqualTo(AuthenticationMechanism.MONGODB_AWS)
+            assertThat(context.getBean(MongoDatabaseFactory::class.java).mongoDatabase.name).isEqualTo("chat")
         }
     }
 
@@ -54,7 +66,7 @@ class MongoConfigTest {
 
         assertThat(settings.clusterSettings.hosts).containsExactly(ServerAddress("docdb.example.com", 27018))
         assertThat(settings.clusterSettings.requiredReplicaSetName).isEqualTo("rs0")
-        assertThat(settings.readPreference).isEqualTo(ReadPreference.secondaryPreferred())
+        assertThat(settings.readPreference).isEqualTo(ReadPreference.primary())
         assertThat(settings.retryWrites).isFalse()
         assertThat(settings.credential!!.authenticationMechanism).isEqualTo(AuthenticationMechanism.MONGODB_AWS)
         assertThat(settings.credential!!.source).isEqualTo("\$external")
@@ -70,7 +82,6 @@ class MongoConfigTest {
     @ImportAutoConfiguration(
         MongoAutoConfiguration::class,
         DataMongoAutoConfiguration::class,
-        DataMongoRepositoriesAutoConfiguration::class,
     )
     class AutoConfig
 }

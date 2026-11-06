@@ -1,12 +1,6 @@
 spring:
   application:
     name: Backend
-  # endpoint 미설정 시 localhost Mongo 연결·데이터 빈 생성을 막고 MongoConfig 에서만 배선한다.
-  autoconfigure:
-    exclude:
-      - org.springframework.boot.mongodb.autoconfigure.MongoAutoConfiguration
-      - org.springframework.boot.data.mongodb.autoconfigure.DataMongoAutoConfiguration
-      - org.springframework.boot.data.mongodb.autoconfigure.DataMongoRepositoriesAutoConfiguration
   # DataSource: 환경변수가 있으면(CI/운영) 그 값을, 없으면 로컬 기본값(docker-compose).
   datasource:
     url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://localhost:5432/chilsami}
@@ -20,6 +14,9 @@ spring:
     # baseline-on-migrate 는 켜지 않는다: 기존 스키마가 있는(비어있지 않은) DB 를 자동 baseline 하면 V1 을
     # 실행 안 함으로만 표시할 뿐, 이미 V1~V15 이력을 가진 기존 prod/dev DB 에는 애초에 적용되지 않는다.
     # 기존 prod/dev DB 는 배포 전 flyway_schema_history 를 version=1 BASELINE 행으로 교체해 V1 을 스킵한다(런북 참고).
+  # 채팅 메시지 저장소(로컬·CI, docker-compose). 운영은 docdb.endpoint 가 있으면 MongoConfig 가 DocumentDB 로 배선한다.
+  mongodb:
+    uri: ${MONGODB_URI:mongodb://localhost:27017/chilsami}
   # spring-cloud-aws — 코스 개수 폴백 큐(SQS) 자동 배선. region.static 을 항상 줘 CI(로컬)에서 AWS_REGION 없이도
   # 클라이언트가 빌드되게 한다(실제 네트워크는 송수신 때만 탄다 → 큐 미설정이면 발행 no-op·리스너 미생성).
   # LocalStack 등 엔드포인트 오버라이드는 SPRING_CLOUD_AWS_SQS_ENDPOINT env 로 준다.

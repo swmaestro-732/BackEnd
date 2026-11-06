@@ -2,7 +2,9 @@ package com.example.backend.area.application.service
 
 import com.example.backend.area.application.port.inbound.dto.AreaDescriptor
 import com.example.backend.area.application.port.outbound.AreaDirectoryPort
+import com.example.backend.area.application.port.outbound.SigunguBoundaryPort
 import com.example.backend.area.domain.model.AreaLevel
+import com.example.backend.common.geo.Coordinate
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Test
@@ -32,7 +34,18 @@ class AreaQueryServiceTest {
                 return areaByCode
             }
         }
-    private val service = AreaQueryService(fakePort)
+    private val fakeBoundaryPort =
+        object : SigunguBoundaryPort {
+            override fun findCodeContaining(coordinate: Coordinate): String? = null
+
+            override fun findNearestCode(
+                coordinate: Coordinate,
+                maxMeters: Double,
+            ): String? = null
+
+            override fun findAdjacentCodes(sigunguCode: String): List<String> = emptyList()
+        }
+    private val service = AreaQueryService(fakePort, fakeBoundaryPort)
 
     @Test
     fun `지역 검색어와 결과를 그대로 전달한다`() {

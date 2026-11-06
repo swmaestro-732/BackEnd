@@ -29,3 +29,5 @@ repos:
       - id: check-merge-conflict
       - id: check-yaml
       - id: check-added-large-files
+        # 경계 데이터처럼 큰 Flyway 데이터 마이그레이션은 허용
+        exclude: ^src/main/resources/db/migration/

@@ -37,9 +37,10 @@ class MongoConfig(
         val sslContext = SSLContext.getInstance("TLS").apply { init(null, trustManagers.trustManagers, null) }
 
         // DocumentDB 는 retryable writes 를 지원하지 않는다. IAM 자격증명은 드라이버의 SDK v2 기본 체인에 맡긴다.
+        // 트랜잭션은 primary 읽기만 허용하고, 채팅 동기화는 방금 커밋된 seq 를 읽어야 해서 복제 지연이 있는 secondary 를 쓰지 않는다.
         val uri =
             "mongodb://${properties.endpoint.trim()}:${properties.port}/" +
-                "?replicaSet=rs0&readPreference=secondaryPreferred&retryWrites=false" +
+                "?replicaSet=rs0&readPreference=primary&retryWrites=false" +
                 "&authSource=\$external&authMechanism=MONGODB-AWS&tls=true"
         return MongoClientSettings
             .builder()

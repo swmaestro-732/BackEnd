@@ -77,6 +77,19 @@ jobs:
           java-version: "21"
       - uses: gradle/actions/setup-gradle@v4
 
+      - name: MongoDB 기동 (서버 1대짜리 레플리카셋, 트랜잭션용)
+        run: |
+          fail() { echo "::error::$1"; docker ps -a; docker logs mongo; exit 1; }
+          # 8.0+ 는 커널 6.19+ 러너에서 기동을 거부한다(SERVER-125742). 7.0 은 모든 커널에서 동작한다.
+          docker run -d --name mongo -p 27017:27017 mongo:7.0 --replSet rs0 --bind_ip_all
+          ready=false
+          for i in $(seq 1 30); do docker exec mongo mongosh --quiet --eval 'db.runCommand({ping: 1}).ok' >/dev/null 2>&1 && ready=true && break; sleep 1; done
+          [ "$ready" = true ] || fail "MongoDB 컨테이너가 응답하지 않습니다"
+          docker exec mongo mongosh --quiet --eval "rs.initiate({_id: 'rs0', members: [{_id: 0, host: 'localhost:27017'}]})"
+          primary=false
+          for i in $(seq 1 30); do [ "$(docker exec mongo mongosh --quiet --eval 'db.hello().isWritablePrimary')" = "true" ] && primary=true && break; sleep 1; done
+          [ "$primary" = true ] || fail "MongoDB 레플리카셋이 Primary 가 되지 않았습니다"
+
       - name: Build & test (+ coverage)
         run: ./gradlew build jacocoTestReport --no-daemon
         env:

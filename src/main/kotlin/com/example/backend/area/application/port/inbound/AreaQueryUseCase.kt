@@ -1,6 +1,7 @@
 package com.example.backend.area.application.port.inbound
 
 import com.example.backend.area.application.port.inbound.dto.AreaDescriptor
+import com.example.backend.common.geo.Coordinate
 
 /**
  * 인바운드 포트 — 행정구역 조회(공개 API).
@@ -22,4 +23,10 @@ interface AreaQueryUseCase {
      * 시군구 항목을 돌려준다. 코드 표시 이름(코스 area 등)이 필요한 다른 애그리거트가 쓴다. 미존재·비활성이면 null.
      */
     fun findAreaByCode(code: String): AreaDescriptor?
+
+    /** 좌표가 속한 시군구 코드(5자리). 경계 밖이면 500m 안의 가장 가까운 시군구, 그래도 없으면 null. */
+    fun findSigunguCodeAt(coordinate: Coordinate): String?
+
+    /** 인접 시군구 코드(5자리). 다리로 이어진 섬을 포함한다. */
+    fun findAdjacentSigunguCodes(sigunguCode: String): List<String>
 }
