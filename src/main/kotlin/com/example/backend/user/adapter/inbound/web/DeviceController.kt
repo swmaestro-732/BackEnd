@@ -1,6 +1,7 @@
 package com.example.backend.user.adapter.inbound.web
 
 import com.example.backend.bootstrap.device.CurrentDeviceId
+import com.example.backend.bootstrap.device.NotUserActivity
 import com.example.backend.common.response.ApiResponse
 import com.example.backend.user.adapter.inbound.web.request.DeviceRequest
 import com.example.backend.user.adapter.inbound.web.response.DeviceConsentResponse
@@ -15,7 +16,11 @@ import org.springframework.web.bind.annotation.RequestMapping
 import org.springframework.web.bind.annotation.RequestParam
 import org.springframework.web.bind.annotation.RestController
 
-/** 로그인과 무관한 기기 단위 푸시 등록과 광고성 수신 동의. 로그인 계정 연결은 [DeviceTokenController] 가 한다. */
+/**
+ * 로그인과 무관한 기기 단위 푸시 등록과 광고성 수신 동의. 로그인 계정 연결은 [DeviceTokenController] 가 한다.
+ * 토큰 갱신은 앱이 백그라운드에서도 부르므로 리텐션 활동으로 세지 않는다.
+ */
+@NotUserActivity
 @RestController
 @RequestMapping("/api/v1/devices")
 class DeviceController(

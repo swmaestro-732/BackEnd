@@ -1,6 +1,7 @@
 package com.example.backend.user.adapter.inbound.web
 
 import com.example.backend.bootstrap.device.CurrentDeviceId
+import com.example.backend.bootstrap.device.NotUserActivity
 import com.example.backend.bootstrap.security.AccessTokenRequired
 import com.example.backend.bootstrap.security.CurrentUserId
 import com.example.backend.common.response.ApiResponse
@@ -15,6 +16,8 @@ import org.springframework.web.bind.annotation.RequestMapping
 import org.springframework.web.bind.annotation.RequestParam
 import org.springframework.web.bind.annotation.RestController
 
+// 토큰 갱신은 앱이 백그라운드에서도 부르므로 리텐션 활동으로 세지 않는다.
+@NotUserActivity
 @RestController
 @RequestMapping("/api/v1/my/devices")
 class DeviceTokenController(

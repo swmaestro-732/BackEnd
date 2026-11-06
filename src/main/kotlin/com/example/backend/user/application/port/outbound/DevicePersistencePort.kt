@@ -3,6 +3,7 @@ package com.example.backend.user.application.port.outbound
 import com.example.backend.user.application.port.inbound.dto.DeviceConsent
 import com.example.backend.user.application.port.inbound.dto.RegisterDeviceTokenCommand
 import java.time.Instant
+import java.time.LocalDate
 
 /** 동의 변경을 위해 잠근 기기 행. 저장된 토큰은 요청이 실제 설치에서 왔는지 확인하는 데 쓴다. */
 data class LockedDevice(
@@ -41,5 +42,17 @@ interface DevicePersistencePort {
         deviceId: String,
     )
 
+    /** 이 계정과 연결된 기기 행과 활동 기록의 연결을 끊는다(탈퇴). 토큰, 동의, 기기 단위 활동은 남는다. */
     fun unlinkAllByUser(userId: Long)
+
+    /**
+     * 그날 활동 행을 만든다. 이미 있으면 비어 있는 user_id, platform 만 채운다(처음 값 유지).
+     * 요청 밖(전용 실행기)에서 불리므로 자체 트랜잭션으로 쓴다.
+     */
+    fun recordActivity(
+        deviceId: String,
+        date: LocalDate,
+        userId: Long?,
+        platform: String?,
+    )
 }
