@@ -37,6 +37,7 @@ class SavedPlaceIndexFallbackAdapter(
                 imageUrl = document.imageUrl,
                 rating = document.rating,
                 ratingCount = document.ratingCount,
+                categoryDetail = document.categoryDetail,
             ),
         )
 

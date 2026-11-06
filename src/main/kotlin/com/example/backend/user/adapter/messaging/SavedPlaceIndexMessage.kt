@@ -20,6 +20,7 @@ data class SavedPlaceIndexMessage(
     val imageUrl: String? = null,
     val rating: Double? = null,
     val ratingCount: Int? = null,
+    val categoryDetail: String? = null,
 ) {
     companion object {
         const val OP_INDEX = "INDEX"

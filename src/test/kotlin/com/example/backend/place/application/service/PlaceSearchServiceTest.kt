@@ -13,6 +13,7 @@ import com.example.backend.place.domain.model.PlaceCategory
 import com.example.backend.place.domain.model.PlaceStatus
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertNotNull
+import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Test
 import org.springframework.context.ApplicationEventPublisher
 import org.springframework.transaction.support.TransactionOperations
@@ -24,7 +25,7 @@ import org.springframework.transaction.support.TransactionOperations
 class PlaceSearchServiceTest {
     private val external =
         listOf(
-            externalPlace("k1", "콤포트 성수"),
+            externalPlace("k1", "콤포트 성수", categoryDetail = "카페", kakaoCategoryName = "음식점 > 카페"),
             externalPlace("k2", "블루보틀 성수"),
         )
     private val externalPort =
@@ -74,9 +75,22 @@ class PlaceSearchServiceTest {
         assertEquals(first.map { it.id }.toSet(), second.map { it.id }.toSet())
     }
 
+    @Test
+    fun `신규 장소는 상세 분류와 카카오 분류 원문을 저장하고 결과에 상세 분류를 싣는다`() {
+        val result = service.search("성수 카페", null).associateBy { it.name }
+
+        assertEquals("카페", result.getValue("콤포트 성수").categoryDetail)
+        assertNull(result.getValue("블루보틀 성수").categoryDetail)
+        val saved = persistence.findByKakaoIds(listOf("k1")).single()
+        assertEquals("카페", saved.categoryDetail)
+        assertEquals("음식점 > 카페", saved.kakaoCategoryName)
+    }
+
     private fun externalPlace(
         kakaoId: String,
         name: String,
+        categoryDetail: String? = null,
+        kakaoCategoryName: String? = null,
     ) = ExternalPlace(
         kakaoPlaceId = kakaoId,
         name = name,
@@ -86,6 +100,8 @@ class PlaceSearchServiceTest {
         coordinate = Coordinate(latitude = 37.5432, longitude = 127.0561),
         telephone = "02-9876-5432",
         source = ExternalPlaceSource.KAKAO,
+        categoryDetail = categoryDetail,
+        kakaoCategoryName = kakaoCategoryName,
     )
 
     /** kakao id 로 dedup 하고 삽입 시 순차 id 를 부여하는 in-memory 페이크. */
@@ -109,6 +125,8 @@ class PlaceSearchServiceTest {
                         name = place.name,
                         description = place.description,
                         category = place.category,
+                        categoryDetail = place.categoryDetail,
+                        kakaoCategoryName = place.kakaoCategoryName,
                         location = place.location,
                         address = place.address,
                         imageUrl = place.imageUrl,

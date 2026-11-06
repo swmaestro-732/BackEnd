@@ -64,10 +64,8 @@ object KakaoCategoryMapper {
     fun toPlaceCategory(
         categoryName: String?,
         groupCode: String?,
-    ): PlaceCategory {
-        val nameSegments = categoryName?.let(::segments).orEmpty()
-        // RULES 는 긴 접두 순 정렬이라 첫 매칭이 가장 구체적인 규칙이다(예: "음식점 > 카페" 가 "음식점" 보다 먼저).
-        return RULES.firstOrNull { (prefix, _) -> nameSegments.take(prefix.size) == prefix }?.second
+    ): PlaceCategory =
+        matchRule(categoryName)?.second
             ?: when (groupCode) {
                 "CE7" -> PlaceCategory.CAFE
                 "FD6" -> PlaceCategory.RESTAURANT
@@ -76,6 +74,14 @@ object KakaoCategoryMapper {
                 "MT1", "CS2" -> PlaceCategory.SHOPPING
                 else -> PlaceCategory.ETC
             }
+
+    /** 매칭된 규칙의 마지막 단계 원문(예: "수목원,식물원"). 이름 규칙에 걸리지 않으면 null. */
+    fun toCategoryDetail(categoryName: String?): String? = matchRule(categoryName)?.first?.last()
+
+    private fun matchRule(categoryName: String?): Pair<List<String>, PlaceCategory>? {
+        val nameSegments = categoryName?.let(::segments).orEmpty()
+        // RULES 는 긴 접두 순 정렬이라 첫 매칭이 가장 구체적인 규칙이다(예: "음식점 > 카페" 가 "음식점" 보다 먼저).
+        return RULES.firstOrNull { (prefix, _) -> nameSegments.take(prefix.size) == prefix }
     }
 
     private fun segments(categoryName: String): List<String> =

@@ -24,6 +24,10 @@ internal object PlaceTable : LongIdTable("places") {
     val name = varchar("name", 200)
     val description = text("description").nullable()
     val category = enumerationByName<PlaceCategory>("category", 50)
+
+    // 상세 분류·카카오 분류 원문(V22). 기존 장소·그룹 코드로만 분류된 장소는 NULL.
+    val categoryDetail = varchar("category_detail", 50).nullable()
+    val kakaoCategoryName = varchar("kakao_category_name", 255).nullable()
     val location = geographyPoint("location")
     val address = varchar("address", 255)
 
@@ -77,6 +81,8 @@ internal class PlaceEntity(
     var name by PlaceTable.name
     var description by PlaceTable.description
     var category by PlaceTable.category
+    var categoryDetail by PlaceTable.categoryDetail
+    var kakaoCategoryName by PlaceTable.kakaoCategoryName
     var location by PlaceTable.location
     var address by PlaceTable.address
     var areaCode by PlaceTable.areaCode
@@ -94,6 +100,8 @@ internal class PlaceEntity(
             name = name,
             description = description,
             category = category,
+            categoryDetail = categoryDetail,
+            kakaoCategoryName = kakaoCategoryName,
             location = location,
             address = address,
             areaCode = areaCode,

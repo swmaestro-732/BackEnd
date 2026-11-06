@@ -29,6 +29,8 @@ data class PlaceSearchResponse(
         val walkingMinutes: Int?,
         val location: Location,
         val hasSaved: Boolean,
+        // 카카오 상세 분류 원문(예: "제과,베이커리") — 클라이언트 아이콘 매핑용, 없으면 null.
+        val categoryDetail: String? = null,
     )
 
     data class Location(
@@ -66,6 +68,7 @@ data class PlaceSearchResponse(
                 walkingMinutes = null,
                 location = Location(latitude, longitude),
                 hasSaved = false,
+                categoryDetail = categoryDetail,
             )
 
         /**

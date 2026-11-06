@@ -153,7 +153,9 @@ class OpenSearchPlaceSearchAdapterTest {
         assertThat(hits.buckets.last().center).isEqualTo(Coordinate(37.3, 127.3))
         val request = capturedRequest()
         assertThat(request.index()).containsExactly("dev-place")
-        assertThat(request.source()!!.filter().includes()).containsExactly("name", "category", "location")
+        assertThat(
+            request.source()!!.filter().includes(),
+        ).containsExactly("name", "category", "location", "categoryDetail")
         assertThat(
             request
                 .query()!!
@@ -173,7 +175,7 @@ class OpenSearchPlaceSearchAdapterTest {
                 .source()!!
                 .filter()
                 .includes(),
-        ).containsExactly("name", "category", "location")
+        ).containsExactly("name", "category", "location", "categoryDetail")
     }
 
     @Test

@@ -12,10 +12,13 @@ import java.time.Instant
 class CourseTracePersistenceAdapter(
     private val courseTraceRepository: CourseTraceRepository,
 ) : CourseTracePersistencePort {
-    override fun findInProgress(
+    override fun findInProgress(userId: Long): CourseTraceRow? = courseTraceRepository.findInProgress(userId)
+
+    override fun findCompleted(
         userId: Long,
-        courseId: Long,
-    ): CourseTraceRow? = courseTraceRepository.findInProgress(userId, courseId)
+        beforeId: Long?,
+        size: Int,
+    ): List<CourseTraceRow> = courseTraceRepository.findCompleted(userId, beforeId, size)
 
     override fun insertInProgress(
         userId: Long,
@@ -23,6 +26,8 @@ class CourseTracePersistenceAdapter(
     ): Long? = courseTraceRepository.insertInProgress(userId, courseId)
 
     override fun findById(traceId: Long): CourseTraceRow? = courseTraceRepository.findById(traceId)
+
+    override fun readById(traceId: Long): CourseTraceRow? = courseTraceRepository.readById(traceId)
 
     override fun findVisitedPlaces(traceId: Long): List<VisitedPlaceResult> =
         courseTraceRepository.findVisitedPlaces(traceId)

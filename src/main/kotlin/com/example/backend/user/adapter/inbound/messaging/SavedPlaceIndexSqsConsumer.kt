@@ -44,6 +44,7 @@ class SavedPlaceIndexSqsConsumer(
                         imageUrl = message.imageUrl,
                         rating = requireNotNull(message.rating),
                         ratingCount = requireNotNull(message.ratingCount),
+                        categoryDetail = message.categoryDetail,
                     ),
                 )
             }
