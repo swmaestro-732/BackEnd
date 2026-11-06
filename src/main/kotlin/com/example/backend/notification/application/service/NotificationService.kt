@@ -49,19 +49,12 @@ class NotificationService(
         if (!notificationActorLookupPort.lockActive(participants).containsAll(participants)) return
         val actorNickname =
             if (activity.type.showsActor) notificationActorLookupPort.findNickname(activity.actorId) ?: return else null
-        // 사용자 대상 알림(팔로우)은 행동자를 대상으로 둬 행동자마다 따로 보이게 한다(맞팔로우 버튼, 프로필 이동).
-        // 코스 알림은 코스를 대상으로 둬 같은 코스의 활동끼리 묶는다.
-        val bundleTargetId =
-            when (targetType) {
-                NotificationTargetType.COURSE -> activity.targetId
-                NotificationTargetType.USER -> activity.actorId
-            }
         notificationPersistencePort.upsert(
             NotificationBundle(
                 userId = recipientId,
                 type = activity.type,
                 targetType = targetType,
-                targetId = bundleTargetId,
+                targetId = bundleTargetId(activity),
                 windowStart = NotificationBundle.windowStart(activity.occurredAt),
                 lastActorId = activity.actorId,
                 actorNickname = actorNickname,
@@ -70,6 +63,38 @@ class NotificationService(
             ),
         )
     }
+
+    /**
+     * 창과 상관없이 같은 대상의 묶음에서 행동자를 빼 다시 행동해도 알림이 하나만 남게 한다.
+     * 묶음은 지우기만 하므로 코스 상태, 수신 설정, 탈퇴 잠금은 보지 않는다.
+     * ponytail: 좋아요 직후 취소하면 두 이벤트가 실행기 스레드에서 순서가 뒤바뀔 수 있고, 철회가 먼저 돌면 알림 1건이 남는다.
+     * 문제가 되면 기록 시점에 현재 좋아요/팔로우 상태를 확인하거나 대상별로 순서를 보장한다.
+     */
+    @Transactional
+    override fun retract(activity: RecordNotificationCommand) {
+        // 팔로우 묶음은 받는 사람(targetId)마다 있으므로 받는 사람까지 맞춘다. 코스 묶음은 작성자 한 명만 받는다.
+        val recipientId = if (activity.type.targetType == NotificationTargetType.USER) activity.targetId else null
+        val newLastActors =
+            notificationPersistencePort.removeActor(
+                activity.actorId,
+                activity.type,
+                bundleTargetId(activity),
+                recipientId,
+            )
+        if (!activity.type.showsActor) return
+        // 마지막 행동자가 바뀐 묶음은 닉네임 스냅샷도 남은 사람으로 맞춘다. 남은 사람을 못 찾으면(막 탈퇴) 비워 철회한 사람 닉네임을 남기지 않는다.
+        newLastActors.forEach { (id, actorId) ->
+            notificationPersistencePort.updateActorNickname(id, notificationActorLookupPort.findNickname(actorId))
+        }
+    }
+
+    // 사용자 대상 알림(팔로우)은 행동자를 대상으로 둬 행동자마다 따로 보이게 한다(맞팔로우 버튼, 프로필 이동).
+    // 코스 알림은 코스를 대상으로 둬 같은 코스의 활동끼리 묶는다.
+    private fun bundleTargetId(activity: RecordNotificationCommand): Long =
+        when (activity.type.targetType) {
+            NotificationTargetType.COURSE -> activity.targetId
+            NotificationTargetType.USER -> activity.actorId
+        }
 
     override fun list(
         userId: Long,

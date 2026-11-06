@@ -15,7 +15,7 @@ import org.springframework.stereotype.Component
 import org.springframework.transaction.event.TransactionPhase
 import org.springframework.transaction.event.TransactionalEventListener
 
-/** 발행 도메인의 공개 계약만 받아 커밋 이후 알림 기록을 시도한다. */
+/** 발행 도메인의 공개 계약만 받아 커밋 이후 알림 기록을 시도한다. 취소 행동(좋아요 취소 등)은 묶음에서 행동자를 뺀다. */
 @Component
 class NotificationEventListener(
     private val notificationUseCase: NotificationUseCase,
@@ -31,9 +31,9 @@ class NotificationEventListener(
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
     fun onCourseActivity(event: CourseActivityOccurred) {
         try {
-            notificationUseCase.record(
-                RecordNotificationCommand(courseType(event.kind), event.actorId, event.courseId, event.occurredAt),
-            )
+            val command =
+                RecordNotificationCommand(courseType(event.kind), event.actorId, event.courseId, event.occurredAt)
+            if (event.kind.isRetraction()) notificationUseCase.retract(command) else notificationUseCase.record(command)
         } catch (e: Exception) {
             log.warn(e) { "코스 활동 알림 기록 실패: type=${event.kind}" }
             failedCounters.getValue(courseType(event.kind)).increment()
@@ -44,9 +44,13 @@ class NotificationEventListener(
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
     fun onUserActivity(event: UserActivityOccurred) {
         try {
-            notificationUseCase.record(
-                RecordNotificationCommand(userType(event.kind), event.actorId, event.targetId, event.occurredAt),
-            )
+            val command =
+                RecordNotificationCommand(userType(event.kind), event.actorId, event.targetId, event.occurredAt)
+            if (event.kind == UserActivityKind.UNFOLLOWED) {
+                notificationUseCase.retract(command)
+            } else {
+                notificationUseCase.record(command)
+            }
         } catch (e: Exception) {
             log.warn(e) { "사용자 활동 알림 기록 실패: type=${event.kind}" }
             failedCounters.getValue(userType(event.kind)).increment()
@@ -55,13 +59,16 @@ class NotificationEventListener(
 
     private fun courseType(kind: CourseActivityKind): NotificationType =
         when (kind) {
-            CourseActivityKind.LIKED -> NotificationType.COURSE_LIKED
+            CourseActivityKind.LIKED, CourseActivityKind.UNLIKED -> NotificationType.COURSE_LIKED
             CourseActivityKind.COMMENTED -> NotificationType.COURSE_COMMENTED
-            CourseActivityKind.REVIEWED -> NotificationType.COURSE_REVIEWED
+            CourseActivityKind.REVIEWED, CourseActivityKind.REVIEW_DELETED -> NotificationType.COURSE_REVIEWED
         }
+
+    private fun CourseActivityKind.isRetraction(): Boolean =
+        this == CourseActivityKind.UNLIKED || this == CourseActivityKind.REVIEW_DELETED
 
     private fun userType(kind: UserActivityKind): NotificationType =
         when (kind) {
-            UserActivityKind.FOLLOWED -> NotificationType.USER_FOLLOWED
+            UserActivityKind.FOLLOWED, UserActivityKind.UNFOLLOWED -> NotificationType.USER_FOLLOWED
         }
 }

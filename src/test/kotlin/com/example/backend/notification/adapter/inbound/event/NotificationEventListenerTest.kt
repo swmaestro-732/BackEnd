@@ -16,6 +16,7 @@ import org.junit.jupiter.params.provider.CsvSource
 import org.mockito.Mockito.doThrow
 import org.mockito.Mockito.mock
 import org.mockito.Mockito.verify
+import org.mockito.Mockito.verifyNoMoreInteractions
 import java.time.Instant
 
 class NotificationEventListenerTest {
@@ -49,6 +50,36 @@ class NotificationEventListenerTest {
 
         verify(notificationUseCase).record(RecordNotificationCommand(type, ACTOR_ID, TARGET_ID, OCCURRED_AT))
         assertThat(meterRegistry.find("notification.record.failed").counters().sumOf { it.count() }).isZero()
+    }
+
+    @ParameterizedTest
+    @CsvSource("UNLIKED, COURSE_LIKED", "REVIEW_DELETED, COURSE_REVIEWED")
+    fun `코스 취소 활동은 알림 철회로 변환한다`(
+        kind: CourseActivityKind,
+        type: NotificationType,
+    ) {
+        listener.onCourseActivity(courseEvent(kind))
+
+        verify(notificationUseCase).retract(RecordNotificationCommand(type, ACTOR_ID, TARGET_ID, OCCURRED_AT))
+        verifyNoMoreInteractions(notificationUseCase)
+    }
+
+    @Test
+    fun `언팔로우는 알림 철회로 변환하고 실패하면 종류별 실패를 센다`() {
+        val command = RecordNotificationCommand(NotificationType.USER_FOLLOWED, ACTOR_ID, TARGET_ID, OCCURRED_AT)
+        doThrow(IllegalStateException("철회 실패")).`when`(notificationUseCase).retract(command)
+
+        assertDoesNotThrow { listener.onUserActivity(userEvent(UserActivityKind.UNFOLLOWED)) }
+
+        verify(notificationUseCase).retract(command)
+        verifyNoMoreInteractions(notificationUseCase)
+        assertThat(
+            meterRegistry
+                .get("notification.record.failed")
+                .tag("type", "USER_FOLLOWED")
+                .counter()
+                .count(),
+        ).isEqualTo(1.0)
     }
 
     @Test

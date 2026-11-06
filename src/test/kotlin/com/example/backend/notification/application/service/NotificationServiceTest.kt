@@ -21,6 +21,7 @@ import org.mockito.Mockito.inOrder
 import org.mockito.Mockito.mock
 import org.mockito.Mockito.verify
 import org.mockito.Mockito.verifyNoInteractions
+import org.mockito.Mockito.verifyNoMoreInteractions
 import org.mockito.Mockito.`when`
 import java.time.Instant
 
@@ -267,6 +268,51 @@ class NotificationServiceTest {
             createdAt = OCCURRED_AT,
             updatedAt = OCCURRED_AT,
         )
+
+    @Test
+    fun `리뷰 철회는 코스 묶음에서 행동자를 빼고 바뀐 마지막 행동자의 닉네임으로 맞춘다`() {
+        `when`(notifications.removeActor(ACTOR_ID, NotificationType.COURSE_REVIEWED, COURSE_ID, null))
+            .thenReturn(mapOf(100L to 3L))
+        `when`(actors.findNickname(3L)).thenReturn("남은 리뷰어")
+
+        service.retract(command(NotificationType.COURSE_REVIEWED))
+
+        verify(notifications).updateActorNickname(100L, "남은 리뷰어")
+        verifyNoInteractions(targets, settings)
+    }
+
+    @Test
+    fun `좋아요 철회는 닉네임을 조회하지 않는다`() {
+        `when`(notifications.removeActor(ACTOR_ID, NotificationType.COURSE_LIKED, COURSE_ID, null))
+            .thenReturn(mapOf(100L to 3L))
+
+        service.retract(command(NotificationType.COURSE_LIKED))
+
+        verify(notifications).removeActor(ACTOR_ID, NotificationType.COURSE_LIKED, COURSE_ID, null)
+        verifyNoMoreInteractions(notifications)
+        verifyNoInteractions(actors)
+    }
+
+    @Test
+    fun `리뷰 철회 후 남은 행동자를 찾지 못하면 닉네임 스냅샷을 비운다`() {
+        `when`(notifications.removeActor(ACTOR_ID, NotificationType.COURSE_REVIEWED, COURSE_ID, null))
+            .thenReturn(mapOf(100L to 3L))
+        `when`(actors.findNickname(3L)).thenReturn(null)
+
+        service.retract(command(NotificationType.COURSE_REVIEWED))
+
+        verify(notifications).updateActorNickname(100L, null)
+    }
+
+    @Test
+    fun `언팔로우 철회는 받는 사람의 팔로워 묶음에서 행동자를 뺀다`() {
+        `when`(notifications.removeActor(ACTOR_ID, NotificationType.USER_FOLLOWED, ACTOR_ID, OWNER_ID))
+            .thenReturn(emptyMap())
+
+        service.retract(command(NotificationType.USER_FOLLOWED, targetId = OWNER_ID))
+
+        verify(notifications).removeActor(ACTOR_ID, NotificationType.USER_FOLLOWED, ACTOR_ID, OWNER_ID)
+    }
 
     private fun command(
         type: NotificationType,

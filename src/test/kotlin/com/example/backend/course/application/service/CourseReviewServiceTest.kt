@@ -127,14 +127,17 @@ class CourseReviewServiceTest {
     }
 
     @Test
-    fun `삭제는 소프트 삭제 결과가 1건이면 조용히 끝난다`() {
+    fun `삭제는 소프트 삭제 결과가 1건이면 리뷰 삭제 활동을 발행한다`() {
         `when`(reviewPersistencePort.softDelete(reviewId = REVIEW_ID, courseId = COURSE_ID, userId = USER_ID))
             .thenReturn(1)
 
         service.delete(userId = USER_ID, courseId = COURSE_ID, reviewId = REVIEW_ID)
 
         verify(reviewPersistencePort).softDelete(reviewId = REVIEW_ID, courseId = COURSE_ID, userId = USER_ID)
-        verifyNoInteractions(eventPublisher)
+        verify(eventPublisher).publishEvent(
+            CourseActivityEvent(CourseActivityKind.REVIEW_DELETED, USER_ID, COURSE_ID, occurredAt),
+        )
+        verifyNoMoreInteractions(eventPublisher)
     }
 
     @Test

@@ -128,13 +128,14 @@ class CourseLikeServiceTest {
     // --- unlike (열람 권한 검사 없음 — 본인 좋아요 제거) ---
 
     @Test
-    fun `취소는 실제로 지웠을 때 원자적 감소가 돌려준 likes_cnt 를 반환한다`() {
+    fun `취소는 실제로 지웠을 때 원자적 감소가 돌려준 likes_cnt 를 반환하고 취소 활동을 발행한다`() {
         `when`(likePort.deleteByUserAndCourse(1L, courseId)).thenReturn(true)
         `when`(coursePort.decreaseLikesCountReturning(courseId)).thenReturn(4)
 
         val result = service.unlike(userId = 1L, courseId = courseId)
 
-        verifyNoInteractions(eventPublisher)
+        verify(eventPublisher).publishEvent(CourseActivityEvent(CourseActivityKind.UNLIKED, 1L, courseId, occurredAt))
+        verifyNoMoreInteractions(eventPublisher)
         verify(coursePort, never()).readLikesCount(courseId)
         assertEquals(4, result)
     }
@@ -146,6 +147,7 @@ class CourseLikeServiceTest {
 
         val result = service.unlike(userId = 1L, courseId = courseId)
 
+        verifyNoInteractions(eventPublisher)
         verify(coursePort, never()).decreaseLikesCountReturning(courseId)
         assertEquals(5, result)
     }

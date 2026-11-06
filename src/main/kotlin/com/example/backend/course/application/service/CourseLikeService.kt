@@ -64,11 +64,16 @@ class CourseLikeService(
     ): Int =
         // 실제로 지웠을 때만 원자적 -1 … RETURNING 으로 감소한다 — 멱등 no-op 은 현재 likes_cnt 를 그대로 반환한다.
         if (courseLikePersistencePort.deleteByUserAndCourse(userId, courseId)) {
-            coursePersistencePort.decreaseLikesCountReturning(courseId)
-                ?: throw BusinessException(
-                    CourseErrorCode.COURSE_NOT_FOUND,
-                    "좋아요를 취소할 코스를 찾을 수 없습니다: courseId=$courseId",
-                )
+            val count =
+                coursePersistencePort.decreaseLikesCountReturning(courseId)
+                    ?: throw BusinessException(
+                        CourseErrorCode.COURSE_NOT_FOUND,
+                        "좋아요를 취소할 코스를 찾을 수 없습니다: courseId=$courseId",
+                    )
+            eventPublisher.publishEvent(
+                CourseActivityEvent(CourseActivityKind.UNLIKED, userId, courseId, clock.instant()),
+            )
+            count
         } else {
             coursePersistencePort.readLikesCount(courseId)
                 ?: throw BusinessException(

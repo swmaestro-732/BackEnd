@@ -12,6 +12,7 @@ import org.springframework.http.MediaType
 import org.springframework.test.context.TestPropertySource
 import org.springframework.test.context.jdbc.Sql
 import org.springframework.test.web.servlet.MockMvc
+import org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete
 import org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get
 import org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch
 import org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post
@@ -275,6 +276,45 @@ class NotificationControllerTest
                         .andExpect(jsonPath("$.data.items[0].courseTitle").value("좋아요 알림 코스"))
                         .andExpect(jsonPath("$.data.items[0].actorCount").value(1))
                         .andExpect(jsonPath("$.data.items[0].isRead").value(false))
+                }
+        }
+
+        @Test
+        fun `좋아요를 취소하면 알림이 사라지고 다시 좋아요하면 한 건만 남는다`() {
+            val like = "/api/v1/courses/570001/likes"
+            mockMvc
+                .perform(post(like).header(HttpHeaders.AUTHORIZATION, tokenFor(USER_ID)))
+                .andExpect(status().isCreated)
+            awaitAuthorNotificationCount(1)
+
+            mockMvc
+                .perform(delete(like).header(HttpHeaders.AUTHORIZATION, tokenFor(USER_ID)))
+                .andExpect(status().isOk)
+            awaitAuthorNotificationCount(0)
+
+            mockMvc
+                .perform(post(like).header(HttpHeaders.AUTHORIZATION, tokenFor(USER_ID)))
+                .andExpect(status().isCreated)
+            await()
+                .pollInterval(Duration.ofMillis(50))
+                .atMost(Duration.ofSeconds(5))
+                .untilAsserted {
+                    mockMvc
+                        .perform(get(NOTIFICATIONS).header(HttpHeaders.AUTHORIZATION, tokenFor(AUTHOR_ID)))
+                        .andExpect(jsonPath("$.data.items.length()").value(1))
+                        .andExpect(jsonPath("$.data.items[0].actorCount").value(1))
+                        .andExpect(jsonPath("$.data.items[0].isRead").value(false))
+                }
+        }
+
+        private fun awaitAuthorNotificationCount(count: Int) {
+            await()
+                .pollInterval(Duration.ofMillis(50))
+                .atMost(Duration.ofSeconds(5))
+                .untilAsserted {
+                    mockMvc
+                        .perform(get(NOTIFICATIONS).header(HttpHeaders.AUTHORIZATION, tokenFor(AUTHOR_ID)))
+                        .andExpect(jsonPath("$.data.items.length()").value(count))
                 }
         }
 

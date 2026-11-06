@@ -142,8 +142,13 @@ class AccountService(
         if (followerId !in active) {
             throw BusinessException(UserErrorCode.USER_NOT_FOUND, "사용자를 찾을 수 없습니다: id=$followerId")
         }
-        followPersistencePort.unfollow(followerId, targetId)
+        val removed = followPersistencePort.unfollow(followerId, targetId)
         val followersCnt = userPersistencePort.findProfile(targetId)!!.followersCnt
+        if (removed) {
+            eventPublisher.publishEvent(
+                UserActivityEvent(UserActivityKind.UNFOLLOWED, followerId, targetId, clock.instant()),
+            )
+        }
         return FollowResult(isFollowing = false, followersCnt = followersCnt)
     }
 }

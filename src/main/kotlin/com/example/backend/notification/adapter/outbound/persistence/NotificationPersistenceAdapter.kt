@@ -4,6 +4,7 @@ import com.example.backend.notification.adapter.outbound.persistence.exposed.rep
 import com.example.backend.notification.application.port.inbound.dto.NotificationSummary
 import com.example.backend.notification.application.port.outbound.NotificationPersistencePort
 import com.example.backend.notification.domain.model.NotificationBundle
+import com.example.backend.notification.domain.model.NotificationType
 import org.springframework.stereotype.Component
 import java.time.Instant
 import kotlin.time.toKotlinInstant
@@ -13,6 +14,18 @@ class NotificationPersistenceAdapter(
     private val notificationRepository: NotificationRepository,
 ) : NotificationPersistencePort {
     override fun upsert(bundle: NotificationBundle) = notificationRepository.upsert(bundle)
+
+    override fun removeActor(
+        actorId: Long,
+        type: NotificationType,
+        targetId: Long,
+        userId: Long?,
+    ): Map<Long, Long> = notificationRepository.removeActor(actorId, type, targetId, userId)
+
+    override fun updateActorNickname(
+        id: Long,
+        nickname: String?,
+    ) = notificationRepository.updateActorNickname(id, nickname)
 
     override fun findPage(
         userId: Long,

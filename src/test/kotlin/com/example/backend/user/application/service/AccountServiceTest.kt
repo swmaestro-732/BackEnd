@@ -154,6 +154,18 @@ class AccountServiceTest {
         verifyNoInteractions(eventPublisher)
     }
 
+    @Test
+    fun `팔로우를 실제로 끊으면 언팔로우 활동을 발행하고 이미 끊겼으면 발행하지 않는다`() {
+        givenActiveUsers()
+        `when`(followPersistencePort.unfollow(1L, 2L)).thenReturn(true, false)
+
+        service.unfollow(followerId = 1L, targetId = 2L)
+        service.unfollow(followerId = 1L, targetId = 2L)
+
+        verify(eventPublisher).publishEvent(UserActivityEvent(UserActivityKind.UNFOLLOWED, 1L, 2L, occurredAt))
+        verifyNoMoreInteractions(eventPublisher)
+    }
+
     private fun givenActiveUsers() {
         `when`(userPersistencePort.lockActive(listOf(1L, 2L))).thenReturn(setOf(1L, 2L))
         val profile = mock(UserProfileRow::class.java)

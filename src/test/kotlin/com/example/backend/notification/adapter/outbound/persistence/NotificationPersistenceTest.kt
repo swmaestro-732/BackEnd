@@ -150,6 +150,80 @@ class NotificationPersistenceTest
         }
 
         @Test
+        fun `창이 지난 뒤 좋아요를 취소하고 다시 하면 알림은 새 창의 한 건만 남는다`() {
+            transaction {
+                val like = bundle()
+                notificationPersistencePort.upsert(like)
+
+                assertThat(notificationPersistencePort.removeActor(ACTOR_ID, like.type, like.targetId, null)).isEmpty()
+                notificationPersistencePort.upsert(like.copy(windowStart = like.windowStart.plusSeconds(3600)))
+
+                val row = notificationPersistencePort.findPage(USER_ID, null, 10).single()
+                assertThat(row.actorCount).isEqualTo(1)
+                assertThat(row.isRead).isFalse()
+                rollback()
+            }
+        }
+
+        @Test
+        fun `행동자를 빼면 모든 창에서 인원을 줄이고 마지막 행동자를 바꾸며 다른 대상과 종류는 그대로 둔다`() {
+            transaction {
+                val review =
+                    bundle().copy(
+                        type = NotificationType.COURSE_REVIEWED,
+                        lastActorId = OTHER_ACTOR_ID,
+                        actorNickname = "남는 사람",
+                    )
+                notificationPersistencePort.upsert(review)
+                notificationPersistencePort.upsert(review.copy(lastActorId = ACTOR_ID, actorNickname = "지운 사람"))
+                notificationPersistencePort.upsert(
+                    review.copy(lastActorId = ACTOR_ID, windowStart = review.windowStart.plusSeconds(600)),
+                )
+                notificationPersistencePort.upsert(review.copy(lastActorId = ACTOR_ID, targetId = 570_999L))
+                notificationPersistencePort.upsert(bundle())
+                val keptId = notificationPersistencePort.findPage(USER_ID, null, 10).last().id
+
+                val changed = notificationPersistencePort.removeActor(ACTOR_ID, review.type, review.targetId, null)
+                notificationPersistencePort.updateActorNickname(changed.keys.single(), "남는 사람")
+
+                assertThat(changed).containsExactlyEntriesOf(mapOf(keptId to OTHER_ACTOR_ID))
+                val rows = notificationPersistencePort.findPage(USER_ID, null, 10)
+                assertThat(rows.map { it.type to it.targetId }).containsExactly(
+                    NotificationType.COURSE_LIKED to review.targetId,
+                    NotificationType.COURSE_REVIEWED to 570_999L,
+                    NotificationType.COURSE_REVIEWED to review.targetId,
+                )
+                val kept = rows.single { it.id == keptId }
+                assertThat(kept.actorCount).isEqualTo(1)
+                assertThat(kept.lastActorId).isEqualTo(OTHER_ACTOR_ID)
+                assertThat(kept.actorNickname).isEqualTo("남는 사람")
+                rollback()
+            }
+        }
+
+        @Test
+        fun `받는 사람을 지정하면 그 사람의 묶음에서만 행동자를 뺀다`() {
+            transaction {
+                val follow =
+                    bundle().copy(
+                        type = NotificationType.USER_FOLLOWED,
+                        targetType = NotificationTargetType.USER,
+                        targetId = ACTOR_ID,
+                        courseTitle = null,
+                        courseImageUrl = null,
+                    )
+                notificationPersistencePort.upsert(follow)
+                notificationPersistencePort.upsert(follow.copy(userId = OTHER_USER_ID))
+
+                notificationPersistencePort.removeActor(ACTOR_ID, follow.type, ACTOR_ID, USER_ID)
+
+                assertThat(notificationPersistencePort.findPage(USER_ID, null, 10)).isEmpty()
+                assertThat(notificationPersistencePort.findPage(OTHER_USER_ID, null, 10)).hasSize(1)
+                rollback()
+            }
+        }
+
+        @Test
         fun `보관 기간 기준 시각 이전에 만든 알림만 지운다`() {
             transaction {
                 notificationPersistencePort.upsert(bundle())
@@ -244,7 +318,7 @@ class NotificationPersistenceTest
                 targetType = NotificationTargetType.COURSE,
                 targetId = 570_901L,
                 windowStart = Instant.parse("2026-10-24T09:50:00Z"),
-                lastActorId = 570_900L,
+                lastActorId = ACTOR_ID,
                 actorNickname = null,
                 courseTitle = "알림 코스",
                 courseImageUrl = "https://cdn/course.jpg",
@@ -253,5 +327,7 @@ class NotificationPersistenceTest
         private companion object {
             const val USER_ID = 570_901L
             const val OTHER_USER_ID = 570_902L
+            const val ACTOR_ID = 570_900L
+            const val OTHER_ACTOR_ID = 570_903L
         }
     }

@@ -53,6 +53,9 @@ class CourseReviewService(
         if (deleted == 0) {
             throw BusinessException(CourseErrorCode.COURSE_REVIEW_NOT_FOUND)
         }
+        eventPublisher.publishEvent(
+            CourseActivityEvent(CourseActivityKind.REVIEW_DELETED, userId, courseId, clock.instant()),
+        )
     }
 
     private fun requireCourseExist(courseId: Long) {
