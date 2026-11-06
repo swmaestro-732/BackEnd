@@ -45,17 +45,24 @@ ON CONFLICT (id) DO UPDATE
 
 SELECT setval('places_id_seq', (SELECT max(id) FROM places));
 
--- ── 3) 코스(201~204) — 지역(area)·테마(category)·커버·작성자 ──────────────────
-INSERT INTO courses (id, user_id, title, description, area, category, is_published, visibility, cover_image_url) VALUES
-    (201, 2, '비 오는 날 성수 감성 카페 코스', '비 오는 날 걷기 좋은 성수 카페 골목 코스', '성수', 'CAFETOUR', true, 'PUBLIC', 'https://images.unsplash.com/photo-1445116572660-236099ec97a0?w=600&q=80&auto=format&fit=crop'),
-    (202, 3, '성수 골목 소품샵 산책',          '성수 골목 소품샵을 천천히 도는 산책 코스', '성수', 'SHOPPING', true, 'PUBLIC', 'https://images.unsplash.com/photo-1509042239860-f550ce710b93?w=600&q=80&auto=format&fit=crop'),
-    (203, 3, '주말 연남 느긋한 브런치 산책',   '주말 연남에서 즐기는 느긋한 브런치 코스', '연남', 'FOOD',     true, 'PUBLIC', 'https://images.unsplash.com/photo-1528605248644-14dd04022da1?w=600&q=80&auto=format&fit=crop'),
-    (204, 1, '한남동 갤러리 하나씩 도장깨기',   '한남동 갤러리를 하나씩 도는 전시 코스',   '한남', 'CULTURE',  true, 'PUBLIC', 'https://images.unsplash.com/photo-1554118811-1e0d58224f24?w=600&q=80&auto=format&fit=crop')
+-- ── 3) 코스(201~204) — 지역(area)·테마(course_categories)·커버·작성자 ─────────
+INSERT INTO courses (id, user_id, title, description, area, is_published, visibility, cover_image_url) VALUES
+    (201, 2, '비 오는 날 성수 감성 카페 코스', '비 오는 날 걷기 좋은 성수 카페 골목 코스', '성수', true, 'PUBLIC', 'https://images.unsplash.com/photo-1445116572660-236099ec97a0?w=600&q=80&auto=format&fit=crop'),
+    (202, 3, '성수 골목 소품샵 산책',          '성수 골목 소품샵을 천천히 도는 산책 코스', '성수', true, 'PUBLIC', 'https://images.unsplash.com/photo-1509042239860-f550ce710b93?w=600&q=80&auto=format&fit=crop'),
+    (203, 3, '주말 연남 느긋한 브런치 산책',   '주말 연남에서 즐기는 느긋한 브런치 코스', '연남', true, 'PUBLIC', 'https://images.unsplash.com/photo-1528605248644-14dd04022da1?w=600&q=80&auto=format&fit=crop'),
+    (204, 1, '한남동 갤러리 하나씩 도장깨기',   '한남동 갤러리를 하나씩 도는 전시 코스',   '한남', true, 'PUBLIC', 'https://images.unsplash.com/photo-1554118811-1e0d58224f24?w=600&q=80&auto=format&fit=crop')
 ON CONFLICT (id) DO UPDATE
     SET user_id = EXCLUDED.user_id, title = EXCLUDED.title, description = EXCLUDED.description,
-        area = EXCLUDED.area, category = EXCLUDED.category, is_published = EXCLUDED.is_published,
+        area = EXCLUDED.area, is_published = EXCLUDED.is_published,
         visibility = EXCLUDED.visibility, cover_image_url = EXCLUDED.cover_image_url,
         deleted_at = NULL, status = 'ACTIVE';
+
+INSERT INTO course_categories (course_id, category) VALUES
+    (201, 'CAFETOUR'), (201, 'DATE'),
+    (202, 'SHOPPING'),
+    (203, 'FOOD'),
+    (204, 'CULTURE')
+ON CONFLICT DO NOTHING;
 
 SELECT setval('courses_id_seq', (SELECT max(id) FROM courses));
 

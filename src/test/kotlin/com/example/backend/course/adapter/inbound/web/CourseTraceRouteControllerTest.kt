@@ -18,7 +18,7 @@ import org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPat
 import org.springframework.test.web.servlet.result.MockMvcResultMatchers.status
 
 /**
- * 따라가기 경로 조회(`GET /api/v1/traces?fromPlaceId&toPlaceId`) 통합 테스트.
+ * 따라가기 경로 조회(`GET /api/v1/traces/route?fromPlaceId&toPlaceId`) 통합 테스트.
  * Tmap 호출([PedestrianRoutePort])만 목으로 바꾸고 장소 조회·direction 변환·응답 매핑은
  * 실제 빈을 탄다.
  * 픽스처(course-trace-fixture.sql): 장소 22(어니언 성수)·23(대림창고), 99 는 없는 장소.
@@ -108,15 +108,16 @@ class CourseTraceRouteControllerTest
         @Test
         fun `필수 파라미터가 빠지면 400 과 4001 이다`() {
             mockMvc
-                .perform(get("/api/v1/traces").param("fromPlaceId", "22").header(HttpHeaders.AUTHORIZATION, bearer()))
-                .andExpect(status().isBadRequest)
+                .perform(
+                    get("/api/v1/traces/route").param("fromPlaceId", "22").header(HttpHeaders.AUTHORIZATION, bearer()),
+                ).andExpect(status().isBadRequest)
                 .andExpect(jsonPath("$.code").value(4001))
         }
 
         @Test
         fun `토큰 없으면 401 이다`() {
             mockMvc
-                .perform(get("/api/v1/traces").param("fromPlaceId", "22").param("toPlaceId", "23"))
+                .perform(get("/api/v1/traces/route").param("fromPlaceId", "22").param("toPlaceId", "23"))
                 .andExpect(status().isUnauthorized)
         }
 
@@ -124,7 +125,7 @@ class CourseTraceRouteControllerTest
             fromPlaceId: Long,
             toPlaceId: Long,
         ) = mockMvc.perform(
-            get("/api/v1/traces")
+            get("/api/v1/traces/route")
                 .param("fromPlaceId", fromPlaceId.toString())
                 .param("toPlaceId", toPlaceId.toString())
                 .header(HttpHeaders.AUTHORIZATION, bearer()),

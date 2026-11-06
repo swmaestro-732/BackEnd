@@ -99,7 +99,7 @@ class OpenSearchCourseIndexAdapter(
             title = title,
             description = description,
             area = area,
-            category = category?.name,
+            category = categories.map { it.name },
             tags = tags,
             coverImageUrl = coverImageUrl,
             visibility = visibility.name,

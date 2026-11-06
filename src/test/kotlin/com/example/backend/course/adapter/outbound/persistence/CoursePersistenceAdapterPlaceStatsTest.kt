@@ -80,7 +80,6 @@ class CoursePersistenceAdapterPlaceStatsTest
                     title = "집계 대상 코스"
                     coverImageUrl = null
                     description = null
-                    category = null
                     area = null
                     areaCode = null
                     visitDate = null

@@ -1,6 +1,6 @@
 package com.example.backend.course.adapter.outbound.persistence.exposed
 
-import com.example.backend.course.domain.model.CourseTraceStatus
+import com.example.backend.common.domain.CourseTraceStatus
 import org.jetbrains.exposed.v1.core.dao.id.LongIdTable
 import org.jetbrains.exposed.v1.datetime.timestamp
 import kotlin.time.Clock
