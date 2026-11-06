@@ -7,8 +7,10 @@ import com.example.backend.bootstrap.security.CurrentUserId
 import com.example.backend.common.response.ApiResponse
 import com.example.backend.course.adapter.inbound.web.request.CheckInPlaceRequest
 import com.example.backend.course.adapter.inbound.web.request.EndCourseTraceRequest
+import com.example.backend.course.adapter.inbound.web.request.StartCourseTraceRequest
 import com.example.backend.course.adapter.inbound.web.response.CourseTraceListResponse
 import com.example.backend.course.adapter.inbound.web.response.CourseTraceResponse
+import com.example.backend.course.adapter.inbound.web.response.CourseTraceV2Response
 import com.example.backend.course.adapter.inbound.web.response.TraceRouteResponse
 import com.example.backend.course.application.port.inbound.CourseTraceUseCase
 import com.example.backend.course.application.port.inbound.dto.CheckInPlaceCommand
@@ -28,6 +30,7 @@ import org.springframework.web.bind.annotation.RestController
 /**
  * 인바운드 어댑터 — 코스 따라가기. 노션 API 명세서 Course › course-track 기준.
  * 시작은 코스 아래(`/courses/{courseId}/traces`), 그 뒤 체크인·종료는 세션 id 로(`/traces/{traceId}/...`) 다룬다.
+ * 시작 V2 는 따라갈 장소 목록을 받아 코스 루트를 수정해 따라갈 수 있다.
  * 내 완주 목록(`/my/traces`)은 커서 페이지다. 따라가는 중인 코스는 사용자당 하나이며 홈 응답으로 내려간다.
  * 경로 조회(`/traces/route?fromPlaceId&toPlaceId`)는 세션에 묶지 않는다 — 따라가는 중 코스 밖 장소를 끼워 넣어도 쓸 수 있게.
  * `/api` 하위는 permitAll 이라 access 토큰을 직접 강제한다.
@@ -46,6 +49,19 @@ class CourseTraceController(
     ): ApiResponse<CourseTraceResponse> =
         ApiResponse.success(
             CourseTraceResponse.from(courseTraceUseCase.start(userId, courseId)),
+            "따라가기를 시작했습니다.",
+        )
+
+    /** 따라가기 시작 V2 — 따라갈 장소(`placeIds`, 순서대로)를 받는다. 이어가기·409 는 V1 과 같고, 이어가기면 기존 세션의 루트를 돌려준다. */
+    @PostMapping("/api/v2/courses/{courseId}/traces")
+    @AccessTokenRequired
+    fun startWithRoute(
+        @CurrentUserId userId: Long,
+        @PathVariable courseId: Long,
+        @Valid @RequestBody request: StartCourseTraceRequest,
+    ): ApiResponse<CourseTraceV2Response> =
+        ApiResponse.success(
+            CourseTraceV2Response.from(courseTraceUseCase.startWithRoute(userId, courseId, request.placeIds)),
             "따라가기를 시작했습니다.",
         )
 

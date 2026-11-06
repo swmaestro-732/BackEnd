@@ -5,14 +5,17 @@ import com.example.backend.course.adapter.outbound.persistence.exposed.CourseTra
 import com.example.backend.course.adapter.outbound.persistence.exposed.CourseTraceTable
 import com.example.backend.course.application.port.inbound.dto.VisitedPlaceResult
 import com.example.backend.course.application.port.outbound.CourseTraceRow
+import com.example.backend.course.domain.model.CourseTracePlaceStatus
 import org.jetbrains.exposed.v1.core.ResultRow
 import org.jetbrains.exposed.v1.core.SortOrder
 import org.jetbrains.exposed.v1.core.and
 import org.jetbrains.exposed.v1.core.eq
 import org.jetbrains.exposed.v1.core.inList
 import org.jetbrains.exposed.v1.core.inSubQuery
+import org.jetbrains.exposed.v1.core.isNotNull
 import org.jetbrains.exposed.v1.core.less
 import org.jetbrains.exposed.v1.core.min
+import org.jetbrains.exposed.v1.jdbc.batchInsert
 import org.jetbrains.exposed.v1.jdbc.deleteWhere
 import org.jetbrains.exposed.v1.jdbc.insertIgnore
 import org.jetbrains.exposed.v1.jdbc.insertIgnoreAndGetId
@@ -25,7 +28,7 @@ import kotlin.time.Clock
 import kotlin.time.toJavaInstant
 import kotlin.time.toKotlinInstant
 
-/** tracing_courses·tracing_course_places 테이블 접근 리포지토리 — 따라가기 세션의 시작·체크인·종료와 완주 조회. */
+/** tracing_courses·tracing_course_places 테이블 접근 리포지토리 — 따라가기 세션의 시작·루트·체크인·종료와 완주 조회. */
 @Repository
 class CourseTraceRepository {
     fun findInProgress(userId: Long): CourseTraceRow? =
@@ -66,6 +69,27 @@ class CourseTraceRepository {
                 it[distanceMeters] = 0
             }?.value
 
+    /** 세션이 따라갈 루트를 받은 순서대로 PLANNED 로 넣는다. */
+    fun insertRoutePlaces(
+        traceId: Long,
+        placeIds: List<Long>,
+    ) {
+        CourseTracePlaceTable.batchInsert(placeIds.withIndex()) { (index, placeId) ->
+            this[CourseTracePlaceTable.tracingCourseId] = traceId
+            this[CourseTracePlaceTable.placeId] = placeId
+            this[CourseTracePlaceTable.status] = CourseTracePlaceStatus.PLANNED
+            this[CourseTracePlaceTable.orderNo] = index.toShort()
+        }
+    }
+
+    /** 세션 루트의 장소 id 를 순서대로(방문 여부 무관) — 루트 없이 시작한 세션은 빈 목록. */
+    fun findRoutePlaceIds(traceId: Long): List<Long> =
+        CourseTracePlaceTable
+            .select(CourseTracePlaceTable.placeId)
+            .where { (CourseTracePlaceTable.tracingCourseId eq traceId) and CourseTracePlaceTable.orderNo.isNotNull() }
+            .orderBy(CourseTracePlaceTable.orderNo to SortOrder.ASC)
+            .map { it[CourseTracePlaceTable.placeId] }
+
     /** 세션 행을 FOR UPDATE 로 읽어 체크인·종료가 같은 잠금으로 직렬화되게 한다 — 종료가 먼저 커밋되면 뒤따르는 체크인은 COMPLETED 를 본다. */
     fun findById(traceId: Long): CourseTraceRow? =
         CourseTraceTable
@@ -86,24 +110,39 @@ class CourseTraceRepository {
     fun findVisitedPlaces(traceId: Long): List<VisitedPlaceResult> =
         CourseTracePlaceTable
             .select(CourseTracePlaceTable.placeId, CourseTracePlaceTable.visitedAt)
-            .where { CourseTracePlaceTable.tracingCourseId eq traceId }
-            .orderBy(CourseTracePlaceTable.id to SortOrder.ASC)
+            .where {
+                (CourseTracePlaceTable.tracingCourseId eq traceId) and
+                    (CourseTracePlaceTable.status eq CourseTracePlaceStatus.VISITED)
+            }
+            // 루트 행은 시작할 때 미리 들어가 id 순이 체크인 순이 아니다 — 체크인 시각으로 정렬한다.
+            .orderBy(CourseTracePlaceTable.visitedAt to SortOrder.ASC, CourseTracePlaceTable.id to SortOrder.ASC)
             .map {
                 VisitedPlaceResult(
                     it[CourseTracePlaceTable.placeId],
-                    it[CourseTracePlaceTable.visitedAt].toJavaInstant(),
+                    it[CourseTracePlaceTable.visitedAt]!!.toJavaInstant(),
                 )
             }
 
-    /** (tracing_course_id, place_id) 유니크 충돌은 무시 — 같은 장소 재전송은 멱등. */
+    /** PLANNED 행이 있으면 VISITED 로 바꾸고, 없으면(루트 없이 시작한 세션) VISITED 행을 넣는다. 이미 VISITED 면 둘 다 0행이라 재전송은 멱등. */
     fun insertVisitedPlace(
         traceId: Long,
         placeId: Long,
         visitedAt: Instant,
     ) {
+        val planned =
+            CourseTracePlaceTable.update({
+                (CourseTracePlaceTable.tracingCourseId eq traceId) and
+                    (CourseTracePlaceTable.placeId eq placeId) and
+                    (CourseTracePlaceTable.status eq CourseTracePlaceStatus.PLANNED)
+            }) {
+                it[status] = CourseTracePlaceStatus.VISITED
+                it[CourseTracePlaceTable.visitedAt] = visitedAt.toKotlinInstant()
+            }
+        if (planned > 0) return
         CourseTracePlaceTable.insertIgnore {
             it[tracingCourseId] = traceId
             it[CourseTracePlaceTable.placeId] = placeId
+            it[status] = CourseTracePlaceStatus.VISITED
             it[CourseTracePlaceTable.visitedAt] = visitedAt.toKotlinInstant()
         }
     }

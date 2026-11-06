@@ -35,7 +35,7 @@ import org.springframework.transaction.annotation.Transactional
 import java.time.Instant
 
 /**
- * 코스 따라가기 유스케이스 — 시작(IN_PROGRESS 세션 생성 또는 이어가기)·장소 체크인·다음 장소 도보 경로·종료(COMPLETED + tracings_cnt 원자적 +1)·
+ * 코스 따라가기 유스케이스 — 시작(IN_PROGRESS 세션 생성 또는 이어가기, 루트 수정 가능)·장소 체크인·다음 장소 도보 경로·종료(COMPLETED + tracings_cnt 원자적 +1)·
  * 내 완주 목록(커서 페이지)·완주 조회. 진행 중 세션은 사용자당 하나다.
  * 열람 권한 검사는 CourseLikeService 와 동일하다.
  */
@@ -52,6 +52,20 @@ class CourseTraceService(
     override fun start(
         userId: Long,
         courseId: Long,
+    ): CourseTraceResult = startSession(userId, courseId, routePlaceIds = null)
+
+    @Transactional
+    override fun startWithRoute(
+        userId: Long,
+        courseId: Long,
+        placeIds: List<Long>,
+    ): CourseTraceResult = startSession(userId, courseId, routePlaceIds = placeIds)
+
+    /** [routePlaceIds] 가 있으면 새 세션에 루트로 저장한다 — 이어가기면 기존 세션의 루트를 그대로 둔다. */
+    private fun startSession(
+        userId: Long,
+        courseId: Long,
+        routePlaceIds: List<Long>?,
     ): CourseTraceResult {
         val course = coursePersistencePort.findCourseDetail(courseId)
         if (course == null ||
@@ -59,6 +73,12 @@ class CourseTraceService(
             !courseViewPolicy.isViewable(course.visibility, course.userId, userId)
         ) {
             throw BusinessException(CourseErrorCode.COURSE_NOT_FOUND, "따라가기를 시작할 코스를 찾을 수 없습니다: courseId=$courseId")
+        }
+        routePlaceIds?.let {
+            if (it.distinct().size != it.size) {
+                throw BusinessException(CommonErrorCode.INVALID_INPUT, "따라갈 장소가 중복되었습니다: placeIds=$it")
+            }
+            requirePlacesInOrder(it)
         }
 
         // 진행 중 세션이 있으면 이어간다. 없으면 만들되, 동시 시작으로 삽입이 무시되면(부분 유니크) 그 사이 생긴 세션을 다시 읽는다.
@@ -68,7 +88,10 @@ class CourseTraceService(
                     .insertInProgress(
                         userId,
                         courseId,
-                    )?.let { courseTracePersistencePort.findById(it) }
+                    )?.let { traceId ->
+                        routePlaceIds?.let { courseTracePersistencePort.insertRoutePlaces(traceId, it) }
+                        courseTracePersistencePort.findById(traceId)
+                    }
                 ?: courseTracePersistencePort.findInProgress(userId)
                 ?: error("따라가기 세션 생성 실패: userId=$userId, courseId=$courseId")
         if (trace.courseId != courseId) {
@@ -124,22 +147,22 @@ class CourseTraceService(
         course =
             findTracedCourses(viewerId, listOf(trace.courseId))[trace.courseId]
                 ?: TracedCourseSummary.deleted(trace.courseId),
-        // 코스 장소는 코스 삭제·비공개와 무관하게 내려준다 — 따라가던 화면을 그대로 이어 그리기 위해.
-        places = coursePersistencePort.findPlaces(trace.courseId).map { it.toResult() },
+        // 장소는 코스 삭제·비공개와 무관하게 내려준다 — 따라가던 화면을 그대로 이어 그리기 위해.
+        places = findTracePlaces(trace),
         visitedPlaces = courseTracePersistencePort.findVisitedPlaces(trace.id),
     )
 
     @Transactional
     override fun checkIn(command: CheckInPlaceCommand) {
         val trace = ownedInProgress(command.userId, command.traceId)
-        requirePlacesInCourse(trace.courseId, listOf(command.placeId))
+        requirePlacesInTrace(trace, listOf(command.placeId))
         courseTracePersistencePort.insertVisitedPlace(trace.id, command.placeId, command.visitedAt)
     }
 
     @Transactional
     override fun end(command: EndCourseTraceCommand) {
         val trace = ownedInProgress(command.userId, command.traceId)
-        requirePlacesInCourse(trace.courseId, command.visitedPlaces.map { it.placeId })
+        requirePlacesInTrace(trace, command.visitedPlaces.map { it.placeId })
         command.visitedPlaces.forEach {
             courseTracePersistencePort.insertVisitedPlace(trace.id, it.placeId, it.visitedAt)
         }
@@ -214,18 +237,46 @@ class CourseTraceService(
         }
     }
 
-    /** 방문 기록은 코스 장소만 받는다 — 하나라도 코스에 없으면 400. 게시 코스는 장소 구성이 불변이라 요청 시점 검사로 충분하다. */
-    private fun requirePlacesInCourse(
-        courseId: Long,
+    /** 방문 기록은 따라가는 장소만 받는다 — 하나라도 아니면 400. 게시 코스는 장소 구성이 불변이라 요청 시점 검사로 충분하다. */
+    private fun requirePlacesInTrace(
+        trace: CourseTraceRow,
         placeIds: List<Long>,
     ) {
         if (placeIds.isEmpty()) return
-        val coursePlaceIds = coursePersistencePort.findPlaces(courseId).mapTo(mutableSetOf()) { it.placeId }
-        val outsiders = placeIds.filterNot { it in coursePlaceIds }
+        val tracePlaceIds = findTracePlaceIds(trace).toSet()
+        val outsiders = placeIds.filterNot { it in tracePlaceIds }
         if (outsiders.isNotEmpty()) {
             throw BusinessException(
                 CourseErrorCode.PLACE_NOT_IN_COURSE,
-                "코스에 없는 장소입니다: courseId=$courseId, placeIds=$outsiders",
+                "따라가는 장소가 아닙니다: traceId=${trace.id}, courseId=${trace.courseId}, placeIds=$outsiders",
+            )
+        }
+    }
+
+    /** 세션이 따라가는 장소 id(순서대로) — 수정한 루트가 있으면 그 루트, 없으면 코스 장소. */
+    private fun findTracePlaceIds(trace: CourseTraceRow): List<Long> =
+        courseTracePersistencePort
+            .findRoutePlaceIds(trace.id)
+            .ifEmpty { coursePersistencePort.findPlaces(trace.courseId).map { it.placeId } }
+
+    /** [findTracePlaceIds] 의 상세판 — 루트의 장소 중 코스에 있던 곳만 캡션·사진을 붙이고, 도보 시간은 코스와 다음 장소가 같을 때만 남긴다. */
+    private fun findTracePlaces(trace: CourseTraceRow): List<CoursePlaceResult> {
+        val coursePlaces = coursePersistencePort.findPlaces(trace.courseId)
+        val routePlaceIds = courseTracePersistencePort.findRoutePlaceIds(trace.id)
+        if (routePlaceIds.isEmpty()) return coursePlaces.map { it.toResult() }
+
+        val coursePlaceById = coursePlaces.associateBy { it.placeId }
+        val nextInCourse = coursePlaces.zipWithNext().associate { (place, next) -> place.placeId to next.placeId }
+        return routePlaceIds.mapIndexed { index, placeId ->
+            val coursePlace = coursePlaceById[placeId]
+            CoursePlaceResult(
+                id = coursePlace?.id ?: 0,
+                placeId = placeId,
+                orderNo = index,
+                caption = coursePlace?.caption,
+                walkingMinutesToNext =
+                    coursePlace?.walkingMinutes?.takeIf { nextInCourse[placeId] == routePlaceIds.getOrNull(index + 1) },
+                images = coursePlace?.images.orEmpty().map { CoursePlaceImageResult(it.imageUrl, it.orderNo) },
             )
         }
     }
@@ -235,6 +286,7 @@ class CourseTraceService(
             traceId = id,
             courseId = courseId,
             startedAt = startedAt,
+            placeIds = findTracePlaceIds(this),
             visitedPlaces = courseTracePersistencePort.findVisitedPlaces(id),
         )
 
