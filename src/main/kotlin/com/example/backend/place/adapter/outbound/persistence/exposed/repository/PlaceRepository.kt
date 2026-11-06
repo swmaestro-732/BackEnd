@@ -63,6 +63,8 @@ class PlaceRepository {
             this[PlaceTable.name] = place.name
             this[PlaceTable.description] = place.description
             this[PlaceTable.category] = place.category
+            this[PlaceTable.categoryDetail] = place.categoryDetail
+            this[PlaceTable.kakaoCategoryName] = place.kakaoCategoryName
             this[PlaceTable.location] = place.location
             this[PlaceTable.address] = place.address
             this[PlaceTable.areaCode] = place.areaCode

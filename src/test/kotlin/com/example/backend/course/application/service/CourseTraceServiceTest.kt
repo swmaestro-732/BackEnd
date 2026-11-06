@@ -331,7 +331,7 @@ class CourseTraceServiceTest {
             title = "성수 코스",
             coverImageUrl = "cover.jpg",
             description = null,
-            category = null,
+            categories = emptyList(),
             area = "성수",
             areaCode = null,
             tracingsCnt = 0,

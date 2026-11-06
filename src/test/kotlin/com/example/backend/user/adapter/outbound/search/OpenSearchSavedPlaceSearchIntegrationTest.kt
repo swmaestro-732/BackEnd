@@ -58,6 +58,7 @@ class OpenSearchSavedPlaceSearchIntegrationTest
                 "imageUrl",
                 "rating",
                 "ratingCount",
+                "categoryDetail",
             )
             assertThat(fields.getValue("location").isGeoPoint).isTrue()
             assertThat(fields.getValue("savedAt").isDate).isTrue()
@@ -137,6 +138,45 @@ class OpenSearchSavedPlaceSearchIntegrationTest
             assertThat(queryPort.nearestSaved(8L, origin, 2000.0, 2).map { it.placeId }).containsExactly(10L)
         }
 
+        @Test
+        fun `상세 분류는 색인에 저장된 값을 돌려주고 없으면 null 이다`() {
+            index(
+                document(7L, 10L, latitude = 37.545, categoryDetail = "제과,베이커리"),
+                document(7L, 20L, latitude = 37.549),
+            )
+
+            val nearest = queryPort.nearestSaved(7L, origin, 2000.0, 10).associateBy { it.placeId }
+
+            assertThat(nearest.getValue(10L).categoryDetail).isEqualTo("제과,베이커리")
+            assertThat(nearest.getValue(20L).categoryDetail).isNull()
+        }
+
+        @Test
+        fun `상세 분류 필드가 없는 기존 문서도 null 로 읽는다`() {
+            indexClient.index {
+                it.index(ALIAS).id("7:30").document(
+                    mapOf(
+                        "userId" to 7L,
+                        "placeId" to 30L,
+                        "location" to mapOf("lat" to 37.545, "lon" to origin.longitude),
+                        "savedAt" to Instant.parse("2026-10-11T08:00:00Z").toEpochMilli(),
+                        "visited" to false,
+                        "name" to "장소 30",
+                        "category" to "CAFE",
+                        "imageUrl" to null,
+                        "rating" to 4.0,
+                        "ratingCount" to 1,
+                    ),
+                )
+            }
+            indexClient.indices().refresh { it.index(ALIAS) }
+
+            val nearest = queryPort.nearestSaved(7L, origin, 2000.0, 10)
+
+            assertThat(nearest.map { it.placeId }).containsExactly(30L)
+            assertThat(nearest.single().categoryDetail).isNull()
+        }
+
         private fun index(vararg documents: SavedPlaceIndexDocument) {
             indexPort.index(documents.toList())
             indexClient.indices().refresh { it.index(ALIAS) }
@@ -147,6 +187,7 @@ class OpenSearchSavedPlaceSearchIntegrationTest
             placeId: Long,
             latitude: Double,
             visited: Boolean = false,
+            categoryDetail: String? = null,
         ) = SavedPlaceIndexDocument(
             userId = userId,
             placeId = placeId,
@@ -158,6 +199,7 @@ class OpenSearchSavedPlaceSearchIntegrationTest
             imageUrl = "https://img/$placeId.jpg",
             rating = 4.8,
             ratingCount = 212,
+            categoryDetail = categoryDetail,
         )
 
         companion object {

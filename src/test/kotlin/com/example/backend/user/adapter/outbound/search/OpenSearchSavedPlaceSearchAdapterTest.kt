@@ -46,7 +46,16 @@ class OpenSearchSavedPlaceSearchAdapterTest {
         assertThat(request.index()).containsExactly("dev-saved_place")
         assertThat(request.size()).isEqualTo(2)
         assertThat(request.source()!!.filter().includes())
-            .containsExactly("placeId", "visited", "name", "category", "imageUrl", "rating", "ratingCount")
+            .containsExactly(
+                "placeId",
+                "visited",
+                "name",
+                "category",
+                "imageUrl",
+                "rating",
+                "ratingCount",
+                "categoryDetail",
+            )
         val filters = request.query()!!.bool().filter()
         assertThat(filters).hasSize(2)
         val userFilter = filters.single { it.isTerm }.term()

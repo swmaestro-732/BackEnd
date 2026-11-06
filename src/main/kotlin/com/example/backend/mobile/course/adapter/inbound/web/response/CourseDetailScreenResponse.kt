@@ -275,6 +275,8 @@ data class CoursePlaceScreenResponse(
     /** 장소 좌표(지도 핀). 삭제된 장소는 요약이 없어 null. */
     val location: PlaceLocationResponse?,
     val images: List<CoursePlaceImageResponse>,
+    // 카카오 상세 분류 원문(예: "제과,베이커리") — 클라이언트 아이콘 매핑용, 없으면 null.
+    val categoryDetail: String? = null,
 ) {
     companion object {
         fun from(
@@ -291,6 +293,7 @@ data class CoursePlaceScreenResponse(
                 categories = summary?.let { listOf(it.category) } ?: emptyList(),
                 location = summary?.let { PlaceLocationResponse(it.latitude, it.longitude) },
                 images = place.images.map(CoursePlaceImageResponse::from),
+                categoryDetail = summary?.categoryDetail,
             )
     }
 }

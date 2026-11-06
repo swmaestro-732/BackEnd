@@ -13,4 +13,5 @@ data class HomeNearbyPlace(
     val ratingCount: Int,
     val distanceMeters: Double,
     val visited: Boolean,
+    val categoryDetail: String? = null,
 )

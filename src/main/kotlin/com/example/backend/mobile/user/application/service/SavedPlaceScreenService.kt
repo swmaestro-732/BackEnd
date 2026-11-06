@@ -78,5 +78,6 @@ class SavedPlaceScreenService(
             imageUrl = imageUrl,
             latitude = latitude,
             longitude = longitude,
+            categoryDetail = categoryDetail,
         )
 }

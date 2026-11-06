@@ -80,6 +80,8 @@ data class HomeResponse(
         val distanceMeters: Int,
         val walkingMinutes: Int,
         val visited: Boolean,
+        // 카카오 상세 분류 원문(예: "제과,베이커리") — 클라이언트 아이콘 매핑용, 없으면 null.
+        val categoryDetail: String? = null,
     )
 
     companion object {
@@ -113,6 +115,7 @@ data class HomeResponse(
                             distanceMeters = it.place.distanceMeters.roundToInt(),
                             walkingMinutes = it.walkingMinutes,
                             visited = it.place.visited,
+                            categoryDetail = it.place.categoryDetail,
                         )
                     },
             )

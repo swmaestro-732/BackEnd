@@ -43,7 +43,16 @@ class OpenSearchSavedPlaceSearchAdapter(
                     .size(size)
                     .source {
                         it.filter { f ->
-                            f.includes("placeId", "visited", "name", "category", "imageUrl", "rating", "ratingCount")
+                            f.includes(
+                                "placeId",
+                                "visited",
+                                "name",
+                                "category",
+                                "imageUrl",
+                                "rating",
+                                "ratingCount",
+                                "categoryDetail",
+                            )
                         }
                     }.query { q ->
                         q.bool { b ->
@@ -90,6 +99,11 @@ class OpenSearchSavedPlaceSearchAdapter(
                             }?.getString("imageUrl"),
                     rating = source.getJsonNumber("rating").doubleValue(),
                     ratingCount = source.getJsonNumber("ratingCount").intValue(),
+                    // 필드 추가 전 색인된 문서·상세 분류 없는 장소는 null.
+                    categoryDetail =
+                        source
+                            .takeIf { it.containsKey("categoryDetail") && !it.isNull("categoryDetail") }
+                            ?.getString("categoryDetail"),
                 )
             }
         } catch (e: Exception) {
