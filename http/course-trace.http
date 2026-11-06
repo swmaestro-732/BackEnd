@@ -98,10 +98,10 @@ Authorization: Bearer {{accessToken}}
   "visitedAt": "2026-10-10T05:00:00Z"
 }
 
-## 따라가는 중 루트 변경 (PATCH /api/v1/traces/{traceId}/places)
+## 따라가는 중 루트 변경 (PATCH /api/v1/traces/{traceId}/route)
 
 ### 5-1) 루트 변경 — 200 / 2000, data 없음. placeIds 는 앞으로 갈 장소만(따라갈 순서대로, 최대 20개) — 이미 체크인한 장소는 보내지 않는다. 체크인한 장소는 방문한 순서로 앞에 남고 그 뒤가 placeIds 로 바뀐다. V1 으로 시작해 코스 장소 그대로 따라가던 세션도 바꿀 수 있다
-PATCH http://localhost:8080/api/v1/traces/{{traceId}}/places
+PATCH http://localhost:8080/api/v1/traces/{{traceId}}/route
 Content-Type: application/json
 Authorization: Bearer {{accessToken}}
 
@@ -110,7 +110,7 @@ Authorization: Bearer {{accessToken}}
 }
 
 ### 5-2) 이미 체크인한 장소를 보냄(위에서 22 를 체크인했다면) 또는 같은 장소가 두 번 → 400 / 4001 INVALID_INPUT. 체크인한 곳이 없는데 placeIds 가 비어도 400 / 4001. 없는 장소는 404 / 4043, 종료된 세션은 409 / 4099, 내 세션이 아니면 404 / 4049
-PATCH http://localhost:8080/api/v1/traces/{{traceId}}/places
+PATCH http://localhost:8080/api/v1/traces/{{traceId}}/route
 Content-Type: application/json
 Authorization: Bearer {{accessToken}}
 

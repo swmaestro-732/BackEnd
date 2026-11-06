@@ -32,7 +32,7 @@ import org.springframework.web.bind.annotation.RestController
 /**
  * 인바운드 어댑터 — 코스 따라가기. 노션 API 명세서 Course › course-track 기준.
  * 시작은 코스 아래(`/courses/{courseId}/traces`), 그 뒤 체크인·종료는 세션 id 로(`/traces/{traceId}/...`) 다룬다.
- * 시작 V2 는 따라갈 장소 목록을 받아 코스 루트를 수정해 따라갈 수 있고, 따라가는 중에도 루트를 바꿀 수 있다(`PATCH /traces/{traceId}/places`).
+ * 시작 V2 는 따라갈 장소 목록을 받아 코스 루트를 수정해 따라갈 수 있고, 따라가는 중에도 루트를 바꿀 수 있다(`PATCH /traces/{traceId}/route`).
  * 내 완주 목록(`/my/traces`)은 커서 페이지다. 따라가는 중인 코스는 사용자당 하나이며 홈 응답으로 내려간다.
  * 경로 조회(`/traces/route?fromPlaceId&toPlaceId`)는 세션에 묶지 않는다 — 따라가는 중 코스 밖 장소를 끼워 넣어도 쓸 수 있게.
  * `/api` 하위는 permitAll 이라 access 토큰을 직접 강제한다.
@@ -103,7 +103,7 @@ class CourseTraceController(
     }
 
     /** 따라가는 중 루트 변경 — 앞으로 갈 장소(`placeIds`, 순서대로)만 받는다. 체크인한 장소는 그대로 두고 그 뒤를 바꾼다. */
-    @PatchMapping("/api/v1/traces/{traceId}/places")
+    @PatchMapping("/api/v1/traces/{traceId}/route")
     @AccessTokenRequired
     fun changeRoute(
         @CurrentUserId userId: Long,
