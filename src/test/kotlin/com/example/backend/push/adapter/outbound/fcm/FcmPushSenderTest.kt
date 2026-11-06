@@ -28,9 +28,8 @@ class FcmPushSenderTest {
     private val meterRegistry = SimpleMeterRegistry()
 
     @Test
-    fun `등록 해제와 발신자 불일치 오류를 무효 토큰으로 분류한다`() {
+    fun `등록 해제 오류만 무효 토큰으로 분류한다`() {
         assertTrue(isInvalidToken(MessagingErrorCode.UNREGISTERED))
-        assertTrue(isInvalidToken(MessagingErrorCode.SENDER_ID_MISMATCH))
     }
 
     @Test
@@ -42,6 +41,8 @@ class FcmPushSenderTest {
                 MessagingErrorCode.QUOTA_EXCEEDED,
                 MessagingErrorCode.INVALID_ARGUMENT,
                 MessagingErrorCode.THIRD_PARTY_AUTH_ERROR,
+                // 서버 키 설정 문제라 토큰을 지우면 안 된다.
+                MessagingErrorCode.SENDER_ID_MISMATCH,
                 null,
             )
         for (code in codes) {
@@ -110,7 +111,7 @@ class FcmPushSenderTest {
                 ),
             )
 
-        assertEquals(PushSendResult(1, listOf("unregistered", "mismatch"), 3), result)
+        assertEquals(PushSendResult(1, listOf("unregistered"), 4), result)
     }
 
     @Test
@@ -129,6 +130,100 @@ class FcmPushSenderTest {
             }
 
         assertSame(failure, thrown)
+    }
+
+    @Test
+    fun `일시 오류와 코드 없는 오류만 재시도 가능으로 본다`() {
+        for (code in listOf(
+            MessagingErrorCode.UNAVAILABLE,
+            MessagingErrorCode.INTERNAL,
+            MessagingErrorCode.QUOTA_EXCEEDED,
+            null,
+        )) {
+            assertTrue(isRetryable(code), "code=$code")
+        }
+        for (
+        code in listOf(
+            MessagingErrorCode.INVALID_ARGUMENT,
+            MessagingErrorCode.THIRD_PARTY_AUTH_ERROR,
+            MessagingErrorCode.SENDER_ID_MISMATCH,
+            MessagingErrorCode.UNREGISTERED,
+        )
+        ) {
+            assertFalse(isRetryable(code), "code=$code")
+        }
+    }
+
+    @Test
+    fun `아무도 받지 못하고 실패가 모두 일시 오류면 재전송을 위해 예외를 던진다`() {
+        val fcmPushSender =
+            senderReturning(
+                0,
+                failedResponse(MessagingErrorCode.UNAVAILABLE),
+                failedResponse(MessagingErrorCode.INTERNAL),
+                failedResponse(null),
+            )
+
+        assertThrows(IllegalStateException::class.java) {
+            fcmPushSender.send(PushMessage(listOf("t1", "t2", "t3"), "제목", "본문"))
+        }
+    }
+
+    @Test
+    fun `무효 토큰을 뺀 나머지가 모두 일시 오류여도 예외를 던진다`() {
+        val fcmPushSender =
+            senderReturning(
+                0,
+                failedResponse(MessagingErrorCode.UNREGISTERED),
+                failedResponse(MessagingErrorCode.UNAVAILABLE),
+            )
+
+        assertThrows(IllegalStateException::class.java) {
+            fcmPushSender.send(PushMessage(listOf("gone", "t2"), "제목", "본문"))
+        }
+    }
+
+    @Test
+    fun `한 명이라도 받았으면 일시 오류가 있어도 중복 발송을 피해 결과만 돌려준다`() {
+        val success = mock(SendResponse::class.java)
+        `when`(success.isSuccessful).thenReturn(true)
+        val fcmPushSender = senderReturning(1, success, failedResponse(MessagingErrorCode.UNAVAILABLE))
+
+        val result = fcmPushSender.send(PushMessage(listOf("ok", "t2"), "제목", "본문"))
+
+        assertEquals(PushSendResult(1, emptyList(), 1), result)
+    }
+
+    @Test
+    fun `재시도해도 소용없는 실패가 섞여 있으면 예외 없이 결과만 돌려준다`() {
+        val fcmPushSender =
+            senderReturning(
+                0,
+                failedResponse(MessagingErrorCode.UNAVAILABLE),
+                failedResponse(MessagingErrorCode.INVALID_ARGUMENT),
+            )
+
+        val result = fcmPushSender.send(PushMessage(listOf("t1", "t2"), "제목", "본문"))
+
+        assertEquals(PushSendResult(0, emptyList(), 2), result)
+    }
+
+    private fun senderReturning(
+        successCount: Int,
+        vararg responses: SendResponse,
+    ): FcmPushSender {
+        val firebaseMessaging = mock(FirebaseMessaging::class.java)
+        val beanFactory = DefaultListableBeanFactory()
+        beanFactory.registerSingleton("firebaseMessaging", firebaseMessaging)
+        val batchResponse = mock(BatchResponse::class.java)
+        `when`(batchResponse.successCount).thenReturn(successCount)
+        `when`(batchResponse.responses).thenReturn(responses.toList())
+        `when`(firebaseMessaging.sendEachForMulticast(any(MulticastMessage::class.java))).thenReturn(batchResponse)
+        return FcmPushSender(
+            beanFactory.getBeanProvider(FirebaseMessaging::class.java),
+            PushProperties(),
+            meterRegistry,
+        )
     }
 
     private fun failedResponse(code: MessagingErrorCode?): SendResponse {
