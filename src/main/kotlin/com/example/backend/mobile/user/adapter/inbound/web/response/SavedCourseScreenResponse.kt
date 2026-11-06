@@ -100,6 +100,7 @@ data class SavedCourseScreenResponse(
                             coverImageUrl = image("photo-1509042239860-f550ce710b93"),
                             area = "성수",
                             theme = "SHOPPING",
+                            themes = listOf("SHOPPING"),
                             placeCount = 3,
                             durationText = "약 15분",
                             author = AUTHOR_SEOUL,
@@ -152,6 +153,7 @@ data class SavedCourseScreenResponse(
                             coverImageUrl = image("photo-1445116572660-236099ec97a0"),
                             area = "성수",
                             theme = "CAFETOUR",
+                            themes = listOf("CAFETOUR"),
                             placeCount = 4,
                             durationText = "약 21분",
                             author = AUTHOR_JIHO,
@@ -214,6 +216,7 @@ data class SavedCourseScreenResponse(
                             coverImageUrl = image("photo-1528605248644-14dd04022da1"),
                             area = "연남",
                             theme = "FOOD",
+                            themes = listOf("FOOD"),
                             placeCount = 5,
                             durationText = "약 26분",
                             author = AUTHOR_SEOUL,
@@ -286,6 +289,7 @@ data class SavedCourseScreenResponse(
                             coverImageUrl = image("photo-1554118811-1e0d58224f24"),
                             area = "한남",
                             theme = "CULTURE",
+                            themes = listOf("CULTURE"),
                             placeCount = 3,
                             durationText = "약 17분",
                             author = AUTHOR_HYUNWOO,
@@ -405,7 +409,8 @@ data class SavedCourseScreenResponse(
                         title = course.title,
                         coverImageUrl = course.coverImageUrl.ifBlank { null },
                         area = course.area,
-                        theme = course.theme,
+                        theme = course.themes.firstOrNull(),
+                        themes = course.themes,
                         placeCount = resolvedPlaces.size,
                         durationText = durationText(walkingMinutes),
                         author =
@@ -459,6 +464,7 @@ data class SavedCourseSummaryResponse(
     // 카드 배지 "성수 · 데이트" — 지역·테마. 코스에 값이 없으면 null(클라이언트가 해당 배지 생략).
     val area: String?,
     val theme: String?,
+    val themes: List<String>,
     // "장소 4곳"
     val placeCount: Int,
     // 소요 시간 표시 텍스트(예: "약 3시간") — 코스 장소 간 도보 시간 합으로 계산. 도보 정보가 없으면 null.

@@ -184,7 +184,7 @@ data class CourseScreenResponse(
     val title: String,
     val coverImageUrl: String,
     val themes: List<String>,
-    /** 작성자가 단 해시태그. [themes](카테고리 단일값)와 별개이며, 순서는 보장하지 않고 없으면 빈 배열. */
+    /** 작성자가 단 해시태그. [themes](카테고리)와 별개이며, 순서는 보장하지 않고 없으면 빈 배열. */
     val tags: List<String>,
     val description: String,
     val stats: CourseStatsResponse,
@@ -203,7 +203,7 @@ data class CourseScreenResponse(
                 id = course.id.toString(),
                 title = course.title,
                 coverImageUrl = course.coverImageUrl,
-                themes = course.theme?.let { listOf(it) } ?: emptyList(),
+                themes = course.themes,
                 tags = course.tags,
                 description = course.description,
                 stats = CourseStatsResponse.from(course),

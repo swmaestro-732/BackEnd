@@ -97,7 +97,7 @@ class CourseSearchSyncListenerTest {
             title = "코스 $id",
             description = null,
             coverImageUrl = null,
-            category = null,
+            categories = emptyList(),
             area = null,
             areaCode = null,
             visitDate = null,
