@@ -155,5 +155,6 @@ class PlaceQueryService(
             areaCode = areaCode,
             rating = averageRating,
             ratingCount = ratingCnt,
+            categoryDetail = categoryDetail,
         )
 }

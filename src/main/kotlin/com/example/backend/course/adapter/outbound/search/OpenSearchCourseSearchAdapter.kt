@@ -162,7 +162,7 @@ class OpenSearchCourseSearchAdapter(
             authorId = userId.toLong(),
             title = title,
             coverImageUrl = coverImageUrl,
-            theme = category,
+            themes = category.orEmpty(),
             area = area,
             likesCnt = likesCnt,
             savesCnt = savesCnt,

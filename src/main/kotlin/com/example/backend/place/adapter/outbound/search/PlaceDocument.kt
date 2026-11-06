@@ -9,10 +9,20 @@ data class PlaceDocument(
     val areaCode: String?,
     val location: GeoLocation,
     val status: String,
+    val categoryDetail: String? = null,
 )
 
 /** geo_point 직렬화용 — OpenSearch 는 {lat, lon} 형태를 geo_point 로 받는다. */
 data class GeoLocation(
     val lat: Double,
     val lon: Double,
+)
+
+/** 지도 마커용 _source 투영 — 마커에 쓰는 필드만 받는다. */
+data class PlaceMapSource(
+    val name: String,
+    val category: String,
+    val location: GeoLocation,
+    // 필드 추가 전 색인된 문서·상세 분류 없는 장소는 null.
+    val categoryDetail: String? = null,
 )

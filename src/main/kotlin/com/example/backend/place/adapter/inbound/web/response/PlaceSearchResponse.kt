@@ -21,6 +21,7 @@ data class PlaceSearchResponse(
         val name: String,
         val imageUrl: String?,
         val categories: List<String>,
+        val address: String,
         val averageRating: Double,
         // 리뷰순(REVIEW) 정렬 기준값. 카드에 직접 노출되진 않지만 정렬 근거로 내려준다.
         val reviewCount: Int,
@@ -28,6 +29,8 @@ data class PlaceSearchResponse(
         val walkingMinutes: Int?,
         val location: Location,
         val hasSaved: Boolean,
+        // 카카오 상세 분류 원문(예: "제과,베이커리") — 클라이언트 아이콘 매핑용, 없으면 null.
+        val categoryDetail: String? = null,
     )
 
     data class Location(
@@ -59,11 +62,13 @@ data class PlaceSearchResponse(
                 name = name,
                 imageUrl = imageUrl,
                 categories = listOf(category),
+                address = address,
                 averageRating = 0.0,
                 reviewCount = 0,
                 walkingMinutes = null,
                 location = Location(latitude, longitude),
                 hasSaved = false,
+                categoryDetail = categoryDetail,
             )
 
         /**
@@ -79,6 +84,7 @@ data class PlaceSearchResponse(
                         name = "어니언 성수",
                         imageUrl = image("photo-1517433670267-08bbd4be890f"),
                         categories = listOf("카페", "베이커리"),
+                        address = "서울 성동구 아차산로9길 8",
                         averageRating = 4.8,
                         reviewCount = 1240,
                         walkingMinutes = 6,
@@ -90,6 +96,7 @@ data class PlaceSearchResponse(
                         name = "콤포트 성수",
                         imageUrl = image("photo-1495474472287-4d71bcdd2085"),
                         categories = listOf("카페", "브런치"),
+                        address = "서울 성동구 성수이로 66",
                         averageRating = 4.6,
                         reviewCount = 430,
                         walkingMinutes = 5,
@@ -101,6 +108,7 @@ data class PlaceSearchResponse(
                         name = "아우어베이커리 성수",
                         imageUrl = image("photo-1521017432531-fbd92d768814"),
                         categories = listOf("카페", "디저트"),
+                        address = "서울 성동구 연무장길 7",
                         averageRating = 4.5,
                         reviewCount = 205,
                         walkingMinutes = 8,
@@ -112,6 +120,7 @@ data class PlaceSearchResponse(
                         name = "대림창고 카페",
                         imageUrl = image("photo-1509042239860-f550ce710b93"),
                         categories = listOf("카페", "전시"),
+                        address = "서울 성동구 성수이로 78",
                         averageRating = 4.6,
                         reviewCount = 320,
                         walkingMinutes = 9,
@@ -123,6 +132,7 @@ data class PlaceSearchResponse(
                         name = "센터커피 성수",
                         imageUrl = image("photo-1442512595331-e89e73853f31"),
                         categories = listOf("카페", "로스터리"),
+                        address = "서울 성동구 성수이로 70",
                         averageRating = 4.7,
                         reviewCount = 512,
                         walkingMinutes = 12,
@@ -134,6 +144,7 @@ data class PlaceSearchResponse(
                         name = "대성정미소 카페",
                         imageUrl = image("photo-1445116572660-236099ec97a0"),
                         categories = listOf("카페", "전시"),
+                        address = "서울 성동구 성수이로 98",
                         averageRating = 4.4,
                         reviewCount = 88,
                         walkingMinutes = 14,

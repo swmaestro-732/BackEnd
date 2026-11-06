@@ -7,6 +7,7 @@ data class CourseCommentResult(
     val authorId: Long,
     val authorNickname: String,
     val authorProfileImageUrl: String?,
+    val authorHandle: String?,
     val content: String,
     val createdAt: Instant,
     val updatedAt: Instant,

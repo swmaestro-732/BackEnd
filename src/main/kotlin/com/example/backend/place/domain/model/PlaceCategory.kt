@@ -14,4 +14,5 @@ enum class PlaceCategory {
     LANDMARK,
     ENTERTAINMENT,
     WELLNESS,
+    ETC,
 }

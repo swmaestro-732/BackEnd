@@ -30,6 +30,7 @@ data class PlaceDetailScreenResponse(
                         openingHoursText = result.openingHoursText,
                         reviewSummary = PlaceReviewSummaryResponse.from(result.reviewSummary),
                         viewer = PlaceViewerResponse(hasSaved = false),
+                        categoryDetail = result.categoryDetail,
                     ),
                 nearbyCourses = emptyList(),
             )
@@ -134,6 +135,8 @@ data class PlaceScreenResponse(
     val openingHoursText: String?,
     val reviewSummary: PlaceReviewSummaryResponse,
     val viewer: PlaceViewerResponse,
+    // 카카오 상세 분류 원문(예: "제과,베이커리") — 클라이언트 아이콘 매핑용, 없으면 null.
+    val categoryDetail: String? = null,
 )
 
 data class PlaceLocationResponse(

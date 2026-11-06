@@ -40,6 +40,7 @@ class HomeNearbyPlaceAdapterTest {
         assertEquals("CAFE", result.first().category)
         assertEquals(4.8, result.first().rating)
         assertEquals(212, result.first().ratingCount)
+        assertEquals("카페", result.first().categoryDetail)
         verify(search).nearestSaved(7, origin, 2010.0, 2)
         verifyNoMoreInteractions(search)
     }
@@ -57,5 +58,6 @@ class HomeNearbyPlaceAdapterTest {
         imageUrl = "https://img/$placeId.jpg",
         rating = 4.8,
         ratingCount = 212,
+        categoryDetail = "카페",
     )
 }

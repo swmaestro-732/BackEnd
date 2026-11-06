@@ -20,4 +20,5 @@ data class SavedPlaceIndexDocument(
     val imageUrl: String?,
     val rating: Double,
     val ratingCount: Int,
+    val categoryDetail: String? = null,
 )
