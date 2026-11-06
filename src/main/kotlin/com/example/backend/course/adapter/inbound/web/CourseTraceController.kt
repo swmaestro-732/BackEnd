@@ -5,6 +5,7 @@ import com.example.backend.bootstrap.appversion.RequiresAppFeature
 import com.example.backend.bootstrap.security.AccessTokenRequired
 import com.example.backend.bootstrap.security.CurrentUserId
 import com.example.backend.common.response.ApiResponse
+import com.example.backend.course.adapter.inbound.web.request.ChangeCourseTraceRouteRequest
 import com.example.backend.course.adapter.inbound.web.request.CheckInPlaceRequest
 import com.example.backend.course.adapter.inbound.web.request.EndCourseTraceRequest
 import com.example.backend.course.adapter.inbound.web.request.StartCourseTraceRequest
@@ -21,6 +22,7 @@ import jakarta.validation.Valid
 import jakarta.validation.constraints.Max
 import jakarta.validation.constraints.Min
 import org.springframework.web.bind.annotation.GetMapping
+import org.springframework.web.bind.annotation.PatchMapping
 import org.springframework.web.bind.annotation.PathVariable
 import org.springframework.web.bind.annotation.PostMapping
 import org.springframework.web.bind.annotation.RequestBody
@@ -30,7 +32,7 @@ import org.springframework.web.bind.annotation.RestController
 /**
  * 인바운드 어댑터 — 코스 따라가기. 노션 API 명세서 Course › course-track 기준.
  * 시작은 코스 아래(`/courses/{courseId}/traces`), 그 뒤 체크인·종료는 세션 id 로(`/traces/{traceId}/...`) 다룬다.
- * 시작 V2 는 따라갈 장소 목록을 받아 코스 루트를 수정해 따라갈 수 있다.
+ * 시작 V2 는 따라갈 장소 목록을 받아 코스 루트를 수정해 따라갈 수 있고, 따라가는 중에도 루트를 바꿀 수 있다(`PATCH /traces/{traceId}/places`).
  * 내 완주 목록(`/my/traces`)은 커서 페이지다. 따라가는 중인 코스는 사용자당 하나이며 홈 응답으로 내려간다.
  * 경로 조회(`/traces/route?fromPlaceId&toPlaceId`)는 세션에 묶지 않는다 — 따라가는 중 코스 밖 장소를 끼워 넣어도 쓸 수 있게.
  * `/api` 하위는 permitAll 이라 access 토큰을 직접 강제한다.
@@ -98,6 +100,18 @@ class CourseTraceController(
             ),
         )
         return ApiResponse.ok("장소를 방문 처리했습니다.")
+    }
+
+    /** 따라가는 중 루트 변경 — 앞으로 갈 장소(`placeIds`, 순서대로)만 받는다. 체크인한 장소는 그대로 두고 그 뒤를 바꾼다. */
+    @PatchMapping("/api/v1/traces/{traceId}/places")
+    @AccessTokenRequired
+    fun changeRoute(
+        @CurrentUserId userId: Long,
+        @PathVariable traceId: Long,
+        @Valid @RequestBody request: ChangeCourseTraceRouteRequest,
+    ): ApiResponse<Nothing?> {
+        courseTraceUseCase.changeRoute(userId, traceId, request.placeIds)
+        return ApiResponse.ok("따라가는 루트를 변경했습니다.")
     }
 
     /** 다음 장소까지 도보 경로 — 출발·도착 장소 id 를 받아 Tmap 보행자 경로(거리·시간·폴리라인·안내)를 내려준다. */

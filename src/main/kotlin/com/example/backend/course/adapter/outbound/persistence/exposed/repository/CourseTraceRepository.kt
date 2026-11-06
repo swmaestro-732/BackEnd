@@ -82,6 +82,31 @@ class CourseTraceRepository {
         }
     }
 
+    /** PLANNED 행을 지우고, VISITED 행의 order_no 를 체크인 순으로 다시 매긴 뒤 그 뒤에 [placeIds] 를 PLANNED 로 넣는다. */
+    fun replaceRemainingRoutePlaces(
+        traceId: Long,
+        placeIds: List<Long>,
+    ) {
+        CourseTracePlaceTable.deleteWhere {
+            (tracingCourseId eq traceId) and (status eq CourseTracePlaceStatus.PLANNED)
+        }
+        val visitedRowIds =
+            CourseTracePlaceTable
+                .select(CourseTracePlaceTable.id)
+                .where { CourseTracePlaceTable.tracingCourseId eq traceId }
+                .orderBy(CourseTracePlaceTable.visitedAt to SortOrder.ASC, CourseTracePlaceTable.id to SortOrder.ASC)
+                .map { it[CourseTracePlaceTable.id] }
+        visitedRowIds.forEachIndexed { index, rowId ->
+            CourseTracePlaceTable.update({ CourseTracePlaceTable.id eq rowId }) { it[orderNo] = index.toShort() }
+        }
+        CourseTracePlaceTable.batchInsert(placeIds.withIndex()) { (index, placeId) ->
+            this[CourseTracePlaceTable.tracingCourseId] = traceId
+            this[CourseTracePlaceTable.placeId] = placeId
+            this[CourseTracePlaceTable.status] = CourseTracePlaceStatus.PLANNED
+            this[CourseTracePlaceTable.orderNo] = (visitedRowIds.size + index).toShort()
+        }
+    }
+
     /** 세션 루트의 장소 id 를 순서대로(방문 여부 무관) — 루트 없이 시작한 세션은 빈 목록. */
     fun findRoutePlaceIds(traceId: Long): List<Long> =
         CourseTracePlaceTable

@@ -40,6 +40,12 @@ interface CourseTracePersistencePort {
         placeIds: List<Long>,
     )
 
+    /** 세션 루트의 방문 전 장소를 [placeIds] 로 바꾼다 — 체크인한 장소는 체크인 순으로 앞에 두고 그 뒤에 잇는다. [placeIds] 에 체크인한 장소가 없는지는 호출부가 검사한다. */
+    fun replaceRemainingRoutePlaces(
+        traceId: Long,
+        placeIds: List<Long>,
+    )
+
     /** 세션 루트의 장소 id 를 순서대로(방문 여부 무관). 루트 없이 시작한 세션(코스 장소 그대로 따라가기)은 빈 목록. */
     fun findRoutePlaceIds(traceId: Long): List<Long>
 

@@ -35,7 +35,7 @@ import org.springframework.transaction.annotation.Transactional
 import java.time.Instant
 
 /**
- * 코스 따라가기 유스케이스 — 시작(IN_PROGRESS 세션 생성 또는 이어가기, 루트 수정 가능)·장소 체크인·다음 장소 도보 경로·종료(COMPLETED + tracings_cnt 원자적 +1)·
+ * 코스 따라가기 유스케이스 — 시작(IN_PROGRESS 세션 생성 또는 이어가기, 루트 수정 가능)·루트 변경·장소 체크인·다음 장소 도보 경로·종료(COMPLETED + tracings_cnt 원자적 +1)·
  * 내 완주 목록(커서 페이지)·완주 조회. 진행 중 세션은 사용자당 하나다.
  * 열람 권한 검사는 CourseLikeService 와 동일하다.
  */
@@ -74,12 +74,7 @@ class CourseTraceService(
         ) {
             throw BusinessException(CourseErrorCode.COURSE_NOT_FOUND, "따라가기를 시작할 코스를 찾을 수 없습니다: courseId=$courseId")
         }
-        routePlaceIds?.let {
-            if (it.distinct().size != it.size) {
-                throw BusinessException(CommonErrorCode.INVALID_INPUT, "따라갈 장소가 중복되었습니다: placeIds=$it")
-            }
-            requirePlacesInOrder(it)
-        }
+        routePlaceIds?.let { requireRoutePlaces(it) }
 
         // 진행 중 세션이 있으면 이어간다. 없으면 만들되, 동시 시작으로 삽입이 무시되면(부분 유니크) 그 사이 생긴 세션을 다시 읽는다.
         val trace =
@@ -157,6 +152,28 @@ class CourseTraceService(
         val trace = ownedInProgress(command.userId, command.traceId)
         requirePlacesInTrace(trace, listOf(command.placeId))
         courseTracePersistencePort.insertVisitedPlace(trace.id, command.placeId, command.visitedAt)
+    }
+
+    @Transactional
+    override fun changeRoute(
+        userId: Long,
+        traceId: Long,
+        placeIds: List<Long>,
+    ) {
+        val trace = ownedInProgress(userId, traceId)
+        requireRoutePlaces(placeIds)
+        val visitedPlaceIds = courseTracePersistencePort.findVisitedPlaces(trace.id).map { it.placeId }
+        val revisits = placeIds.filter { it in visitedPlaceIds }
+        if (revisits.isNotEmpty()) {
+            throw BusinessException(
+                CommonErrorCode.INVALID_INPUT,
+                "이미 체크인한 장소입니다: traceId=${trace.id}, placeIds=$revisits",
+            )
+        }
+        if (visitedPlaceIds.isEmpty() && placeIds.isEmpty()) {
+            throw BusinessException(CommonErrorCode.INVALID_INPUT, "따라갈 장소가 없습니다: traceId=${trace.id}")
+        }
+        courseTracePersistencePort.replaceRemainingRoutePlaces(trace.id, placeIds)
     }
 
     @Transactional
@@ -251,6 +268,14 @@ class CourseTraceService(
                 "따라가는 장소가 아닙니다: traceId=${trace.id}, courseId=${trace.courseId}, placeIds=$outsiders",
             )
         }
+    }
+
+    /** 루트는 같은 장소를 두 번 담을 수 없고(400) 전부 있는 장소여야 한다(404). */
+    private fun requireRoutePlaces(placeIds: List<Long>) {
+        if (placeIds.distinct().size != placeIds.size) {
+            throw BusinessException(CommonErrorCode.INVALID_INPUT, "따라갈 장소가 중복되었습니다: placeIds=$placeIds")
+        }
+        requirePlacesInOrder(placeIds)
     }
 
     /** 세션이 따라가는 장소 id(순서대로) — 수정한 루트가 있으면 그 루트, 없으면 코스 장소. */
