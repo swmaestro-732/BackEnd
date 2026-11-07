@@ -25,6 +25,7 @@ import java.time.ZoneOffset
 class MarketingPushServiceTest {
     private var tokens = listOf("token-1", "token-2")
     private var enqueuedCount: Int? = null
+    private var recipientFailure: RuntimeException? = null
     private val requestedNights = mutableListOf<Boolean>()
     private val savedCampaigns = mutableListOf<Pair<PushCampaign, Instant>>()
     private val enqueuedCounts = mutableMapOf<Long, Int>()
@@ -36,6 +37,7 @@ class MarketingPushServiceTest {
         object : MarketingRecipientPort {
             override fun findTokens(night: Boolean): List<String> {
                 requestedNights.add(night)
+                recipientFailure?.let { throw it }
                 return tokens
             }
         }
@@ -64,6 +66,10 @@ class MarketingPushServiceTest {
             ) {
                 recipientCounts[id] = recipientCount
                 enqueuedCounts[id] = enqueuedCount
+            }
+
+            override fun delete(id: Long) {
+                savedCampaigns.removeAt((id - 1).toInt())
             }
         }
 
@@ -177,6 +183,21 @@ class MarketingPushServiceTest {
 
         assertEquals(PushErrorCode.DUPLICATE_MARKETING_PUSH, exception.errorCode)
         assertEquals(409, exception.errorCode.status)
+        assertEquals(1, requestedMessages.size)
+    }
+
+    @Test
+    fun `대상 조회가 실패하면 이력을 지우고 예외를 그대로 던져 바로 다시 보낼 수 있게 한다`() {
+        val failure = IllegalStateException("DB 오류")
+        recipientFailure = failure
+
+        val thrown = assertThrows(IllegalStateException::class.java) { send() }
+
+        assertEquals(failure, thrown)
+        assertTrue(savedCampaigns.isEmpty())
+        assertTrue(requestedMessages.isEmpty())
+        recipientFailure = null
+        send()
         assertEquals(1, requestedMessages.size)
     }
 

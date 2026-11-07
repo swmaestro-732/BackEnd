@@ -42,6 +42,16 @@ class PushCampaignPersistenceTest
         }
 
         @Test
+        fun `지운 기록은 중복 확인에 걸리지 않는다`() {
+            val since = Instant.now().minus(Duration.ofMinutes(10))
+            val id = checkNotNull(pushCampaignPersistencePort.saveUnlessRecent(campaign(), since))
+
+            pushCampaignPersistencePort.delete(id)
+
+            assertNotNull(pushCampaignPersistencePort.saveUnlessRecent(campaign(), since))
+        }
+
+        @Test
         fun `since 이후 같은 어드민, 제목, 본문 기록이 있으면 저장하지 않고 null 이다`() {
             val since = Instant.now().minus(Duration.ofMinutes(10))
             val id = checkNotNull(pushCampaignPersistencePort.saveUnlessRecent(campaign(), since))

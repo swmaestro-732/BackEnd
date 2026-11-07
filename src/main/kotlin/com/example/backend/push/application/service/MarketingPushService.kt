@@ -67,7 +67,14 @@ class MarketingPushService(
             ) ?: throw BusinessException(PushErrorCode.DUPLICATE_MARKETING_PUSH)
         // ponytail: 대상 토큰 전체를 메모리에 올리고 요청 스레드에서 SQS 로 순차 발행한다.
         // 동의 기기가 10만 대 안팎이 되면 키셋 페이징 조회와 비동기 발행으로 바꾼다.
-        val tokens = marketingRecipientPort.findTokens(night)
+        // 대상 조회가 실패하면 아직 아무것도 나가지 않았으므로 이력을 지워, 재시도가 중복으로 막히지 않게 한다.
+        val tokens =
+            try {
+                marketingRecipientPort.findTokens(night)
+            } catch (e: RuntimeException) {
+                pushCampaignPersistencePort.delete(campaignId)
+                throw e
+            }
         val enqueuedCount = if (tokens.isEmpty()) 0 else pushUseCase.request(message.copy(tokens = tokens))
         pushCampaignPersistencePort.updateCounts(campaignId, tokens.size, enqueuedCount)
         if (tokens.isNotEmpty() && enqueuedCount == 0) {

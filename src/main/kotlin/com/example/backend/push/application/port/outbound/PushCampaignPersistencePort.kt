@@ -28,4 +28,7 @@ interface PushCampaignPersistencePort {
         recipientCount: Int,
         enqueuedCount: Int,
     )
+
+    /** 아무것도 발행하기 전에 실패한 기록을 지워 같은 문구로 바로 다시 보낼 수 있게 한다. */
+    fun delete(id: Long)
 }
