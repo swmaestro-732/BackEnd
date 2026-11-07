@@ -66,7 +66,7 @@ class AdminAuthControllerTest
                     .andExpect(jsonPath("$.data.result").value("LOGGED_IN"))
                     .andExpect(jsonPath("$.data.email").value("admin@example.com"))
                     .andExpect(jsonPath("$.data.expiresAt").isNotEmpty)
-                    .andExpect(jsonPath("$.data.googleSub").isEmpty)
+                    .andExpect(jsonPath("$.data.googleSub").doesNotExist())
                     .andReturn()
                     .response.contentAsString
             val accessToken: String = JsonPath.read(body, "$.data.accessToken")
@@ -89,8 +89,8 @@ class AdminAuthControllerTest
                 .andExpect(jsonPath("$.data.result").value("REGISTRATION_REQUIRED"))
                 .andExpect(jsonPath("$.data.email").value("admin@example.com"))
                 .andExpect(jsonPath("$.data.googleSub").value("previous-owner-sub"))
-                .andExpect(jsonPath("$.data.accessToken").isEmpty)
-                .andExpect(jsonPath("$.data.expiresAt").isEmpty)
+                .andExpect(jsonPath("$.data.accessToken").doesNotExist())
+                .andExpect(jsonPath("$.data.expiresAt").doesNotExist())
         }
 
         @Test
@@ -105,7 +105,7 @@ class AdminAuthControllerTest
                 .andExpect(jsonPath("$.data.result").value("REGISTRATION_REQUIRED"))
                 .andExpect(jsonPath("$.data.email").value("someone@example.com"))
                 .andExpect(jsonPath("$.data.googleSub").value("other-sub"))
-                .andExpect(jsonPath("$.data.accessToken").isEmpty)
+                .andExpect(jsonPath("$.data.accessToken").doesNotExist())
         }
 
         @Test
