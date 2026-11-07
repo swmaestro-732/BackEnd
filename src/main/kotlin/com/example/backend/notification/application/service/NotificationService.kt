@@ -47,8 +47,7 @@ class NotificationService(
         // 행동자와 받는 사람의 사용자 행을 잠가 탈퇴와 직렬화한다. 둘 중 하나라도 이미 탈퇴했으면 기록하지 않는다.
         val participants = listOf(activity.actorId, recipientId)
         if (!notificationActorLookupPort.lockActive(participants).containsAll(participants)) return
-        val actorNickname =
-            if (activity.type.showsActor) notificationActorLookupPort.findNickname(activity.actorId) ?: return else null
+        val actorNickname = notificationActorLookupPort.findNickname(activity.actorId) ?: return
         notificationPersistencePort.upsert(
             NotificationBundle(
                 userId = recipientId,
@@ -74,16 +73,15 @@ class NotificationService(
     override fun retract(activity: RecordNotificationCommand) {
         // 팔로우 묶음은 받는 사람(targetId)마다 있으므로 받는 사람까지 맞춘다. 코스 묶음은 작성자 한 명만 받는다.
         val recipientId = if (activity.type.targetType == NotificationTargetType.USER) activity.targetId else null
-        val newLastActors =
+        val lastActorByBundle =
             notificationPersistencePort.removeActor(
                 activity.actorId,
                 activity.type,
                 bundleTargetId(activity),
                 recipientId,
             )
-        if (!activity.type.showsActor) return
         // 마지막 행동자가 바뀐 묶음은 닉네임 스냅샷도 남은 사람으로 맞춘다. 남은 사람을 못 찾으면(막 탈퇴) 비워 철회한 사람 닉네임을 남기지 않는다.
-        newLastActors.forEach { (id, actorId) ->
+        lastActorByBundle.forEach { (id, actorId) ->
             notificationPersistencePort.updateActorNickname(id, notificationActorLookupPort.findNickname(actorId))
         }
     }

@@ -136,18 +136,12 @@ class NotificationRepository {
         }
 
     /**
-     * 받은 알림과 닉네임 스냅샷을 남긴 묶음(마지막 행동자가 [userId] 이고 행동자를 보이는 종류)을 지운다.
-     * 남는 묶음(좋아요 등)에서는 [userId] 의 행동자 행을 지우고 인원을 남은 사람 수로 맞추며, 마지막 행동자가
-     * [userId] 였으면 남은 행동자 중 id 가 가장 큰 사람으로 바꿔 탈퇴자 id 가 남의 알림함에 남지 않게 한다.
-     * 남은 행동자가 없으면 묶음을 지운다.
+     * 받은 알림과 닉네임 스냅샷을 남긴 묶음(마지막 행동자가 [userId])을 지운다.
+     * 남는 묶음에서는 [userId] 의 행동자 행을 지우고 인원을 남은 사람 수로 맞추며, 남은 행동자가 없으면 묶음을 지운다.
      */
     fun deleteAllInvolving(userId: Long) {
         NotificationTable.deleteWhere {
-            (NotificationTable.userId eq userId) or
-                (
-                    (NotificationTable.lastActorId eq userId) and
-                        (NotificationTable.type inList NotificationType.entries.filter { it.showsActor })
-                )
+            (NotificationTable.userId eq userId) or (NotificationTable.lastActorId eq userId)
         }
         detachActor(userId, null)
     }

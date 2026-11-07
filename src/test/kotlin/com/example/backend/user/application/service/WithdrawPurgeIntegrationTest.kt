@@ -127,13 +127,13 @@ class WithdrawPurgeIntegrationTest
             assertEquals(0L, count("SELECT count(*) FROM tracing_courses WHERE user_id = 1"))
             assertEquals(0L, count("SELECT count(*) FROM tracing_course_places"))
 
-            // 알림: A 가 받은 알림, A 닉네임 스냅샷이 남은 댓글 묶음, A 의 수신 설정이 사라지고 무관한 알림은 남는다.
-            // 좋아요 묶음은 A 를 행동자에서 빼고 남은 사람 기준으로 인원과 마지막 행동자를 맞춘다. A 만 있던 묶음은 지운다.
+            // 알림: A 가 받은 알림, A 닉네임 스냅샷이 남은 묶음(A 가 마지막 행동자인 좋아요, 댓글), A 의 수신 설정이 사라지고
+            // 무관한 알림은 남는다. A 가 마지막이 아닌 좋아요 묶음은 A 를 행동자에서 빼고 인원을 남은 사람 수로 맞춘다.
             assertEquals(0L, count("SELECT count(*) FROM notifications WHERE user_id = 1"))
             assertEquals(0L, count("SELECT count(*) FROM notifications WHERE last_actor_id = 1"))
-            assertEquals(0L, count("SELECT count(*) FROM notifications WHERE id IN (4, 5)"))
+            assertEquals(0L, count("SELECT count(*) FROM notifications WHERE id IN (2, 4, 5)"))
             assertEquals(
-                listOf(listOf(2L, 2L, 1L), listOf(6L, 2L, 1L)),
+                listOf(listOf(6L, 2L, 1L)),
                 jdbc
                     .queryForList(
                         "SELECT id, last_actor_id, actor_count FROM notifications WHERE user_id = 3 ORDER BY id",
@@ -143,7 +143,7 @@ class WithdrawPurgeIntegrationTest
             )
             assertEquals(0L, count("SELECT count(*) FROM notification_actors WHERE actor_id = 1"))
             assertEquals(
-                listOf(2L, 6L),
+                listOf(6L),
                 jdbc.queryForList(
                     "SELECT notification_id FROM notification_actors " +
                         "WHERE actor_id = 2 AND notification_id IN (2, 6) ORDER BY notification_id",

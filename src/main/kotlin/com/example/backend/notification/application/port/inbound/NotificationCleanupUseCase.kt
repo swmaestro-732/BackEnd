@@ -6,8 +6,8 @@ package com.example.backend.notification.application.port.inbound
  */
 interface NotificationCleanupUseCase {
     /**
-     * 받은 알림, 마지막 행위자가 이 사용자인 닉네임 스냅샷 알림(댓글, 리뷰, 팔로우), 수신 설정을 지운다.
-     * 남는 묶음(좋아요 등)은 이 사용자를 행동자에서 빼고 인원과 마지막 행동자를 남은 사람 기준으로 맞춘다.
+     * 받은 알림, 마지막 행위자가 이 사용자라 닉네임 스냅샷이 남은 알림, 수신 설정을 지운다.
+     * 남는 묶음은 이 사용자를 행동자에서 빼고 인원을 남은 사람 수로 맞춘다.
      * 같은 user id 로 재가입해도 "처음 계정처럼" 시작하게 한다.
      */
     fun purgeByUser(userId: Long)

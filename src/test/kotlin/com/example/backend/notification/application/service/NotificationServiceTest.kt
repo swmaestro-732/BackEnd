@@ -21,7 +21,6 @@ import org.mockito.Mockito.inOrder
 import org.mockito.Mockito.mock
 import org.mockito.Mockito.verify
 import org.mockito.Mockito.verifyNoInteractions
-import org.mockito.Mockito.verifyNoMoreInteractions
 import org.mockito.Mockito.`when`
 import java.time.Instant
 
@@ -65,7 +64,7 @@ class NotificationServiceTest {
                 targetId = COURSE_ID,
                 windowStart = WINDOW_START,
                 lastActorId = ACTOR_ID,
-                actorNickname = if (type == NotificationType.COURSE_LIKED) null else "산책자",
+                actorNickname = "산책자",
                 courseTitle = "한강 산책",
                 courseImageUrl = COVER_URL,
             ),
@@ -279,18 +278,6 @@ class NotificationServiceTest {
 
         verify(notifications).updateActorNickname(100L, "남은 리뷰어")
         verifyNoInteractions(targets, settings)
-    }
-
-    @Test
-    fun `좋아요 철회는 닉네임을 조회하지 않는다`() {
-        `when`(notifications.removeActor(ACTOR_ID, NotificationType.COURSE_LIKED, COURSE_ID, null))
-            .thenReturn(mapOf(100L to 3L))
-
-        service.retract(command(NotificationType.COURSE_LIKED))
-
-        verify(notifications).removeActor(ACTOR_ID, NotificationType.COURSE_LIKED, COURSE_ID, null)
-        verifyNoMoreInteractions(notifications)
-        verifyNoInteractions(actors)
     }
 
     @Test
