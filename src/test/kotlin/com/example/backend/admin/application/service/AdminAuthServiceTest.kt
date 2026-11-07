@@ -1,6 +1,6 @@
 package com.example.backend.admin.application.service
 
-import com.example.backend.admin.application.port.inbound.AdminNotRegisteredException
+import com.example.backend.admin.application.port.inbound.dto.AdminLogin
 import com.example.backend.admin.application.port.outbound.AdminIdentityPort
 import com.example.backend.admin.application.port.outbound.AdminPersistencePort
 import com.example.backend.admin.application.port.outbound.AdminTokenPort
@@ -10,7 +10,6 @@ import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
-import org.junit.jupiter.api.assertThrows
 import java.time.Instant
 
 class AdminAuthServiceTest {
@@ -49,7 +48,7 @@ class AdminAuthServiceTest {
 
     @Test
     fun `이메일과 구글 sub 가 함께 등록된 계정이면 어드민 토큰과 만료 시각, 이메일을 돌려준다`() {
-        val result = service.login("google-id-token")
+        val result = service.login("google-id-token") as AdminLogin.LoggedIn
 
         assertEquals("admin-token", result.accessToken)
         assertEquals(EXPIRES_AT, result.expiresAt)
@@ -59,23 +58,22 @@ class AdminAuthServiceTest {
     }
 
     @Test
-    fun `등록되지 않은 계정은 본인 이메일과 sub 를 담아 거부하고 토큰을 발급하지 않는다`() {
+    fun `등록되지 않은 계정은 토큰 없이 등록 필요와 본인 이메일, sub 를 돌려준다`() {
         verified = VerifiedGoogleAccount("someone@example.com", "someone-sub")
 
-        val exception = assertThrows<AdminNotRegisteredException> { service.login("google-id-token") }
+        val result = service.login("google-id-token")
 
-        assertEquals("someone@example.com", exception.email)
-        assertEquals("someone-sub", exception.googleSub)
+        assertEquals(AdminLogin.RegistrationRequired("someone@example.com", "someone-sub"), result)
         assertTrue(issuedFor.isEmpty())
     }
 
     @Test
-    fun `같은 이메일이어도 등록한 구글 계정이 아니면 거부한다`() {
+    fun `같은 이메일이어도 등록한 구글 계정이 아니면 토큰 없이 등록 필요를 돌려준다`() {
         verified = VerifiedGoogleAccount(ADMIN_EMAIL, "previous-owner-sub")
 
-        val exception = assertThrows<AdminNotRegisteredException> { service.login("google-id-token") }
+        val result = service.login("google-id-token")
 
-        assertEquals("previous-owner-sub", exception.googleSub)
+        assertEquals(AdminLogin.RegistrationRequired(ADMIN_EMAIL, "previous-owner-sub"), result)
         assertTrue(issuedFor.isEmpty())
     }
 

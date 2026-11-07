@@ -63,8 +63,10 @@ class AdminAuthControllerTest
                     .perform(loginRequest())
                     .andExpect(status().isOk)
                     .andExpect(jsonPath("$.code").value(2000))
+                    .andExpect(jsonPath("$.data.result").value("LOGGED_IN"))
                     .andExpect(jsonPath("$.data.email").value("admin@example.com"))
                     .andExpect(jsonPath("$.data.expiresAt").isNotEmpty)
+                    .andExpect(jsonPath("$.data.googleSub").isEmpty)
                     .andReturn()
                     .response.contentAsString
             val accessToken: String = JsonPath.read(body, "$.data.accessToken")
@@ -76,32 +78,34 @@ class AdminAuthControllerTest
         }
 
         @Test
-        fun `같은 이메일이어도 등록한 구글 계정이 아니면 403 4032 와 본인 sub 를 돌려준다`() {
+        fun `같은 이메일이어도 등록한 구글 계정이 아니면 토큰 없이 등록 필요와 본인 sub 를 돌려준다`() {
             `when`(adminIdentityPort.verifyGoogle("google-id-token"))
                 .thenReturn(VerifiedGoogleAccount("admin@example.com", "previous-owner-sub"))
 
             mockMvc
                 .perform(loginRequest())
-                .andExpect(status().isForbidden)
-                .andExpect(jsonPath("$.code").value(4032))
+                .andExpect(status().isOk)
+                .andExpect(jsonPath("$.code").value(2000))
+                .andExpect(jsonPath("$.data.result").value("REGISTRATION_REQUIRED"))
                 .andExpect(jsonPath("$.data.email").value("admin@example.com"))
                 .andExpect(jsonPath("$.data.googleSub").value("previous-owner-sub"))
-                .andExpect(jsonPath("$.data.accessToken").doesNotExist())
+                .andExpect(jsonPath("$.data.accessToken").isEmpty)
+                .andExpect(jsonPath("$.data.expiresAt").isEmpty)
         }
 
         @Test
-        fun `admins 에 없는 구글 계정은 403 4032 와 운영자에게 전달할 이메일과 sub 를 돌려준다`() {
+        fun `admins 에 없는 구글 계정은 토큰 없이 등록 필요와 운영자에게 전달할 이메일과 sub 를 돌려준다`() {
             `when`(
                 adminIdentityPort.verifyGoogle("google-id-token"),
             ).thenReturn(VerifiedGoogleAccount("someone@example.com", "other-sub"))
 
             mockMvc
                 .perform(loginRequest())
-                .andExpect(status().isForbidden)
-                .andExpect(jsonPath("$.code").value(4032))
-                .andExpect(jsonPath("$.message").value("관리자 계정이 아닙니다."))
+                .andExpect(status().isOk)
+                .andExpect(jsonPath("$.data.result").value("REGISTRATION_REQUIRED"))
                 .andExpect(jsonPath("$.data.email").value("someone@example.com"))
                 .andExpect(jsonPath("$.data.googleSub").value("other-sub"))
+                .andExpect(jsonPath("$.data.accessToken").isEmpty)
         }
 
         @Test
@@ -192,7 +196,14 @@ class AdminAuthControllerTest
         @Test
         fun `요청과 응답 DTO 의 toString 은 토큰을 가린다`() {
             val request = AdminLoginRequest(idToken = "secret-id-token")
-            val response = AdminLoginResponse("secret-access-token", Instant.EPOCH, "admin@example.com")
+            val response =
+                AdminLoginResponse(
+                    AdminLoginResponse.Result.LOGGED_IN,
+                    "admin@example.com",
+                    "secret-access-token",
+                    Instant.EPOCH,
+                    null,
+                )
 
             assertFalse(request.toString().contains("secret-id-token"))
             assertFalse(response.toString().contains("secret-access-token"))

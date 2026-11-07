@@ -24,7 +24,7 @@ import org.springframework.web.bind.annotation.RestController
 class AdminAuthController(
     private val adminAuthUseCase: AdminAuthUseCase,
 ) {
-    /** 구글 ID 토큰으로 어드민 로그인. 등록되지 않은 계정은 403(4032) 과 본인 등록 정보(email, googleSub). */
+    /** 구글 ID 토큰으로 어드민 로그인. 등록된 계정은 LOGGED_IN 과 토큰, 아니면 REGISTRATION_REQUIRED 와 본인 googleSub. */
     @PostMapping("/auth/login")
     fun login(
         @Valid @RequestBody request: AdminLoginRequest,
