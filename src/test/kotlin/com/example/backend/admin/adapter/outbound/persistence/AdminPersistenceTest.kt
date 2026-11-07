@@ -16,31 +16,16 @@ class AdminPersistenceTest
         private val adminPersistencePort: AdminPersistencePort,
     ) : IntegrationTestBase() {
         @Test
-        fun `이메일과 지금 묶인 구글 sub 가 모두 맞을 때만 묶여 있다고 답한다`() {
+        fun `이메일과 구글 sub 가 함께 등록된 경우에만 등록됐다고 답한다`() {
             transaction {
                 AdminTable.insert {
                     it[email] = "persistence-admin@example.com"
                     it[googleSub] = "sub-a"
                 }
-                AdminTable.insert { it[email] = "persistence-unbound@example.com" }
 
-                assertTrue(adminPersistencePort.isBound("persistence-admin@example.com", "sub-a"))
-                assertFalse(adminPersistencePort.isBound("persistence-admin@example.com", "sub-b"))
-                assertFalse(adminPersistencePort.isBound("persistence-unbound@example.com", "sub-a"))
-                assertFalse(adminPersistencePort.isBound("persistence-other@example.com", "sub-a"))
-                rollback()
-            }
-        }
-
-        @Test
-        fun `구글 sub 는 처음엔 묶고 같은 sub 는 통과하며 다른 sub 와 없는 이메일은 거부한다`() {
-            transaction {
-                AdminTable.insert { it[email] = "persistence-admin@example.com" }
-
-                assertTrue(adminPersistencePort.bindGoogleSub("persistence-admin@example.com", "sub-a"))
-                assertTrue(adminPersistencePort.bindGoogleSub("persistence-admin@example.com", "sub-a"))
-                assertFalse(adminPersistencePort.bindGoogleSub("persistence-admin@example.com", "sub-b"))
-                assertFalse(adminPersistencePort.bindGoogleSub("persistence-other@example.com", "sub-a"))
+                assertTrue(adminPersistencePort.isRegistered("persistence-admin@example.com", "sub-a"))
+                assertFalse(adminPersistencePort.isRegistered("persistence-admin@example.com", "sub-b"))
+                assertFalse(adminPersistencePort.isRegistered("persistence-other@example.com", "sub-a"))
                 rollback()
             }
         }

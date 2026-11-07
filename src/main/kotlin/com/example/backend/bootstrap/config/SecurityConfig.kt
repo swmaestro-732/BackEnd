@@ -67,7 +67,7 @@ class SecurityConfig {
                     .requestMatchers("/admin/v1/auth/login")
                     .permitAll()
                     .requestMatchers("/admin/v1/**")
-                    // 토큰 서명만 믿지 않고 매 요청 admins 를 다시 조회한다. 행을 지우거나 다른 구글 계정으로 다시 묶으면
+                    // 토큰 서명만 믿지 않고 매 요청 admins 를 다시 조회한다. 행을 지우거나 등록 계정(google_sub)을 바꾸면
                     // 남은 토큰도 즉시 403 이 된다.
                     .access { authentication, _ ->
                         val resolved = authentication.get()

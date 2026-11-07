@@ -43,7 +43,7 @@ class AdminJwtTokenIssuer(
         private const val PURPOSE_CLAIM = "purpose"
         private const val ADMIN_PURPOSE = "admin"
 
-        /** 어드민 토큰을 받은 구글 계정 id. 요청별 인가가 지금 묶인 계정과 비교한다. */
+        /** 어드민 토큰을 받은 구글 계정 id. 요청별 인가가 지금 등록된 계정과 비교한다. */
         const val GOOGLE_SUB_CLAIM = "google_sub"
     }
 }

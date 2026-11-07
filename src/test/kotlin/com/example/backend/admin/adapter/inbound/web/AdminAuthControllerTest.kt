@@ -5,10 +5,10 @@ import com.example.backend.admin.adapter.inbound.web.response.AdminLoginResponse
 import com.example.backend.admin.application.port.outbound.AdminIdentityPort
 import com.example.backend.admin.application.port.outbound.AdminTokenPort
 import com.example.backend.admin.application.port.outbound.VerifiedGoogleAccount
+import com.example.backend.bootstrap.security.AdminJwtTokenIssuer
 import com.example.backend.bootstrap.security.JwtTokenProvider
 import com.example.backend.support.IntegrationTestBase
 import com.jayway.jsonpath.JsonPath
-import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Test
 import org.mockito.Mockito.`when`
@@ -17,6 +17,11 @@ import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc
 import org.springframework.http.HttpHeaders
 import org.springframework.http.MediaType
 import org.springframework.jdbc.core.JdbcTemplate
+import org.springframework.security.oauth2.jose.jws.MacAlgorithm
+import org.springframework.security.oauth2.jwt.JwsHeader
+import org.springframework.security.oauth2.jwt.JwtClaimsSet
+import org.springframework.security.oauth2.jwt.JwtEncoder
+import org.springframework.security.oauth2.jwt.JwtEncoderParameters
 import org.springframework.test.context.bean.override.mockito.MockitoBean
 import org.springframework.test.context.jdbc.Sql
 import org.springframework.test.web.servlet.MockMvc
@@ -42,6 +47,7 @@ class AdminAuthControllerTest
         private val adminTokenPort: AdminTokenPort,
         private val jwtTokenProvider: JwtTokenProvider,
         private val jdbcTemplate: JdbcTemplate,
+        private val jwtEncoder: JwtEncoder,
     ) : IntegrationTestBase() {
         @MockitoBean
         private lateinit var adminIdentityPort: AdminIdentityPort
@@ -70,13 +76,7 @@ class AdminAuthControllerTest
         }
 
         @Test
-        fun `첫 로그인한 구글 계정에 묶이고 같은 이메일의 다른 구글 계정은 403 4032 로 거부한다`() {
-            jdbcTemplate.update("UPDATE admins SET google_sub = NULL WHERE email = 'admin@example.com'")
-            `when`(
-                adminIdentityPort.verifyGoogle("google-id-token"),
-            ).thenReturn(VerifiedGoogleAccount("admin@example.com", ADMIN_SUB))
-            mockMvc.perform(loginRequest()).andExpect(status().isOk)
-
+        fun `같은 이메일이어도 등록한 구글 계정이 아니면 403 4032 와 본인 sub 를 돌려준다`() {
             `when`(adminIdentityPort.verifyGoogle("google-id-token"))
                 .thenReturn(VerifiedGoogleAccount("admin@example.com", "previous-owner-sub"))
 
@@ -84,17 +84,13 @@ class AdminAuthControllerTest
                 .perform(loginRequest())
                 .andExpect(status().isForbidden)
                 .andExpect(jsonPath("$.code").value(4032))
-            assertEquals(
-                ADMIN_SUB,
-                jdbcTemplate.queryForObject(
-                    "SELECT google_sub FROM admins WHERE email = 'admin@example.com'",
-                    String::class.java,
-                ),
-            )
+                .andExpect(jsonPath("$.data.email").value("admin@example.com"))
+                .andExpect(jsonPath("$.data.googleSub").value("previous-owner-sub"))
+                .andExpect(jsonPath("$.data.accessToken").doesNotExist())
         }
 
         @Test
-        fun `admins 에 없는 구글 계정은 403 4032 로 거부한다`() {
+        fun `admins 에 없는 구글 계정은 403 4032 와 운영자에게 전달할 이메일과 sub 를 돌려준다`() {
             `when`(
                 adminIdentityPort.verifyGoogle("google-id-token"),
             ).thenReturn(VerifiedGoogleAccount("someone@example.com", "other-sub"))
@@ -103,6 +99,9 @@ class AdminAuthControllerTest
                 .perform(loginRequest())
                 .andExpect(status().isForbidden)
                 .andExpect(jsonPath("$.code").value(4032))
+                .andExpect(jsonPath("$.message").value("관리자 계정이 아닙니다."))
+                .andExpect(jsonPath("$.data.email").value("someone@example.com"))
+                .andExpect(jsonPath("$.data.googleSub").value("other-sub"))
         }
 
         @Test
@@ -131,7 +130,7 @@ class AdminAuthControllerTest
         }
 
         @Test
-        fun `다른 구글 계정으로 다시 묶으면 이전 계정의 만료 전 토큰은 즉시 403 이다`() {
+        fun `등록 계정(google_sub)을 바꾸면 이전 계정의 만료 전 토큰은 즉시 403 이다`() {
             val previousToken = adminToken()
             jdbcTemplate.update("UPDATE admins SET google_sub = 'new-owner-sub' WHERE email = 'admin@example.com'")
 
@@ -166,6 +165,24 @@ class AdminAuthControllerTest
         }
 
         @Test
+        fun `purpose 가 admin 이 아니면 이메일과 google_sub 가 맞아도 어드민 경로는 403 이다`() {
+            val token = signedToken(purpose = "access", googleSub = ADMIN_SUB)
+
+            mockMvc
+                .perform(get("/admin/v1/me").header(HttpHeaders.AUTHORIZATION, "Bearer $token"))
+                .andExpect(status().isForbidden)
+        }
+
+        @Test
+        fun `google_sub 클레임이 없는 어드민 토큰은 403 이다`() {
+            val token = signedToken(purpose = "admin", googleSub = null)
+
+            mockMvc
+                .perform(get("/admin/v1/me").header(HttpHeaders.AUTHORIZATION, "Bearer $token"))
+                .andExpect(status().isForbidden)
+        }
+
+        @Test
         fun `앱 개인 경로는 어드민 토큰을 거부한다`() {
             mockMvc
                 .perform(get("/api/v1/my/saved-courses").header(HttpHeaders.AUTHORIZATION, "Bearer ${adminToken()}"))
@@ -189,6 +206,25 @@ class AdminAuthControllerTest
         private fun adminToken() = adminTokenPort.issue("admin@example.com", ADMIN_SUB).token
 
         private fun appAccessToken() = jwtTokenProvider.issueAccessToken(1L)
+
+        /** 서버 키로 서명하되 purpose 와 google_sub 를 마음대로 정한 토큰. 인가 조건을 하나씩 떼어 확인한다. */
+        private fun signedToken(
+            purpose: String,
+            googleSub: String?,
+        ): String {
+            val now = Instant.now()
+            val claims =
+                JwtClaimsSet
+                    .builder()
+                    .subject("admin@example.com")
+                    .issuedAt(now)
+                    .expiresAt(now.plusSeconds(600))
+                    .claim("purpose", purpose)
+                    .apply { if (googleSub != null) claim(AdminJwtTokenIssuer.GOOGLE_SUB_CLAIM, googleSub) }
+                    .build()
+            val header = JwsHeader.with(MacAlgorithm.HS256).build()
+            return jwtEncoder.encode(JwtEncoderParameters.from(header, claims)).tokenValue
+        }
 
         private companion object {
             const val ADMIN_SUB = "admin-google-sub"
