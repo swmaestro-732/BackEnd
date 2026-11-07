@@ -26,7 +26,7 @@ import java.time.ZoneId
             "DELETE FROM push_campaigns",
             "DELETE FROM devices",
             "DELETE FROM admins",
-            "INSERT INTO admins (email) VALUES ('admin@example.com')",
+            "INSERT INTO admins (email, google_sub) VALUES ('admin@example.com', 'admin-google-sub')",
             // 야간 동의까지 있어 발송 시각과 무관하게 대상이 된다.
             "INSERT INTO devices (device_id, fcm_token, marketing_agreed_at, night_agreed_at) " +
                 "VALUES ('fid-push-admin', 'token-push-admin', now(), now())",
@@ -47,15 +47,17 @@ class AdminPushControllerTest
             val kstTime = LocalTime.now(ZoneId.of("Asia/Seoul"))
             if (kstTime >= LocalTime.of(20, 30) && kstTime < LocalTime.of(21, 0)) {
                 mockMvc
-                    .perform(sendRequest(adminTokenPort.issue("admin@example.com").token, validBody))
-                    .andExpect(status().isBadRequest)
+                    .perform(
+                        sendRequest(adminTokenPort.issue("admin@example.com", "admin-google-sub").token, validBody),
+                    ).andExpect(status().isBadRequest)
                     .andExpect(jsonPath("$.code").value(4001))
                 return
             }
             val body =
                 mockMvc
-                    .perform(sendRequest(adminTokenPort.issue("admin@example.com").token, validBody))
-                    .andExpect(status().isOk)
+                    .perform(
+                        sendRequest(adminTokenPort.issue("admin@example.com", "admin-google-sub").token, validBody),
+                    ).andExpect(status().isOk)
                     .andExpect(jsonPath("$.code").value(2000))
                     .andExpect(jsonPath("$.data.recipientCount").value(1))
                     // 테스트 환경은 큐가 없어 발행되지 않는다.
@@ -71,7 +73,7 @@ class AdminPushControllerTest
             assertEquals(0, row["enqueued_count"])
 
             mockMvc
-                .perform(sendRequest(adminTokenPort.issue("admin@example.com").token, validBody))
+                .perform(sendRequest(adminTokenPort.issue("admin@example.com", "admin-google-sub").token, validBody))
                 .andExpect(status().isConflict)
                 .andExpect(jsonPath("$.code").value(4300))
         }
@@ -81,7 +83,7 @@ class AdminPushControllerTest
             val tooLong = """{"title":"${"가".repeat(51)}","body":"본문","link":"https://example.com"}"""
 
             mockMvc
-                .perform(sendRequest(adminTokenPort.issue("admin@example.com").token, tooLong))
+                .perform(sendRequest(adminTokenPort.issue("admin@example.com", "admin-google-sub").token, tooLong))
                 .andExpect(status().isBadRequest)
                 .andExpect(jsonPath("$.code").value(4002))
         }
@@ -91,7 +93,7 @@ class AdminPushControllerTest
             val httpLink = """{"title":"가을 코스","body":"본문","link":"http://example.com"}"""
 
             mockMvc
-                .perform(sendRequest(adminTokenPort.issue("admin@example.com").token, httpLink))
+                .perform(sendRequest(adminTokenPort.issue("admin@example.com", "admin-google-sub").token, httpLink))
                 .andExpect(status().isBadRequest)
                 .andExpect(jsonPath("$.code").value(4001))
         }
