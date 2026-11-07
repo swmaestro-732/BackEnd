@@ -127,6 +127,11 @@ class SavedPlaceServiceTest {
                 return pageRows
             }
 
+            override fun findByUserAndPlace(
+                userId: Long,
+                placeId: Long,
+            ): SavedPlace? = null
+
             override fun findForIndex(
                 afterId: Long?,
                 limit: Int,

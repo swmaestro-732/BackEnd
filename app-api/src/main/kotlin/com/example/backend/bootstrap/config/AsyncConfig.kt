@@ -5,12 +5,15 @@ import org.springframework.context.annotation.Configuration
 import org.springframework.scheduling.annotation.EnableAsync
 import org.springframework.scheduling.annotation.EnableScheduling
 import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor
+import java.util.concurrent.ThreadPoolExecutor
 
 /**
  * `@Async`, `@Scheduled` 활성화와 기본 실행기.
  * 운영시간 동기화 전용 실행기(place 의 BusinessHoursSyncExecutorConfig)가 있으면 Boot 가 기본 applicationTaskExecutor 를
  * 만들지 않으므로 여기서 직접 등록한다. 한정자 없는 `@Async` 와 `@ApplicationModuleListener` 가 이 실행기를 쓴다
  * (실행기가 둘 이상이면 Spring 은 taskExecutor 이름의 빈을 기본으로 고르므로 그 이름도 붙인다).
+ * 종료 때는 큐에 남은 작업을 최대 10초 기다리고, 큐가 차면 호출 스레드가 직접 돌린다(버리지 않는다).
+ * 그래도 못 끝낸 리스너는 이벤트 저장소 기록이 남아 고착 판정 후 재발행된다.
  */
 @Configuration
 @EnableAsync
@@ -23,5 +26,8 @@ class AsyncConfig {
             maxPoolSize = 8
             queueCapacity = 500
             setThreadNamePrefix("app-async-")
+            setWaitForTasksToCompleteOnShutdown(true)
+            setAwaitTerminationSeconds(10)
+            setRejectedExecutionHandler(ThreadPoolExecutor.CallerRunsPolicy())
         }
 }

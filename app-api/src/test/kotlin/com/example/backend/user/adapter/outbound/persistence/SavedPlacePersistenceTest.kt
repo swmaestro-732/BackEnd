@@ -118,6 +118,23 @@ class SavedPlacePersistenceTest
         }
 
         @Test
+        fun `findByUserAndPlace 는 살아있는 저장만 돌려주고 취소된 저장은 null 이다`() {
+            transaction {
+                val userId = insertUser("저장러9")
+                val saved = port.insert(userId, placeId = 790L, category = null)
+
+                val found = port.findByUserAndPlace(userId, 790L)!!
+                assertEquals(saved.copy(savedAt = found.savedAt), found)
+                assertEquals(saved.savedAt.truncatedTo(ChronoUnit.MILLIS), found.savedAt.truncatedTo(ChronoUnit.MILLIS))
+                assertNull(port.findByUserAndPlace(userId, 791L)) // 저장하지 않은 장소
+
+                port.deleteByUserAndPlace(userId, 790L)
+                assertNull(port.findByUserAndPlace(userId, 790L)) // 소프트 삭제 후
+                rollback()
+            }
+        }
+
+        @Test
         fun `deleteByUserAndPlace 는 삭제 스탬프만 찍고 두 번째 호출은 false 다 (멱등)`() {
             transaction {
                 val userId = insertUser("저장러5")

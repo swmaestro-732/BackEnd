@@ -2,9 +2,11 @@ package com.example.backend.user.application.service
 
 import com.example.backend.user.application.port.inbound.SavedPlaceReindexUseCase
 import com.example.backend.user.application.port.outbound.PlaceAccessPort
+import com.example.backend.user.application.port.outbound.PlaceRef
 import com.example.backend.user.application.port.outbound.SavedPlaceIndexDocument
 import com.example.backend.user.application.port.outbound.SavedPlacePersistencePort
 import com.example.backend.user.application.port.outbound.SavedPlaceSearchIndexPort
+import com.example.backend.user.domain.model.SavedPlace
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
 
@@ -26,24 +28,7 @@ class SavedPlaceReindexService(
             val batch = savedPlacePersistencePort.findForIndex(afterId, PAGE)
             if (batch.isEmpty()) break
             val places = placeAccessPort.findPlaces(batch.map { it.placeId }.distinct()).associateBy { it.id }
-            val documents =
-                batch.mapNotNull { saved ->
-                    places[saved.placeId]?.let { place ->
-                        SavedPlaceIndexDocument(
-                            userId = saved.userId,
-                            placeId = saved.placeId,
-                            location = place.location,
-                            savedAt = saved.savedAt,
-                            visited = saved.visited,
-                            name = place.name,
-                            category = place.category,
-                            imageUrl = place.imageUrl,
-                            rating = place.rating,
-                            ratingCount = place.ratingCount,
-                            categoryDetail = place.categoryDetail,
-                        )
-                    }
-                }
+            val documents = batch.mapNotNull { saved -> places[saved.placeId]?.let { toDocument(saved, it) } }
             if (documents.isNotEmpty()) savedPlaceSearchIndexPort.index(documents)
             total += documents.size
             // 삭제된 장소만 담긴 배치여도 DB 커서는 반드시 전진한다.
@@ -52,6 +37,31 @@ class SavedPlaceReindexService(
         }
         return total
     }
+
+    override fun findDocument(
+        userId: Long,
+        placeId: Long,
+    ): SavedPlaceIndexDocument? {
+        val saved = savedPlacePersistencePort.findByUserAndPlace(userId, placeId) ?: return null
+        return placeAccessPort.findPlace(placeId)?.let { toDocument(saved, it) }
+    }
+
+    private fun toDocument(
+        saved: SavedPlace,
+        place: PlaceRef,
+    ) = SavedPlaceIndexDocument(
+        userId = saved.userId,
+        placeId = saved.placeId,
+        location = place.location,
+        savedAt = saved.savedAt,
+        visited = saved.visited,
+        name = place.name,
+        category = place.category,
+        imageUrl = place.imageUrl,
+        rating = place.rating,
+        ratingCount = place.ratingCount,
+        categoryDetail = place.categoryDetail,
+    )
 
     private companion object {
         const val PAGE = 100

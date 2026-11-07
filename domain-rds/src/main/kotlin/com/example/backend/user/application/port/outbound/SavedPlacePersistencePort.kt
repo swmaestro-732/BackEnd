@@ -55,6 +55,12 @@ interface SavedPlacePersistencePort {
         limit: Int,
     ): List<SavedPlaceRow>
 
+    /** (user_id, place_id) 의 살아있는 저장 레코드. 없으면(저장 안 함, 취소됨) null. 저장 장소 색인 동기화가 DB 현재 상태를 읽을 때 쓴다. */
+    fun findByUserAndPlace(
+        userId: Long,
+        placeId: Long,
+    ): SavedPlace?
+
     /** 재색인용 살아있는 저장 관계를 id 오름차순으로 배치 조회한다. */
     fun findForIndex(
         afterId: Long?,

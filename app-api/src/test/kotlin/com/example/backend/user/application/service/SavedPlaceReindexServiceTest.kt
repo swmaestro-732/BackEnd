@@ -9,6 +9,7 @@ import com.example.backend.user.application.port.outbound.SavedPlaceSearchIndexP
 import com.example.backend.user.domain.model.SavedPlace
 import com.example.backend.user.domain.model.SavedPlaceCategory
 import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import org.mockito.Mockito.mock
@@ -124,6 +125,28 @@ class SavedPlaceReindexServiceTest {
         assertEquals(listOf(false, true), batches.single().map { it.visited })
         verify(places).findPlaces(listOf(1L))
         verifyNoMoreInteractions(places)
+    }
+
+    @Test
+    fun `findDocument 는 저장된 관계를 장소 정보와 합친 문서로 돌려준다`() {
+        `when`(persistence.findByUserAndPlace(7L, 101L)).thenReturn(savedPlace(101L))
+        `when`(places.findPlace(101L)).thenReturn(place(101L))
+
+        assertEquals(doc(101L), service.findDocument(7L, 101L))
+    }
+
+    @Test
+    fun `findDocument 는 저장이 없으면 장소를 읽지 않고 null 이다`() {
+        assertNull(service.findDocument(7L, 101L))
+
+        verifyNoInteractions(places)
+    }
+
+    @Test
+    fun `findDocument 는 장소가 없어졌으면 null 이다`() {
+        `when`(persistence.findByUserAndPlace(7L, 101L)).thenReturn(savedPlace(101L))
+
+        assertNull(service.findDocument(7L, 101L))
     }
 
     private fun savedPlace(id: Long) =

@@ -6,6 +6,7 @@ import com.example.backend.user.application.port.outbound.SavedPlaceRow
 import com.example.backend.user.domain.model.SavedPlace
 import com.example.backend.user.domain.model.SavedPlaceCategory
 import org.jetbrains.exposed.v1.core.Op
+import org.jetbrains.exposed.v1.core.ResultRow
 import org.jetbrains.exposed.v1.core.SortOrder
 import org.jetbrains.exposed.v1.core.and
 import org.jetbrains.exposed.v1.core.count
@@ -153,6 +154,17 @@ class SavedPlaceRepository {
             }
     }
 
+    fun findByUserAndPlace(
+        userId: Long,
+        placeId: Long,
+    ): SavedPlace? =
+        SavedPlaceTable
+            .selectAll()
+            .where { alive(userId) and (SavedPlaceTable.placeId eq placeId) }
+            .limit(1)
+            .map(::toSavedPlace)
+            .firstOrNull()
+
     fun findForIndex(
         afterId: Long?,
         limit: Int,
@@ -164,17 +176,18 @@ class SavedPlaceRepository {
             .where(condition)
             .orderBy(SavedPlaceTable.id to SortOrder.ASC)
             .limit(limit)
-            .map {
-                SavedPlace(
-                    id = it[SavedPlaceTable.id].value,
-                    userId = it[SavedPlaceTable.userId],
-                    placeId = it[SavedPlaceTable.placeId],
-                    category = it[SavedPlaceTable.category],
-                    visited = it[SavedPlaceTable.visited],
-                    savedAt = it[SavedPlaceTable.createdAt].toJavaInstant(),
-                )
-            }
+            .map(::toSavedPlace)
     }
+
+    private fun toSavedPlace(row: ResultRow): SavedPlace =
+        SavedPlace(
+            id = row[SavedPlaceTable.id].value,
+            userId = row[SavedPlaceTable.userId],
+            placeId = row[SavedPlaceTable.placeId],
+            category = row[SavedPlaceTable.category],
+            visited = row[SavedPlaceTable.visited],
+            savedAt = row[SavedPlaceTable.createdAt].toJavaInstant(),
+        )
 
     /** 소유자의 살아있는(소프트 삭제 제외) 저장 레코드 필터. */
     private fun alive(userId: Long): Op<Boolean> =

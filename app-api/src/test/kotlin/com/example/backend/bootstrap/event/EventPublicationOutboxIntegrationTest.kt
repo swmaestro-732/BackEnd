@@ -26,6 +26,7 @@ import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.context.ApplicationEventPublisher
 import org.springframework.jdbc.core.JdbcTemplate
 import org.springframework.modulith.events.IncompleteEventPublications
+import org.springframework.modulith.events.ResubmissionOptions
 import org.springframework.test.context.bean.override.mockito.MockitoBean
 import org.springframework.transaction.support.TransactionTemplate
 import tools.jackson.databind.json.JsonMapper
@@ -33,8 +34,9 @@ import java.time.Instant
 
 /**
  * Modulith 이벤트 저장소(아웃박스) 통합 테스트(실제 PostgreSQL, Flyway V23).
- * 발행과 같은 트랜잭션에 리스너별 기록이 남고, 리스너가 끝나면 지워지며(completion-mode: delete),
- * 코스 개수 반영이 실패하면 기록이 남아 같은 eventId 로 재발행되는지 확인한다.
+ * @ApplicationModuleListener 리스너 몫만 발행과 같은 트랜잭션에 기록되고(registry-trigger-annotation),
+ * 리스너가 끝나면 지워지며(completion-mode: delete), 코스 개수 반영이 실패하면 기록이 FAILED 로 남아
+ * 같은 eventId 로 재발행되는지 확인한다.
  * 코스 개수 진입점([CourseCountIntakeUseCase])만 목으로 바꿔 성공과 실패를 만든다.
  */
 class EventPublicationOutboxIntegrationTest
@@ -62,13 +64,13 @@ class EventPublicationOutboxIntegrationTest
         }
 
         @Test
-        fun `발행과 같은 트랜잭션에 리스너별 기록이 남고 비동기 리스너가 끝나면 지워진다`() {
+        fun `발행과 같은 트랜잭션에 아웃박스 리스너 몫만 기록되고 비동기 리스너가 끝나면 지워진다`() {
             val event = courseSavedEvent()
 
             transactionTemplate.executeWithoutResult {
                 eventPublisher.publishEvent(event)
-                // 검색 색인 리스너와 코스 개수 리스너 몫 두 행이 업무 트랜잭션 안에서 INSERT 된다.
-                assertThat(publications(event.eventId)).isEqualTo(2)
+                // 코스 개수 리스너 몫 한 행만 업무 트랜잭션 안에서 INSERT 된다. 검색 색인 리스너는 기록하지 않는다.
+                assertThat(listenerIds(event.eventId)).singleElement().asString().contains("CourseCountNotifier")
             }
 
             awaitUntil { publications(event.eventId) == 0 }
@@ -85,13 +87,30 @@ class EventPublicationOutboxIntegrationTest
             transactionTemplate.executeWithoutResult { eventPublisher.publishEvent(event) }
 
             awaitUntil { failedPublications(event.eventId) == 1 }
-            assertThat(publications(event.eventId)).isEqualTo(1) // 검색 색인 몫은 완료돼 지워지고 실패한 개수 몫만 남는다
+            assertThat(publications(event.eventId)).isEqualTo(1)
 
             reset(courseCountIntakeUseCase)
-            incompleteEventPublications.resubmitIncompletePublications { it.event == event }
+            // IncompleteEventResubmitter 와 같은 FAILED 대상 API. 나이 제한만 빼고 이 이벤트로 좁힌다.
+            incompleteEventPublications.resubmitIncompletePublications(
+                ResubmissionOptions.defaults().withFilter { it.event == event },
+            )
 
             awaitUntil { publications(event.eventId) == 0 }
             verify(courseCountIntakeUseCase, times(1)).receive(event.eventId, 1L, null, CourseVisibility.PUBLIC)
+        }
+
+        @Test
+        fun `장소 검색 색인과 영업시간 동기화처럼 일반 커밋 후 리스너만 받는 이벤트는 기록하지 않아 읽기 전용 트랜잭션에서도 발행된다`() {
+            // 없는 id: 커밋 후 리스너는 다시 읽어 아무것도 못 찾고 그냥 끝난다
+            val placeId = Long.MAX_VALUE - 515
+            val readOnlyTransactionTemplate =
+                TransactionTemplate(transactionTemplate.transactionManager!!).apply { isReadOnly = true }
+
+            readOnlyTransactionTemplate.executeWithoutResult {
+                eventPublisher.publishEvent(PlacesSavedEvent(listOf(placeId)))
+                eventPublisher.publishEvent(PlaceBusinessHoursSyncRequestedEvent(listOf(placeId)))
+                assertThat(publications(placeId.toString())).isZero()
+            }
         }
 
         @Test
@@ -141,6 +160,13 @@ class EventPublicationOutboxIntegrationTest
                 Int::class.java,
                 "%$eventId%",
             )!!
+
+        private fun listenerIds(eventId: String): List<String?> =
+            jdbcTemplate.queryForList(
+                "SELECT listener_id FROM event_publication WHERE serialized_event LIKE ?",
+                String::class.java,
+                "%$eventId%",
+            )
 
         private fun failedPublications(eventId: String): Int =
             jdbcTemplate.queryForObject(

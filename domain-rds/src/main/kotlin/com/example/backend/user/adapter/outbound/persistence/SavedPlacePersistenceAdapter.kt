@@ -48,6 +48,11 @@ class SavedPlacePersistenceAdapter(
         limit: Int,
     ): List<SavedPlaceRow> = savedPlaceRepository.findPage(userId, visited, category, cursorId, limit)
 
+    override fun findByUserAndPlace(
+        userId: Long,
+        placeId: Long,
+    ): SavedPlace? = savedPlaceRepository.findByUserAndPlace(userId, placeId)
+
     override fun findForIndex(
         afterId: Long?,
         limit: Int,
