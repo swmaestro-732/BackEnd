@@ -10,6 +10,7 @@ import com.example.backend.user.application.port.outbound.FollowPersistencePort
 import com.example.backend.user.application.port.outbound.RefreshTokenPort
 import com.example.backend.user.application.port.outbound.SavedCoursePersistencePort
 import com.example.backend.user.application.port.outbound.UserAreaPersistencePort
+import com.example.backend.user.application.port.outbound.UserLastLocationPersistencePort
 import com.example.backend.user.application.port.outbound.UserLikeThemePort
 import com.example.backend.user.application.port.outbound.UserPersistencePort
 import com.example.backend.user.application.port.outbound.UserProfileRow
@@ -32,6 +33,7 @@ class UserService(
     private val userLikeThemePort: UserLikeThemePort,
     private val courseCleanupPort: CourseCleanupPort,
     private val devicePersistencePort: DevicePersistencePort,
+    private val userLastLocationPersistencePort: UserLastLocationPersistencePort,
 ) : UserUseCase {
     override fun getProfile(
         userId: Long,
@@ -124,6 +126,8 @@ class UserService(
         followPersistencePort.purgeFollowsOf(userId)
         // 2-1) 기기: 이 사용자와의 연결만 끊는다. 토큰과 광고 동의는 기기 단위라 남는다.
         devicePersistencePort.unlinkAllByUser(userId)
+        // 2-2) 최근 위치: 위치 정보라 탈퇴 즉시 지운다.
+        userLastLocationPersistencePort.deleteByUser(userId)
         // 3) 관심 지역·테마: 빈 목록으로 전체 치환(=전부 삭제).
         userAreaPersistencePort.replaceAreas(userId, emptyList())
         userLikeThemePort.replaceLikeThemes(userId, emptyList())

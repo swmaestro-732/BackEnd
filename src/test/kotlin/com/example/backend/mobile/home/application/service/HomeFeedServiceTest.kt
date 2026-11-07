@@ -5,6 +5,7 @@ import com.example.backend.mobile.home.application.port.outbound.HomeFeedPort
 import com.example.backend.mobile.home.application.port.outbound.HomeNearbyPlacePort
 import com.example.backend.mobile.home.application.port.outbound.HomeProfilePort
 import com.example.backend.mobile.home.application.port.outbound.HomeTracePort
+import com.example.backend.mobile.home.application.port.outbound.HomeUserLocationPort
 import com.example.backend.mobile.home.application.port.outbound.dto.HomeFeedCourse
 import com.example.backend.mobile.home.application.port.outbound.dto.HomeFeedCoursePage
 import com.example.backend.mobile.home.application.port.outbound.dto.HomeFeedCursor
@@ -18,7 +19,7 @@ import org.junit.jupiter.api.Test
 import java.time.Instant
 
 /**
- * [HomeFeedService] 단위 테스트 — 아웃바운드 포트 3개를 페이크로 대체해 홈 조합 규칙만 검증한다.
+ * [HomeFeedService] 단위 테스트 — 아웃바운드 포트 4개를 페이크로 대체해 홈 조합 규칙만 검증한다.
  * 검증 대상: 비로그인과 좌표 없음에서 근처 섹션 생략, 추천 코스 상위 5개 요청, 도보 분 올림, 피드 커서 인코딩.
  */
 class HomeFeedServiceTest {
@@ -64,6 +65,20 @@ class HomeFeedServiceTest {
             }
         }
 
+    private val fakeLocationPort =
+        object : HomeUserLocationPort {
+            var failure: RuntimeException? = null
+            val calls = mutableListOf<Pair<Long, Coordinate>>()
+
+            override fun record(
+                userId: Long,
+                location: Coordinate,
+            ) {
+                calls += userId to location
+                failure?.let { throw it }
+            }
+        }
+
     private val service =
         HomeFeedService(
             fakeFeedPort,
@@ -72,7 +87,33 @@ class HomeFeedServiceTest {
             object : HomeTracePort {
                 override fun findInProgress(userId: Long): HomeTracingCourse? = null
             },
+            fakeLocationPort,
         )
+
+    @Test
+    fun `로그인 사용자가 좌표를 보내면 최근 위치로 저장한다`() {
+        service.getHome(viewerId = USER_ID, userLocation = ORIGIN)
+
+        assertEquals(listOf(USER_ID to ORIGIN), fakeLocationPort.calls)
+    }
+
+    @Test
+    fun `비로그인이거나 좌표가 없으면 위치를 저장하지 않는다`() {
+        service.getHome(viewerId = null, userLocation = ORIGIN)
+        service.getHome(viewerId = USER_ID, userLocation = null)
+
+        assertTrue(fakeLocationPort.calls.isEmpty())
+    }
+
+    @Test
+    fun `위치 저장이 실패해도 홈은 정상 응답한다`() {
+        fakeLocationPort.failure = IllegalStateException("db down")
+
+        val result = service.getHome(viewerId = USER_ID, userLocation = ORIGIN)
+
+        assertEquals(listOf(1L), result.recommendedCourses.map { it.id })
+        assertEquals("칠삼이", result.profile?.nickname)
+    }
 
     @Test
     fun `비로그인이면 프로필은 null 이고 근처 저장 장소는 조회하지 않는다`() {
