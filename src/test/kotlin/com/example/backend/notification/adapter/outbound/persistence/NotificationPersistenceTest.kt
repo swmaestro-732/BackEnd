@@ -21,7 +21,7 @@ class NotificationPersistenceTest
         private val notificationSettingsPersistencePort: NotificationSettingsPersistencePort,
     ) : IntegrationTestBase() {
         @Test
-        fun `같은 묶음에 다른 행동자를 업서트하면 한 행의 인원과 마지막 행동자 스냅샷을 갱신한다`() {
+        fun `같은 묶음에 다른 행동자를 업서트하면 한 행의 인원과 대표 행동자 스냅샷을 갱신한다`() {
             transaction {
                 val first = bundle()
                 notificationPersistencePort.upsert(first)
@@ -31,7 +31,7 @@ class NotificationPersistenceTest
                 val pastUpdatedAt = notificationPersistencePort.findPage(USER_ID, null, 10).single().updatedAt
                 val latest =
                     first.copy(
-                        lastActorId = 570_902L,
+                        displayActorId = 570_902L,
                         actorNickname = "새로운 '작성자'",
                         courseTitle = "바뀐 코스",
                         courseImageUrl = "https://cdn/changed.jpg",
@@ -46,7 +46,7 @@ class NotificationPersistenceTest
                 assertThat(updated.targetType).isEqualTo(NotificationTargetType.COURSE)
                 assertThat(updated.targetId).isEqualTo(first.targetId)
                 assertThat(updated.actorCount).isEqualTo(2)
-                assertThat(updated.lastActorId).isEqualTo(latest.lastActorId)
+                assertThat(updated.displayActorId).isEqualTo(latest.displayActorId)
                 assertThat(updated.actorNickname).isEqualTo(latest.actorNickname)
                 assertThat(updated.courseTitle).isEqualTo(latest.courseTitle)
                 assertThat(updated.courseImageUrl).isEqualTo(latest.courseImageUrl)
@@ -105,7 +105,7 @@ class NotificationPersistenceTest
                 val id = notificationPersistencePort.findPage(USER_ID, null, 10).single().id
                 notificationPersistencePort.markRead(USER_ID, id)
 
-                notificationPersistencePort.upsert(activity.copy(lastActorId = 570_902L))
+                notificationPersistencePort.upsert(activity.copy(displayActorId = 570_902L))
 
                 val rows = notificationPersistencePort.findPage(USER_ID, null, 10)
                 assertThat(rows.map { it.id }).containsExactly(id)
@@ -138,13 +138,13 @@ class NotificationPersistenceTest
         fun `A 다음 B 다음 A 가 기록하면 서로 다른 사람 수인 2로 센다`() {
             transaction {
                 val actorA = bundle()
-                val actorB = actorA.copy(lastActorId = 570_902L)
+                val actorB = actorA.copy(displayActorId = 570_902L)
 
                 listOf(actorA, actorB, actorA).forEach { notificationPersistencePort.upsert(it) }
 
                 val row = notificationPersistencePort.findPage(USER_ID, null, 10).single()
                 assertThat(row.actorCount).isEqualTo(2)
-                assertThat(row.lastActorId).isEqualTo(actorB.lastActorId)
+                assertThat(row.displayActorId).isEqualTo(actorB.displayActorId)
                 rollback()
             }
         }
@@ -166,20 +166,20 @@ class NotificationPersistenceTest
         }
 
         @Test
-        fun `행동자를 빼면 모든 창에서 인원을 줄이고 마지막 행동자를 바꾸며 다른 대상과 종류는 그대로 둔다`() {
+        fun `행동자를 빼면 모든 창에서 인원을 줄이고 대표 행동자를 바꾸며 다른 대상과 종류는 그대로 둔다`() {
             transaction {
                 val review =
                     bundle().copy(
                         type = NotificationType.COURSE_REVIEWED,
-                        lastActorId = OTHER_ACTOR_ID,
+                        displayActorId = OTHER_ACTOR_ID,
                         actorNickname = "남는 사람",
                     )
                 notificationPersistencePort.upsert(review)
-                notificationPersistencePort.upsert(review.copy(lastActorId = ACTOR_ID, actorNickname = "지운 사람"))
+                notificationPersistencePort.upsert(review.copy(displayActorId = ACTOR_ID, actorNickname = "지운 사람"))
                 notificationPersistencePort.upsert(
-                    review.copy(lastActorId = ACTOR_ID, windowStart = review.windowStart.plusSeconds(600)),
+                    review.copy(displayActorId = ACTOR_ID, windowStart = review.windowStart.plusSeconds(600)),
                 )
-                notificationPersistencePort.upsert(review.copy(lastActorId = ACTOR_ID, targetId = 570_999L))
+                notificationPersistencePort.upsert(review.copy(displayActorId = ACTOR_ID, targetId = 570_999L))
                 notificationPersistencePort.upsert(bundle())
                 val keptId = notificationPersistencePort.findPage(USER_ID, null, 10).last().id
 
@@ -195,7 +195,7 @@ class NotificationPersistenceTest
                 )
                 val kept = rows.single { it.id == keptId }
                 assertThat(kept.actorCount).isEqualTo(1)
-                assertThat(kept.lastActorId).isEqualTo(OTHER_ACTOR_ID)
+                assertThat(kept.displayActorId).isEqualTo(OTHER_ACTOR_ID)
                 assertThat(kept.actorNickname).isEqualTo("남는 사람")
                 rollback()
             }
@@ -318,7 +318,7 @@ class NotificationPersistenceTest
                 targetType = NotificationTargetType.COURSE,
                 targetId = 570_901L,
                 windowStart = Instant.parse("2026-10-24T09:50:00Z"),
-                lastActorId = ACTOR_ID,
+                displayActorId = ACTOR_ID,
                 actorNickname = null,
                 courseTitle = "알림 코스",
                 courseImageUrl = "https://cdn/course.jpg",

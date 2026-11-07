@@ -9,8 +9,9 @@ data class NotificationBundle(
     val targetType: NotificationTargetType,
     val targetId: Long,
     val windowStart: Instant,
-    val lastActorId: Long,
-    /** 기록 시점 행동자 닉네임 스냅샷. 활동 횟수만 보이는 종류는 null. */
+    /** "~님 외 N명"으로 보여 줄 대표 행동자. 기록 때는 방금 행동한 사람, 누가 빠지면 남은 사람 중 하나다. */
+    val displayActorId: Long,
+    /** 대표 행동자의 닉네임 스냅샷. 대표가 바뀌면 함께 바꾼다. */
     val actorNickname: String?,
     val courseTitle: String?,
     val courseImageUrl: String?,

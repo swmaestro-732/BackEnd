@@ -4,6 +4,7 @@ import com.example.backend.notification.application.port.inbound.dto.Notificatio
 import com.example.backend.notification.application.port.inbound.dto.RecordNotificationCommand
 import com.example.backend.notification.application.port.outbound.NotificationActorLookupPort
 import com.example.backend.notification.application.port.outbound.NotificationCourseTarget
+import com.example.backend.notification.application.port.outbound.NotificationNicknamePort
 import com.example.backend.notification.application.port.outbound.NotificationPersistencePort
 import com.example.backend.notification.application.port.outbound.NotificationSettingsPersistencePort
 import com.example.backend.notification.application.port.outbound.NotificationTargetLookupPort
@@ -29,7 +30,8 @@ class NotificationServiceTest {
     private val actors = mock(NotificationActorLookupPort::class.java)
     private val notifications = mock(NotificationPersistencePort::class.java)
     private val settings = mock(NotificationSettingsPersistencePort::class.java)
-    private val service = NotificationService(targets, actors, notifications, settings)
+    private val nicknames = mock(NotificationNicknamePort::class.java)
+    private val service = NotificationService(targets, actors, notifications, settings, nicknames)
 
     private fun active(vararg ids: Long) {
         `when`(actors.lockActive(anyList())).thenAnswer {
@@ -48,7 +50,7 @@ class NotificationServiceTest {
         `when`(targets.findCourse(COURSE_ID)).thenReturn(NotificationCourseTarget(OWNER_ID, "한강 산책", COVER_URL))
         `when`(settings.findByUser(OWNER_ID)).thenReturn(null)
         active(ACTOR_ID, OWNER_ID)
-        `when`(actors.findNickname(ACTOR_ID)).thenReturn("산책자")
+        `when`(nicknames.findNicknames(listOf(ACTOR_ID))).thenReturn(mapOf(ACTOR_ID to "산책자"))
 
         service.record(command(type))
 
@@ -63,7 +65,7 @@ class NotificationServiceTest {
                 targetType = NotificationTargetType.COURSE,
                 targetId = COURSE_ID,
                 windowStart = WINDOW_START,
-                lastActorId = ACTOR_ID,
+                displayActorId = ACTOR_ID,
                 actorNickname = "산책자",
                 courseTitle = "한강 산책",
                 courseImageUrl = COVER_URL,
@@ -75,7 +77,7 @@ class NotificationServiceTest {
     fun `팔로우는 대상 사용자에게 팔로워를 대상으로 코스 제목 없이 기록한다`() {
         `when`(settings.findByUser(OWNER_ID)).thenReturn(NotificationSettings.DEFAULT)
         active(ACTOR_ID, OWNER_ID)
-        `when`(actors.findNickname(ACTOR_ID)).thenReturn("새 팔로워")
+        `when`(nicknames.findNicknames(listOf(ACTOR_ID))).thenReturn(mapOf(ACTOR_ID to "새 팔로워"))
 
         service.record(command(NotificationType.USER_FOLLOWED, targetId = OWNER_ID))
 
@@ -88,7 +90,7 @@ class NotificationServiceTest {
                 targetType = NotificationTargetType.USER,
                 targetId = ACTOR_ID,
                 windowStart = WINDOW_START,
-                lastActorId = ACTOR_ID,
+                displayActorId = ACTOR_ID,
                 actorNickname = "새 팔로워",
                 courseTitle = null,
                 courseImageUrl = null,
@@ -101,8 +103,8 @@ class NotificationServiceTest {
         val otherActorId = 3L
         `when`(settings.findByUser(OWNER_ID)).thenReturn(NotificationSettings.DEFAULT)
         active(ACTOR_ID, otherActorId, OWNER_ID)
-        `when`(actors.findNickname(ACTOR_ID)).thenReturn("첫 팔로워")
-        `when`(actors.findNickname(otherActorId)).thenReturn("둘째 팔로워")
+        `when`(nicknames.findNicknames(listOf(ACTOR_ID))).thenReturn(mapOf(ACTOR_ID to "첫 팔로워"))
+        `when`(nicknames.findNicknames(listOf(otherActorId))).thenReturn(mapOf(otherActorId to "둘째 팔로워"))
 
         service.record(command(NotificationType.USER_FOLLOWED, targetId = OWNER_ID))
         service.record(
@@ -117,7 +119,7 @@ class NotificationServiceTest {
                     targetType = NotificationTargetType.USER,
                     targetId = followerId,
                     windowStart = WINDOW_START,
-                    lastActorId = followerId,
+                    displayActorId = followerId,
                     actorNickname = nickname,
                     courseTitle = null,
                     courseImageUrl = null,
@@ -259,7 +261,7 @@ class NotificationServiceTest {
             targetType = NotificationTargetType.COURSE,
             targetId = COURSE_ID,
             actorCount = 1,
-            lastActorId = ACTOR_ID,
+            displayActorId = ACTOR_ID,
             actorNickname = null,
             courseTitle = "한강 산책",
             courseImageUrl = COVER_URL,
@@ -269,10 +271,10 @@ class NotificationServiceTest {
         )
 
     @Test
-    fun `리뷰 철회는 코스 묶음에서 행동자를 빼고 바뀐 마지막 행동자의 닉네임으로 맞춘다`() {
+    fun `리뷰 철회는 코스 묶음에서 행동자를 빼고 바뀐 대표 행동자의 닉네임으로 맞춘다`() {
         `when`(notifications.removeActor(ACTOR_ID, NotificationType.COURSE_REVIEWED, COURSE_ID, null))
             .thenReturn(mapOf(100L to 3L))
-        `when`(actors.findNickname(3L)).thenReturn("남은 리뷰어")
+        `when`(nicknames.findNicknames(setOf(3L))).thenReturn(mapOf(3L to "남은 리뷰어"))
 
         service.retract(command(NotificationType.COURSE_REVIEWED))
 
@@ -284,7 +286,7 @@ class NotificationServiceTest {
     fun `리뷰 철회 후 남은 행동자를 찾지 못하면 닉네임 스냅샷을 비운다`() {
         `when`(notifications.removeActor(ACTOR_ID, NotificationType.COURSE_REVIEWED, COURSE_ID, null))
             .thenReturn(mapOf(100L to 3L))
-        `when`(actors.findNickname(3L)).thenReturn(null)
+        `when`(nicknames.findNicknames(setOf(3L))).thenReturn(emptyMap())
 
         service.retract(command(NotificationType.COURSE_REVIEWED))
 

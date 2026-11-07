@@ -4,6 +4,7 @@ import com.example.backend.notification.application.port.inbound.NotificationUse
 import com.example.backend.notification.application.port.inbound.dto.NotificationSummaryPage
 import com.example.backend.notification.application.port.inbound.dto.RecordNotificationCommand
 import com.example.backend.notification.application.port.outbound.NotificationActorLookupPort
+import com.example.backend.notification.application.port.outbound.NotificationNicknamePort
 import com.example.backend.notification.application.port.outbound.NotificationPersistencePort
 import com.example.backend.notification.application.port.outbound.NotificationSettingsPersistencePort
 import com.example.backend.notification.application.port.outbound.NotificationTargetLookupPort
@@ -25,6 +26,7 @@ class NotificationService(
     private val notificationActorLookupPort: NotificationActorLookupPort,
     private val notificationPersistencePort: NotificationPersistencePort,
     private val notificationSettingsPersistencePort: NotificationSettingsPersistencePort,
+    private val notificationNicknamePort: NotificationNicknamePort,
 ) : NotificationUseCase {
     @Transactional
     override fun record(activity: RecordNotificationCommand) {
@@ -47,7 +49,7 @@ class NotificationService(
         // 행동자와 받는 사람의 사용자 행을 잠가 탈퇴와 직렬화한다. 둘 중 하나라도 이미 탈퇴했으면 기록하지 않는다.
         val participants = listOf(activity.actorId, recipientId)
         if (!notificationActorLookupPort.lockActive(participants).containsAll(participants)) return
-        val actorNickname = notificationActorLookupPort.findNickname(activity.actorId) ?: return
+        val actorNickname = notificationNicknamePort.findNicknames(listOf(activity.actorId))[activity.actorId] ?: return
         notificationPersistencePort.upsert(
             NotificationBundle(
                 userId = recipientId,
@@ -55,7 +57,7 @@ class NotificationService(
                 targetType = targetType,
                 targetId = bundleTargetId(activity),
                 windowStart = NotificationBundle.windowStart(activity.occurredAt),
-                lastActorId = activity.actorId,
+                displayActorId = activity.actorId,
                 actorNickname = actorNickname,
                 courseTitle = course?.title,
                 courseImageUrl = course?.imageUrl,
@@ -73,16 +75,17 @@ class NotificationService(
     override fun retract(activity: RecordNotificationCommand) {
         // 팔로우 묶음은 받는 사람(targetId)마다 있으므로 받는 사람까지 맞춘다. 코스 묶음은 작성자 한 명만 받는다.
         val recipientId = if (activity.type.targetType == NotificationTargetType.USER) activity.targetId else null
-        val lastActorByBundle =
+        val displayActorByBundle =
             notificationPersistencePort.removeActor(
                 activity.actorId,
                 activity.type,
                 bundleTargetId(activity),
                 recipientId,
             )
-        // 마지막 행동자가 바뀐 묶음은 닉네임 스냅샷도 남은 사람으로 맞춘다. 남은 사람을 못 찾으면(막 탈퇴) 비워 철회한 사람 닉네임을 남기지 않는다.
-        lastActorByBundle.forEach { (id, actorId) ->
-            notificationPersistencePort.updateActorNickname(id, notificationActorLookupPort.findNickname(actorId))
+        // 대표 행동자가 바뀐 묶음은 닉네임 스냅샷도 새 행동자로 맞춘다. 조회되지 않으면 비워 빠진 사람 닉네임을 남기지 않는다.
+        val nicknames = notificationNicknamePort.findNicknames(displayActorByBundle.values.toSet())
+        displayActorByBundle.forEach { (id, actorId) ->
+            notificationPersistencePort.updateActorNickname(id, nicknames[actorId])
         }
     }
 

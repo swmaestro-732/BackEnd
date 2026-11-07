@@ -42,7 +42,7 @@ class NotificationPersistenceAdapter(
 
     override fun markAllRead(userId: Long): Int = notificationRepository.markAllRead(userId)
 
-    override fun deleteAllInvolving(userId: Long) = notificationRepository.deleteAllInvolving(userId)
+    override fun deleteAllInvolving(userId: Long): Map<Long, Long> = notificationRepository.deleteAllInvolving(userId)
 
     override fun deleteCreatedBefore(cutoff: Instant): Int =
         notificationRepository.deleteCreatedBefore(cutoff.toKotlinInstant())

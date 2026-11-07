@@ -8,10 +8,11 @@ CREATE TABLE notifications (
     target_type varchar(32) NOT NULL,
     target_id bigint NOT NULL,
     window_start timestamptz NOT NULL,
-    last_actor_id bigint NOT NULL,
+    -- "~님 외 N명"으로 보여 줄 대표 행동자. 기록 때는 방금 행동한 사람, 누가 빠지면 남은 사람 중 하나로 바꾼다.
+    display_actor_id bigint NOT NULL,
     -- 이 묶음의 서로 다른 행동자 수.
     actor_count integer NOT NULL DEFAULT 1,
-    -- 기록 시점 스냅샷. 좋아요처럼 인원 수만 보이는 알림은 actor_nickname 이 NULL, 코스가 아닌 알림은 코스 칸이 NULL.
+    -- 기록 시점 스냅샷. actor_nickname 은 대표 행동자의 닉네임이고, 코스가 아닌 알림은 코스 칸이 NULL.
     -- course_image_url 은 원본 courses.cover_image_url 이 길이 제한 없는 text 라 같은 타입으로 둔다.
     actor_nickname varchar(20),
     course_title varchar(200),
@@ -24,8 +25,6 @@ CREATE TABLE notifications (
 
 CREATE INDEX idx_notifications_user_id ON notifications (user_id, id DESC);
 CREATE INDEX idx_notifications_unread ON notifications (user_id) WHERE read_at IS NULL;
--- 탈퇴 정리(받는 사람 또는 마지막 행위자 기준 삭제)가 전체 스캔하지 않도록 행위자 쪽 인덱스를 둔다.
-CREATE INDEX idx_notifications_last_actor_id ON notifications (last_actor_id);
 -- 보관 기간 정리 잡이 오래된 알림을 지울 때 쓴다.
 CREATE INDEX idx_notifications_created_at ON notifications (created_at);
 

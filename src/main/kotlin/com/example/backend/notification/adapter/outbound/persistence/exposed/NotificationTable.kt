@@ -11,7 +11,7 @@ internal object NotificationTable : LongIdTable("notifications") {
     val targetType = enumerationByName<NotificationTargetType>("target_type", 32)
     val targetId = long("target_id")
     val windowStart = timestamp("window_start")
-    val lastActorId = long("last_actor_id")
+    val displayActorId = long("display_actor_id")
     val actorCount = integer("actor_count")
     val actorNickname = varchar("actor_nickname", 20).nullable()
     val courseTitle = varchar("course_title", 200).nullable()

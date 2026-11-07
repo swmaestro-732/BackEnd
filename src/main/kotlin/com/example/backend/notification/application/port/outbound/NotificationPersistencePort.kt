@@ -11,7 +11,7 @@ interface NotificationPersistencePort {
 
     /**
      * [type] 과 [targetId] (와 [userId]) 가 같은 모든 창의 묶음에서 [actorId] 를 빼고 인원을 남은 사람 수로 맞추며,
-     * 남은 사람이 없으면 지운다. [actorId] 가 마지막 행동자였고 남은 사람이 있는 묶음의 id 와 새 마지막 행동자를 돌려준다.
+     * 남은 사람이 없으면 지운다. [actorId] 가 대표 행동자였고 남은 사람이 있는 묶음의 id 와 새 대표 행동자를 돌려준다.
      */
     fun removeActor(
         actorId: Long,
@@ -41,10 +41,10 @@ interface NotificationPersistencePort {
     fun markAllRead(userId: Long): Int
 
     /**
-     * [userId] 가 받은 알림과, [userId] 가 마지막 행동자라 닉네임 스냅샷이 남은 묶음을 지운다.
-     * 남는 묶음은 [userId] 를 행동자에서 빼 인원을 남은 사람 수로 맞추고, 남은 사람이 없으면 지운다.
+     * [userId] 가 받은 알림을 지우고, 나머지 묶음에서는 [userId] 를 행동자에서 빼 인원을 남은 사람 수로 맞춘다.
+     * 남은 사람이 없으면 지운다. [userId] 가 대표 행동자였고 남은 사람이 있는 묶음의 id 와 새 대표 행동자를 돌려준다.
      */
-    fun deleteAllInvolving(userId: Long)
+    fun deleteAllInvolving(userId: Long): Map<Long, Long>
 
     /** [cutoff] 이전에 만든 알림을 지우고 지운 수를 돌려준다. */
     fun deleteCreatedBefore(cutoff: Instant): Int

@@ -15,7 +15,6 @@ import org.jetbrains.exposed.v1.core.inList
 import org.jetbrains.exposed.v1.core.isNull
 import org.jetbrains.exposed.v1.core.less
 import org.jetbrains.exposed.v1.core.max
-import org.jetbrains.exposed.v1.core.or
 import org.jetbrains.exposed.v1.core.plus
 import org.jetbrains.exposed.v1.datetime.CurrentTimestamp
 import org.jetbrains.exposed.v1.jdbc.andWhere
@@ -43,14 +42,14 @@ class NotificationRepository {
                 it[targetType] = bundle.targetType
                 it[targetId] = bundle.targetId
                 it[windowStart] = bundle.windowStart.toKotlinInstant()
-                it[lastActorId] = bundle.lastActorId
+                it[displayActorId] = bundle.displayActorId
                 it[actorCount] = 1
                 it[actorNickname] = bundle.actorNickname
                 it[courseTitle] = bundle.courseTitle
                 it[courseImageUrl] = bundle.courseImageUrl
             }
         if (createdId != null) {
-            insertActor(createdId.value, bundle.lastActorId)
+            insertActor(createdId.value, bundle.displayActorId)
             return
         }
         val id =
@@ -65,11 +64,11 @@ class NotificationRepository {
                 }.singleOrNull()
                 ?.get(NotificationTable.id)
                 ?.value ?: return
-        if (insertActor(id, bundle.lastActorId) == 0) return
+        if (insertActor(id, bundle.displayActorId) == 0) return
         NotificationTable.update({ NotificationTable.id eq id }) {
             it[actorCount] = actorCount + 1
             it[readAt] = null
-            it[lastActorId] = bundle.lastActorId
+            it[displayActorId] = bundle.displayActorId
             it[actorNickname] = bundle.actorNickname
             it[courseTitle] = bundle.courseTitle
             it[courseImageUrl] = bundle.courseImageUrl
@@ -101,7 +100,7 @@ class NotificationRepository {
                 targetType = row[NotificationTable.targetType],
                 targetId = row[NotificationTable.targetId],
                 actorCount = row[NotificationTable.actorCount],
-                lastActorId = row[NotificationTable.lastActorId],
+                displayActorId = row[NotificationTable.displayActorId],
                 actorNickname = row[NotificationTable.actorNickname],
                 courseTitle = row[NotificationTable.courseTitle],
                 courseImageUrl = row[NotificationTable.courseImageUrl],
@@ -136,14 +135,12 @@ class NotificationRepository {
         }
 
     /**
-     * 받은 알림과 닉네임 스냅샷을 남긴 묶음(마지막 행동자가 [userId])을 지운다.
-     * 남는 묶음에서는 [userId] 의 행동자 행을 지우고 인원을 남은 사람 수로 맞추며, 남은 행동자가 없으면 묶음을 지운다.
+     * 받은 알림을 지우고, 나머지 묶음에서는 [userId] 를 [detachActor] 로 뺀다.
+     * 닉네임 스냅샷은 호출한 쪽이 돌려받은 새 대표 행동자로 맞춘다.
      */
-    fun deleteAllInvolving(userId: Long) {
-        NotificationTable.deleteWhere {
-            (NotificationTable.userId eq userId) or (NotificationTable.lastActorId eq userId)
-        }
-        detachActor(userId, null)
+    fun deleteAllInvolving(userId: Long): Map<Long, Long> {
+        NotificationTable.deleteWhere { NotificationTable.userId eq userId }
+        return detachActor(userId, null)
     }
 
     /** 같은 대상의 모든 창 묶음에서 [actorId] 를 뺀다. 지우는 규칙은 [detachActor] 와 같다. */
@@ -167,24 +164,24 @@ class NotificationRepository {
 
     /**
      * [scope] 안의 묶음(null 이면 전부)에서 [actorId] 의 행동자 행을 지우고 인원을 남은 사람 수로 맞춘다.
-     * 마지막 행동자가 [actorId] 였으면 남은 행동자 중 id 가 가장 큰 사람으로 바꾸고, 남은 행동자가 없으면 묶음을 지운다.
-     * 마지막 행동자를 바꾼 묶음의 id 와 새 마지막 행동자를 돌려준다.
+     * 대표 행동자가 [actorId] 였으면 남은 행동자 중 id 가 가장 큰 사람으로 바꾸고, 남은 행동자가 없으면 묶음을 지운다.
+     * 대표 행동자를 바꾼 묶음의 id 와 새 대표 행동자를 돌려준다.
      */
     private fun detachActor(
         actorId: Long,
         scope: Op<Boolean>?,
     ): Map<Long, Long> {
-        // 묶음 id 와 현재 마지막 행동자. 묶음 행을 잠가 아래의 인원, 마지막 행동자 덮어쓰기가 동시 upsert 와 겹치지 않게 한다
+        // 묶음 id 와 현재 대표 행동자. 묶음 행을 잠가 아래의 인원, 대표 행동자 덮어쓰기가 동시 upsert 와 겹치지 않게 한다
         // (upsert 의 행동자 INSERT 는 외래 키 검사로 묶음 행 잠금을 기다린다).
         val affected =
             NotificationActorTable
                 .join(NotificationTable, JoinType.INNER, NotificationActorTable.notificationId, NotificationTable.id)
-                .select(NotificationTable.id, NotificationTable.lastActorId)
+                .select(NotificationTable.id, NotificationTable.displayActorId)
                 .where {
                     val byActor = NotificationActorTable.actorId eq actorId
                     if (scope == null) byActor else byActor and scope
                 }.forUpdate()
-                .associate { it[NotificationTable.id].value to it[NotificationTable.lastActorId] }
+                .associate { it[NotificationTable.id].value to it[NotificationTable.displayActorId] }
         if (affected.isEmpty()) return emptyMap()
         NotificationActorTable.deleteWhere {
             (NotificationActorTable.actorId eq actorId) and (NotificationActorTable.notificationId inList affected.keys)
@@ -204,7 +201,7 @@ class NotificationRepository {
             val (count, latestActorId) = counted
             NotificationTable.update({ NotificationTable.id eq id }) {
                 it[NotificationTable.actorCount] = count
-                if (affected[id] == actorId) it[lastActorId] = latestActorId
+                if (affected[id] == actorId) it[displayActorId] = latestActorId
             }
         }
         return remaining.filterKeys { affected[it] == actorId }.mapValues { it.value.second }

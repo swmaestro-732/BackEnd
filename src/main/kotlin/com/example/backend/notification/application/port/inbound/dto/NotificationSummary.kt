@@ -10,7 +10,7 @@ data class NotificationSummary(
     val targetType: NotificationTargetType,
     val targetId: Long,
     val actorCount: Int,
-    val lastActorId: Long,
+    val displayActorId: Long,
     val actorNickname: String?,
     val courseTitle: String?,
     val courseImageUrl: String?,

@@ -58,10 +58,10 @@ import org.springframework.test.context.jdbc.Sql
         "INSERT INTO plans (user_id, title) VALUES (1, 'A계획2')",
         "INSERT INTO plans (user_id, title) VALUES (3, 'C계획')",
         "INSERT INTO plan_places (plan_id, place_id, order_no) VALUES (1, 1, 0)",
-        // 알림: A 가 받은 알림(1), B 와 A 가 좋아요한 C 의 묶음(2, 마지막 행동자 A), A 와 무관한 B 의 알림(3),
+        // 알림: A 가 받은 알림(1), B 와 A 가 좋아요한 C 의 묶음(2, 대표 행동자 A), A 와 무관한 B 의 알림(3),
         // C 알림함에 A 닉네임 스냅샷이 남은 댓글 묶음(4), A 만 좋아요한 묶음(5), A 다음 B 가 좋아요한 묶음(6), A 의 수신 설정.
         "INSERT INTO notifications " +
-            "(user_id, type, target_type, target_id, window_start, last_actor_id, actor_count, actor_nickname) " +
+            "(user_id, type, target_type, target_id, window_start, display_actor_id, actor_count, actor_nickname) " +
             "VALUES " +
             "(1, 'USER_FOLLOWED', 'USER', 2, now(), 2, 1, 'a'), " +
             "(3, 'COURSE_LIKED', 'COURSE', 3, now(), 1, 2, NULL), " +
@@ -127,23 +127,27 @@ class WithdrawPurgeIntegrationTest
             assertEquals(0L, count("SELECT count(*) FROM tracing_courses WHERE user_id = 1"))
             assertEquals(0L, count("SELECT count(*) FROM tracing_course_places"))
 
-            // 알림: A 가 받은 알림, A 닉네임 스냅샷이 남은 묶음(A 가 마지막 행동자인 좋아요, 댓글), A 의 수신 설정이 사라지고
-            // 무관한 알림은 남는다. A 가 마지막이 아닌 좋아요 묶음은 A 를 행동자에서 빼고 인원을 남은 사람 수로 맞춘다.
+            // 알림: A 가 받은 알림과 A 의 수신 설정이 사라지고 무관한 알림은 남는다. A 가 들어간 묶음은 A 를 빼고 인원을 맞추며,
+            // A 가 대표 행동자였던 묶음은 남은 사람(B)과 그 닉네임으로 바꾼다. A 만 있던 묶음(4 댓글, 5 좋아요)은 지운다.
             assertEquals(0L, count("SELECT count(*) FROM notifications WHERE user_id = 1"))
-            assertEquals(0L, count("SELECT count(*) FROM notifications WHERE last_actor_id = 1"))
-            assertEquals(0L, count("SELECT count(*) FROM notifications WHERE id IN (2, 4, 5)"))
+            assertEquals(0L, count("SELECT count(*) FROM notifications WHERE display_actor_id = 1"))
+            assertEquals(0L, count("SELECT count(*) FROM notifications WHERE id IN (4, 5)"))
             assertEquals(
-                listOf(listOf(6L, 2L, 1L)),
+                listOf(listOf(2L, 2L, 1L), listOf(6L, 2L, 1L)),
                 jdbc
                     .queryForList(
-                        "SELECT id, last_actor_id, actor_count FROM notifications WHERE user_id = 3 ORDER BY id",
+                        "SELECT id, display_actor_id, actor_count FROM notifications WHERE user_id = 3 ORDER BY id",
                     ).map { row ->
-                        listOf(row["id"], row["last_actor_id"], row["actor_count"]).map { (it as Number).toLong() }
+                        listOf(row["id"], row["display_actor_id"], row["actor_count"]).map { (it as Number).toLong() }
                     },
             )
             assertEquals(0L, count("SELECT count(*) FROM notification_actors WHERE actor_id = 1"))
             assertEquals(
-                listOf(6L),
+                listOf("유저비"),
+                jdbc.queryForList("SELECT actor_nickname FROM notifications WHERE id = 2", String::class.java),
+            )
+            assertEquals(
+                listOf(2L, 6L),
                 jdbc.queryForList(
                     "SELECT notification_id FROM notification_actors " +
                         "WHERE actor_id = 2 AND notification_id IN (2, 6) ORDER BY notification_id",

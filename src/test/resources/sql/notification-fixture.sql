@@ -14,7 +14,7 @@ VALUES
 INSERT INTO courses (id, user_id, title, is_published, visibility)
 VALUES (570001, 570003, '좋아요 알림 코스', true, 'PUBLIC');
 
-INSERT INTO notifications (id, user_id, type, target_type, target_id, window_start, last_actor_id, actor_count, actor_nickname, course_title, course_image_url, read_at, created_at, updated_at)
+INSERT INTO notifications (id, user_id, type, target_type, target_id, window_start, display_actor_id, actor_count, actor_nickname, course_title, course_image_url, read_at, created_at, updated_at)
 VALUES
     (570101, 570001, 'COURSE_LIKED', 'COURSE', 570001, '2026-10-24T09:00:00Z', 570002, 1,
      NULL, '좋아요 알림 코스', 'https://example.com/course.jpg', NULL, '2026-10-24T09:00:01Z', '2026-10-24T09:00:01Z'),
