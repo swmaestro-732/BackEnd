@@ -76,6 +76,7 @@ jwt:
   access-ttl: PT30M
   refresh-ttl: P14D
   registration-ttl: PT10M
+  admin-ttl: PT1H
 
 oauth:
   kakao:

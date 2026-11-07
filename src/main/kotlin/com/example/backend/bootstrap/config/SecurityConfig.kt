@@ -1,5 +1,7 @@
 package com.example.backend.bootstrap.config
 
+import com.example.backend.admin.application.port.inbound.AdminAccessUseCase
+import com.example.backend.bootstrap.security.AdminJwtTokenIssuer
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
 import org.springframework.security.authentication.AnonymousAuthenticationToken
@@ -21,7 +23,10 @@ import org.springframework.security.web.SecurityFilterChain
 @EnableMethodSecurity
 class SecurityConfig {
     @Bean
-    fun filterChain(http: HttpSecurity): SecurityFilterChain {
+    fun filterChain(
+        http: HttpSecurity,
+        adminAccessUseCase: AdminAccessUseCase,
+    ): SecurityFilterChain {
         http
             .csrf { it.disable() } // 토큰 기반 무상태 API
             .httpBasic { it.disable() }
@@ -54,6 +59,26 @@ class SecurityConfig {
                                     resolved !is JwtAuthenticationToken ||
                                         resolved.token.getClaimAsString("purpose") == "access"
                                 ),
+                        )
+                    }
+                    // 어드민 토큰(purpose=admin)은 앱 토큰과 별개다. 로그인만 공개하고 나머지는 어드민 토큰만 통과한다.
+                    // 앱 access token 은 여기서, 어드민 토큰은 위 앱 경로(purpose=access 검사)에서 각각 거부된다.
+                    // `/api/**` permitAll 보다 앞에 둬야 하고, 안 적으면 아래 anyRequest 에 걸려 앱 토큰도 통과한다.
+                    .requestMatchers("/admin/v1/auth/login")
+                    .permitAll()
+                    .requestMatchers("/admin/v1/**")
+                    // 토큰 서명만 믿지 않고 매 요청 admins 를 다시 조회한다. 행을 지우거나 등록 계정(google_sub)을 바꾸면
+                    // 남은 토큰도 즉시 403 이 된다.
+                    .access { authentication, _ ->
+                        val resolved = authentication.get()
+                        val token = (resolved as? JwtAuthenticationToken)?.token
+                        val email = token?.subject
+                        val googleSub = token?.getClaimAsString(AdminJwtTokenIssuer.GOOGLE_SUB_CLAIM)
+                        AuthorizationDecision(
+                            token?.getClaimAsString("purpose") == "admin" &&
+                                email != null &&
+                                googleSub != null &&
+                                adminAccessUseCase.isAdmin(email, googleSub),
                         )
                     }.requestMatchers(
                         "/actuator/health",

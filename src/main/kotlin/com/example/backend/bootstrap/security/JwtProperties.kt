@@ -9,6 +9,8 @@ data class JwtProperties(
     val accessTtl: Duration,
     val refreshTtl: Duration,
     val registrationTtl: Duration,
+    // 어드민 토큰(purpose=admin) 수명. refresh 없이 만료되면 다시 구글 로그인한다.
+    val adminTtl: Duration = Duration.ofHours(1),
 ) {
     init {
         // 시크릿 미설정/취약 시 기동 실패(fail-fast) — 코드에 기본값을 두지 않고 반드시 env로 주입.
