@@ -1,6 +1,6 @@
 package com.example.backend.push.adapter.inbound.messaging
 
-import com.example.backend.bootstrap.config.PushProperties
+import com.example.backend.push.adapter.config.PushProperties
 import com.example.backend.push.application.port.inbound.PushDeliveryUseCase
 import io.micrometer.core.instrument.MeterRegistry
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry

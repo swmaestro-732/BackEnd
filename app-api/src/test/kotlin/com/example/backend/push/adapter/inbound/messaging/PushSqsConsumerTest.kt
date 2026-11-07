@@ -1,6 +1,6 @@
 package com.example.backend.push.adapter.inbound.messaging
 
-import com.example.backend.bootstrap.config.PushProperties
+import com.example.backend.push.adapter.config.PushProperties
 import com.example.backend.push.adapter.messaging.PushQueueMessage
 import com.example.backend.push.application.port.inbound.PushDeliveryUseCase
 import com.example.backend.push.application.port.inbound.dto.PushMessage

@@ -1,9 +1,9 @@
 package com.example.backend.place.adapter.outbound.search
 
-import com.example.backend.bootstrap.config.OpenSearchProperties
 import com.example.backend.common.exception.BusinessException
 import com.example.backend.common.geo.Coordinate
 import com.example.backend.common.response.PlaceErrorCode
+import com.example.backend.opensearch.OpenSearchProperties
 import com.example.backend.place.application.port.inbound.dto.PlaceMapSort
 import com.example.backend.place.application.port.outbound.PlaceMapBucket
 import com.example.backend.place.application.port.outbound.PlaceMapHit

@@ -1,6 +1,5 @@
 package com.example.backend.place.adapter.outbound.search
 
-import com.example.backend.bootstrap.config.GooglePlacesProperties
 import com.example.backend.common.geo.Coordinate
 import kotlinx.datetime.LocalTime
 import org.assertj.core.api.Assertions.assertThat

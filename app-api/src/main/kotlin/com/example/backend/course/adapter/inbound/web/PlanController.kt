@@ -1,9 +1,5 @@
 package com.example.backend.course.adapter.inbound.web
 
-import com.example.backend.bootstrap.appversion.AppFeature
-import com.example.backend.bootstrap.appversion.RequiresAppFeature
-import com.example.backend.bootstrap.security.AccessTokenRequired
-import com.example.backend.bootstrap.security.CurrentUserId
 import com.example.backend.common.response.ApiResponse
 import com.example.backend.course.adapter.inbound.web.request.CreatePlanRequest
 import com.example.backend.course.adapter.inbound.web.request.EditPlanRequest
@@ -13,6 +9,10 @@ import com.example.backend.course.adapter.inbound.web.response.PlanListResponse
 import com.example.backend.course.application.port.inbound.PlanQueryUseCase
 import com.example.backend.course.application.port.inbound.PlanUseCase
 import com.example.backend.course.application.port.inbound.dto.PlansQuery
+import com.example.backend.web.AccessTokenRequired
+import com.example.backend.web.AppFeature
+import com.example.backend.web.CurrentUserId
+import com.example.backend.web.RequiresAppFeature
 import jakarta.validation.Valid
 import jakarta.validation.constraints.Max
 import jakarta.validation.constraints.Min

@@ -1,4 +1,4 @@
-package com.example.backend.bootstrap.config
+package com.example.backend.user.adapter.outbound.messaging
 
 import org.springframework.boot.context.properties.ConfigurationProperties
 
@@ -8,11 +8,9 @@ import org.springframework.boot.context.properties.ConfigurationProperties
  * 클라이언트·리전·자격증명은 spring-cloud-aws 가 `spring.cloud.aws.*` 로 자동 배선한다.
  * - [courseCountQueueUrl]: 코스 개수 반영 폴백([CourseCountFallbackAdapter]/[CourseCountSqsConsumer]).
  * - [savedPlaceQueueUrl]: 저장 장소 색인 폴백([SavedPlaceIndexFallbackAdapter]/[SavedPlaceIndexSqsConsumer]).
- * - [pushQueueUrl]: FCM 푸시 발송 큐([PushQueueAdapter]/[PushSqsConsumer]).
  */
 @ConfigurationProperties(prefix = "aws.sqs")
 data class SqsProperties(
     val courseCountQueueUrl: String = "",
     val savedPlaceQueueUrl: String = "",
-    val pushQueueUrl: String = "",
 )

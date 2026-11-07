@@ -1,4 +1,4 @@
-package com.example.backend.bootstrap.config
+package com.example.backend.opensearch
 
 import com.fasterxml.jackson.databind.DeserializationFeature
 import com.fasterxml.jackson.databind.ObjectMapper

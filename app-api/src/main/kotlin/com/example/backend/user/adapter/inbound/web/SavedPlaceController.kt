@@ -1,15 +1,15 @@
 package com.example.backend.user.adapter.inbound.web
 
-import com.example.backend.bootstrap.appversion.AppFeature
-import com.example.backend.bootstrap.appversion.RequiresAppFeature
-import com.example.backend.bootstrap.security.AccessTokenRequired
-import com.example.backend.bootstrap.security.CurrentUserId
 import com.example.backend.common.response.ApiResponse
 import com.example.backend.user.adapter.inbound.web.request.SavePlaceRequest
 import com.example.backend.user.adapter.inbound.web.response.SavedPlaceListResponse
 import com.example.backend.user.application.port.inbound.SavedPlaceUseCase
 import com.example.backend.user.application.port.inbound.dto.SavedPlacesCommand
 import com.example.backend.user.domain.model.SavedPlaceCategory
+import com.example.backend.web.AccessTokenRequired
+import com.example.backend.web.AppFeature
+import com.example.backend.web.CurrentUserId
+import com.example.backend.web.RequiresAppFeature
 import jakarta.validation.Valid
 import jakarta.validation.constraints.Max
 import jakarta.validation.constraints.Min

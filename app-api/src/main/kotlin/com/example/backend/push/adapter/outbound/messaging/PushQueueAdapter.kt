@@ -1,6 +1,6 @@
 package com.example.backend.push.adapter.outbound.messaging
 
-import com.example.backend.bootstrap.config.SqsProperties
+import com.example.backend.push.adapter.config.PushQueueProperties
 import com.example.backend.push.adapter.messaging.PushQueueMessage
 import com.example.backend.push.application.port.inbound.dto.PushMessage
 import com.example.backend.push.application.port.outbound.PushQueuePort
@@ -15,7 +15,7 @@ import java.time.Clock
 @Component
 class PushQueueAdapter(
     private val sqsTemplateProvider: ObjectProvider<SqsTemplate>,
-    private val sqsProperties: SqsProperties,
+    private val pushQueueProperties: PushQueueProperties,
     private val clock: Clock,
     meterRegistry: MeterRegistry,
 ) : PushQueuePort {
@@ -23,7 +23,7 @@ class PushQueueAdapter(
     private val queueNotConfiguredCounter = meterRegistry.counter("push.skipped", "reason", "queue_not_configured")
 
     override fun enqueue(message: PushMessage) {
-        val queueUrl = sqsProperties.pushQueueUrl
+        val queueUrl = pushQueueProperties.pushQueueUrl
         val template = sqsTemplateProvider.ifAvailable
         if (queueUrl.isBlank() || template == null) {
             queueNotConfiguredCounter.increment(message.tokens.size.toDouble())

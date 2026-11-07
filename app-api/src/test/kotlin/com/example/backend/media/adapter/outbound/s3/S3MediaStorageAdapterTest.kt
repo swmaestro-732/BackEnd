@@ -1,6 +1,5 @@
 package com.example.backend.media.adapter.outbound.s3
 
-import com.example.backend.bootstrap.config.MediaProperties
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test

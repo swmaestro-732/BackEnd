@@ -1,7 +1,7 @@
 package com.example.backend.user.adapter.outbound.search
 
-import com.example.backend.bootstrap.config.OpenSearchConfig
 import com.example.backend.common.geo.Coordinate
+import com.example.backend.opensearch.OpenSearchConfig
 import com.example.backend.support.IntegrationTestBase
 import com.example.backend.support.NoriOpenSearchContainer
 import com.example.backend.user.application.port.outbound.SavedPlaceIndexDocument

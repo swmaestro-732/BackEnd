@@ -1,4 +1,4 @@
-package com.example.backend.bootstrap.config
+package com.example.backend.push.adapter.config
 
 import org.junit.jupiter.api.Assertions.assertThrows
 import org.junit.jupiter.api.Test

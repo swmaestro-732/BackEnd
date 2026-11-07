@@ -1,4 +1,4 @@
-package com.example.backend.bootstrap.config
+package com.example.backend.push.adapter.config
 
 import org.junit.jupiter.api.Assertions.assertDoesNotThrow
 import org.junit.jupiter.api.Assertions.assertFalse
@@ -34,14 +34,14 @@ class PushConfigCheckerTest {
     @Test
     fun `기동 점검은 따옴표가 든 키에서도 예외 없이 끝난다`() {
         val environment = MockEnvironment().withProperty("firebase.credentials-json", KEY_JSON)
-        val checker = PushConfigChecker(SqsProperties(), environment)
+        val checker = PushConfigChecker(PushQueueProperties(), environment)
 
         assertDoesNotThrow { checker.check() }
     }
 
     @Test
     fun `키 설정이 없어도 기동 점검은 예외 없이 끝난다`() {
-        val checker = PushConfigChecker(SqsProperties(pushQueueUrl = QUEUE_URL), MockEnvironment())
+        val checker = PushConfigChecker(PushQueueProperties(pushQueueUrl = QUEUE_URL), MockEnvironment())
 
         assertDoesNotThrow { checker.check() }
     }

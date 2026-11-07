@@ -1,8 +1,5 @@
 package com.example.backend.course.adapter.inbound.web
 
-import com.example.backend.bootstrap.appversion.AppFeature
-import com.example.backend.bootstrap.appversion.RequiresAppFeature
-import com.example.backend.bootstrap.security.CurrentUserId
 import com.example.backend.common.response.ApiResponse
 import com.example.backend.course.adapter.inbound.web.request.CreateCourseRequest
 import com.example.backend.course.adapter.inbound.web.request.EditCourseRequest
@@ -11,6 +8,9 @@ import com.example.backend.course.adapter.inbound.web.response.CourseDraftRespon
 import com.example.backend.course.adapter.inbound.web.response.CourseIdResponse
 import com.example.backend.course.application.port.inbound.CourseQueryUseCase
 import com.example.backend.course.application.port.inbound.CourseUseCase
+import com.example.backend.web.AppFeature
+import com.example.backend.web.CurrentUserId
+import com.example.backend.web.RequiresAppFeature
 import jakarta.validation.Valid
 import org.springframework.http.HttpStatus
 import org.springframework.web.bind.annotation.DeleteMapping

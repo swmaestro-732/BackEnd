@@ -1,4 +1,4 @@
-package com.example.backend.bootstrap.device
+package com.example.backend.web
 
 /**
  * `X-Device-Id` 헤더(기기 식별자, Android 는 Firebase Installation ID)를 주입한다.
@@ -8,3 +8,6 @@ package com.example.backend.bootstrap.device
 @Target(AnnotationTarget.VALUE_PARAMETER)
 @Retention(AnnotationRetention.RUNTIME)
 annotation class CurrentDeviceId
+
+/** 기기 식별자 헤더 이름. 리졸버와, 헤더를 선택값으로 받는 컨트롤러가 함께 쓴다. */
+const val DEVICE_ID_HEADER = "X-Device-Id"

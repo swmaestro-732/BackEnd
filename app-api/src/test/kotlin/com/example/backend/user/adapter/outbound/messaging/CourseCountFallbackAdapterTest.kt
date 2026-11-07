@@ -1,6 +1,5 @@
 package com.example.backend.user.adapter.outbound.messaging
 
-import com.example.backend.bootstrap.config.SqsProperties
 import com.example.backend.common.domain.CourseVisibility
 import io.awspring.cloud.sqs.operations.SqsTemplate
 import org.junit.jupiter.api.Assertions.assertDoesNotThrow

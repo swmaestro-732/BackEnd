@@ -1,4 +1,4 @@
-package com.example.backend.bootstrap.config
+package com.example.backend.push.adapter.config
 
 import io.github.oshai.kotlinlogging.KotlinLogging
 import org.springframework.boot.context.event.ApplicationReadyEvent
@@ -9,7 +9,7 @@ import org.springframework.stereotype.Component
 /** 푸시 큐와 Firebase 키 중 하나만 설정된 배포를 기동 시 오류 로그로 알린다. 키 값은 남기지 않는다. */
 @Component
 class PushConfigChecker(
-    private val sqsProperties: SqsProperties,
+    private val pushQueueProperties: PushQueueProperties,
     private val environment: Environment,
 ) {
     private val log = KotlinLogging.logger {}
@@ -18,7 +18,7 @@ class PushConfigChecker(
     fun check() {
         // 키 JSON 은 따옴표를 포함할 수 있어 FirebaseConfig 와 같이 environment 로 읽는다.
         val credentialsJson = environment.getProperty("firebase.credentials-json", "")
-        pushConfigMismatchMessage(sqsProperties.pushQueueUrl, credentialsJson)?.let { log.error { it } }
+        pushConfigMismatchMessage(pushQueueProperties.pushQueueUrl, credentialsJson)?.let { log.error { it } }
     }
 }
 

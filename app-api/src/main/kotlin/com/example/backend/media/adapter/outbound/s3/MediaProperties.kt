@@ -1,4 +1,4 @@
-package com.example.backend.bootstrap.config
+package com.example.backend.media.adapter.outbound.s3
 
 import com.example.backend.media.application.port.outbound.MediaPolicy
 import jakarta.validation.constraints.NotBlank

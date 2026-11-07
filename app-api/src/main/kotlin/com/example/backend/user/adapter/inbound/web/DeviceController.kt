@@ -1,12 +1,12 @@
 package com.example.backend.user.adapter.inbound.web
 
-import com.example.backend.bootstrap.device.CurrentDeviceId
 import com.example.backend.common.response.ApiResponse
 import com.example.backend.user.adapter.inbound.web.request.DeviceRequest
 import com.example.backend.user.adapter.inbound.web.response.DeviceConsentResponse
 import com.example.backend.user.application.port.inbound.DeviceUseCase
 import com.example.backend.user.application.port.inbound.dto.DeviceConsent
 import com.example.backend.user.application.port.inbound.dto.UpdateDeviceCommand
+import com.example.backend.web.CurrentDeviceId
 import jakarta.validation.Valid
 import org.springframework.web.bind.annotation.GetMapping
 import org.springframework.web.bind.annotation.PutMapping

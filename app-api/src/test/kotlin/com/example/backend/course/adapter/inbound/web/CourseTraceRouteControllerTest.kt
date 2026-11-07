@@ -1,10 +1,10 @@
 package com.example.backend.course.adapter.inbound.web
 
-import com.example.backend.bootstrap.security.JwtTokenProvider
 import com.example.backend.common.geo.Coordinate
 import com.example.backend.direction.application.port.outbound.PedestrianRoute
 import com.example.backend.direction.application.port.outbound.PedestrianRoutePort
 import com.example.backend.support.IntegrationTestBase
+import com.example.backend.user.adapter.outbound.auth.JwtTokenProvider
 import org.junit.jupiter.api.Test
 import org.mockito.Mockito.`when`
 import org.springframework.beans.factory.annotation.Autowired

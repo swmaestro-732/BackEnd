@@ -1,7 +1,5 @@
 package com.example.backend.course.adapter.inbound.web
 
-import com.example.backend.bootstrap.security.AccessTokenRequired
-import com.example.backend.bootstrap.security.CurrentUserId
 import com.example.backend.common.response.ApiResponse
 import com.example.backend.course.adapter.inbound.web.request.CreateCourseCommentRequest
 import com.example.backend.course.adapter.inbound.web.request.EditCourseCommentRequest
@@ -9,6 +7,8 @@ import com.example.backend.course.adapter.inbound.web.response.CourseCommentIdRe
 import com.example.backend.course.adapter.inbound.web.response.CourseCommentListResponse
 import com.example.backend.course.application.port.inbound.CourseCommentQueryUseCase
 import com.example.backend.course.application.port.inbound.CourseCommentUseCase
+import com.example.backend.web.AccessTokenRequired
+import com.example.backend.web.CurrentUserId
 import jakarta.validation.Valid
 import org.springframework.http.HttpStatus
 import org.springframework.web.bind.annotation.DeleteMapping

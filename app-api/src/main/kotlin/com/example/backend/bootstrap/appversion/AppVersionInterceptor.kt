@@ -2,6 +2,8 @@ package com.example.backend.bootstrap.appversion
 
 import com.example.backend.common.exception.BusinessException
 import com.example.backend.common.response.CommonErrorCode
+import com.example.backend.web.AppFeature
+import com.example.backend.web.RequiresAppFeature
 import jakarta.servlet.http.HttpServletRequest
 import jakarta.servlet.http.HttpServletResponse
 import org.springframework.stereotype.Component

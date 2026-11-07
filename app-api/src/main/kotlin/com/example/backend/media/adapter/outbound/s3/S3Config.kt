@@ -1,4 +1,4 @@
-package com.example.backend.bootstrap.config
+package com.example.backend.media.adapter.outbound.s3
 
 import org.springframework.beans.factory.annotation.Value
 import org.springframework.context.annotation.Bean

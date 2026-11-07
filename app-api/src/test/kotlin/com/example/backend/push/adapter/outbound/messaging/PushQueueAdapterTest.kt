@@ -1,6 +1,6 @@
 package com.example.backend.push.adapter.outbound.messaging
 
-import com.example.backend.bootstrap.config.SqsProperties
+import com.example.backend.push.adapter.config.PushQueueProperties
 import com.example.backend.push.adapter.messaging.PushQueueMessage
 import com.example.backend.push.application.port.inbound.dto.PushMessage
 import io.awspring.cloud.sqs.operations.SqsSendOptions
@@ -72,7 +72,7 @@ class PushQueueAdapterTest {
         sqsTemplate?.let { beanFactory.registerSingleton("sqsTemplate", it) }
         return PushQueueAdapter(
             beanFactory.getBeanProvider(SqsTemplate::class.java),
-            SqsProperties(pushQueueUrl = queueUrl),
+            PushQueueProperties(pushQueueUrl = queueUrl),
             Clock.fixed(now, ZoneOffset.UTC),
             meterRegistry,
         )

@@ -1,13 +1,13 @@
 package com.example.backend.place.adapter.inbound.web
 
-import com.example.backend.bootstrap.appversion.AppFeature
-import com.example.backend.bootstrap.appversion.RequiresAppFeature
-import com.example.backend.bootstrap.security.AccessTokenRequired
-import com.example.backend.bootstrap.security.CurrentUserId
 import com.example.backend.common.response.ApiResponse
 import com.example.backend.place.adapter.inbound.web.request.CreatePlaceReviewRequest
 import com.example.backend.place.adapter.inbound.web.response.CreatePlaceReviewResponse
 import com.example.backend.place.application.port.inbound.PlaceReviewUseCase
+import com.example.backend.web.AccessTokenRequired
+import com.example.backend.web.AppFeature
+import com.example.backend.web.CurrentUserId
+import com.example.backend.web.RequiresAppFeature
 import jakarta.validation.Valid
 import org.springframework.http.HttpStatus
 import org.springframework.web.bind.annotation.DeleteMapping

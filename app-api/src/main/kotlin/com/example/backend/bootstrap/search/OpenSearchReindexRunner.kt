@@ -1,8 +1,8 @@
 package com.example.backend.bootstrap.search
 
-import com.example.backend.bootstrap.config.OpenSearchConfig
-import com.example.backend.bootstrap.config.OpenSearchProperties
 import com.example.backend.course.application.port.inbound.CourseReindexUseCase
+import com.example.backend.opensearch.OpenSearchConfig
+import com.example.backend.opensearch.OpenSearchProperties
 import com.example.backend.place.application.port.inbound.PlaceReindexUseCase
 import com.example.backend.user.application.port.inbound.SavedPlaceReindexUseCase
 import io.github.oshai.kotlinlogging.KotlinLogging

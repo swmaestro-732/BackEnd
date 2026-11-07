@@ -1,6 +1,6 @@
 package com.example.backend.push.adapter.outbound.fcm
 
-import com.example.backend.bootstrap.config.PushProperties
+import com.example.backend.push.adapter.config.PushProperties
 import com.example.backend.push.application.port.inbound.dto.PushMessage
 import com.example.backend.push.application.port.outbound.PushSendResult
 import com.google.api.client.json.gson.GsonFactory

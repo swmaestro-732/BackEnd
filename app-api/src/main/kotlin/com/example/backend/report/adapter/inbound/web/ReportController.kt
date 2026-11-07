@@ -1,11 +1,11 @@
 package com.example.backend.report.adapter.inbound.web
 
-import com.example.backend.bootstrap.security.AccessTokenRequired
-import com.example.backend.bootstrap.security.CurrentUserId
 import com.example.backend.common.response.ApiResponse
 import com.example.backend.report.adapter.inbound.web.request.CreateReportRequest
 import com.example.backend.report.adapter.inbound.web.response.ReportIdResponse
 import com.example.backend.report.application.port.inbound.ReportUseCase
+import com.example.backend.web.AccessTokenRequired
+import com.example.backend.web.CurrentUserId
 import jakarta.validation.Valid
 import org.springframework.http.HttpStatus
 import org.springframework.web.bind.annotation.PostMapping

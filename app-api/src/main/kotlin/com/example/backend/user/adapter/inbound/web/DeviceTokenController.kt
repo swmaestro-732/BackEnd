@@ -1,12 +1,12 @@
 package com.example.backend.user.adapter.inbound.web
 
-import com.example.backend.bootstrap.device.CurrentDeviceId
-import com.example.backend.bootstrap.security.AccessTokenRequired
-import com.example.backend.bootstrap.security.CurrentUserId
 import com.example.backend.common.response.ApiResponse
 import com.example.backend.user.adapter.inbound.web.request.DeviceTokenRequest
 import com.example.backend.user.application.port.inbound.DeviceTokenUseCase
 import com.example.backend.user.application.port.inbound.dto.RegisterDeviceTokenCommand
+import com.example.backend.web.AccessTokenRequired
+import com.example.backend.web.CurrentDeviceId
+import com.example.backend.web.CurrentUserId
 import jakarta.validation.Valid
 import org.springframework.web.bind.annotation.DeleteMapping
 import org.springframework.web.bind.annotation.PutMapping

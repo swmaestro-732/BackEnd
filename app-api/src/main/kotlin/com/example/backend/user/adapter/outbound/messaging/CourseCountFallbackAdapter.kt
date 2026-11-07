@@ -1,6 +1,5 @@
 package com.example.backend.user.adapter.outbound.messaging
 
-import com.example.backend.bootstrap.config.SqsProperties
 import com.example.backend.common.domain.CourseVisibility
 import com.example.backend.user.adapter.messaging.CourseCountMessage
 import com.example.backend.user.application.port.outbound.CourseCountFallbackPort

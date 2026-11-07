@@ -1,5 +1,6 @@
 package com.example.backend.bootstrap.config
 
+import com.example.backend.opensearch.OpenSearchConfig
 import com.example.backend.support.IntegrationTestBase
 import org.junit.jupiter.api.Assertions.assertNotSame
 import org.junit.jupiter.api.Assertions.assertTrue

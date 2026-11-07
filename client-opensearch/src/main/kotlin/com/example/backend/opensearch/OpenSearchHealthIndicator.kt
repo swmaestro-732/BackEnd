@@ -1,4 +1,4 @@
-package com.example.backend.bootstrap.config
+package com.example.backend.opensearch
 
 import org.opensearch.client.opensearch.OpenSearchClient
 import org.springframework.boot.health.contributor.Health

@@ -1,12 +1,12 @@
 package com.example.backend.mobile.user.adapter.inbound.web
 
-import com.example.backend.bootstrap.appversion.AppFeature
-import com.example.backend.bootstrap.appversion.RequiresAppFeature
-import com.example.backend.bootstrap.security.CurrentUserId
 import com.example.backend.common.response.ApiResponse
 import com.example.backend.mobile.user.adapter.inbound.web.response.SavedCourseScreenResponse
 import com.example.backend.mobile.user.application.port.inbound.SavedCourseScreenCommand
 import com.example.backend.mobile.user.application.port.inbound.SavedCourseScreenUseCase
+import com.example.backend.web.AppFeature
+import com.example.backend.web.CurrentUserId
+import com.example.backend.web.RequiresAppFeature
 import jakarta.validation.constraints.Max
 import jakarta.validation.constraints.Min
 import org.springframework.web.bind.annotation.GetMapping

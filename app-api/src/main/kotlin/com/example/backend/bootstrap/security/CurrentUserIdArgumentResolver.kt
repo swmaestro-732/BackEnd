@@ -1,5 +1,7 @@
 package com.example.backend.bootstrap.security
 
+import com.example.backend.web.AccessTokenRequired
+import com.example.backend.web.CurrentUserId
 import org.springframework.core.MethodParameter
 import org.springframework.security.authentication.AuthenticationCredentialsNotFoundException
 import org.springframework.security.core.context.SecurityContextHolder

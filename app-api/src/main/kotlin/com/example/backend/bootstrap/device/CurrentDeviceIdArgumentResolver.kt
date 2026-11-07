@@ -2,6 +2,8 @@ package com.example.backend.bootstrap.device
 
 import com.example.backend.common.exception.BusinessException
 import com.example.backend.common.response.CommonErrorCode
+import com.example.backend.web.CurrentDeviceId
+import com.example.backend.web.DEVICE_ID_HEADER
 import org.springframework.core.MethodParameter
 import org.springframework.stereotype.Component
 import org.springframework.web.bind.support.WebDataBinderFactory
@@ -27,8 +29,7 @@ class CurrentDeviceIdArgumentResolver : HandlerMethodArgumentResolver {
         return value
     }
 
-    companion object {
-        const val DEVICE_ID_HEADER = "X-Device-Id"
-        private const val MAX_DEVICE_ID_LENGTH = 128
+    private companion object {
+        const val MAX_DEVICE_ID_LENGTH = 128
     }
 }

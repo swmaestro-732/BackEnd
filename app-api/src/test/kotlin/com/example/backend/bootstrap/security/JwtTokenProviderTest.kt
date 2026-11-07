@@ -2,6 +2,8 @@ package com.example.backend.bootstrap.security
 
 import com.example.backend.common.exception.BusinessException
 import com.example.backend.common.response.CommonErrorCode
+import com.example.backend.user.adapter.outbound.auth.JwtProperties
+import com.example.backend.user.adapter.outbound.auth.JwtTokenProvider
 import com.example.backend.user.domain.model.SocialProvider
 import com.nimbusds.jose.jwk.source.ImmutableSecret
 import com.nimbusds.jose.proc.SecurityContext

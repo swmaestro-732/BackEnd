@@ -1,5 +1,7 @@
 package com.example.backend.bootstrap.config
 
+import com.example.backend.opensearch.OpenSearchConfig
+import com.example.backend.opensearch.OpenSearchProperties
 import org.junit.jupiter.api.Assertions.assertInstanceOf
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
