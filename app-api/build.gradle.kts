@@ -14,14 +14,14 @@ tasks.named<Jar>("jar") { enabled = false }
 dependencies {
     implementation(project(":common"))
     implementation(project(":domain-rds"))
+    implementation(project(":core-web"))
     implementation(project(":client-opensearch"))
 
-    // 웹, 보안, 검증
+    // 웹, 보안, 검증(필터 체인, 예외 핸들러, OpenAPI, Sentry 설정은 core-web 이 가진다)
     implementation("org.springframework.boot:spring-boot-starter-webmvc")
     implementation("org.springframework.boot:spring-boot-starter-security")
     implementation("org.springframework.boot:spring-boot-starter-oauth2-resource-server")
     implementation("org.springframework.boot:spring-boot-starter-validation")
-    implementation("org.springframework.boot:spring-boot-starter-aspectj")
     implementation(libs.springdoc.openapi.webmvc.ui)
     implementation("org.apache.httpcomponents.client5:httpclient5")
 
@@ -61,7 +61,6 @@ dependencies {
     implementation("org.springframework.boot:spring-boot-starter-actuator")
     runtimeOnly("io.micrometer:micrometer-registry-prometheus")
     implementation("org.springframework.boot:spring-boot-starter-opentelemetry")
-    implementation(libs.sentry.spring.boot)
 
     developmentOnly("org.springframework.boot:spring-boot-devtools")
     developmentOnly("org.springframework.boot:spring-boot-docker-compose")
@@ -111,7 +110,7 @@ tasks.register<Test>("archTest") {
 // 테스트는 이 모듈에 있지만 코드는 하위 모듈에도 있다. 전 모듈을 합친 집계 리포트를 만든다.
 tasks.jacocoTestReport {
     dependsOn(tasks.test)
-    val coveredModules = listOf("common", "domain-rds", "client-opensearch", "app-api")
+    val coveredModules = listOf("common", "domain-rds", "core-web", "client-opensearch", "app-api")
     sourceDirectories.setFrom(files(coveredModules.map { rootProject.project(it).file("src/main/kotlin") }))
     classDirectories.setFrom(
         files(

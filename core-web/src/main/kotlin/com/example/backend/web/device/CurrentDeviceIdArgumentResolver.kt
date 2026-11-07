@@ -1,4 +1,4 @@
-package com.example.backend.bootstrap.device
+package com.example.backend.web.device
 
 import com.example.backend.common.exception.BusinessException
 import com.example.backend.common.response.CommonErrorCode

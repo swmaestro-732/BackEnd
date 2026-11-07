@@ -1,9 +1,9 @@
 package com.example.backend.user.adapter.inbound.web
 
-import com.example.backend.bootstrap.exception.GlobalExceptionHandler
 import com.example.backend.user.application.port.inbound.AuthUseCase
 import com.example.backend.user.application.port.inbound.dto.LoginResult
 import com.example.backend.user.domain.model.SocialProvider
+import com.example.backend.web.exception.GlobalExceptionHandler
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.params.ParameterizedTest
 import org.junit.jupiter.params.provider.ValueSource

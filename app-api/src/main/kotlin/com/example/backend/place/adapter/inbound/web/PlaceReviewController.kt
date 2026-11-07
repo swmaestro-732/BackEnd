@@ -24,7 +24,7 @@ import org.springframework.web.bind.annotation.RestController
  *
  * 시드/DB 없이 프론트가 붙어볼 수 있도록 생성은 `?mock=true` 면 저장 없이 고정 id([CreatePlaceReviewResponse.MOCK])를
  * 반환한다(운영 프로파일에서는 MockAspect 가 mock=true 요청을 400 으로 거절한다).
- * 모킹 에러(`?mockError=<code>`)는 전역 아스펙트([com.example.backend.bootstrap.mock.MockAspect])가 주입한다.
+ * 모킹 에러(`?mockError=<code>`)는 전역 아스펙트([com.example.backend.web.mock.MockAspect])가 주입한다.
  */
 @RequiresAppFeature(AppFeature.PLACE_REVIEW)
 @RestController

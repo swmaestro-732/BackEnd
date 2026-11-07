@@ -1,16 +1,11 @@
-package com.example.backend.bootstrap.exception
+package com.example.backend.web.exception
 
 import com.example.backend.common.exception.BusinessException
 import com.example.backend.common.response.ApiResponse
 import com.example.backend.common.response.CommonErrorCode
-import com.example.backend.common.response.CourseErrorCode
 import com.example.backend.common.response.ErrorCode
-import com.example.backend.common.response.PlaceErrorCode
-import com.example.backend.common.response.ReportErrorCode
-import com.example.backend.common.response.UserErrorCode
 import io.github.oshai.kotlinlogging.KotlinLogging
 import io.sentry.Sentry
-import org.jetbrains.exposed.v1.exceptions.ExposedSQLException
 import org.springframework.http.ResponseEntity
 import org.springframework.http.converter.HttpMessageNotReadableException
 import org.springframework.security.access.AccessDeniedException
@@ -25,6 +20,7 @@ import org.springframework.web.method.annotation.MethodArgumentTypeMismatchExcep
 /**
  * 모든 예외를 [ApiResponse] 에러 엔벨로프로 통일한다.
  * HTTP 상태코드는 [ErrorCode.status] 로 매핑하고, 바디는 항상 `{ code, message, ... }`.
+ * DB(Exposed) 예외 변환은 영속성을 아는 app-api 의 별도 핸들러가 이 핸들러보다 먼저 처리한다.
  */
 @RestControllerAdvice
 class GlobalExceptionHandler {
@@ -92,33 +88,6 @@ class GlobalExceptionHandler {
     fun handleNotFound(e: NoSuchElementException): ResponseEntity<ApiResponse<Nothing?>> =
         respond(CommonErrorCode.NOT_FOUND)
 
-    /** DB UNIQUE 위반 중 제약 대상을 식별할 수 있는 사용자 중복만 409로 변환한다. */
-    @ExceptionHandler(ExposedSQLException::class)
-    fun handleSqlException(e: ExposedSQLException): ResponseEntity<ApiResponse<Nothing?>> {
-        if (e.sqlState == UNIQUE_VIOLATION_SQL_STATE) {
-            val message = e.message?.lowercase().orEmpty()
-            // 폴더(saved_course_folders)를 저장 코스(saved_courses)보다 먼저 본다 — 테이블 이름이 서로 닮아 있다.
-            // 리뷰 1인 1개 제한은 테이블명 대신 인덱스명으로 본다 — place_reviews 는 사진·태그 링크 인덱스와도 겹친다.
-            val errorCode =
-                when {
-                    "handle" in message -> UserErrorCode.HANDLE_ALREADY_TAKEN
-                    "nickname" in message -> UserErrorCode.NICKNAME_ALREADY_TAKEN
-                    "saved_course_folders" in message -> UserErrorCode.FOLDER_NAME_ALREADY_TAKEN
-                    "saved_courses" in message -> UserErrorCode.COURSE_ALREADY_SAVED
-                    "course_likes" in message -> CourseErrorCode.COURSE_ALREADY_LIKED
-                    "saved_places" in message -> PlaceErrorCode.PLACE_ALREADY_SAVED
-                    "uq_place_reviews_user_place" in message -> PlaceErrorCode.PLACE_REVIEW_ALREADY_EXISTS
-                    "uq_course_reviews_user_course" in message -> CourseErrorCode.COURSE_REVIEW_ALREADY_EXISTS
-                    "uq_reports_reporter_target" in message -> ReportErrorCode.REPORT_ALREADY_EXISTS
-                    else -> null
-                }
-            if (errorCode != null) {
-                return respond(errorCode)
-            }
-        }
-        return handleUnexpected(e)
-    }
-
     /** 그 외 → 500. 원인 추적을 위해 스택트레이스를 남긴다. */
     @ExceptionHandler(Exception::class)
     fun handleUnexpected(e: Exception): ResponseEntity<ApiResponse<Nothing?>> {
@@ -138,8 +107,4 @@ class GlobalExceptionHandler {
         fieldErrors: List<ApiResponse.FieldError>? = null,
     ): ResponseEntity<ApiResponse<Nothing?>> =
         ResponseEntity.status(errorCode.status).body(ApiResponse.error(errorCode, message, fieldErrors))
-
-    private companion object {
-        const val UNIQUE_VIOLATION_SQL_STATE = "23505"
-    }
 }

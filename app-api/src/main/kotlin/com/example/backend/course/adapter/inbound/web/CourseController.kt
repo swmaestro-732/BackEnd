@@ -26,7 +26,7 @@ import org.springframework.web.bind.annotation.RestController
 
 /**
  * 인바운드 어댑터 — 코스(노션 명세 · Course).
- * 모킹 에러(`?mockError=<code>`)는 전역 아스펙트([com.example.backend.bootstrap.mock.MockAspect])가 주입한다.
+ * 모킹 에러(`?mockError=<code>`)는 전역 아스펙트([com.example.backend.web.mock.MockAspect])가 주입한다.
  */
 @RequiresAppFeature(AppFeature.COURSE_DETAIL)
 @RestController

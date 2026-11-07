@@ -1,14 +1,14 @@
-package com.example.backend.bootstrap.device
+package com.example.backend.web.security
 
 import org.springframework.context.annotation.Configuration
 import org.springframework.web.method.support.HandlerMethodArgumentResolver
 import org.springframework.web.servlet.config.annotation.WebMvcConfigurer
 
 @Configuration
-class DeviceWebMvcConfig(
-    private val currentDeviceIdArgumentResolver: CurrentDeviceIdArgumentResolver,
+class SecurityWebMvcConfig(
+    private val currentUserIdArgumentResolver: CurrentUserIdArgumentResolver,
 ) : WebMvcConfigurer {
     override fun addArgumentResolvers(resolvers: MutableList<HandlerMethodArgumentResolver>) {
-        resolvers.add(currentDeviceIdArgumentResolver)
+        resolvers.add(currentUserIdArgumentResolver)
     }
 }

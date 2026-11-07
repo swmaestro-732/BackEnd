@@ -1,8 +1,8 @@
-package com.example.backend.bootstrap.mock.adapter.inbound.web
+package com.example.backend.web.mock.adapter.inbound.web
 
-import com.example.backend.bootstrap.mock.MockAspect
 import com.example.backend.common.exception.BusinessException
 import com.example.backend.common.response.CommonErrorCode
+import com.example.backend.web.mock.MockAspect
 import org.assertj.core.api.Assertions.assertThat
 import org.assertj.core.api.Assertions.assertThatThrownBy
 import org.junit.jupiter.api.AfterEach

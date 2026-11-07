@@ -1,4 +1,4 @@
-package com.example.backend.bootstrap.mock
+package com.example.backend.web.mock
 
 import com.example.backend.common.exception.BusinessException
 import com.example.backend.common.mock.MockErrors

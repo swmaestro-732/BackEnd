@@ -1,4 +1,4 @@
-package com.example.backend.bootstrap.config
+package com.example.backend.web.config
 
 import io.sentry.SentryOptions
 import org.springframework.context.annotation.Bean

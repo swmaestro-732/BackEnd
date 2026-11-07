@@ -1,4 +1,4 @@
-package com.example.backend.bootstrap.config
+package com.example.backend.web.security
 
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
@@ -8,6 +8,7 @@ import org.springframework.security.config.annotation.method.configuration.Enabl
 import org.springframework.security.config.annotation.web.builders.HttpSecurity
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity
 import org.springframework.security.config.http.SessionCreationPolicy
+import org.springframework.security.oauth2.jwt.JwtDecoder
 import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationToken
 import org.springframework.security.web.SecurityFilterChain
 
@@ -15,11 +16,14 @@ import org.springframework.security.web.SecurityFilterChain
  * REST API 보안 기본 설정.
  * security 스타터가 켜져 있으면 기본적으로 모든 요청이 잠기므로(401),
  * 여기서 stateless JWT 인증과 공개 경로를 정의한다.
+ * 액세스 토큰 검증용 [JwtDecoder] 빈은 토큰을 발급하는 쪽(app-api JwtConfig)이 소유하고 여기서는 주입받아 쓴다.
  */
 @Configuration
 @EnableWebSecurity
 @EnableMethodSecurity
-class SecurityConfig {
+class SecurityConfig(
+    private val jwtDecoder: JwtDecoder,
+) {
     @Bean
     fun filterChain(http: HttpSecurity): SecurityFilterChain {
         http
@@ -27,7 +31,7 @@ class SecurityConfig {
             .httpBasic { it.disable() }
             .formLogin { it.disable() }
             .sessionManagement { it.sessionCreationPolicy(SessionCreationPolicy.STATELESS) }
-            .oauth2ResourceServer { it.jwt { } }
+            .oauth2ResourceServer { it.jwt { jwt -> jwt.decoder(jwtDecoder) } }
             .authorizeHttpRequests {
                 it
                     // 업로드 프리사인·`/api/v1/my/**`(저장함 등)·`/service/v1/my/**`(개인 화면 조합 BFF)은 경로 기준 JWT 인증 필수.

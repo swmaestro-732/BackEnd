@@ -9,6 +9,7 @@ COPY gradle gradle
 COPY buildSrc buildSrc
 COPY common/build.gradle.kts common/
 COPY domain-rds/build.gradle.kts domain-rds/
+COPY core-web/build.gradle.kts core-web/
 COPY client-opensearch/build.gradle.kts client-opensearch/
 COPY app-api/build.gradle.kts app-api/
 RUN chmod +x gradlew && ./gradlew :app-api:dependencies --no-daemon > /dev/null 2>&1 || true
@@ -16,6 +17,7 @@ RUN chmod +x gradlew && ./gradlew :app-api:dependencies --no-daemon > /dev/null 
 # 모듈 소스 복사 후 실행 산출물(bootJar) 빌드 (기능 단위 모듈)
 COPY common/src common/src
 COPY domain-rds/src domain-rds/src
+COPY core-web/src core-web/src
 COPY client-opensearch/src client-opensearch/src
 COPY app-api/src app-api/src
 RUN ./gradlew :app-api:bootJar --no-daemon

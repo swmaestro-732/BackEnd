@@ -1,4 +1,4 @@
-package com.example.backend.bootstrap.security
+package com.example.backend.web.security
 
 import com.example.backend.web.AccessTokenRequired
 import com.example.backend.web.CurrentUserId
