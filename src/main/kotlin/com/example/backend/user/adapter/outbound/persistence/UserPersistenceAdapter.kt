@@ -23,6 +23,8 @@ class UserPersistenceAdapter(
 
     override fun lockActive(userIds: List<Long>): Set<Long> = userRepository.lockActive(userIds)
 
+    override fun lockActiveShared(userIds: List<Long>): Set<Long> = userRepository.lockActiveShared(userIds)
+
     override fun findByHandle(handle: String): User? = userRepository.findByHandle(handle)?.toDomain()
 
     override fun findProfile(userId: Long): UserProfileRow? = userRepository.findProfile(userId)

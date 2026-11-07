@@ -156,6 +156,8 @@ class SavedCourseServiceTest {
                 activeUserIds?.let { active -> userIds.filterTo(mutableSetOf()) { it in active } }
                     ?: userIds.toSet()
 
+            override fun lockActiveShared(userIds: List<Long>): Set<Long> = lockActive(userIds)
+
             override fun findAll(): List<User> = TODO()
 
             override fun findById(id: Long): User? = TODO()

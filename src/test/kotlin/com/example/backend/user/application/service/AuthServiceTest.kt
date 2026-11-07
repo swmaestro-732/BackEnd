@@ -65,6 +65,8 @@ class AuthServiceTest {
                 return userIds.toSet()
             }
 
+            override fun lockActiveShared(userIds: List<Long>): Set<Long> = lockActive(userIds)
+
             override fun findByHandle(handle: String): User? = null
 
             override fun findProfile(userId: Long): UserProfileRow? = null

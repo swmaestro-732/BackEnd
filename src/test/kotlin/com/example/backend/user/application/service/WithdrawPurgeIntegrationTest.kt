@@ -22,7 +22,7 @@ import org.springframework.test.context.jdbc.Sql
     statements = [
         "TRUNCATE TABLE follows, saved_courses, saved_course_folders, user_like_categories, user_areas, " +
             "course_likes, tracing_course_places, tracing_courses, plan_places, plans, courses, places, users, " +
-            "devices " +
+            "devices, notifications, notification_settings " +
             "RESTART IDENTITY CASCADE",
         // A(1) — 탈퇴 대상. 카운터를 실제 관계/코스 수와 맞춰 preset.
         "INSERT INTO users (nickname, handle, bio, profile_image_url, status, social_provider, social_id, " +
@@ -58,6 +58,20 @@ import org.springframework.test.context.jdbc.Sql
         "INSERT INTO plans (user_id, title) VALUES (1, 'A계획2')",
         "INSERT INTO plans (user_id, title) VALUES (3, 'C계획')",
         "INSERT INTO plan_places (plan_id, place_id, order_no) VALUES (1, 1, 0)",
+        // 알림: A 가 받은 알림(1), B 와 A 가 좋아요한 C 의 묶음(2, 대표 행동자 A), A 와 무관한 B 의 알림(3),
+        // C 알림함에 A 닉네임 스냅샷이 남은 댓글 묶음(4), A 만 좋아요한 묶음(5), A 다음 B 가 좋아요한 묶음(6), A 의 수신 설정.
+        "INSERT INTO notifications " +
+            "(user_id, type, target_type, target_id, window_start, display_actor_id, actor_count, actor_nickname) " +
+            "VALUES " +
+            "(1, 'USER_FOLLOWED', 'USER', 2, now(), 2, 1, 'a'), " +
+            "(3, 'COURSE_LIKED', 'COURSE', 3, now(), 1, 2, NULL), " +
+            "(2, 'USER_FOLLOWED', 'USER', 3, now(), 3, 1, 'c'), " +
+            "(3, 'COURSE_COMMENTED', 'COURSE', 3, now(), 1, 1, 'a'), " +
+            "(3, 'COURSE_LIKED', 'COURSE', 3, now() - interval '1 hour', 1, 1, NULL), " +
+            "(3, 'COURSE_LIKED', 'COURSE', 3, now() - interval '2 hours', 2, 2, NULL)",
+        "INSERT INTO notification_actors (notification_id, actor_id) VALUES " +
+            "(1, 2), (2, 2), (2, 1), (3, 3), (4, 1), (5, 1), (6, 1), (6, 2)",
+        "INSERT INTO notification_settings (user_id, activity_like) VALUES (1, false)",
     ],
     executionPhase = Sql.ExecutionPhase.BEFORE_TEST_METHOD,
 )
@@ -112,6 +126,36 @@ class WithdrawPurgeIntegrationTest
             // 코스 따라가기 — A 의 세션(완주·진행 중)과 체크인(위치 이력)이 전부 사라진다.
             assertEquals(0L, count("SELECT count(*) FROM tracing_courses WHERE user_id = 1"))
             assertEquals(0L, count("SELECT count(*) FROM tracing_course_places"))
+
+            // 알림: A 가 받은 알림과 A 의 수신 설정이 사라지고 무관한 알림은 남는다. A 가 들어간 묶음은 A 를 빼고 인원을 맞추며,
+            // A 가 대표 행동자였던 묶음은 남은 사람(B)과 그 닉네임으로 바꾼다. A 만 있던 묶음(4 댓글, 5 좋아요)은 지운다.
+            assertEquals(0L, count("SELECT count(*) FROM notifications WHERE user_id = 1"))
+            assertEquals(0L, count("SELECT count(*) FROM notifications WHERE display_actor_id = 1"))
+            assertEquals(0L, count("SELECT count(*) FROM notifications WHERE id IN (4, 5)"))
+            assertEquals(
+                listOf(listOf(2L, 2L, 1L), listOf(6L, 2L, 1L)),
+                jdbc
+                    .queryForList(
+                        "SELECT id, display_actor_id, actor_count FROM notifications WHERE user_id = 3 ORDER BY id",
+                    ).map { row ->
+                        listOf(row["id"], row["display_actor_id"], row["actor_count"]).map { (it as Number).toLong() }
+                    },
+            )
+            assertEquals(0L, count("SELECT count(*) FROM notification_actors WHERE actor_id = 1"))
+            assertEquals(
+                listOf("유저비"),
+                jdbc.queryForList("SELECT actor_nickname FROM notifications WHERE id = 2", String::class.java),
+            )
+            assertEquals(
+                listOf(2L, 6L),
+                jdbc.queryForList(
+                    "SELECT notification_id FROM notification_actors " +
+                        "WHERE actor_id = 2 AND notification_id IN (2, 6) ORDER BY notification_id",
+                    Long::class.java,
+                ),
+            )
+            assertEquals(1L, count("SELECT count(*) FROM notifications WHERE user_id = 2"))
+            assertEquals(0L, count("SELECT count(*) FROM notification_settings WHERE user_id = 1"))
 
             // 개인화 — 관심 테마·지역이 사라진다.
             assertEquals(0L, count("SELECT count(*) FROM user_like_categories WHERE user_id = 1"))
