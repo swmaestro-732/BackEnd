@@ -37,7 +37,7 @@ class KakaoCategoryMapperTest {
 
     @Test
     fun `접두는 단계 단위로 비교한다`() {
-        assertEquals(PlaceCategory.ETC, KakaoCategoryMapper.toPlaceCategory("여행 > 공원시설물", null))
+        assertEquals(PlaceCategory.ETC, KakaoCategoryMapper.toPlaceCategory("가정,생활 > 패션잡화", null))
     }
 
     @ParameterizedTest
@@ -84,7 +84,7 @@ class KakaoCategoryMapperTest {
 
     @Test
     fun `이름 규칙에 걸리지 않으면 상세 분류는 null 이다`() {
-        assertNull(KakaoCategoryMapper.toCategoryDetail("여행 > 공원시설물"))
+        assertNull(KakaoCategoryMapper.toCategoryDetail("가정,생활 > 패션잡화"))
         assertNull(KakaoCategoryMapper.toCategoryDetail(""))
         assertNull(KakaoCategoryMapper.toCategoryDetail(null))
     }
