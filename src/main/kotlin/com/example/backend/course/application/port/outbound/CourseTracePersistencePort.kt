@@ -40,7 +40,7 @@ interface CourseTracePersistencePort {
         placeIds: List<Long>,
     )
 
-    /** 세션 루트의 방문 전 장소를 [placeIds] 로 바꾼다 — 체크인한 장소는 체크인 순으로 앞에 두고 그 뒤에 잇는다. [placeIds] 에 체크인한 장소가 없는지는 호출부가 검사한다. */
+    /** 세션 루트의 방문 전 장소를 [placeIds] 로 바꾼다 — 체크인한 장소는 체크인 순으로 앞에 두고 그 뒤에 잇는다. */
     fun replaceRemainingRoutePlaces(
         traceId: Long,
         placeIds: List<Long>,
@@ -58,7 +58,7 @@ interface CourseTracePersistencePort {
     /** 세션의 체크인 장소를 체크인 시각 순으로. */
     fun findVisitedPlaces(traceId: Long): List<VisitedPlaceResult>
 
-    /** 장소 체크인 — 이미 체크인한 장소면 무시한다. */
+    /** 방문 기록 — 루트에 그 장소의 방문 전 항목이 있으면 가장 앞선 것을 방문 처리하고, 없으면 새로 넣는다. 재전송·방문 횟수 초과는 호출부가 거른다. */
     fun insertVisitedPlace(
         traceId: Long,
         placeId: Long,

@@ -17,7 +17,7 @@ import org.jetbrains.exposed.v1.core.less
 import org.jetbrains.exposed.v1.core.min
 import org.jetbrains.exposed.v1.jdbc.batchInsert
 import org.jetbrains.exposed.v1.jdbc.deleteWhere
-import org.jetbrains.exposed.v1.jdbc.insertIgnore
+import org.jetbrains.exposed.v1.jdbc.insert
 import org.jetbrains.exposed.v1.jdbc.insertIgnoreAndGetId
 import org.jetbrains.exposed.v1.jdbc.select
 import org.jetbrains.exposed.v1.jdbc.selectAll
@@ -148,23 +148,31 @@ class CourseTraceRepository {
                 )
             }
 
-    /** PLANNED 행이 있으면 VISITED 로 바꾸고, 없으면(루트 없이 시작한 세션) VISITED 행을 넣는다. 이미 VISITED 면 둘 다 0행이라 재전송은 멱등. */
+    /** 그 장소의 PLANNED 행 중 루트에서 가장 앞선 것을 VISITED 로 바꾸고, 없으면(루트 없이 시작한 세션) VISITED 행을 넣는다. */
     fun insertVisitedPlace(
         traceId: Long,
         placeId: Long,
         visitedAt: Instant,
     ) {
-        val planned =
-            CourseTracePlaceTable.update({
-                (CourseTracePlaceTable.tracingCourseId eq traceId) and
-                    (CourseTracePlaceTable.placeId eq placeId) and
-                    (CourseTracePlaceTable.status eq CourseTracePlaceStatus.PLANNED)
-            }) {
+        val plannedRowId =
+            CourseTracePlaceTable
+                .select(CourseTracePlaceTable.id)
+                .where {
+                    (CourseTracePlaceTable.tracingCourseId eq traceId) and
+                        (CourseTracePlaceTable.placeId eq placeId) and
+                        (CourseTracePlaceTable.status eq CourseTracePlaceStatus.PLANNED)
+                }.orderBy(CourseTracePlaceTable.orderNo to SortOrder.ASC)
+                .limit(1)
+                .singleOrNull()
+                ?.get(CourseTracePlaceTable.id)
+        if (plannedRowId != null) {
+            CourseTracePlaceTable.update({ CourseTracePlaceTable.id eq plannedRowId }) {
                 it[status] = CourseTracePlaceStatus.VISITED
                 it[CourseTracePlaceTable.visitedAt] = visitedAt.toKotlinInstant()
             }
-        if (planned > 0) return
-        CourseTracePlaceTable.insertIgnore {
+            return
+        }
+        CourseTracePlaceTable.insert {
             it[tracingCourseId] = traceId
             it[CourseTracePlaceTable.placeId] = placeId
             it[status] = CourseTracePlaceStatus.VISITED

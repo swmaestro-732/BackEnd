@@ -5,3 +5,10 @@ ALTER TABLE public.tracing_course_places
     ADD COLUMN status   VARCHAR(32) NOT NULL DEFAULT 'VISITED',  -- PLANNED / VISITED
     ADD COLUMN order_no SMALLINT,
     ALTER COLUMN visited_at DROP NOT NULL;                        -- PLANNED 이면 NULL
+
+-- 루트는 코스처럼 같은 장소를 두 번 담을 수 있다 — (세션, 장소) 유니크를 일반 인덱스로 바꾼다.
+-- 체크인 재전송은 (장소, 방문 시각)이 같은지로 가린다(세션 행 잠금 안에서 검사).
+ALTER TABLE public.tracing_course_places
+    DROP CONSTRAINT tracing_course_places_tracing_course_id_place_id_key;
+CREATE INDEX tracing_course_places_tracing_course_id_place_id_idx
+    ON public.tracing_course_places (tracing_course_id, place_id);

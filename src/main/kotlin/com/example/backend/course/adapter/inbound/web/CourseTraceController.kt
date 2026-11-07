@@ -83,7 +83,7 @@ class CourseTraceController(
             ),
         )
 
-    /** 장소 체크인 — 방문 즉시 한 건씩 기록한다. 같은 장소 재전송은 200. */
+    /** 장소 체크인 — 방문 즉시 한 건씩 기록한다. 같은 장소·같은 시각 재전송은 200(무시). */
     @PostMapping("/api/v1/traces/{traceId}/places")
     @AccessTokenRequired
     fun checkIn(

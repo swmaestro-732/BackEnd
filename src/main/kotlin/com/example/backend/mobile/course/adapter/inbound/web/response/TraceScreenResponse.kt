@@ -29,7 +29,9 @@ data class TraceScreenResponse(
     companion object {
         fun from(result: TraceScreenResult): TraceScreenResponse {
             val summariesById = result.places.associateBy { it.id }
-            val visitedAtByPlace = result.trace.visitedPlaces.associate { it.placeId to it.visitedAt }
+            // 같은 장소가 여러 번 담길 수 있어 n 번째 항목에 그 장소의 n 번째 방문을 짝짓는다.
+            val visitedAtsByPlace = result.trace.visitedPlaces.groupBy({ it.placeId }, { it.visitedAt })
+            val seen = mutableMapOf<Long, Int>()
             return TraceScreenResponse(
                 traceId = result.trace.traceId,
                 status = result.trace.status,
@@ -42,7 +44,12 @@ data class TraceScreenResponse(
                 course = TracedCourseScreenResponse.from(result.trace.course),
                 places =
                     result.trace.places.map {
-                        TracePlaceScreenResponse.from(it, summariesById[it.placeId], visitedAtByPlace[it.placeId])
+                        val nth = seen.merge(it.placeId, 1, Int::plus)!! - 1
+                        TracePlaceScreenResponse.from(
+                            it,
+                            summariesById[it.placeId],
+                            visitedAtsByPlace[it.placeId]?.getOrNull(nth),
+                        )
                     },
             )
         }
