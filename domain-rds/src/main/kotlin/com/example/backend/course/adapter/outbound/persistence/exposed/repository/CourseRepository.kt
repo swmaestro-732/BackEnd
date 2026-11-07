@@ -354,6 +354,14 @@ class CourseRepository(
             .limit(limit)
             .toList()
 
+    /** 커밋 후 단건 색인용. 주어진 id 중 활성(deleted_at IS NULL) 코스. */
+    fun findForIndexByIds(ids: List<Long>): List<CourseEntity> =
+        if (ids.isEmpty()) {
+            emptyList()
+        } else {
+            CourseEntity.find { (CourseTable.id inList ids) and CourseTable.deletedAt.isNull() }.toList()
+        }
+
     /** 코스 목록 쿼리의 공통 컬럼을 범용 요약 읽기 모델로 변환한다(카테고리는 페이지 단위 배치 조회). */
     private fun List<ResultRow>.toSummaryRows(): List<CourseSummaryRow> {
         val categoriesByCourse = courseCategoryRepository.findByCourseIds(map { it[CourseTable.id].value })

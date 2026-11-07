@@ -1,13 +1,8 @@
 package com.example.backend.place.adapter.outbound.search
 
-import com.example.backend.common.geo.Coordinate
 import com.example.backend.place.application.event.PlaceBusinessHoursSyncRequestedEvent
 import com.example.backend.place.application.event.PlacesSavedEvent
 import com.example.backend.place.application.port.inbound.PlaceBusinessHoursSyncUseCase
-import com.example.backend.place.domain.model.Place
-import com.example.backend.place.domain.model.PlaceBusinessStatus
-import com.example.backend.place.domain.model.PlaceCategory
-import com.example.backend.place.domain.model.PlaceStatus
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.Test
 
@@ -32,7 +27,7 @@ class PlaceBusinessHoursSyncListenerTest {
 
     @Test
     fun `onPlacesSaved 는 저장된 장소 id 를 동기화로 넘긴다`() {
-        listener.onPlacesSaved(PlacesSavedEvent(listOf(place(1), place(2))))
+        listener.onPlacesSaved(PlacesSavedEvent(listOf(1L, 2L)))
 
         assertThat(requested).containsExactly(listOf(1L, 2L))
     }
@@ -50,21 +45,4 @@ class PlaceBusinessHoursSyncListenerTest {
 
         assertThat(requested).containsExactly(emptyList<Long>())
     }
-
-    private fun place(id: Long) =
-        Place.reconstitute(
-            id = id,
-            status = PlaceStatus.ACTIVE,
-            name = "장소$id",
-            description = null,
-            category = PlaceCategory.CAFE,
-            location = Coordinate(latitude = 37.5, longitude = 127.0),
-            address = "서울시 어딘가 $id",
-            imageUrl = null,
-            businessStatus = PlaceBusinessStatus.OPEN,
-            kakaoPlaceId = "kakao-$id",
-            createdAt = null,
-            updatedAt = null,
-            deletedAt = null,
-        )
 }

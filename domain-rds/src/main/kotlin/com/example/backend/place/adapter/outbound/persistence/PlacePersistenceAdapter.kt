@@ -22,4 +22,7 @@ class PlacePersistenceAdapter(
         afterId: Long?,
         limit: Int,
     ): List<Place> = placeRepository.findForIndex(afterId, limit).map { it.toDomain() }
+
+    override fun findForIndexByIds(ids: List<Long>): List<Place> =
+        placeRepository.findForIndexByIds(ids).map { it.toDomain() }
 }

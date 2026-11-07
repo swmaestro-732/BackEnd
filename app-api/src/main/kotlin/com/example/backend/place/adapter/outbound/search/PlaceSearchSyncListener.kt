@@ -1,7 +1,7 @@
 package com.example.backend.place.adapter.outbound.search
 
 import com.example.backend.place.application.event.PlacesSavedEvent
-import com.example.backend.place.application.port.outbound.PlaceSearchIndexPort
+import com.example.backend.place.application.port.inbound.PlaceReindexUseCase
 import org.springframework.stereotype.Component
 import org.springframework.transaction.event.TransactionPhase
 import org.springframework.transaction.event.TransactionalEventListener
@@ -15,10 +15,10 @@ import org.springframework.transaction.event.TransactionalEventListener
  */
 @Component
 class PlaceSearchSyncListener(
-    private val port: PlaceSearchIndexPort,
+    private val placeReindexUseCase: PlaceReindexUseCase,
 ) {
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
     fun onPlacesSaved(event: PlacesSavedEvent) {
-        port.save(event.places)
+        placeReindexUseCase.reindex(event.placeIds) // 이벤트는 id 만 싣는다. 커밋된 장소를 다시 읽어 색인
     }
 }

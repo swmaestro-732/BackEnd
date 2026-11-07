@@ -17,4 +17,7 @@ interface PlacePersistencePort {
         afterId: Long?,
         limit: Int,
     ): List<Place>
+
+    /** 커밋 후 색인용. 주어진 id 중 활성 장소. */
+    fun findForIndexByIds(ids: List<Long>): List<Place>
 }

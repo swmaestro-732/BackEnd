@@ -19,7 +19,7 @@ class PlaceBusinessHoursSyncListener(
     @Async(BusinessHoursSyncExecutorConfig.BUSINESS_HOURS_SYNC_EXECUTOR)
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
     fun onPlacesSaved(event: PlacesSavedEvent) {
-        useCase.sync(event.places.mapNotNull { it.id })
+        useCase.sync(event.placeIds)
     }
 
     @Async(BusinessHoursSyncExecutorConfig.BUSINESS_HOURS_SYNC_EXECUTOR)

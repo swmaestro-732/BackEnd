@@ -1,6 +1,7 @@
 package com.example.backend.course.adapter.outbound.persistence
 
 import com.example.backend.common.domain.CourseVisibility
+import com.example.backend.course.adapter.outbound.persistence.exposed.CourseEntity
 import com.example.backend.course.adapter.outbound.persistence.exposed.repository.CourseCategoryRepository
 import com.example.backend.course.adapter.outbound.persistence.exposed.repository.CoursePlaceRepository
 import com.example.backend.course.adapter.outbound.persistence.exposed.repository.CourseRepository
@@ -109,8 +110,12 @@ class CoursePersistenceAdapter(
     override fun findForIndex(
         afterId: Long?,
         limit: Int,
-    ): List<Course> {
-        val entities = courseRepository.findForIndex(afterId, limit)
+    ): List<Course> = toIndexDomain(courseRepository.findForIndex(afterId, limit))
+
+    override fun findForIndexByIds(ids: List<Long>): List<Course> =
+        toIndexDomain(courseRepository.findForIndexByIds(ids))
+
+    private fun toIndexDomain(entities: List<CourseEntity>): List<Course> {
         // 재색인 문서도 태그 검색 대상이 되도록 태그를 채운다(태그를 비우면 재색인분이 태그 필터에서 누락).
         // 페이지의 코스 id 를 모아 태그를 배치로 읽어 N+1 을 피한다. 장소는 색인 문서에 쓰지 않아 비운다.
         val courseIds = entities.map { it.id.value }

@@ -4,6 +4,7 @@ import com.example.backend.place.application.port.inbound.PlaceReindexUseCase
 import com.example.backend.place.application.port.outbound.PlacePersistencePort
 import com.example.backend.place.application.port.outbound.PlaceSearchIndexPort
 import org.springframework.stereotype.Service
+import org.springframework.transaction.annotation.Propagation
 import org.springframework.transaction.annotation.Transactional
 
 @Service
@@ -25,6 +26,16 @@ class PlaceReindexService(
             if (batch.size < PAGE) break
         }
         return total
+    }
+
+    /**
+     * 커밋 후(AFTER_COMMIT) 리스너가 요청 스레드에서 부른다. 끝난 트랜잭션에 합류하지 않도록 새 트랜잭션으로 읽는다.
+     * 색인 자체는 어댑터가 fail-soft.
+     */
+    @Transactional(readOnly = true, propagation = Propagation.REQUIRES_NEW)
+    override fun reindex(placeIds: List<Long>) {
+        val found = placePersistencePort.findForIndexByIds(placeIds)
+        if (found.isNotEmpty()) placeSearchIndexPort.save(found)
     }
 
     private companion object {

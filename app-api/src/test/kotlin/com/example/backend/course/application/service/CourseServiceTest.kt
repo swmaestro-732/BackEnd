@@ -58,7 +58,7 @@ class CourseServiceTest {
     fun `발행 코스 생성 시 카테고리 지역을 도출하고 공개범위 전이를 이벤트로 알린다`() {
         stubPlaces()
         `when`(areas.findAreaByCode(AREA_CODE)).thenReturn(area("성수동1가"))
-        `when`(persistence.save(anyValue())).thenAnswer { it.arguments[0] as Course }
+        `when`(persistence.save(anyValue())).thenAnswer { persisted(it.arguments[0] as Course) }
 
         val result = service.create(createCommand(isPublished = true))
 
@@ -75,7 +75,7 @@ class CourseServiceTest {
     @Test
     fun `임시저장 생성 시 지역을 조회하지 않고 파생값을 비운다`() {
         stubPlaces()
-        `when`(persistence.save(anyValue())).thenAnswer { it.arguments[0] as Course }
+        `when`(persistence.save(anyValue())).thenAnswer { persisted(it.arguments[0] as Course) }
 
         val result = service.create(createCommand(isPublished = false))
 
@@ -107,12 +107,12 @@ class CourseServiceTest {
                 areaCode = null,
                 area = null,
             )
-        `when`(persistence.save(anyValue())).thenReturn(savedCourse)
+        `when`(persistence.save(anyValue())).thenReturn(persisted(savedCourse))
 
         service.create(createCommand(isPublished = false))
 
         val event = publishedEvents.filterIsInstance<CourseSavedEvent>().single()
-        assertEquals(savedCourse, event.newCourse)
+        assertEquals(PERSISTED_ID, event.courseId)
         assertEquals(7L, event.authorId)
         assertNull(event.oldVisibility)
         assertEquals(CourseVisibility.PRIVATE, event.newVisibility)
@@ -284,7 +284,7 @@ class CourseServiceTest {
         `when`(query.getDetails(listOf(50L), 1L)).thenReturn(listOf(originDetail(listOf(1L, 2L))))
         stubPlaces()
         `when`(areas.findAreaByCode(AREA_CODE)).thenReturn(area("성수동1가"))
-        `when`(persistence.save(anyValue())).thenAnswer { it.arguments[0] as Course }
+        `when`(persistence.save(anyValue())).thenAnswer { persisted(it.arguments[0] as Course) }
 
         service.create(createCommand(isPublished = true, duplicatedFromId = 50L))
 
@@ -299,18 +299,12 @@ class CourseServiceTest {
             .thenReturn(listOf(originDetail((1L..originalCount.toLong()).toList())))
         stubPlaces()
         `when`(areas.findAreaByCode(AREA_CODE)).thenReturn(area("성수동1가"))
-        `when`(persistence.save(anyValue())).thenAnswer { it.arguments[0] as Course }
+        `when`(persistence.save(anyValue())).thenAnswer { persisted(it.arguments[0] as Course) }
 
         val result = service.create(createCommand(isPublished = true, duplicatedFromId = 50L))
 
         assertEquals(50L, result.duplicatedFromId)
-        assertEquals(
-            50L,
-            publishedEvents
-                .filterIsInstance<CourseSavedEvent>()
-                .single()
-                .newCourse.duplicatedFromId,
-        )
+        assertEquals(result.id, publishedEvents.filterIsInstance<CourseSavedEvent>().single().courseId)
     }
 
     @Test
@@ -344,7 +338,7 @@ class CourseServiceTest {
     fun `같은 원본 장소가 중복 조회돼도 두 곳 유지로 계산해 복제한다`() {
         `when`(query.getDetails(listOf(50L), 1L)).thenReturn(listOf(originDetail(listOf(1L, 1L, 2L, 3L))))
         stubPlaces()
-        `when`(persistence.save(anyValue())).thenAnswer { it.arguments[0] as Course }
+        `when`(persistence.save(anyValue())).thenAnswer { persisted(it.arguments[0] as Course) }
 
         val result = service.create(createCommand(isPublished = false, duplicatedFromId = 50L))
 
@@ -501,7 +495,35 @@ class CourseServiceTest {
         return null as T
     }
 
+    /** 저장 포트가 돌려주는 영속 코스처럼 id 를 채운다(이벤트가 courseId 를 싣는다). */
+    private fun persisted(course: Course): Course =
+        Course.reconstitute(
+            id = course.id ?: PERSISTED_ID,
+            userId = course.userId,
+            status = course.status,
+            title = course.title,
+            description = course.description,
+            coverImageUrl = course.coverImageUrl,
+            categories = course.categories,
+            area = course.area,
+            areaCode = course.areaCode,
+            visitDate = course.visitDate,
+            visibility = course.visibility,
+            isPublished = course.isPublished,
+            likesCnt = course.likesCnt,
+            commentsCnt = course.commentsCnt,
+            savesCnt = course.savesCnt,
+            tracingsCnt = course.tracingsCnt,
+            duplicatedFromId = course.duplicatedFromId,
+            createdAt = course.createdAt,
+            updatedAt = course.updatedAt,
+            deletedAt = course.deletedAt,
+            tags = course.tags,
+            places = course.places,
+        )
+
     private companion object {
         const val AREA_CODE = "1120011400"
+        const val PERSISTED_ID = 100L
     }
 }

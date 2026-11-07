@@ -185,4 +185,7 @@ interface CoursePersistencePort {
         afterId: Long?,
         limit: Int,
     ): List<Course>
+
+    /** 커밋 후 색인용. 주어진 id 중 활성 코스를 [findForIndex] 와 같은 모양(태그, 카테고리 포함, 장소 제외)으로. */
+    fun findForIndexByIds(ids: List<Long>): List<Course>
 }

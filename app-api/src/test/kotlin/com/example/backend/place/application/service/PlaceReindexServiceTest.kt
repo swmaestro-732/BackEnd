@@ -49,6 +49,8 @@ class PlaceReindexServiceTest {
                     pageCalls++
                     return all.filter { it.id!! > (afterId ?: 0L) }.take(limit)
                 }
+
+                override fun findForIndexByIds(ids: List<Long>): List<Place> = all.filter { it.id in ids }
             }
 
         val indexedIds = mutableListOf<Long>()

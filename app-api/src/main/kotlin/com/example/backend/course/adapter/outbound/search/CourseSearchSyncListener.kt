@@ -3,6 +3,7 @@ package com.example.backend.course.adapter.outbound.search
 import com.example.backend.course.application.event.CourseAuthorWithdrawnEvent
 import com.example.backend.course.application.event.CourseDeletedEvent
 import com.example.backend.course.application.event.CourseSavedEvent
+import com.example.backend.course.application.port.inbound.CourseReindexUseCase
 import com.example.backend.course.application.port.outbound.CourseSearchIndexPort
 import org.springframework.stereotype.Component
 import org.springframework.transaction.event.TransactionPhase
@@ -19,10 +20,11 @@ import org.springframework.transaction.event.TransactionalEventListener
 @Component
 class CourseSearchSyncListener(
     private val port: CourseSearchIndexPort,
+    private val courseReindexUseCase: CourseReindexUseCase,
 ) {
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
     fun onCourseSaved(event: CourseSavedEvent) {
-        port.save(event.newCourse)
+        courseReindexUseCase.reindex(event.courseId) // 이벤트는 id 만 싣는다. 커밋된 코스를 다시 읽어 색인
     }
 
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)

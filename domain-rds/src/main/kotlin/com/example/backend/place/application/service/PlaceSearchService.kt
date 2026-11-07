@@ -89,7 +89,8 @@ class PlaceSearchService(
                             .findByKakaoIds(allKakaoIds)
                             .mapNotNull { place -> place.kakaoPlaceId?.let { it to place } }
                             .toMap()
-                    eventPublisher.publishEvent(PlacesSavedEvent(map.values.toList())) // 커밋 후 색인(AFTER_COMMIT 리스너)
+                    // 커밋 후 색인(AFTER_COMMIT 리스너)
+                    eventPublisher.publishEvent(PlacesSavedEvent(map.values.mapNotNull { it.id }))
                     map
                 }.orEmpty()
 

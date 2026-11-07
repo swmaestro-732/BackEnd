@@ -66,7 +66,7 @@ class PlaceSearchServiceTest {
 
         // 검색이 찾은 장소를 담은 PlacesSavedEvent 가 발행된다(색인은 AFTER_COMMIT 리스너가 처리).
         val savedEvent = published.filterIsInstance<PlacesSavedEvent>().last()
-        assertEquals(2, savedEvent.places.size)
+        assertEquals(first.map { it.id }.toSet(), savedEvent.placeIds.toSet())
 
         val second = service.search("성수 카페", null)
         assertEquals(2, second.size)
@@ -112,6 +112,8 @@ class PlaceSearchServiceTest {
         fun rowCount(): Int = store.size
 
         override fun findByKakaoIds(kakaoIds: List<String>): List<Place> = kakaoIds.mapNotNull { store[it] }
+
+        override fun findForIndexByIds(ids: List<Long>): List<Place> = store.values.filter { it.id in ids }
 
         // insert ignore 모사 — 이미 있는 kakao id 는 건너뛴다(충돌 무시). id 는 삽입 시에만 부여.
         override fun insertIgnoringConflicts(places: List<Place>) {

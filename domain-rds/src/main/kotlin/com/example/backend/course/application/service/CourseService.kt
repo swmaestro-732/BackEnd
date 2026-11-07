@@ -71,12 +71,7 @@ class CourseService(
             )
 
         // 커밋 후(AFTER_COMMIT) 검색 색인 + 작성자 코스 개수 반영. 발행 코스만 개수에 잡힌다(임시저장 제외 → new=null).
-        eventPublisher.publishEvent(
-            CourseSavedEvent(
-                newCourse = savedCourse,
-                oldVisibility = null,
-            ),
-        )
+        eventPublisher.publishEvent(CourseSavedEvent.from(savedCourse, oldVisibility = null))
         return savedCourse
     }
 
@@ -161,12 +156,7 @@ class CourseService(
         // 편집은 ACTIVE 코스만 통과한다(위 가드). 발행 상태·공개범위 전이(초안→발행, 발행→초안, 공개범위 변경, 변화 없음)를
         // 이벤트에 실어 보내면 user 도메인이 버킷 델타를 계산한다. 검색 색인도 같은 이벤트를 소비한다(커밋 후).
         // 새 상태는 요청이 아니라 저장 결과([updatedCourse])에서 도출한다.
-        eventPublisher.publishEvent(
-            CourseSavedEvent(
-                newCourse = updatedCourse,
-                oldVisibility = removed,
-            ),
-        )
+        eventPublisher.publishEvent(CourseSavedEvent.from(updatedCourse, oldVisibility = removed))
         return updatedCourse
     }
 

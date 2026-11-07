@@ -41,6 +41,14 @@ class PlaceRepository {
             .limit(limit)
             .toList()
 
+    /** 커밋 후 색인용. 주어진 id 중 활성(deleted_at IS NULL) 장소. */
+    fun findForIndexByIds(ids: List<Long>): List<PlaceEntity> =
+        if (ids.isEmpty()) {
+            emptyList()
+        } else {
+            PlaceEntity.find { (PlaceTable.id inList ids) and PlaceTable.deletedAt.isNull() }.toList()
+        }
+
     /** deleted_at IS NULL 인 장소들을 카카오 place id 목록으로 읽어 엔티티로 반환한다(검색 결과 dedup 조회용). */
     fun findByKakaoIds(kakaoIds: List<String>): List<PlaceEntity> {
         val ids = kakaoIds.filter { it.isNotBlank() }

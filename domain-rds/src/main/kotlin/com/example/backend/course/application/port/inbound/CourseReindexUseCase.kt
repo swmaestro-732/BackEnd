@@ -7,4 +7,7 @@ package com.example.backend.course.application.port.inbound
 interface CourseReindexUseCase {
     /** 전체 코스를 재색인하고 색인한 문서 수를 반환한다. */
     fun reindexAll(): Int
+
+    /** 코스 하나를 DB 에서 다시 읽어 색인한다(커밋 후 리스너용). 삭제됐거나 없으면 아무것도 하지 않는다. */
+    fun reindex(courseId: Long)
 }
