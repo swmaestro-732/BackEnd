@@ -25,6 +25,18 @@ class CourseTracePersistenceAdapter(
         courseId: Long,
     ): Long? = courseTraceRepository.insertInProgress(userId, courseId)
 
+    override fun insertRoutePlaces(
+        traceId: Long,
+        placeIds: List<Long>,
+    ) = courseTraceRepository.insertRoutePlaces(traceId, placeIds)
+
+    override fun replaceRemainingRoutePlaces(
+        traceId: Long,
+        placeIds: List<Long>,
+    ) = courseTraceRepository.replaceRemainingRoutePlaces(traceId, placeIds)
+
+    override fun findRoutePlaceIds(traceId: Long): List<Long> = courseTraceRepository.findRoutePlaceIds(traceId)
+
     override fun findById(traceId: Long): CourseTraceRow? = courseTraceRepository.findById(traceId)
 
     override fun readById(traceId: Long): CourseTraceRow? = courseTraceRepository.readById(traceId)

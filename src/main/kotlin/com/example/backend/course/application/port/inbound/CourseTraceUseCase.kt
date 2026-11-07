@@ -24,6 +24,16 @@ interface CourseTraceUseCase {
         courseId: Long,
     ): CourseTraceResult
 
+    /**
+     * 루트를 수정해 따라가기 시작 — [placeIds] 순서대로 따라간다(코스 장소를 빼거나 순서를 바꾸거나 코스 밖 장소를 넣을 수 있다).
+     * 같은 장소를 두 번 담을 수 있다. 새 세션을 만들 때만 장소를 검증한다(없으면 404). 나머지는 [start] 와 같고, 이어가기·409 판정은 요청 루트를 보지 않는다.
+     */
+    fun startWithRoute(
+        userId: Long,
+        courseId: Long,
+        placeIds: List<Long>,
+    ): CourseTraceResult
+
     /** 내 완주 목록 — 최근 시작순 커서 페이지. */
     fun listCompleted(query: CourseTracesQuery): CourseTracesResult
 
@@ -31,7 +41,7 @@ interface CourseTraceUseCase {
     fun findInProgress(userId: Long): CourseTraceDetailResult?
 
     /**
-     * 따라가기 상세 — 세션·코스 요약·코스 장소(순서·캡션·사진)·체크인. 진행 중이면 따라가기 화면을 다시 그리고, 완주면 기록을 본다.
+     * 따라가기 상세 — 세션·코스 요약·따라가는 장소(순서·캡션·사진)·체크인. 진행 중이면 따라가기 화면을 다시 그리고, 완주면 기록을 본다.
      * 코스가 삭제·비공개됐어도 장소는 내려주고 요약만 isDeleted 다. 내 세션이 아니거나 없으면 404.
      */
     fun getDetail(
@@ -39,10 +49,23 @@ interface CourseTraceUseCase {
         traceId: Long,
     ): CourseTraceDetailResult
 
-    /** 장소 체크인. 내 세션이 아니거나 없으면 404, 이미 종료된 세션이면 409, 코스에 없는 장소면 400. 같은 장소 재전송은 무시한다. */
+    /**
+     * 장소 체크인. 내 세션이 아니거나 없으면 404, 이미 종료된 세션이면 409, 따라가는 장소(수정한 루트가 있으면 그 루트, 없으면 코스 장소)가 아니면 400.
+     * 장소와 방문 시각이 같으면 재전송이라 무시한다. 시각이 다르면 그 장소의 다음 방문으로 보되, 따라가는 장소에 담긴 횟수를 넘으면 무시한다.
+     */
     fun checkIn(command: CheckInPlaceCommand)
 
-    /** 따라가기 종료. 내 세션이 아니거나 없으면 404, 이미 종료된 세션이면 409, 병합할 장소가 코스에 없으면 400. 이때만 코스 tracings_cnt 를 올린다. 진행 중 코스가 삭제됐어도 종료된다. */
+    /**
+     * 따라가는 중 루트 변경 — [placeIds] 는 앞으로 갈 장소다(순서대로, 같은 장소·이미 체크인한 장소도 담을 수 있다). 체크인한 장소는 방문한 순서로 앞에 남고 그 뒤가 [placeIds] 로 바뀐다. 코스 장소 그대로 따라가던 세션도 바꿀 수 있다.
+     * 내 세션이 아니거나 없으면 404, 이미 종료된 세션이면 409, 루트가 비게 되면 400, 없는 장소가 있으면 404.
+     */
+    fun changeRoute(
+        userId: Long,
+        traceId: Long,
+        placeIds: List<Long>,
+    )
+
+    /** 따라가기 종료. 내 세션이 아니거나 없으면 404, 이미 종료된 세션이면 409, 병합할 장소가 따라가는 장소가 아니면 400. 이때만 코스 tracings_cnt 를 올린다. 진행 중 코스가 삭제됐어도 종료된다. */
     fun end(command: EndCourseTraceCommand)
 
     /**

@@ -21,6 +21,7 @@ import com.example.backend.course.application.port.inbound.dto.TraceRouteGuideRe
 import com.example.backend.course.application.port.inbound.dto.TraceRouteResult
 import com.example.backend.course.application.port.inbound.dto.TraceWalkingRouteResult
 import com.example.backend.course.application.port.inbound.dto.TracedCourseSummary
+import com.example.backend.course.application.port.inbound.dto.VisitedPlaceResult
 import com.example.backend.course.application.port.outbound.CoursePersistencePort
 import com.example.backend.course.application.port.outbound.CoursePlaceRow
 import com.example.backend.course.application.port.outbound.CourseTracePersistencePort
@@ -33,9 +34,10 @@ import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Propagation
 import org.springframework.transaction.annotation.Transactional
 import java.time.Instant
+import java.time.temporal.ChronoUnit
 
 /**
- * 코스 따라가기 유스케이스 — 시작(IN_PROGRESS 세션 생성 또는 이어가기)·장소 체크인·다음 장소 도보 경로·종료(COMPLETED + tracings_cnt 원자적 +1)·
+ * 코스 따라가기 유스케이스 — 시작(IN_PROGRESS 세션 생성 또는 이어가기, 루트 수정 가능)·루트 변경·장소 체크인·다음 장소 도보 경로·종료(COMPLETED + tracings_cnt 원자적 +1)·
  * 내 완주 목록(커서 페이지)·완주 조회. 진행 중 세션은 사용자당 하나다.
  * 열람 권한 검사는 CourseLikeService 와 동일하다.
  */
@@ -52,6 +54,20 @@ class CourseTraceService(
     override fun start(
         userId: Long,
         courseId: Long,
+    ): CourseTraceResult = startSession(userId, courseId, routePlaceIds = null)
+
+    @Transactional
+    override fun startWithRoute(
+        userId: Long,
+        courseId: Long,
+        placeIds: List<Long>,
+    ): CourseTraceResult = startSession(userId, courseId, routePlaceIds = placeIds)
+
+    /** [routePlaceIds] 가 있으면 새 세션에 루트로 저장한다 — 이어가기면 기존 세션의 루트를 그대로 둔다. */
+    private fun startSession(
+        userId: Long,
+        courseId: Long,
+        routePlaceIds: List<Long>?,
     ): CourseTraceResult {
         val course = coursePersistencePort.findCourseDetail(courseId)
         if (course == null ||
@@ -61,14 +77,10 @@ class CourseTraceService(
             throw BusinessException(CourseErrorCode.COURSE_NOT_FOUND, "따라가기를 시작할 코스를 찾을 수 없습니다: courseId=$courseId")
         }
 
-        // 진행 중 세션이 있으면 이어간다. 없으면 만들되, 동시 시작으로 삽입이 무시되면(부분 유니크) 그 사이 생긴 세션을 다시 읽는다.
+        // 진행 중 세션이 있으면 이어간다(요청 루트는 보지 않는다). 없으면 만들되, 동시 시작으로 삽입이 무시되면(부분 유니크) 그 사이 생긴 세션을 다시 읽는다.
         val trace =
             courseTracePersistencePort.findInProgress(userId)
-                ?: courseTracePersistencePort
-                    .insertInProgress(
-                        userId,
-                        courseId,
-                    )?.let { courseTracePersistencePort.findById(it) }
+                ?: createSession(userId, courseId, routePlaceIds)
                 ?: courseTracePersistencePort.findInProgress(userId)
                 ?: error("따라가기 세션 생성 실패: userId=$userId, courseId=$courseId")
         if (trace.courseId != courseId) {
@@ -78,6 +90,18 @@ class CourseTraceService(
             )
         }
         return trace.toResult()
+    }
+
+    /** 새 세션을 만든다 — 루트가 있으면 장소를 검증(없으면 404)한 뒤 함께 저장한다. 동시 시작으로 삽입이 무시되면 null. */
+    private fun createSession(
+        userId: Long,
+        courseId: Long,
+        routePlaceIds: List<Long>?,
+    ): CourseTraceRow? {
+        routePlaceIds?.let { requirePlacesInOrder(it.distinct()) }
+        val traceId = courseTracePersistencePort.insertInProgress(userId, courseId) ?: return null
+        routePlaceIds?.let { courseTracePersistencePort.insertRoutePlaces(traceId, it) }
+        return courseTracePersistencePort.findById(traceId)
     }
 
     override fun listCompleted(query: CourseTracesQuery): CourseTracesResult {
@@ -124,25 +148,35 @@ class CourseTraceService(
         course =
             findTracedCourses(viewerId, listOf(trace.courseId))[trace.courseId]
                 ?: TracedCourseSummary.deleted(trace.courseId),
-        // 코스 장소는 코스 삭제·비공개와 무관하게 내려준다 — 따라가던 화면을 그대로 이어 그리기 위해.
-        places = coursePersistencePort.findPlaces(trace.courseId).map { it.toResult() },
+        // 장소는 코스 삭제·비공개와 무관하게 내려준다 — 따라가던 화면을 그대로 이어 그리기 위해.
+        places = findTracePlaces(trace),
         visitedPlaces = courseTracePersistencePort.findVisitedPlaces(trace.id),
     )
 
     @Transactional
     override fun checkIn(command: CheckInPlaceCommand) {
         val trace = ownedInProgress(command.userId, command.traceId)
-        requirePlacesInCourse(trace.courseId, listOf(command.placeId))
-        courseTracePersistencePort.insertVisitedPlace(trace.id, command.placeId, command.visitedAt)
+        recordVisits(trace, listOf(VisitedPlaceResult(command.placeId, command.visitedAt)))
+    }
+
+    @Transactional
+    override fun changeRoute(
+        userId: Long,
+        traceId: Long,
+        placeIds: List<Long>,
+    ) {
+        val trace = ownedInProgress(userId, traceId)
+        requirePlacesInOrder(placeIds.distinct())
+        if (placeIds.isEmpty() && courseTracePersistencePort.findVisitedPlaces(trace.id).isEmpty()) {
+            throw BusinessException(CommonErrorCode.INVALID_INPUT, "따라갈 장소가 없습니다: traceId=${trace.id}")
+        }
+        courseTracePersistencePort.replaceRemainingRoutePlaces(trace.id, placeIds)
     }
 
     @Transactional
     override fun end(command: EndCourseTraceCommand) {
         val trace = ownedInProgress(command.userId, command.traceId)
-        requirePlacesInCourse(trace.courseId, command.visitedPlaces.map { it.placeId })
-        command.visitedPlaces.forEach {
-            courseTracePersistencePort.insertVisitedPlace(trace.id, it.placeId, it.visitedAt)
-        }
+        recordVisits(trace, command.visitedPlaces.map { VisitedPlaceResult(it.placeId, it.visitedAt) })
         // 0행이면 그 사이 다른 요청이 먼저 종료한 것 — 체크인 병합까지 롤백한다.
         if (courseTracePersistencePort.complete(trace.id, command.durationMinutes, command.distanceMeters) == 0) {
             throw BusinessException(CourseErrorCode.COURSE_TRACE_ALREADY_ENDED, "이미 종료된 따라가기입니다: traceId=${trace.id}")
@@ -214,18 +248,67 @@ class CourseTraceService(
         }
     }
 
-    /** 방문 기록은 코스 장소만 받는다 — 하나라도 코스에 없으면 400. 게시 코스는 장소 구성이 불변이라 요청 시점 검사로 충분하다. */
-    private fun requirePlacesInCourse(
-        courseId: Long,
-        placeIds: List<Long>,
+    /**
+     * 방문을 기록한다 — 따라가는 장소가 아닌 것이 하나라도 있으면 400. 게시 코스는 장소 구성이 불변이라 요청 시점 검사로 충분하다.
+     * (장소, 방문 시각)이 같은 기록이 이미 있으면 재전송이라 무시하고, 한 장소는 따라가는 장소에 담긴 횟수만큼만 방문 처리한다.
+     */
+    private fun recordVisits(
+        trace: CourseTraceRow,
+        visits: List<VisitedPlaceResult>,
     ) {
-        if (placeIds.isEmpty()) return
-        val coursePlaceIds = coursePersistencePort.findPlaces(courseId).mapTo(mutableSetOf()) { it.placeId }
-        val outsiders = placeIds.filterNot { it in coursePlaceIds }
+        if (visits.isEmpty()) return
+        val tracePlaceIds = findTracePlaceIds(trace)
+        val outsiders = visits.map { it.placeId }.filterNot { it in tracePlaceIds }
         if (outsiders.isNotEmpty()) {
             throw BusinessException(
                 CourseErrorCode.PLACE_NOT_IN_COURSE,
-                "코스에 없는 장소입니다: courseId=$courseId, placeIds=$outsiders",
+                "따라가는 장소가 아닙니다: traceId=${trace.id}, courseId=${trace.courseId}, placeIds=$outsiders",
+            )
+        }
+        val visited = courseTracePersistencePort.findVisitedPlaces(trace.id).toMutableList()
+        // DB 는 마이크로초까지 저장한다 — 재전송 비교가 어긋나지 않게 같은 정밀도로 맞춘다.
+        visits.map { it.copy(visitedAt = it.visitedAt.truncatedTo(ChronoUnit.MICROS)) }.forEach { visit ->
+            val resent = visit in visited
+            val allVisited =
+                visited.count { it.placeId == visit.placeId } >= tracePlaceIds.count { it == visit.placeId }
+            if (resent || allVisited) return@forEach
+            courseTracePersistencePort.insertVisitedPlace(trace.id, visit.placeId, visit.visitedAt)
+            visited += visit
+        }
+    }
+
+    /** 세션이 따라가는 장소 id(순서대로) — 수정한 루트가 있으면 그 루트, 없으면 코스 장소. */
+    private fun findTracePlaceIds(trace: CourseTraceRow): List<Long> =
+        courseTracePersistencePort
+            .findRoutePlaceIds(trace.id)
+            .ifEmpty { coursePersistencePort.findPlaces(trace.courseId).map { it.placeId } }
+
+    /** [findTracePlaceIds] 의 상세판 — 루트의 장소 중 코스에 있던 곳만 캡션·사진을 붙이고(같은 장소가 여럿이면 순서대로 짝짓는다), 도보 시간은 코스와 다음 장소가 같을 때만 남긴다. */
+    private fun findTracePlaces(trace: CourseTraceRow): List<CoursePlaceResult> {
+        val coursePlaces = coursePersistencePort.findPlaces(trace.courseId)
+        val routePlaceIds = courseTracePersistencePort.findRoutePlaceIds(trace.id)
+        if (routePlaceIds.isEmpty()) return coursePlaces.map { it.toResult() }
+
+        val coursePlacesById = coursePlaces.withIndex().groupBy { it.value.placeId }
+        val seen = mutableMapOf<Long, Int>()
+        return routePlaceIds.mapIndexed { index, placeId ->
+            val nth = seen.merge(placeId, 1, Int::plus)!! - 1
+            val matched =
+                coursePlacesById[placeId]?.let { occurrences ->
+                    occurrences.getOrNull(nth)
+                        ?: occurrences.last()
+                }
+            val coursePlace = matched?.value
+            CoursePlaceResult(
+                id = coursePlace?.id ?: 0,
+                placeId = placeId,
+                orderNo = index,
+                caption = coursePlace?.caption,
+                walkingMinutesToNext =
+                    coursePlace?.walkingMinutes?.takeIf {
+                        coursePlaces.getOrNull(matched.index + 1)?.placeId == routePlaceIds.getOrNull(index + 1)
+                    },
+                images = coursePlace?.images.orEmpty().map { CoursePlaceImageResult(it.imageUrl, it.orderNo) },
             )
         }
     }
@@ -235,6 +318,7 @@ class CourseTraceService(
             traceId = id,
             courseId = courseId,
             startedAt = startedAt,
+            placeIds = findTracePlaceIds(this),
             visitedPlaces = courseTracePersistencePort.findVisitedPlaces(id),
         )
 
