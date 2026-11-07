@@ -33,4 +33,6 @@ class DevicePersistenceAdapter(
     ) = deviceRepository.unlink(userId, deviceId)
 
     override fun unlinkAllByUser(userId: Long) = deviceRepository.unlinkAllByUser(userId)
+
+    override fun clearTokens(fcmTokens: Collection<String>) = deviceRepository.clearTokens(fcmTokens)
 }

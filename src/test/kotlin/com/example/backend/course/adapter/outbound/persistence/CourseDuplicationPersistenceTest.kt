@@ -46,6 +46,7 @@ class CourseDuplicationPersistenceTest
                             duplicatedFromId = originId,
                             tags = emptyList(),
                             places = coursePlaces(1L, 2L),
+                            companions = null,
                             placeCategoryByPlaceId = emptyMap(),
                             areaCode = null,
                             area = null,
@@ -68,8 +69,8 @@ class CourseDuplicationPersistenceTest
                             duplicatedFromId = originId,
                             tags = emptyList(),
                             places = coursePlaces(3L, 4L),
-                            wasPublished = false,
-                            existingCategory = null,
+                            companions = null,
+                            existingCategories = emptyList(),
                             placeCategoryByPlaceId = emptyMap(),
                             areaCode = null,
                             area = null,
@@ -83,7 +84,7 @@ class CourseDuplicationPersistenceTest
                             refresh(
                                 flush = true,
                             )
-                        }.toDomain(emptyList(), edited.places)
+                        }.toDomain(emptyList(), edited.places, edited.categories)
                 assertEquals(originId, afterEdit.duplicatedFromId)
                 assertEquals("장소를 바꾼 복제 초안", afterEdit.title)
                 assertEquals(listOf(3L, 4L), port.findPlaces(savedId).map { it.placeId })

@@ -13,4 +13,5 @@ data class PlaceSearchResult(
     val latitude: Double,
     val longitude: Double,
     val telephone: String?,
+    val categoryDetail: String? = null,
 )

@@ -83,6 +83,8 @@ dependencies {
     // @SqsListener(수신)·SqsTemplate(발행)을 자동 배선한다. 큐 미설정 시 리스너 비활성·발행 no-op(fail-soft).
     implementation(platform("io.awspring.cloud:spring-cloud-aws-dependencies:4.0.2"))
     implementation("io.awspring.cloud:spring-cloud-aws-starter-sqs")
+    // FCM 푸시 발송. 서비스 계정 JSON 미설정 시 발송을 생략한다.
+    implementation("com.google.firebase:firebase-admin:9.11.0")
     // OpenSearch(AWS) 연결 — 기본 FGAC basic auth(ApacheHttpClient5), 선택 IAM/SigV4(AwsSdk2Transport).
     // 사용하지 않는 구형 RestClient 전송(opensearch-rest-client)은 제외한다.
     implementation("org.opensearch.client:opensearch-java:2.25.0") {

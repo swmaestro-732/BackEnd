@@ -20,3 +20,20 @@ Authorization: Bearer {{accessToken}}
 
 ### 코스 상세 화면 조합 — mockError 주입 (예: 404 / 4041 코스 없음)
 GET http://localhost:8080/service/v1/courses/1?mockError=4041
+
+
+### 따라가기 상세 화면 조합 (BFF, 실구현) — 세션 + 코스 요약 + 코스 장소(캡션·사진·도보 시간) + 장소 이름·카테고리·좌표 + 체크인 시각
+# 진행 중이면 홈 tracingCourse.traceId 로, 완주면 완주 목록의 traceId 로 진입한다. 코스가 삭제·비공개돼도 장소는 내려주고 course.isDeleted=true 에 제목·썸네일·지역은 null.
+# data = { traceId, status, startedAt, endedAt, durationMinutes, distanceMeters, placeCount, visitedPlaceCount,
+#          course: { courseId, title, coverImageUrl, area, isDeleted },
+#          places: [{ placeId, orderNo, caption, walkingMinutesToNext, images, name, categories, address, imageUrl, location, visitedAt }] }
+GET http://localhost:8080/service/v1/my/traces/{{traceId}}
+Authorization: Bearer {{accessToken}}
+
+### 따라가기 상세 화면 조합 — ?mock=true 폴백 (시드/DB 없이 고정 화면 목 반환)
+GET http://localhost:8080/service/v1/my/traces/10?mock=true
+Authorization: Bearer {{accessToken}}
+
+### 따라가기 상세 화면 조합 — 내 세션이 아니거나 없음 → 404 / 4049, 토큰 없음 → 401
+GET http://localhost:8080/service/v1/my/traces/999999
+Authorization: Bearer {{accessToken}}

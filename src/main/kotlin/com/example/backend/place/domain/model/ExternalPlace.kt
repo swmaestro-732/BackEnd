@@ -17,6 +17,8 @@ data class ExternalPlace(
     val coordinate: Coordinate,
     val telephone: String?,
     val source: ExternalPlaceSource,
+    val categoryDetail: String? = null,
+    val kakaoCategoryName: String? = null,
 )
 
 /** 외부 장소의 출처 제공자. */

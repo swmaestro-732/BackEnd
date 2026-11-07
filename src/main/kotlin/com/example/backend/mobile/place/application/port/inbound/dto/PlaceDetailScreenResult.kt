@@ -18,4 +18,5 @@ data class PlaceDetailScreenResult(
     val openStatus: String,
     val openingHoursText: String?,
     val reviewSummary: PlaceReviewScreenResult,
+    val categoryDetail: String? = null,
 )

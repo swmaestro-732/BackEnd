@@ -64,5 +64,6 @@ class OpenSearchPlaceIndexAdapter(
             areaCode = areaCode,
             location = GeoLocation(lat = location.latitude, lon = location.longitude),
             status = status.name,
+            categoryDetail = categoryDetail,
         )
 }

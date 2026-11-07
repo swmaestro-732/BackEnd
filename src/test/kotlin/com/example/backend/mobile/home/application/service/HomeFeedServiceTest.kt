@@ -4,12 +4,14 @@ import com.example.backend.common.geo.Coordinate
 import com.example.backend.mobile.home.application.port.outbound.HomeFeedPort
 import com.example.backend.mobile.home.application.port.outbound.HomeNearbyPlacePort
 import com.example.backend.mobile.home.application.port.outbound.HomeProfilePort
+import com.example.backend.mobile.home.application.port.outbound.HomeTracePort
 import com.example.backend.mobile.home.application.port.outbound.HomeUserLocationPort
 import com.example.backend.mobile.home.application.port.outbound.dto.HomeFeedCourse
 import com.example.backend.mobile.home.application.port.outbound.dto.HomeFeedCoursePage
 import com.example.backend.mobile.home.application.port.outbound.dto.HomeFeedCursor
 import com.example.backend.mobile.home.application.port.outbound.dto.HomeNearbyPlace
 import com.example.backend.mobile.home.application.port.outbound.dto.HomeProfile
+import com.example.backend.mobile.home.application.port.outbound.dto.HomeTracingCourse
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Assertions.assertTrue
@@ -77,7 +79,16 @@ class HomeFeedServiceTest {
             }
         }
 
-    private val service = HomeFeedService(fakeFeedPort, fakeProfilePort, fakeNearbyPort, fakeLocationPort)
+    private val service =
+        HomeFeedService(
+            fakeFeedPort,
+            fakeProfilePort,
+            fakeNearbyPort,
+            object : HomeTracePort {
+                override fun findInProgress(userId: Long): HomeTracingCourse? = null
+            },
+            fakeLocationPort,
+        )
 
     @Test
     fun `로그인 사용자가 좌표를 보내면 최근 위치로 저장한다`() {
@@ -197,7 +208,7 @@ class HomeFeedServiceTest {
             authorId = 1,
             title = "코스 $id",
             coverImageUrl = null,
-            theme = "CAFETOUR",
+            themes = listOf("CAFETOUR"),
             area = "성수",
             placeCount = 3,
             walkingMinutes = 12,
