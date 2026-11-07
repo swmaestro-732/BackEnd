@@ -10,4 +10,8 @@ enum class CourseActivityKind {
 
     /** 리뷰 삭제. 알림 묶음에서 행동자를 뺀다. */
     REVIEW_DELETED,
+
+    ;
+
+    fun isRetraction(): Boolean = this == UNLIKED || this == REVIEW_DELETED
 }

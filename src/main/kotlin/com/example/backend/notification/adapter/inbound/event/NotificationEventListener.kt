@@ -46,11 +46,7 @@ class NotificationEventListener(
         try {
             val command =
                 RecordNotificationCommand(userType(event.kind), event.actorId, event.targetId, event.occurredAt)
-            if (event.kind == UserActivityKind.UNFOLLOWED) {
-                notificationUseCase.retract(command)
-            } else {
-                notificationUseCase.record(command)
-            }
+            if (event.kind.isRetraction()) notificationUseCase.retract(command) else notificationUseCase.record(command)
         } catch (e: Exception) {
             log.warn(e) { "사용자 활동 알림 기록 실패: type=${event.kind}" }
             failedCounters.getValue(userType(event.kind)).increment()
@@ -63,9 +59,6 @@ class NotificationEventListener(
             CourseActivityKind.COMMENTED -> NotificationType.COURSE_COMMENTED
             CourseActivityKind.REVIEWED, CourseActivityKind.REVIEW_DELETED -> NotificationType.COURSE_REVIEWED
         }
-
-    private fun CourseActivityKind.isRetraction(): Boolean =
-        this == CourseActivityKind.UNLIKED || this == CourseActivityKind.REVIEW_DELETED
 
     private fun userType(kind: UserActivityKind): NotificationType =
         when (kind) {
