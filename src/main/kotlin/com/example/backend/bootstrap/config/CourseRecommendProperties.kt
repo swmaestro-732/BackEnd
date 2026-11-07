@@ -19,4 +19,6 @@ data class CourseRecommendProperties(
     val sigunguWeight: Double = 3.0,
     val dongWeight: Double = 2.0,
     val savesWeight: Double = 1.5,
+    /** 제목·설명 키워드 일치(multi_match) 가산 — AI 채팅의 테마 직접 입력용. */
+    val keywordWeight: Double = 3.0,
 )

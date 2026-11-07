@@ -95,13 +95,30 @@ class OpenSearchCourseRecommendAdapter(
                         add(Query.of { e -> e.exists { x -> x.field("id") } })
                         criteria.category?.let { add(termQuery("category", FieldValue.of(it))) }
                         criteria.region?.let { add(regionQuery(it)) }
+                        criteria.placeId?.let { add(termQuery("placeIds", FieldValue.of(it.toString()))) }
                     },
                 )
+                if (criteria.excludeIds.isNotEmpty()) {
+                    b.mustNot { m -> m.ids { i -> i.values(criteria.excludeIds.map { it.toString() }) } }
+                }
                 val interests =
                     buildList {
                         if (criteria.likeThemes.isNotEmpty()) {
                             add(
                                 constantScore("category", criteria.likeThemes, weights.themeWeight),
+                            )
+                        }
+                        criteria.keyword?.takeIf { it.isNotBlank() }?.let { keyword ->
+                            // 제목·설명 형태소 일치 가산 — 테마를 12종으로 못 맞춘 직접 입력을 필터 대신 점수로 반영한다.
+                            add(
+                                Query.of { q ->
+                                    q.multiMatch { m ->
+                                        m
+                                            .query(keyword)
+                                            .fields("title^2", "description")
+                                            .boost(weights.keywordWeight.toFloat())
+                                    }
+                                },
                             )
                         }
                         if (criteria.sigunguCodes.isNotEmpty()) {

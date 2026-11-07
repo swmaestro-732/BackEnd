@@ -29,6 +29,7 @@
       "area": { "type": "keyword" },
       "areaCode": { "type": "keyword" },
       "sigunguCode": { "type": "keyword" },
+      "placeIds": { "type": "keyword" },
       "category": { "type": "keyword" },
       "tags": { "type": "keyword" },
       "coverImageUrl": { "type": "keyword", "index": false },
