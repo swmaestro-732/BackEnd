@@ -4,6 +4,7 @@ import com.example.backend.common.domain.CourseVisibility
 import com.example.backend.sqs.SqsMessageSender
 import io.awspring.cloud.sqs.operations.SqsTemplate
 import org.junit.jupiter.api.Assertions.assertDoesNotThrow
+import org.junit.jupiter.api.Assertions.assertThrows
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import org.mockito.Mockito
@@ -11,7 +12,7 @@ import org.mockito.Mockito.mock
 import org.springframework.beans.factory.ObjectProvider
 
 /**
- * [CourseCountFallbackAdapter] 단위 테스트 — SqsTemplate 이 없을 때(로컬·CI) fail-soft no-op 을 검증한다.
+ * [CourseCountFallbackAdapter] 단위 테스트. SqsTemplate 이 없을 때(로컬, CI) no-op, 전송 실패 시 예외 전파를 검증한다.
  * SQS 실전송은 통합 환경에서 다룬다.
  */
 class CourseCountFallbackAdapterTest {
@@ -100,8 +101,27 @@ class CourseCountFallbackAdapterTest {
         assertTrue(!sendCalled, "queueUrl 이 비면 send 가 호출돼서는 안 된다")
     }
 
-    // 참고: mock 의 send 는 내부 구현 호출로 NPE 가 발생하고 어댑터 try-catch 가 이를 삼킨다.
-    // "send 가 예외를 던져도 전파하지 않는다" 경로는 위 send-called 테스트가 이미 커버한다.
+    @Test
+    fun `SQS 전송이 실패하면 예외를 던져 이벤트 재발행에 맡긴다`() {
+        val failingTemplate = mock(SqsTemplate::class.java) { throw IllegalStateException("SQS 장애") }
+        val adapterWithFailingTemplate =
+            CourseCountFallbackAdapter(
+                sqsMessageSender = SqsMessageSender(providerOf(failingTemplate)),
+                sqsProperties =
+                    SqsProperties(
+                        courseCountQueueUrl = "https://sqs.ap-northeast-2.amazonaws.com/123/test-queue",
+                    ),
+            )
+
+        assertThrows(IllegalStateException::class.java) {
+            adapterWithFailingTemplate.publish(
+                authorId = 10L,
+                oldVisibility = null,
+                newVisibility = CourseVisibility.PUBLIC,
+                eventId = "evt-fail",
+            )
+        }
+    }
 
     private fun providerOf(template: SqsTemplate): ObjectProvider<SqsTemplate> =
         object : ObjectProvider<SqsTemplate> {

@@ -8,6 +8,7 @@ import io.awspring.cloud.sqs.operations.SqsSendOptions
 import io.awspring.cloud.sqs.operations.SqsTemplate
 import org.junit.jupiter.api.Assertions.assertDoesNotThrow
 import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertThrows
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import org.mockito.Answers.RETURNS_SELF
@@ -60,6 +61,19 @@ class SavedPlaceIndexFallbackAdapterTest {
             adapter.enqueueIndex(document)
             adapter.enqueueDelete(7L, 42L)
         }
+    }
+
+    @Test
+    fun `SQS 전송이 실패하면 예외를 던져 이벤트 재발행에 맡긴다`() {
+        val failingTemplate = mock(SqsTemplate::class.java) { throw IllegalStateException("SQS 장애") }
+        val adapter =
+            SavedPlaceIndexFallbackAdapter(
+                SqsMessageSender(providerOf(failingTemplate)),
+                SqsProperties(savedPlaceQueueUrl = "https://sqs.ap-northeast-2.amazonaws.com/123/saved-place"),
+            )
+
+        assertThrows(IllegalStateException::class.java) { adapter.enqueueIndex(document) }
+        assertThrows(IllegalStateException::class.java) { adapter.enqueueDelete(7L, 42L) }
     }
 
     @Test

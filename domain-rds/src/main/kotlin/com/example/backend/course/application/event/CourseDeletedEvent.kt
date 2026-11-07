@@ -2,6 +2,7 @@ package com.example.backend.course.application.event
 
 import com.example.backend.common.domain.CourseVisibility
 import com.example.backend.course.application.port.inbound.AuthorCourseCountChanged
+import java.util.UUID
 
 /**
  * 도메인 이벤트 — 코스 소프트 삭제를 알린다. 커밋 후(AFTER_COMMIT) 소비자가 각자 필요한 것만 쓴다:
@@ -15,6 +16,7 @@ data class CourseDeletedEvent(
     val courseId: Long,
     override val authorId: Long,
     override val oldVisibility: CourseVisibility?,
+    override val eventId: String = UUID.randomUUID().toString(),
 ) : AuthorCourseCountChanged {
     override val newVisibility: CourseVisibility? get() = null
 }

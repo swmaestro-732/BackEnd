@@ -30,6 +30,9 @@ class PlaceDetailScreenService(
     private val placeBusinessHoursQueryUseCase: PlaceBusinessHoursQueryUseCase,
     private val userSummaryUseCase: UserSummaryUseCase,
 ) : PlaceDetailScreenUseCase {
+    // 쓰기 트랜잭션: 영업시간 동기화 요청 이벤트를 발행하면 이벤트 저장소가 같은 트랜잭션에 기록을 INSERT 한다.
+    // 클래스 기본값(readOnly)이면 PostgreSQL 이 INSERT 를 거부한다.
+    @Transactional
     override fun getScreen(placeId: Long): PlaceDetailScreenResult {
         val place =
             screenPlacePort.findById(placeId)

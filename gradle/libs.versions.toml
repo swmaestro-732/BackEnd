@@ -45,4 +45,7 @@ springdoc-openapi-webmvc-ui = { module = "org.springdoc:springdoc-openapi-starte
 sentry-spring-boot = { module = "io.sentry:sentry-spring-boot-4-starter", version.ref = "sentry" }
 archunit-junit5 = { module = "com.tngtech.archunit:archunit-junit5", version.ref = "archunit" }
 spring-modulith-bom = { module = "org.springframework.modulith:spring-modulith-bom", version.ref = "springModulith" }
+spring-modulith-events-api = { module = "org.springframework.modulith:spring-modulith-events-api" }
+spring-modulith-events-jdbc = { module = "org.springframework.modulith:spring-modulith-events-jdbc" }
+spring-modulith-events-jackson = { module = "org.springframework.modulith:spring-modulith-events-jackson" }
 testcontainers-junit = { module = "org.testcontainers:junit-jupiter", version.ref = "testcontainers" }

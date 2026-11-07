@@ -10,8 +10,8 @@ import org.springframework.stereotype.Component
 /**
  * 아웃바운드 어댑터 — 동기 색인 실패 시 저장 장소 색인 연산을 폴백 큐(SQS)로 발행한다([SavedPlaceIndexFallbackPort]).
  *
- * SqsTemplate 이 없거나(=SQS 미설정, 로컬, CI) queueUrl 이 비면 no-op. 폴백 발행마저 실패하면 색인 반영이
- * 유실될 수 있으므로 error 로그를 남긴다(주 경로도 실패, 재처리 경로도 끊긴 상황 — 재색인 잡이 최종 보정).
+ * SqsTemplate 이 없거나(=SQS 미설정, 로컬, CI) queueUrl 이 비면 no-op. 폴백 발행마저 실패하면 error 로그를 남기고
+ * 예외를 다시 던진다. 호출한 리스너의 이벤트 저장소 기록이 미완료로 남아 재발행된다(재색인 잡이 최종 보정).
  */
 @Component
 class SavedPlaceIndexFallbackAdapter(
@@ -55,8 +55,9 @@ class SavedPlaceIndexFallbackAdapter(
             sqsMessageSender.send(queueUrl, message)
         } catch (e: Exception) {
             log.error {
-                "저장 장소 색인 폴백 발행 실패(반영 유실 가능): ${message.op} ${message.userId}:${message.placeId} — ${e.message}"
+                "저장 장소 색인 폴백 발행 실패(이벤트 재발행 대기): ${message.op} ${message.userId}:${message.placeId}, ${e.message}"
             }
+            throw e
         }
     }
 }

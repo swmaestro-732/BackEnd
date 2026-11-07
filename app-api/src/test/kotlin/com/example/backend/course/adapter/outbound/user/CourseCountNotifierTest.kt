@@ -15,12 +15,13 @@ class CourseCountNotifierTest {
     fun `공개범위 전이를 user 의 inbound 포트로 그대로 넘긴다`() {
         notifier.onCourseCountChanged(
             object : AuthorCourseCountChanged {
+                override val eventId = "evt-1"
                 override val authorId = 3L
                 override val oldVisibility = CourseVisibility.PRIVATE
                 override val newVisibility = CourseVisibility.PUBLIC
             },
         )
 
-        verify(courseCountIntakeUseCase).receive(3L, CourseVisibility.PRIVATE, CourseVisibility.PUBLIC)
+        verify(courseCountIntakeUseCase).receive("evt-1", 3L, CourseVisibility.PRIVATE, CourseVisibility.PUBLIC)
     }
 }

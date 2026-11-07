@@ -3,6 +3,7 @@ package com.example.backend.course.application.event
 import com.example.backend.common.domain.CourseVisibility
 import com.example.backend.course.application.port.inbound.AuthorCourseCountChanged
 import com.example.backend.course.domain.model.Course
+import java.util.UUID
 
 /**
  * 도메인 이벤트 — 코스 생성·편집을 한 번에 알린다(한 비즈니스 로직 = 이벤트 하나).
@@ -20,6 +21,7 @@ data class CourseSavedEvent(
     override val authorId: Long,
     override val oldVisibility: CourseVisibility?,
     override val newVisibility: CourseVisibility?,
+    override val eventId: String = UUID.randomUUID().toString(),
 ) : AuthorCourseCountChanged {
     companion object {
         fun from(

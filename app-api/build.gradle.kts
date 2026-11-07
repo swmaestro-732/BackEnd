@@ -48,6 +48,14 @@ dependencies {
     implementation("org.springframework.boot:spring-boot-starter-flyway")
     implementation("org.springframework.boot:spring-boot-starter-jdbc")
     implementation("org.flywaydb:flyway-database-postgresql")
+    // Spring Modulith 이벤트 저장소(JDBC): 이벤트를 업무 변경과 같은 트랜잭션으로 event_publication 에 남기는 아웃박스.
+    // starter-jdbc 대신 이벤트 모듈만 쓴다. starter-core 가 끌어오는 spring-modulith-core(ArchUnit, jMolecules) 를
+    // 런타임(bootJar)에 싣지 않기 위해서다. 모듈 검증용 core 는 테스트(starter-test)에만 둔다.
+    implementation(platform(libs.spring.modulith.bom))
+    implementation(libs.spring.modulith.events.api)
+    // events-core 가 끌어오는 jcl-over-slf4j 는 이미 있는 commons-logging 과 같은 클래스를 중복 제공해 뺀다
+    implementation(libs.spring.modulith.events.jdbc) { exclude(group = "org.slf4j", module = "jcl-over-slf4j") }
+    implementation(libs.spring.modulith.events.jackson) { exclude(group = "org.slf4j", module = "jcl-over-slf4j") }
     implementation("org.postgresql:postgresql")
 
     // S3, SQS, FCM SDK 는 각 client-* 모듈이 가진다. AWS BOM 은 아래 DocumentDB 인증(auth)용.

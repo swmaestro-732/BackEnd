@@ -11,6 +11,11 @@ import com.example.backend.common.domain.CourseVisibility
  * old==new 면 카운트 변화 없음. 어느 공개범위가 어느 버킷으로 가는지·델타 계산은 카운트를 소유한 소비자(user) 몫이다.
  */
 interface AuthorCourseCountChanged {
+    /**
+     * 전이 하나를 가리키는 멱등 키. 발행 때 한 번 정해져 이벤트 저장소에 함께 남는다.
+     * 재발행(미완료 이벤트 재시도)과 SQS 폴백이 같은 키로 반영되어 소비자가 중복을 걸러낸다.
+     */
+    val eventId: String
     val authorId: Long
     val oldVisibility: CourseVisibility?
     val newVisibility: CourseVisibility?
