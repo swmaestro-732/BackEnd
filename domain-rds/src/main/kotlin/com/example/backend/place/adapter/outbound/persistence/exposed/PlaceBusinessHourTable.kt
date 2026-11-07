@@ -1,0 +1,43 @@
+package com.example.backend.place.adapter.outbound.persistence.exposed
+
+import com.example.backend.place.domain.model.PlaceBusinessHour
+import org.jetbrains.exposed.v1.core.dao.id.EntityID
+import org.jetbrains.exposed.v1.core.dao.id.LongIdTable
+import org.jetbrains.exposed.v1.dao.LongEntity
+import org.jetbrains.exposed.v1.dao.LongEntityClass
+import org.jetbrains.exposed.v1.datetime.time
+
+// LongIdTable 이 id(EntityID<Long>)·primaryKey 를 제공한다 → DAO(PlaceBusinessHourEntity)·DSL 공용.
+object PlaceBusinessHourTable : LongIdTable("place_business_hours") {
+    val placeId = long("place_id") // 같은 도메인(place) 참조 — 스키마에 FK 있음
+    val dayOfWeek = short("day_of_week")
+    val openTime = time("open_time").nullable()
+    val closeTime = time("close_time").nullable()
+
+    // 브레이크타임(V17) — 쉬는 시간이 없으면 둘 다 NULL.
+    val breakStart = time("break_start").nullable()
+    val breakEnd = time("break_end").nullable()
+}
+
+/** place_business_hours 테이블의 DAO 엔티티([PlaceBusinessHourTable] 과 한 쌍). 어댑터 밖으로 내보내지 않고 DTO 로 변환한다. */
+class PlaceBusinessHourEntity(
+    id: EntityID<Long>,
+) : LongEntity(id) {
+    companion object : LongEntityClass<PlaceBusinessHourEntity>(PlaceBusinessHourTable)
+
+    var placeId by PlaceBusinessHourTable.placeId
+    var dayOfWeek by PlaceBusinessHourTable.dayOfWeek
+    var openTime by PlaceBusinessHourTable.openTime
+    var closeTime by PlaceBusinessHourTable.closeTime
+    var breakStart by PlaceBusinessHourTable.breakStart
+    var breakEnd by PlaceBusinessHourTable.breakEnd
+
+    fun toDomain(): PlaceBusinessHour =
+        PlaceBusinessHour(
+            dayOfWeek = dayOfWeek.toInt(),
+            openTime = openTime,
+            closeTime = closeTime,
+            breakStart = breakStart,
+            breakEnd = breakEnd,
+        )
+}
