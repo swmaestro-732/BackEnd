@@ -1,5 +1,6 @@
 package com.example.backend.admin.adapter.outbound.google
 
+import com.example.backend.admin.application.port.outbound.VerifiedGoogleAccount
 import com.example.backend.bootstrap.security.GoogleOauthProperties
 import com.example.backend.common.exception.BusinessException
 import com.example.backend.common.response.CommonErrorCode
@@ -15,17 +16,17 @@ import kotlin.test.assertFailsWith
 
 class GoogleAdminIdentityVerifierTest {
     @Test
-    fun `web client-id aud 이고 인증된 이메일이면 소문자 이메일을 돌려준다`() {
+    fun `web client-id aud 이고 인증된 이메일이면 소문자 이메일과 구글 sub 를 돌려준다`() {
         val verifier = verifier(decoder = JwtDecoder { jwt(email = "Admin@Example.com") })
 
-        assertEquals("admin@example.com", verifier.verifyGoogle("valid-token"))
+        assertEquals(VerifiedGoogleAccount("admin@example.com", "google-sub"), verifier.verifyGoogle("valid-token"))
     }
 
     @Test
     fun `email_verified 가 문자열 true 여도 통과한다`() {
         val verifier = verifier(decoder = JwtDecoder { jwt(emailVerified = "true") })
 
-        assertEquals("admin@example.com", verifier.verifyGoogle("valid-token"))
+        assertEquals("admin@example.com", verifier.verifyGoogle("valid-token").email)
     }
 
     @Test
@@ -55,6 +56,11 @@ class GoogleAdminIdentityVerifierTest {
     @Test
     fun `email 클레임이 없으면 거부한다`() {
         assertRejected(verifier(decoder = JwtDecoder { jwt(email = null) }))
+    }
+
+    @Test
+    fun `sub 가 비어 있으면 거부한다`() {
+        assertRejected(verifier(decoder = JwtDecoder { jwt(subject = " ") }))
     }
 
     @Test
@@ -96,11 +102,12 @@ class GoogleAdminIdentityVerifierTest {
         audience: List<String> = listOf(WEB_CLIENT_ID),
         email: String? = "admin@example.com",
         emailVerified: Any? = true,
+        subject: String = "google-sub",
     ): Jwt =
         Jwt
             .withTokenValue("token")
             .header("alg", "RS256")
-            .subject("google-sub")
+            .subject(subject)
             .audience(audience)
             .claim("iss", "https://accounts.google.com")
             .apply { if (email != null) claim("email", email) }

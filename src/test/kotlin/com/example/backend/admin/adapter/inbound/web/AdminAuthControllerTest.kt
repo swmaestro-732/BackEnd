@@ -4,9 +4,11 @@ import com.example.backend.admin.adapter.inbound.web.request.AdminLoginRequest
 import com.example.backend.admin.adapter.inbound.web.response.AdminLoginResponse
 import com.example.backend.admin.application.port.outbound.AdminIdentityPort
 import com.example.backend.admin.application.port.outbound.AdminTokenPort
+import com.example.backend.admin.application.port.outbound.VerifiedGoogleAccount
 import com.example.backend.bootstrap.security.JwtTokenProvider
 import com.example.backend.support.IntegrationTestBase
 import com.jayway.jsonpath.JsonPath
+import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Test
 import org.mockito.Mockito.`when`
@@ -46,7 +48,9 @@ class AdminAuthControllerTest
 
         @Test
         fun `토큰 없이 로그인하면 admins 에 있는 구글 계정에 어드민 토큰을 발급하고 그 토큰으로 me 를 조회한다`() {
-            `when`(adminIdentityPort.verifyGoogle("google-id-token")).thenReturn("admin@example.com")
+            `when`(
+                adminIdentityPort.verifyGoogle("google-id-token"),
+            ).thenReturn(VerifiedGoogleAccount("admin@example.com", ADMIN_SUB))
 
             val body =
                 mockMvc
@@ -66,8 +70,33 @@ class AdminAuthControllerTest
         }
 
         @Test
+        fun `첫 로그인한 구글 계정에 묶이고 같은 이메일의 다른 구글 계정은 403 4032 로 거부한다`() {
+            `when`(
+                adminIdentityPort.verifyGoogle("google-id-token"),
+            ).thenReturn(VerifiedGoogleAccount("admin@example.com", ADMIN_SUB))
+            mockMvc.perform(loginRequest()).andExpect(status().isOk)
+
+            `when`(adminIdentityPort.verifyGoogle("google-id-token"))
+                .thenReturn(VerifiedGoogleAccount("admin@example.com", "previous-owner-sub"))
+
+            mockMvc
+                .perform(loginRequest())
+                .andExpect(status().isForbidden)
+                .andExpect(jsonPath("$.code").value(4032))
+            assertEquals(
+                ADMIN_SUB,
+                jdbcTemplate.queryForObject(
+                    "SELECT google_sub FROM admins WHERE email = 'admin@example.com'",
+                    String::class.java,
+                ),
+            )
+        }
+
+        @Test
         fun `admins 에 없는 구글 계정은 403 4032 로 거부한다`() {
-            `when`(adminIdentityPort.verifyGoogle("google-id-token")).thenReturn("someone@example.com")
+            `when`(
+                adminIdentityPort.verifyGoogle("google-id-token"),
+            ).thenReturn(VerifiedGoogleAccount("someone@example.com", "other-sub"))
 
             mockMvc
                 .perform(loginRequest())
@@ -141,4 +170,8 @@ class AdminAuthControllerTest
         private fun adminToken() = adminTokenPort.issue("admin@example.com").token
 
         private fun appAccessToken() = jwtTokenProvider.issueAccessToken(1L)
+
+        private companion object {
+            const val ADMIN_SUB = "admin-google-sub"
+        }
     }

@@ -1,6 +1,7 @@
 package com.example.backend.admin.adapter.outbound.google
 
 import com.example.backend.admin.application.port.outbound.AdminIdentityPort
+import com.example.backend.admin.application.port.outbound.VerifiedGoogleAccount
 import com.example.backend.bootstrap.security.GoogleOauthProperties
 import com.example.backend.common.exception.BusinessException
 import com.example.backend.common.response.CommonErrorCode
@@ -19,7 +20,7 @@ class GoogleAdminIdentityVerifier(
     private val googleJwtDecoder: JwtDecoder,
     private val googleOauthProperties: GoogleOauthProperties,
 ) : AdminIdentityPort {
-    override fun verifyGoogle(idToken: String): String {
+    override fun verifyGoogle(idToken: String): VerifiedGoogleAccount {
         val webClientId = googleOauthProperties.clientId
         if (webClientId.isBlank()) fail()
         val jwt =
@@ -33,7 +34,8 @@ class GoogleAdminIdentityVerifier(
         val emailVerified = jwt.claims["email_verified"]
         if (emailVerified != true && emailVerified != "true") fail()
         val email = jwt.getClaimAsString("email")?.takeIf(String::isNotBlank) ?: fail()
-        return email.lowercase()
+        val sub = jwt.subject?.takeIf(String::isNotBlank) ?: fail()
+        return VerifiedGoogleAccount(email = email.lowercase(), sub = sub)
     }
 
     private fun fail(): Nothing = throw BusinessException(CommonErrorCode.SOCIAL_AUTHENTICATION_FAILED)

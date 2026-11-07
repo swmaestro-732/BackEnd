@@ -25,4 +25,17 @@ class AdminPersistenceTest
                 rollback()
             }
         }
+
+        @Test
+        fun `구글 sub 는 처음엔 묶고 같은 sub 는 통과하며 다른 sub 와 없는 이메일은 거부한다`() {
+            transaction {
+                AdminTable.insert { it[email] = "persistence-admin@example.com" }
+
+                assertTrue(adminPersistencePort.bindGoogleSub("persistence-admin@example.com", "sub-a"))
+                assertTrue(adminPersistencePort.bindGoogleSub("persistence-admin@example.com", "sub-a"))
+                assertFalse(adminPersistencePort.bindGoogleSub("persistence-admin@example.com", "sub-b"))
+                assertFalse(adminPersistencePort.bindGoogleSub("persistence-other@example.com", "sub-a"))
+                rollback()
+            }
+        }
     }

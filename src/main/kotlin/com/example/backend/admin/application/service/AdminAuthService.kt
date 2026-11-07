@@ -23,11 +23,17 @@ class AdminAuthService(
     AdminAccessUseCase {
     private val log = KotlinLogging.logger {}
 
+    /**
+     * 이메일만으로 믿지 않고 구글 계정(sub)까지 맞춘다. 같은 이메일이 다른 구글 계정에 붙는 경우(회사 메일 재할당,
+     * 도메인 만료 후 재등록)에 이전 주인이 어드민 토큰을 받지 못하게 하려는 것이다. 첫 로그인 때 그 계정에 묶는다.
+     */
+    @Transactional
     override fun login(idToken: String): AdminLogin {
-        val email = adminIdentityPort.verifyGoogle(idToken).lowercase()
-        if (!adminPersistencePort.exists(email)) {
+        val account = adminIdentityPort.verifyGoogle(idToken)
+        val email = account.email.lowercase()
+        if (!adminPersistencePort.bindGoogleSub(email, account.sub)) {
             // 토큰은 남기지 않는다. 누가 시도했는지 추적할 수 있게 이메일만 남긴다.
-            log.warn { "어드민이 아닌 계정의 어드민 로그인 시도: email=$email" }
+            log.warn { "어드민이 아니거나 다른 구글 계정의 어드민 로그인 시도: email=$email" }
             throw BusinessException(AdminErrorCode.ADMIN_FORBIDDEN)
         }
         val issued = adminTokenPort.issue(email)

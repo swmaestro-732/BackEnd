@@ -4,6 +4,7 @@ import com.example.backend.admin.application.port.outbound.AdminIdentityPort
 import com.example.backend.admin.application.port.outbound.AdminPersistencePort
 import com.example.backend.admin.application.port.outbound.AdminTokenPort
 import com.example.backend.admin.application.port.outbound.IssuedAdminToken
+import com.example.backend.admin.application.port.outbound.VerifiedGoogleAccount
 import com.example.backend.common.exception.BusinessException
 import com.example.backend.common.response.AdminErrorCode
 import org.junit.jupiter.api.Assertions.assertEquals
@@ -17,19 +18,30 @@ class AdminAuthServiceTest {
     private val issuedFor = mutableListOf<String>()
     private val checkedEmails = mutableListOf<String>()
     private var verifiedEmail = ADMIN_EMAIL
+    private var verifiedSub = ADMIN_SUB
     private val admins = mutableSetOf(ADMIN_EMAIL)
+    private val boundSubs = mutableMapOf<String, String>()
 
     private val service =
         AdminAuthService(
             adminIdentityPort =
                 object : AdminIdentityPort {
-                    override fun verifyGoogle(idToken: String): String = verifiedEmail
+                    override fun verifyGoogle(idToken: String) = VerifiedGoogleAccount(verifiedEmail, verifiedSub)
                 },
             adminPersistencePort =
                 object : AdminPersistencePort {
                     override fun exists(email: String): Boolean {
                         checkedEmails += email
                         return email in admins
+                    }
+
+                    override fun bindGoogleSub(
+                        email: String,
+                        googleSub: String,
+                    ): Boolean {
+                        checkedEmails += email
+                        if (email !in admins) return false
+                        return boundSubs.getOrPut(email) { googleSub } == googleSub
                     }
                 },
             adminTokenPort =
@@ -74,6 +86,17 @@ class AdminAuthServiceTest {
     }
 
     @Test
+    fun `이미 다른 구글 계정에 묶인 어드민 이메일은 4032 로 거부하고 토큰을 발급하지 않는다`() {
+        boundSubs[ADMIN_EMAIL] = "current-owner-sub"
+        verifiedSub = "previous-owner-sub"
+
+        val exception = assertThrows<BusinessException> { service.login("google-id-token") }
+
+        assertEquals(AdminErrorCode.ADMIN_FORBIDDEN, exception.errorCode)
+        assertTrue(issuedFor.isEmpty())
+    }
+
+    @Test
     fun `요청별 어드민 확인은 이메일을 소문자로 바꿔 admins 를 조회한다`() {
         assertTrue(service.isAdmin("Admin@Example.COM"))
         assertFalse(service.isAdmin("someone@example.com"))
@@ -82,6 +105,7 @@ class AdminAuthServiceTest {
 
     private companion object {
         const val ADMIN_EMAIL = "admin@example.com"
+        const val ADMIN_SUB = "admin-google-sub"
         val EXPIRES_AT: Instant = Instant.parse("2026-01-01T01:00:00Z")
     }
 }
