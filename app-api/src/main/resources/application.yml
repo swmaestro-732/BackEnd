@@ -1,0 +1,170 @@
+spring:
+  application:
+    name: Backend
+  # endpoint 미설정 시 localhost Mongo 연결·데이터 빈 생성을 막고 MongoConfig 에서만 배선한다.
+  autoconfigure:
+    exclude:
+      - org.springframework.boot.mongodb.autoconfigure.MongoAutoConfiguration
+      - org.springframework.boot.data.mongodb.autoconfigure.DataMongoAutoConfiguration
+      - org.springframework.boot.data.mongodb.autoconfigure.DataMongoRepositoriesAutoConfiguration
+  # DataSource: 환경변수가 있으면(CI/운영) 그 값을, 없으면 로컬 기본값(docker-compose).
+  datasource:
+    url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://localhost:5432/chilsami}
+    username: ${SPRING_DATASOURCE_USERNAME:chilsami}
+    password: ${SPRING_DATASOURCE_PASSWORD:localdev}
+    hikari:
+      maximum-pool-size: 10
+  flyway:
+    enabled: true
+    # V1~V15 를 단일 V1__init.sql 로 합쳤다(현재 스키마 정본). fresh DB(로컬·CI·신규)는 이 V1 하나로 전체 스키마를 만든다.
+    # baseline-on-migrate 는 켜지 않는다: 기존 스키마가 있는(비어있지 않은) DB 를 자동 baseline 하면 V1 을
+    # 실행 안 함으로만 표시할 뿐, 이미 V1~V15 이력을 가진 기존 prod/dev DB 에는 애초에 적용되지 않는다.
+    # 기존 prod/dev DB 는 배포 전 flyway_schema_history 를 version=1 BASELINE 행으로 교체해 V1 을 스킵한다(런북 참고).
+  # Spring Modulith 이벤트 저장소(아웃박스). 커밋 후 리스너 호출을 event_publication 에 남기고 미완료분을 재발행한다.
+  # 테이블은 Flyway(V23)가 만든다. 완료된 행은 바로 지워 테이블이 미완료분만 갖게 한다.
+  modulith:
+    events:
+      jdbc:
+        schema-initialization:
+          enabled: false
+      completion-mode: delete
+      # @ApplicationModuleListener 리스너만 기록한다(SQS 로 끝나는 경로). 검색 색인처럼 fail-soft 인 일반 커밋 후 리스너는
+      # 기록하지 않아 읽기 전용 트랜잭션에서 발행해도 INSERT 가 생기지 않는다.
+      registry-trigger-annotation: org.springframework.modulith.events.ApplicationModuleListener
+      # 기동 시 재발행은 끈다. 여러 인스턴스 롤링 배포에서 기동하는 인스턴스마다 처리 중인 행까지 다시 보낸다.
+      # 재시도는 고착 판정(staleness)과 IncompleteEventResubmitter 의 FAILED 재발행이 맡는다.
+      republish-outstanding-events-on-restart: false
+      # 이만큼 PUBLISHED, PROCESSING, RESUBMITTED 에 머문 행(처리 중 서버 종료 등)은 FAILED 로 바꿔 재발행 대상으로 만든다.
+      staleness:
+        published: PT10M
+        processing: PT10M
+        resubmitted: PT10M
+  # spring-cloud-aws — 코스 개수 폴백 큐(SQS) 자동 배선. region.static 을 항상 줘 CI(로컬)에서 AWS_REGION 없이도
+  # 클라이언트가 빌드되게 한다(실제 네트워크는 송수신 때만 탄다 → 큐 미설정이면 발행 no-op·리스너 미생성).
+  # LocalStack 등 엔드포인트 오버라이드는 SPRING_CLOUD_AWS_SQS_ENDPOINT env 로 준다.
+  cloud:
+    aws:
+      region:
+        static: ${AWS_REGION:ap-northeast-2}
+
+# Actuator: health + prometheus 메트릭 노출. (스크레이프 소스는 SG로 모니터링 호스트만 허용)
+management:
+  # DocumentDB 장애가 ALB 의 집계 health 로 전파되지 않게 기본 Mongo 헬스 체크를 끈다.
+  # Spring Boot 4 는 management.health.mongodb.enabled 사용(mongo 키는 4.0.0 부터 deprecated=error).
+  health:
+    mongodb:
+      enabled: false
+  endpoints:
+    web:
+      exposure:
+        include: health,prometheus
+  endpoint:
+    health:
+      show-details: never
+      probes:
+        enabled: true
+  # 분산 트레이싱(OTLP → Tempo). 기본 비활성 — 앱 EC2가 모니터링 호스트를 찾으면
+  # MANAGEMENT_TRACING_EXPORT_ENABLED=true + MANAGEMENT_OTLP_TRACING_ENDPOINT env 로 활성화(fail-soft).
+  # Spring Boot 4: export/propagation 토글은 management.tracing.export.enabled(management.tracing.enabled 는 4.0 deprecated),
+  # OTLP endpoint 는 management.opentelemetry.tracing.export.otlp.* 로 이동.
+  tracing:
+    export:
+      enabled: false
+    sampling:
+      probability: 0.1
+  opentelemetry:
+    tracing:
+      export:
+        otlp:
+          endpoint: ${MANAGEMENT_OTLP_TRACING_ENDPOINT:}
+  # HTTP 요청 지연 p95/p99 산출용 히스토그램 버킷 노출. 분위수 직접계산(percentiles)은 인스턴스별이라
+  # ASG 다중 인스턴스에서 합산이 안 되므로, Prometheus 가 버킷을 집계해 분위수를 내도록 percentiles-histogram 사용.
+  # 버킷 범위를 10ms~10s 로 제한해 le 버킷 수(카디널리티)를 억제한다.
+  metrics:
+    distribution:
+      percentiles-histogram:
+        http.server.requests: true
+      minimum-expected-value:
+        http.server.requests: 10ms
+      maximum-expected-value:
+        http.server.requests: 10s
+
+jwt:
+  # 서명 시크릿은 반드시 env(JWT_SECRET, 32바이트+)로 주입한다. 코드에 사용 가능한 기본값을 두지 않는다(fail-fast).
+  secret: ${JWT_SECRET:}
+  access-ttl: PT30M
+  refresh-ttl: P14D
+  registration-ttl: PT10M
+
+oauth:
+  kakao:
+    # 로그인(OIDC)용 카카오 앱 client_id(REST API 키). 로컬(지도) 검색 키(kakao.local.rest-key)와 별개 앱/키.
+    client-id: ${KAKAO_CLIENT_ID:}
+    # 안드로이드/iOS SDK 로그인 id_token 의 aud = 네이티브 앱 키. 미설정 시 웹(REST 키)만 허용.
+    native-app-key: ${KAKAO_NATIVE_APP_KEY:}
+    jwks-uri: https://kauth.kakao.com/.well-known/jwks.json
+    issuer: https://kauth.kakao.com
+  google:
+    # 웹 OAuth client-id(id_token aud). android/ios 는 플랫폼별 client-id(미설정 시 웹만 허용).
+    client-id: ${GOOGLE_CLIENT_ID:}
+    android-client-id: ${GOOGLE_ANDROID_CLIENT_ID:}
+    ios-client-id: ${GOOGLE_IOS_CLIENT_ID:}
+    jwks-uri: https://www.googleapis.com/oauth2/v3/certs
+    issuer: https://accounts.google.com
+  apple:
+    # iOS 네이티브 identityToken aud = 앱 Bundle ID. service-id 는 웹/안드로이드용 Services ID(미설정 시 iOS 만 허용).
+    client-id: ${APPLE_CLIENT_ID:}
+    service-id: ${APPLE_SERVICE_ID:}
+    jwks-uri: https://appleid.apple.com/auth/keys
+    issuer: https://appleid.apple.com
+
+# 외부 지도 연동(SCRUM-387). 키가 없으면 각 기능은 빈 결과/null 로 fail-soft.
+kakao:
+  local:
+    rest-key: ${KAKAO_REST_API_KEY:}
+tmap:
+  app-key: ${TMAP_APP_KEY:}
+# 장소 운영시간(SCRUM-544). Places API(New) 텍스트 검색 1회로 좌표·regularOpeningHours 를 받는다. 키가 비면 동기화 no-op.
+google:
+  places:
+    api-key: ${GOOGLE_PLACES_API_KEY:}
+
+aws:
+  region: ${AWS_REGION:ap-northeast-2}
+  s3:
+    bucket: ${S3_MEDIA_BUCKET:}
+    cdn-base-url: ${S3_MEDIA_CDN_URL:}
+    presign-ttl: PT5M
+    endpoint: ${S3_ENDPOINT:}   # 비어있으면 기본 AWS, LocalStack 등은 값 설정
+  sqs:
+    course-count-queue-url: ${SQS_COURSE_COUNT_QUEUE_URL:}   # 비어있으면 폴백 리스너 비활성·발행 no-op(로컬·CI)
+    saved-place-queue-url: ${SQS_SAVED_PLACE_QUEUE_URL:}     # 저장 장소 색인 폴백. 비어있으면 리스너 비활성·발행 no-op(로컬·CI)
+    push-queue-url: ${SQS_PUSH_QUEUE_URL:}                 # 비어있으면 푸시 리스너 비활성, 발행 no-op(로컬/CI)
+
+firebase:
+  credentials-json: ${FIREBASE_CREDENTIALS_JSON:}   # 서비스 계정 JSON, 비어있으면 발송 no-op
+
+push:
+  max-age: PT1H                    # 큐에서 이보다 오래된 메시지는 늦은 알림이라 발송하지 않고 버린다
+  android-ttl: P1D                 # 기기가 오프라인일 때 FCM 보관 기간
+  android-channel-id: courmy_activity   # 안드로이드 앱 활동 알림 채널
+
+docdb:
+  endpoint: ${DOCDB_ENDPOINT:}
+  port: ${DOCDB_PORT:27017}
+  database: ${DOCDB_DATABASE:chat}
+
+redis:
+  endpoint: ${REDIS_ENDPOINT:}
+  port: ${REDIS_PORT:6379}
+  user: ${REDIS_USER:}
+  cache-name: ${REDIS_CACHE_NAME:}
+  region: ${REDIS_REGION:${aws.region}}   # 미지정 시 aws.region(기본 ap-northeast-2) — IAM 토큰 서명 리전 누락 방지
+
+# Sentry 에러 트래킹. DSN 이 비면 SDK 가 no-op(로컬/테스트 자동 비활성) — OTLP 엔드포인트와 동일한 fail-soft 관례.
+# prod/dev 는 Infra 가 SENTRY_DSN·SENTRY_ENVIRONMENT 를 env 로 주입한다(app_config 시크릿 경유).
+sentry:
+  dsn: ${SENTRY_DSN:}
+  environment: ${SENTRY_ENVIRONMENT:local}
+  traces-sample-rate: 0.1   # 성능 트레이스 샘플링. 부하에 따라 조정
+  send-default-pii: false

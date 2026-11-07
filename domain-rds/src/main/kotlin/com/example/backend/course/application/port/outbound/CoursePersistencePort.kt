@@ -1,0 +1,191 @@
+package com.example.backend.course.application.port.outbound
+
+import com.example.backend.common.domain.CourseVisibility
+import com.example.backend.course.application.port.inbound.dto.AuthorCourseCursor
+import com.example.backend.course.application.port.inbound.dto.FeedCursor
+import com.example.backend.course.domain.model.Course
+import com.example.backend.course.domain.model.CourseCategory
+import com.example.backend.course.domain.model.CourseStatus
+import java.time.Instant
+
+/** 코스 단건 읽기 모델. deleted_at IS NULL 인 행만 반환한다(상태·공개범위 판정은 서비스가 수행). */
+data class CourseDetailRow(
+    val id: Long,
+    val userId: Long,
+    val title: String,
+    val coverImageUrl: String?,
+    val description: String?,
+    /** 코스 카테고리(응답 themes 의 출처, enum 선언 순). 미선택이면 빈 목록. */
+    val categories: List<CourseCategory>,
+    /** 코스 지역(예: "성수"). 미입력이면 null. */
+    val area: String?,
+    /** 코스 지역 법정동코드 10자리(시군구 레벨은 뒤 0 패딩). 미도출이면 null. 편집 시 유지/재도출 판정에 쓰인다. */
+    val areaCode: String?,
+    val tracingsCnt: Int,
+    val status: CourseStatus,
+    val visibility: CourseVisibility,
+    /** 발행 여부(true=게시, false=임시저장). 게시 코스 편집 시 장소 구성 변경 금지 판정에 쓰인다. */
+    val isPublished: Boolean,
+    /** 복제 원본 코스 id. 일반 코스는 null. 복제 초안 편집 시 원본 장소 유지 재검사에 쓰인다. */
+    val duplicatedFromId: Long?,
+)
+
+/**
+ * 코스 요약 읽기 모델 — 작성자별 코스 목록 등에 쓰는 범용 요약(화면 전용 아님).
+ * 발행 여부·정렬 등 목록별 조건은 각 포트 메서드가 정하고, 공개범위(visibility) 판정은 필요한 경우 서비스가 수행한다.
+ */
+data class CourseSummaryRow(
+    val id: Long,
+    val userId: Long,
+    val title: String,
+    val coverImageUrl: String?,
+    val categories: List<CourseCategory>,
+    /** 코스 지역(예: "성수"). 미입력이면 null. */
+    val area: String?,
+    val visibility: CourseVisibility,
+    val isPublished: Boolean,
+    val likesCnt: Int,
+    val savesCnt: Int,
+    val createdAt: Instant,
+)
+
+/** 코스별 장소 집계 — 장소 수와 구간 도보 시간 합(분, 미입력 구간은 0). */
+data class CoursePlaceStats(
+    val placeCount: Int,
+    val walkingMinutes: Int,
+)
+
+/** 코스에 담긴 장소 읽기 모델(장소별 이미지 포함, orderNo 오름차순). */
+data class CoursePlaceRow(
+    val id: Long,
+    val placeId: Long,
+    val orderNo: Int,
+    val caption: String?,
+    val walkingMinutes: Int?,
+    val images: List<CoursePlaceImageRow>,
+)
+
+data class CoursePlaceImageRow(
+    val imageUrl: String,
+    val orderNo: Int,
+)
+
+/**
+ * 아웃바운드 포트 — 코스 애그리거트 영속(조회·생성). 구현체(Exposed 어댑터)는 adapter/outbound/persistence 에 위치한다.
+ * user 도메인 [com.example.backend.user.application.port.outbound.UserPersistencePort] 와 동일하게
+ * 한 포트에서 읽기·쓰기를 함께 다루고, 저장은 도메인 애그리거트([Course])를 받는다.
+ */
+interface CoursePersistencePort {
+    fun findCourseDetail(courseId: Long): CourseDetailRow?
+
+    /** 여러 코스 본문을 한 번에 읽는다(deleted_at IS NULL). 없는 id 는 결과에서 빠진다 — 목록 화면 배치 조회용. */
+    fun findCourseDetails(courseIds: List<Long>): List<CourseDetailRow>
+
+    /**
+     * 작성자의 발행 코스 요약 목록 — isPublished=true·status=ACTIVE·deleted_at IS NULL,
+     * createdAt DESC, id DESC. [visibilities]에 포함된 공개범위만 [cursor] 이후부터
+     * hasNext 판별용 초과 1건을 포함해 최대 [size] + 1건 반환한다.
+     */
+    fun findPublishedByAuthor(
+        authorId: Long,
+        visibilities: Set<CourseVisibility>,
+        cursor: AuthorCourseCursor?,
+        size: Int,
+    ): List<CourseSummaryRow>
+
+    /**
+     * 작성자의 임시저장 코스 요약 목록 — isPublished=false·status=ACTIVE·deleted_at IS NULL, updatedAt 내림차순.
+     */
+    fun findDraftsByAuthor(authorId: Long): List<CourseSummaryRow>
+
+    /**
+     * 전체 공개(visibility=PUBLIC)·발행·활성·미삭제 코스 요약을 피드 정렬 순으로 읽는다.
+     * [cursor] 이후부터 hasNext 판별용 초과 1건을 포함해 최대 [size] + 1건을 반환한다. [category]가 있으면 그 카테고리만.
+     */
+    fun findPublishedPublic(
+        cursor: FeedCursor?,
+        size: Int,
+        category: CourseCategory? = null,
+    ): List<CourseSummaryRow>
+
+    /** 미삭제(deleted_at IS NULL) 코스가 존재하는지 확인한다(duplicate 원본 검증 등). */
+    fun existsById(courseId: Long): Boolean
+
+    fun findPlaces(courseId: Long): List<CoursePlaceRow>
+
+    /** 여러 코스의 장소들을 courseId 별로(각 코스 안은 orderNo 오름차순) 한 번에 읽는다 — 목록 화면 배치 조회용. */
+    fun findPlacesByCourseIds(courseIds: List<Long>): Map<Long, List<CoursePlaceRow>>
+
+    /** 여러 코스의 장소 집계를 group by 한 번으로 읽는다(카드 메타). 장소가 없는 코스는 결과에서 빠진다. */
+    fun findPlaceStats(courseIds: List<Long>): Map<Long, CoursePlaceStats>
+
+    /** 코스 애그리거트(코스·장소·이미지·태그·카테고리)를 한 트랜잭션으로 저장하고, 저장된 코스(생성 id·DB 생성값 포함)를 반환한다. */
+    fun save(course: Course): Course
+
+    /**
+     * 이미 영속화된 코스([Course.id] 필수)를 전체 치환한다 — 코스 본문을 갱신하고
+     * 장소·이미지·태그·카테고리 연결을 지운 뒤 요청 값으로 다시 심고, 갱신된 코스(DB 생성값 포함)를 반환한다(한 트랜잭션).
+     */
+    fun update(course: Course): Course
+
+    /**
+     * 코스를 소프트 삭제한다 — deleted_at·updated_at 을 찍고 status 를 DELETED 로 전이한다.
+     * 이미 삭제된 행(deleted_at IS NOT NULL)은 건드리지 않으며, 영향받은 행 수를 반환한다(이중 삭제 방어).
+     * 자식(장소·이미지·태그)은 지우지 않는다 — 모든 조회가 courses.deleted_at 로 걸러 도달 불가하다.
+     */
+    fun softDelete(courseId: Long): Int
+
+    /**
+     * 작성자의 살아있는(deleted_at IS NULL) 코스를 전부 소프트 삭제하고 영향받은 행 수를 반환한다.
+     * 회원 탈퇴 시 호출된다 — 작성자 카운터는 users 행이 함께 0으로 리셋되므로 여기선 코스 행만 정리한다.
+     */
+    fun softDeleteAllByAuthor(authorId: Long): Int
+
+    /**
+     * 저장 수(saves_cnt)를 1 증가시킨다 — 미삭제(deleted_at IS NULL) 행에만 적용하고 영향받은 행 수를 반환한다.
+     * 코스 저장(다른 도메인) 시 호출된다. 정합성은 추후 비동기 집계로 옮긴다.
+     */
+    fun increaseSavesCount(courseId: Long): Int
+
+    /**
+     * 저장 수(saves_cnt)를 1 감소시킨다 — 미삭제(deleted_at IS NULL) 행에만 적용하고 영향받은 행 수를 반환한다.
+     * 저장 취소(다른 도메인)가 실제로 일어났을 때만 호출된다. 정합성은 추후 비동기 집계로 옮긴다.
+     */
+    fun decreaseSavesCount(courseId: Long): Int
+
+    /** 미삭제 코스의 댓글 수(comments_cnt)를 원자적으로 1 증가시키고 영향받은 행 수를 반환한다. */
+    fun increaseCommentsCount(courseId: Long): Int
+
+    /** 미삭제 코스의 댓글 수(comments_cnt)를 원자적으로 1 감소시키고 영향받은 행 수를 반환한다. */
+    fun decreaseCommentsCount(courseId: Long): Int
+
+    /** 미삭제 코스의 따라가기 수(tracings_cnt)를 원자적으로 1 증가시키고 영향받은 행 수를 반환한다. */
+    fun increaseTracingsCount(courseId: Long): Int
+
+    /**
+     * 좋아요 원자적 증가 — 미삭제 행의 likes_cnt 를 UPDATE … RETURNING 으로 1 증가시키고 증가된 값을 반환한다.
+     * 활성 코스가 없으면 null(비관락 없이 유니크 제약+원자연산으로 정합성 확보).
+     */
+    fun increaseLikesCountReturning(courseId: Long): Int?
+
+    /**
+     * 좋아요 v2 원자적 감소 — 미삭제 행의 likes_cnt 를 UPDATE … RETURNING 으로 1 감소시키고 감소된 값을 반환한다.
+     * 활성 코스가 없으면 null.
+     */
+    fun decreaseLikesCountReturning(courseId: Long): Int?
+
+    /** 미삭제 코스의 현재 likes_cnt 만 읽는다(v2 멱등 취소 no-op 경로). 활성 코스가 없으면 null. */
+    fun readLikesCount(courseId: Long): Int?
+
+    /** 여러 코스의 좋아요 수(likes_cnt)를 한 번에 1씩 감소시킨다(탈퇴 정리 배치). */
+    fun decreaseLikesCounts(courseIds: List<Long>)
+
+    /** 재색인용 — 활성(deleted_at IS NULL) 코스를 id 오름차순으로 afterId 다음부터 limit개. */
+    fun findForIndex(
+        afterId: Long?,
+        limit: Int,
+    ): List<Course>
+
+    /** 커밋 후 색인용. 주어진 id 중 활성 코스를 [findForIndex] 와 같은 모양(태그, 카테고리 포함, 장소 제외)으로. */
+    fun findForIndexByIds(ids: List<Long>): List<Course>
+}

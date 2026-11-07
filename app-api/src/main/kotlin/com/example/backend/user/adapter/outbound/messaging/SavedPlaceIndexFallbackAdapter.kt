@@ -1,0 +1,63 @@
+package com.example.backend.user.adapter.outbound.messaging
+
+import com.example.backend.sqs.SqsMessageSender
+import com.example.backend.user.adapter.messaging.SavedPlaceIndexMessage
+import com.example.backend.user.application.port.outbound.SavedPlaceIndexDocument
+import com.example.backend.user.application.port.outbound.SavedPlaceIndexFallbackPort
+import io.github.oshai.kotlinlogging.KotlinLogging
+import org.springframework.stereotype.Component
+
+/**
+ * 아웃바운드 어댑터 — 동기 색인 실패 시 저장 장소 색인 연산을 폴백 큐(SQS)로 발행한다([SavedPlaceIndexFallbackPort]).
+ *
+ * SqsTemplate 이 없거나(=SQS 미설정, 로컬, CI) queueUrl 이 비면 no-op. 폴백 발행마저 실패하면 error 로그를 남기고
+ * 예외를 다시 던진다. 호출한 리스너의 이벤트 저장소 기록이 미완료로 남아 재발행된다(재색인 잡이 최종 보정).
+ */
+@Component
+class SavedPlaceIndexFallbackAdapter(
+    private val sqsMessageSender: SqsMessageSender,
+    private val sqsProperties: SqsProperties,
+) : SavedPlaceIndexFallbackPort {
+    private val log = KotlinLogging.logger {}
+
+    override fun enqueueIndex(document: SavedPlaceIndexDocument) =
+        send(
+            SavedPlaceIndexMessage(
+                op = SavedPlaceIndexMessage.OP_INDEX,
+                userId = document.userId,
+                placeId = document.placeId,
+                lat = document.location.latitude,
+                lon = document.location.longitude,
+                savedAtEpochMs = document.savedAt.toEpochMilli(),
+                visited = document.visited,
+                name = document.name,
+                category = document.category,
+                imageUrl = document.imageUrl,
+                rating = document.rating,
+                ratingCount = document.ratingCount,
+                categoryDetail = document.categoryDetail,
+            ),
+        )
+
+    override fun enqueueDelete(
+        userId: Long,
+        placeId: Long,
+    ) = send(SavedPlaceIndexMessage(op = SavedPlaceIndexMessage.OP_DELETE, userId = userId, placeId = placeId))
+
+    private fun send(message: SavedPlaceIndexMessage) {
+        if (!sqsMessageSender.isAvailable) return // SQS 미설정 → no-op
+        val queueUrl = sqsProperties.savedPlaceQueueUrl
+        if (queueUrl.isBlank()) {
+            log.warn { "SQS queueUrl 미설정으로 저장 장소 색인 폴백 발행 생략: ${message.op} ${message.userId}:${message.placeId}" }
+            return
+        }
+        try {
+            sqsMessageSender.send(queueUrl, message)
+        } catch (e: Exception) {
+            log.error {
+                "저장 장소 색인 폴백 발행 실패(이벤트 재발행 대기): ${message.op} ${message.userId}:${message.placeId}, ${e.message}"
+            }
+            throw e
+        }
+    }
+}
