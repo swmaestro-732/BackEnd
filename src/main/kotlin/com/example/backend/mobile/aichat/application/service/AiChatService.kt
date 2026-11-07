@@ -392,7 +392,7 @@ class AiChatService(
         }
         val message =
             when (relaxation) {
-                Relaxation.NONE -> MSG_RESULT
+                Relaxation.NONE -> if (session.shownCourseIds.isEmpty()) MSG_RESULT else MSG_RESULT_MORE
                 Relaxation.PLACE_DROPPED -> MSG_RESULT_PLACE_DROPPED
                 Relaxation.THEME_RELAXED -> MSG_RESULT_THEME_RELAXED
                 Relaxation.REGION_WIDENED -> MSG_RESULT_REGION_WIDENED.format(session.region?.label ?: LABEL_NEAR_ME)
@@ -509,7 +509,7 @@ class AiChatService(
         private const val LABEL_NEAR_ME = "내 근처"
         private const val LABEL_NO_PLACE = "없어요, 바로 추천받기"
         private const val LABEL_PLACE_NOT_LISTED = "이 중에 없어요"
-        private const val LABEL_RETRY = "다시 추천받기"
+        private const val LABEL_RETRY = "더 추천받기"
         private const val LABEL_RESTART = "처음부터"
 
         private const val PLACEHOLDER_REGION = "지역을 입력해도 돼요"
@@ -530,6 +530,7 @@ class AiChatService(
         private const val MSG_PLACE_CONFIRM = "어느 곳인가요?"
         private const val MSG_INPUT_DISABLED = "이 단계에서는 칩으로만 답할 수 있습니다."
         private const val MSG_RESULT = "이런 코스는 어때요? 마음에 들면 저장해 두세요."
+        private const val MSG_RESULT_MORE = "이런 코스도 있어요. 아직 안 보신 코스만 골랐어요."
         private const val MSG_RESULT_PLACE_DROPPED = "그 장소가 들어간 코스는 아직 없어요. 대신 근처 코스를 골라봤어요."
         private const val MSG_RESULT_THEME_RELAXED = "딱 맞는 테마의 코스가 없어서 비슷한 분위기의 코스를 골라봤어요."
         private const val MSG_RESULT_REGION_WIDENED = "%s 안에는 코스가 적어서 주변까지 넓혀 봤어요."
