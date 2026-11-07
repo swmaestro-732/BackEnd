@@ -53,6 +53,10 @@ dependencies {
     runtimeOnly("io.micrometer:micrometer-registry-prometheus")
     // Spring Boot 4: OTLP 트레이스 리포팅 공식 스타터(Micrometer Tracing + OTel autoconfig + OTLP exporter 일괄).
     implementation("org.springframework.boot:spring-boot-starter-opentelemetry")
+    // SCRUM-806: Boot 4 호환 JDBC 쿼리 계측.
+    implementation("net.ttddyy.observation:datasource-micrometer-spring-boot:2.3.0")
+    // SCRUM-806: Boot 4 는 RestClient.Builder 자동구성(관측 연동 포함)이 별도 모듈 — 없으면 HttpClientConfig 주입 실패.
+    implementation("org.springframework.boot:spring-boot-starter-restclient")
 
     // Sentry 에러 트래킹. Boot 4 전용 스타터(spring-boot-starter:4.1.0 대상). SENTRY_DSN 비면 no-op.
     implementation("io.sentry:sentry-spring-boot-4-starter:8.53.0")
