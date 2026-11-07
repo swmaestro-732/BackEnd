@@ -21,7 +21,7 @@ import kotlin.time.toKotlinInstant
 class PushCampaignPersistenceAdapter : PushCampaignPersistencePort {
     // 서비스가 트랜잭션 없이 부르므로 저장은 여기서 바로 커밋한다.
     // pg_advisory_xact_lock 은 트랜잭션이 끝나면 풀린다. 같은 어드민의 동시 요청은 여기서 줄을 서서 앞 요청의 저장을 보고 판단한다.
-    // READ COMMITTED 전제: 문장마다 새로 읽어야 잠금을 기다린 요청이 앞 요청의 저장을 본다. REPEATABLE READ 이상이면 중복이 다시 생긴다.
+    // READ COMMITTED 전제: 문장마다 새로 읽어야 잠금을 기다린 요청이 앞 요청의 저장을 본다. REPEATABLE READ 에서는 중복이 다시 생긴다.
     @Transactional
     override fun saveUnlessRecent(
         campaign: PushCampaign,
