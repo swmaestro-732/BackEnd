@@ -2,7 +2,7 @@ package com.example.backend.user.application.service
 
 import com.example.backend.common.exception.BusinessException
 import com.example.backend.common.response.CommonErrorCode
-import com.example.backend.user.application.port.outbound.LikeThemePort
+import com.example.backend.user.application.port.spi.LikeThemePort
 import org.springframework.stereotype.Component
 
 /**

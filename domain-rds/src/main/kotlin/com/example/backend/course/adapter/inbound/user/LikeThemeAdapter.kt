@@ -1,7 +1,7 @@
-package com.example.backend.user.adapter.outbound.persistence
+package com.example.backend.course.adapter.inbound.user
 
 import com.example.backend.course.application.port.inbound.CourseCategoryQueryUseCase
-import com.example.backend.user.application.port.outbound.LikeThemePort
+import com.example.backend.user.application.port.spi.LikeThemePort
 import org.springframework.stereotype.Component
 
 /**

@@ -2,9 +2,9 @@ package com.example.backend.user.application.service
 
 import com.example.backend.common.exception.BusinessException
 import com.example.backend.common.response.UserErrorCode
+import com.example.backend.user.application.event.UserWithdrawnEvent
 import com.example.backend.user.application.port.inbound.UserUseCase
 import com.example.backend.user.application.port.inbound.dto.UserProfileResult
-import com.example.backend.user.application.port.outbound.CourseCleanupPort
 import com.example.backend.user.application.port.outbound.DevicePersistencePort
 import com.example.backend.user.application.port.outbound.FollowPersistencePort
 import com.example.backend.user.application.port.outbound.RefreshTokenPort
@@ -13,6 +13,7 @@ import com.example.backend.user.application.port.outbound.UserAreaPersistencePor
 import com.example.backend.user.application.port.outbound.UserLikeThemePort
 import com.example.backend.user.application.port.outbound.UserPersistencePort
 import com.example.backend.user.application.port.outbound.UserProfileRow
+import org.springframework.context.ApplicationEventPublisher
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
 
@@ -30,8 +31,8 @@ class UserService(
     private val savedCoursePersistencePort: SavedCoursePersistencePort,
     private val userAreaPersistencePort: UserAreaPersistencePort,
     private val userLikeThemePort: UserLikeThemePort,
-    private val courseCleanupPort: CourseCleanupPort,
     private val devicePersistencePort: DevicePersistencePort,
+    private val applicationEventPublisher: ApplicationEventPublisher,
 ) : UserUseCase {
     override fun getProfile(
         userId: Long,
@@ -113,13 +114,9 @@ class UserService(
                 ?: throw BusinessException(UserErrorCode.USER_NOT_FOUND, "사용자를 찾을 수 없습니다: id=$userId")
 
         // 소유 데이터를 먼저 정리해 (같은 소셜로) 재가입 시 "처음 계정처럼" 시작하게 한다 — 전 과정 단일 트랜잭션.
-        // 1) 저장 코스: 원저자 saves_cnt 를 먼저 보정한 뒤 저장 레코드·폴더를 지운다.
-        courseCleanupPort.decreaseSavesCounts(savedCoursePersistencePort.findAliveSavedCourseIds(userId))
+        // 1) 저장 코스: 저장 레코드와 폴더를 지운다. 원저자 saves_cnt 보정은 course 가 이벤트로 처리하므로 지우기 전에 id 를 잡아 둔다.
+        val savedCourseIds = savedCoursePersistencePort.findAliveSavedCourseIds(userId)
         savedCoursePersistencePort.deleteAllByUser(userId)
-        // 1-1) 코스 좋아요: 좋아요 레코드를 지우고 대상 코스 likes_cnt 를 보정한다.
-        courseCleanupPort.purgeLikesByUser(userId)
-        // 1-2) 코스 따라가기: 세션·체크인(위치 이력)을 지운다. tracings_cnt 는 누적 통계라 되돌리지 않는다.
-        courseCleanupPort.purgeTracesByUser(userId)
         // 2) 팔로우: 양방향 삭제 + 상대 카운터 보정.
         followPersistencePort.purgeFollowsOf(userId)
         // 2-1) 기기: 이 사용자와의 연결만 끊는다. 토큰과 광고 동의는 기기 단위라 남는다.
@@ -127,13 +124,13 @@ class UserService(
         // 3) 관심 지역·테마: 빈 목록으로 전체 치환(=전부 삭제).
         userAreaPersistencePort.replaceAreas(userId, emptyList())
         userLikeThemePort.replaceLikeThemes(userId, emptyList())
-        // 4) 작성 코스·계획: 전부 소프트 삭제(피드·프로필·내 계획 목록에서 사라짐).
-        courseCleanupPort.softDeleteCoursesByAuthor(userId)
-        courseCleanupPort.softDeletePlansByOwner(userId)
         // 5) users 행: 탈퇴 스탬프 + 핸들 해제 + bio·프로필이미지·카운터 리셋.
         userPersistencePort.softDelete(user.withdraw())
         // 6) 리프레시 토큰 폐기.
         refreshTokenPort.revokeAllByUser(userId)
+        // 7) course 쪽 정리(저장 수 보정, 좋아요, 따라가기, 작성 코스와 계획 소프트 삭제)는 course 가 이 이벤트로 한다.
+        //    course 리스너는 커밋 직전(BEFORE_COMMIT) 같은 트랜잭션에서 돌아 탈퇴 전 과정이 지금처럼 하나로 커밋되거나 롤백된다.
+        applicationEventPublisher.publishEvent(UserWithdrawnEvent(userId = userId, savedCourseIds = savedCourseIds))
         // TODO(SCRUM-590): 저장 장소(saved_places)는 이제 쓰기와 OS 색인(saved_place) 경로가 생겼으므로, 탈퇴 시
         //  DB saved_places 삭제 + OS saved_place 색인 정리(userId 로 deleteByUser)를 이 단계에 추가해야 한다
         //  (현재 미구현 — 탈퇴해도 OS 에 ghost 문서가 남고, 같은 소셜 재가입 시 stale 가능. userId 필터라 타인에겐 안 섞임).

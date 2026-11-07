@@ -1,9 +1,9 @@
-package com.example.backend.user.adapter.outbound.course
+package com.example.backend.course.adapter.inbound.user
 
 import com.example.backend.course.application.port.inbound.CourseCounterUseCase
 import com.example.backend.course.application.port.inbound.CourseQueryUseCase
 import com.example.backend.course.application.port.inbound.CourseTraceUseCase
-import com.example.backend.user.application.port.outbound.CourseAccessPort
+import com.example.backend.user.application.port.spi.CourseAccessPort
 import org.springframework.stereotype.Component
 
 /**

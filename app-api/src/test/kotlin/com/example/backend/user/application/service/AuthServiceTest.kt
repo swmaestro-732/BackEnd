@@ -10,7 +10,6 @@ import com.example.backend.user.application.port.inbound.dto.RegisterDeviceToken
 import com.example.backend.user.application.port.inbound.dto.SignupCommand
 import com.example.backend.user.application.port.outbound.AuthTokenPort
 import com.example.backend.user.application.port.outbound.DevicePersistencePort
-import com.example.backend.user.application.port.outbound.LikeThemePort
 import com.example.backend.user.application.port.outbound.LockedDevice
 import com.example.backend.user.application.port.outbound.RefreshTokenPort
 import com.example.backend.user.application.port.outbound.RefreshTokenRecord
@@ -20,6 +19,7 @@ import com.example.backend.user.application.port.outbound.UserAreaPersistencePor
 import com.example.backend.user.application.port.outbound.UserLikeThemePort
 import com.example.backend.user.application.port.outbound.UserPersistencePort
 import com.example.backend.user.application.port.outbound.UserProfileRow
+import com.example.backend.user.application.port.spi.LikeThemePort
 import com.example.backend.user.domain.model.SocialProvider
 import com.example.backend.user.domain.model.User
 import com.example.backend.user.domain.model.UserStatus

@@ -1,4 +1,4 @@
-package com.example.backend.user.application.port.outbound
+package com.example.backend.user.application.port.spi
 
 /**
  * 아웃바운드 포트 — 관심 테마로 고를 수 있는 코스 카테고리 목록. 정본은 course 도메인 소유라

@@ -1,7 +1,7 @@
 package com.example.backend.user.application.service
 
 import com.example.backend.common.exception.BusinessException
-import com.example.backend.user.application.port.outbound.LikeThemePort
+import com.example.backend.user.application.port.spi.LikeThemePort
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test

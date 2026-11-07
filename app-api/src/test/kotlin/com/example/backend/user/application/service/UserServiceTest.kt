@@ -2,7 +2,6 @@ package com.example.backend.user.application.service
 
 import com.example.backend.common.exception.BusinessException
 import com.example.backend.common.response.UserErrorCode
-import com.example.backend.user.application.port.outbound.CourseCleanupPort
 import com.example.backend.user.application.port.outbound.DevicePersistencePort
 import com.example.backend.user.application.port.outbound.FollowPersistencePort
 import com.example.backend.user.application.port.outbound.RefreshTokenPort
@@ -18,6 +17,7 @@ import org.mockito.Mockito.inOrder
 import org.mockito.Mockito.mock
 import org.mockito.Mockito.verifyNoInteractions
 import org.mockito.Mockito.`when`
+import org.springframework.context.ApplicationEventPublisher
 
 class UserServiceTest {
     private val userPersistencePort = mock(UserPersistencePort::class.java)
@@ -26,8 +26,8 @@ class UserServiceTest {
     private val savedCoursePersistencePort = mock(SavedCoursePersistencePort::class.java)
     private val userAreaPersistencePort = mock(UserAreaPersistencePort::class.java)
     private val userLikeThemePort = mock(UserLikeThemePort::class.java)
-    private val courseCleanupPort = mock(CourseCleanupPort::class.java)
     private val devicePersistencePort = mock(DevicePersistencePort::class.java)
+    private val applicationEventPublisher = mock(ApplicationEventPublisher::class.java)
 
     private val service =
         UserService(
@@ -37,8 +37,8 @@ class UserServiceTest {
             savedCoursePersistencePort = savedCoursePersistencePort,
             userAreaPersistencePort = userAreaPersistencePort,
             userLikeThemePort = userLikeThemePort,
-            courseCleanupPort = courseCleanupPort,
             devicePersistencePort = devicePersistencePort,
+            applicationEventPublisher = applicationEventPublisher,
         )
 
     @Test
