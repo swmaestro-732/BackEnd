@@ -8,6 +8,7 @@ import com.google.firebase.messaging.FirebaseMessagingException
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry
 import org.junit.jupiter.api.Assertions.assertDoesNotThrow
 import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Assertions.assertSame
 import org.junit.jupiter.api.Assertions.assertThrows
 import org.junit.jupiter.api.Assertions.assertTrue
@@ -61,6 +62,52 @@ class PushSqsConsumerTest {
 
         assertTrue(deliveredMessages.isEmpty())
         assertEquals(2.0, skippedCount("stale"))
+    }
+
+    @Test
+    fun `TTL 30분 메시지는 최대 보관 시간 안이어도 31분이 지나면 stale 로 버린다`() {
+        val marketing = message.copy(androidTtl = Duration.ofMinutes(30))
+
+        pushSqsConsumer.onMessage(PushQueueMessage(marketing, now.minus(Duration.ofMinutes(31))))
+
+        assertTrue(deliveredMessages.isEmpty())
+        assertEquals(2.0, skippedCount("stale"))
+    }
+
+    @Test
+    fun `TTL 메시지는 큐에서 기다린 만큼 줄인 TTL 로 발송해 큐 대기와 기기 보관 합이 TTL 을 넘지 않게 한다`() {
+        val marketing = message.copy(androidTtl = Duration.ofMinutes(30))
+
+        pushSqsConsumer.onMessage(PushQueueMessage(marketing, now.minus(Duration.ofMinutes(29))))
+
+        assertEquals(Duration.ofMinutes(1), deliveredMessages.single().androidTtl)
+    }
+
+    @Test
+    fun `TTL 메시지가 TTL 정각만큼 기다렸으면 버리지 않고 TTL 0 으로 발송한다`() {
+        val marketing = message.copy(androidTtl = Duration.ofMinutes(30))
+
+        pushSqsConsumer.onMessage(PushQueueMessage(marketing, now.minus(Duration.ofMinutes(30))))
+
+        assertEquals(Duration.ZERO, deliveredMessages.single().androidTtl)
+        assertEquals(0.0, skippedCount("stale"))
+    }
+
+    @Test
+    fun `TTL 메시지가 TTL 보다 1초 더 기다렸으면 stale 로 버린다`() {
+        val marketing = message.copy(androidTtl = Duration.ofMinutes(30))
+
+        pushSqsConsumer.onMessage(PushQueueMessage(marketing, now.minus(Duration.ofMinutes(30)).minusSeconds(1)))
+
+        assertTrue(deliveredMessages.isEmpty())
+        assertEquals(2.0, skippedCount("stale"))
+    }
+
+    @Test
+    fun `TTL 이 없는 메시지는 큐에서 기다려도 TTL 없이 발송해 설정값을 쓰게 한다`() {
+        pushSqsConsumer.onMessage(PushQueueMessage(message, now.minus(Duration.ofMinutes(29))))
+
+        assertNull(deliveredMessages.single().androidTtl)
     }
 
     @Test

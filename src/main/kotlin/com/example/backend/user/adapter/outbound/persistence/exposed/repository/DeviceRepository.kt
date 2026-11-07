@@ -9,10 +9,12 @@ import org.jetbrains.exposed.v1.core.and
 import org.jetbrains.exposed.v1.core.case
 import org.jetbrains.exposed.v1.core.eq
 import org.jetbrains.exposed.v1.core.inList
+import org.jetbrains.exposed.v1.core.isNotNull
 import org.jetbrains.exposed.v1.core.neq
 import org.jetbrains.exposed.v1.core.or
 import org.jetbrains.exposed.v1.datetime.CurrentTimestamp
 import org.jetbrains.exposed.v1.jdbc.insertIgnore
+import org.jetbrains.exposed.v1.jdbc.select
 import org.jetbrains.exposed.v1.jdbc.selectAll
 import org.jetbrains.exposed.v1.jdbc.update
 import org.jetbrains.exposed.v1.jdbc.upsert
@@ -107,6 +109,15 @@ class DeviceRepository {
 
     fun clearTokens(fcmTokens: Collection<String>) {
         DeviceTable.update({ DeviceTable.fcmToken inList fcmTokens }) { it[fcmToken] = null }
+    }
+
+    fun findMarketingTokens(night: Boolean): List<String> {
+        val agreed = DeviceTable.fcmToken.isNotNull() and DeviceTable.marketingAgreedAt.isNotNull()
+        // fcm_token 은 UNIQUE 라 중복 제거(DISTINCT)가 필요 없다.
+        return DeviceTable
+            .select(DeviceTable.fcmToken)
+            .where { if (night) agreed and DeviceTable.nightAgreedAt.isNotNull() else agreed }
+            .map { checkNotNull(it[DeviceTable.fcmToken]) }
     }
 
     private fun toConsent(row: org.jetbrains.exposed.v1.core.ResultRow): DeviceConsent =
