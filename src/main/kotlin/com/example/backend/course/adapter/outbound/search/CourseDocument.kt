@@ -8,6 +8,7 @@ import java.time.Instant
  * 색인(쓰기)과 검색(읽기·역직렬화) 양쪽에서 쓴다. createdAt 은 epoch millis(date 매핑 호환).
  * id 는 검색 정렬 tiebreak(search_after)용으로 문서 본문에도 싣는다(_id 정렬 회피).
  * areaCode 는 코스 법정동코드 10자리, sigunguCode 는 그 앞 5자리 — 추천의 관심 지역 매칭용(가산 매핑이라 구 문서는 null).
+ * placeIds 는 코스에 담긴 장소 id — "이 장소가 들어간 코스" 필터용(가산 매핑이라 재색인 전 문서는 빈 배열).
  */
 data class CourseDocument(
     val id: Long,
@@ -16,6 +17,7 @@ data class CourseDocument(
     val area: String?,
     val areaCode: String? = null,
     val sigunguCode: String? = null,
+    val placeIds: List<String> = emptyList(),
     val category: String?,
     val tags: List<String>,
     val coverImageUrl: String?,

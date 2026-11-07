@@ -36,10 +36,13 @@ class CourseRecommendService(
             query.category?.let { name ->
                 requireNotNull(CourseCategory.entries.find { it.name == name }) { "알 수 없는 코스 카테고리입니다: $name" }
             }
-        val region = courseRegionResolver.resolve(query.region)
+        val region =
+            courseRegionResolver.resolve(query.region)
+                ?: query.regionPrefixes.takeIf { it.isNotEmpty() }?.let { CourseRegionFilter(includePrefixes = it) }
         return when (val cursor = CourseRecommendCursorCodec.decode(query.cursor)) {
             null -> {
-                fromEngine(query, Instant.now(), null, size, category, region) ?: fromFeed(null, size, category, region)
+                fromEngine(query, Instant.now(), null, size, category, region)
+                    ?: fromFeed(null, size, category, region, query.excludeIds)
             }
 
             is CourseRecommendCursor.Engine -> {
@@ -48,7 +51,7 @@ class CourseRecommendService(
             }
 
             is CourseRecommendCursor.Feed -> {
-                fromFeed(cursor.value, size, category, region)
+                fromFeed(cursor.value, size, category, region, query.excludeIds)
             }
         }
     }
@@ -73,6 +76,9 @@ class CourseRecommendService(
                 origin = origin,
                 after = after,
                 size = size,
+                placeId = query.placeId,
+                excludeIds = query.excludeIds,
+                keyword = query.keyword,
             )
         val page = courseRecommendQueryPort.recommend(criteria) ?: return null
         val statsByCourse = coursePersistencePort.findPlaceStats(page.hits.map { it.row.id })
@@ -87,14 +93,22 @@ class CourseRecommendService(
         )
     }
 
-    /** DB 폴백 — 공개 피드와 같은 정렬(saves_cnt DESC, created_at DESC, id DESC) 키셋 페이지. */
+    /**
+     * DB 폴백 — 공개 피드와 같은 정렬(saves_cnt DESC, created_at DESC, id DESC) 키셋 페이지.
+     * 장소 포함·키워드 조건은 색인에만 있어 폴백에서는 적용되지 않고, [excludeIds] 만 조회 뒤 걸러낸다.
+     */
     private fun fromFeed(
         cursor: FeedCursor?,
         size: Int,
         category: CourseCategory?,
         region: CourseRegionFilter?,
+        excludeIds: List<Long>,
     ): CourseRecommendPage {
-        val rows = coursePersistencePort.findPublishedPublic(cursor, size, category, region)
+        val excluded = excludeIds.toSet()
+        val rows =
+            coursePersistencePort
+                .findPublishedPublic(cursor, size + excluded.size, category, region)
+                .filterNot { it.id in excluded }
         val page = rows.take(size)
         val hasNext = rows.size > size
         val statsByCourse = coursePersistencePort.findPlaceStats(page.map { it.id })
