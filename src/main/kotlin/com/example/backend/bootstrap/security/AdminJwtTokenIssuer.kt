@@ -18,7 +18,10 @@ class AdminJwtTokenIssuer(
     private val jwtProperties: JwtProperties,
     private val clock: Clock,
 ) : AdminTokenPort {
-    override fun issue(email: String): IssuedAdminToken {
+    override fun issue(
+        email: String,
+        googleSub: String,
+    ): IssuedAdminToken {
         // JWT 의 iat/exp 는 초 단위라, 응답의 expiresAt 이 토큰 exp 와 같도록 초 단위로 맞춘다.
         val now = clock.instant().truncatedTo(ChronoUnit.SECONDS)
         val expiresAt = now.plus(jwtProperties.adminTtl)
@@ -29,14 +32,18 @@ class AdminJwtTokenIssuer(
                 .issuedAt(now)
                 .expiresAt(expiresAt)
                 .claim(PURPOSE_CLAIM, ADMIN_PURPOSE)
+                .claim(GOOGLE_SUB_CLAIM, googleSub)
                 .build()
         val header = JwsHeader.with(MacAlgorithm.HS256).build()
         val token = jwtEncoder.encode(JwtEncoderParameters.from(header, claims)).tokenValue
         return IssuedAdminToken(token = token, expiresAt = expiresAt)
     }
 
-    private companion object {
-        const val PURPOSE_CLAIM = "purpose"
-        const val ADMIN_PURPOSE = "admin"
+    companion object {
+        private const val PURPOSE_CLAIM = "purpose"
+        private const val ADMIN_PURPOSE = "admin"
+
+        /** 어드민 토큰을 받은 구글 계정 id. 요청별 인가가 지금 묶인 계정과 비교한다. */
+        const val GOOGLE_SUB_CLAIM = "google_sub"
     }
 }

@@ -1,6 +1,7 @@
 package com.example.backend.bootstrap.config
 
 import com.example.backend.admin.application.port.inbound.AdminAccessUseCase
+import com.example.backend.bootstrap.security.AdminJwtTokenIssuer
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
 import org.springframework.security.authentication.AnonymousAuthenticationToken
@@ -66,13 +67,18 @@ class SecurityConfig {
                     .requestMatchers("/admin/v1/auth/login")
                     .permitAll()
                     .requestMatchers("/admin/v1/**")
-                    // 토큰 서명만 믿지 않고 매 요청 admins 를 다시 조회한다. 행을 지우면 남은 토큰도 즉시 403 이 된다.
+                    // 토큰 서명만 믿지 않고 매 요청 admins 를 다시 조회한다. 행을 지우거나 다른 구글 계정으로 다시 묶으면
+                    // 남은 토큰도 즉시 403 이 된다.
                     .access { authentication, _ ->
                         val resolved = authentication.get()
+                        val token = (resolved as? JwtAuthenticationToken)?.token
+                        val email = token?.subject
+                        val googleSub = token?.getClaimAsString(AdminJwtTokenIssuer.GOOGLE_SUB_CLAIM)
                         AuthorizationDecision(
-                            resolved is JwtAuthenticationToken &&
-                                resolved.token.getClaimAsString("purpose") == "admin" &&
-                                resolved.token.subject?.let(adminAccessUseCase::isAdmin) == true,
+                            token?.getClaimAsString("purpose") == "admin" &&
+                                email != null &&
+                                googleSub != null &&
+                                adminAccessUseCase.isAdmin(email, googleSub),
                         )
                     }.requestMatchers(
                         "/actuator/health",

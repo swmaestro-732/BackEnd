@@ -36,9 +36,12 @@ class AdminAuthService(
             log.warn { "어드민이 아니거나 다른 구글 계정의 어드민 로그인 시도: email=$email" }
             throw BusinessException(AdminErrorCode.ADMIN_FORBIDDEN)
         }
-        val issued = adminTokenPort.issue(email)
+        val issued = adminTokenPort.issue(email, account.sub)
         return AdminLogin(accessToken = issued.token, expiresAt = issued.expiresAt, email = email)
     }
 
-    override fun isAdmin(email: String): Boolean = adminPersistencePort.exists(email.lowercase())
+    override fun isAdmin(
+        email: String,
+        googleSub: String,
+    ): Boolean = adminPersistencePort.isBound(email.lowercase(), googleSub)
 }

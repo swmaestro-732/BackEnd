@@ -40,13 +40,14 @@ class AdminJwtTokenIssuerTest {
         )
 
     @Test
-    fun `purpose=admin, subject=이메일, exp=iat+adminTtl 로 발급한다`() {
-        val issued = issuer.issue(EMAIL)
+    fun `purpose=admin, subject=이메일, google_sub, exp=iat+adminTtl 로 발급한다`() {
+        val issued = issuer.issue(EMAIL, "admin-google-sub")
 
         val decoded = decoder.decode(issued.token)
 
         assertEquals("admin", decoded.getClaimAsString("purpose"))
         assertEquals(EMAIL, decoded.subject)
+        assertEquals("admin-google-sub", decoded.getClaimAsString(AdminJwtTokenIssuer.GOOGLE_SUB_CLAIM))
         assertEquals(decoded.issuedAt!!.plus(ADMIN_TTL), decoded.expiresAt)
         assertEquals(decoded.expiresAt, issued.expiresAt)
         assertFalse(issued.toString().contains(issued.token))

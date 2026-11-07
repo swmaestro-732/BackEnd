@@ -16,6 +16,7 @@ import java.time.Instant
 
 class AdminAuthServiceTest {
     private val issuedFor = mutableListOf<String>()
+    private val issuedSubs = mutableListOf<String>()
     private val checkedEmails = mutableListOf<String>()
     private var verifiedEmail = ADMIN_EMAIL
     private var verifiedSub = ADMIN_SUB
@@ -30,9 +31,12 @@ class AdminAuthServiceTest {
                 },
             adminPersistencePort =
                 object : AdminPersistencePort {
-                    override fun exists(email: String): Boolean {
+                    override fun isBound(
+                        email: String,
+                        googleSub: String,
+                    ): Boolean {
                         checkedEmails += email
-                        return email in admins
+                        return email in admins && boundSubs[email] == googleSub
                     }
 
                     override fun bindGoogleSub(
@@ -46,8 +50,12 @@ class AdminAuthServiceTest {
                 },
             adminTokenPort =
                 object : AdminTokenPort {
-                    override fun issue(email: String): IssuedAdminToken {
+                    override fun issue(
+                        email: String,
+                        googleSub: String,
+                    ): IssuedAdminToken {
                         issuedFor += email
+                        issuedSubs += googleSub
                         return IssuedAdminToken(token = "admin-token", expiresAt = EXPIRES_AT)
                     }
                 },
@@ -61,6 +69,7 @@ class AdminAuthServiceTest {
         assertEquals(EXPIRES_AT, result.expiresAt)
         assertEquals(ADMIN_EMAIL, result.email)
         assertEquals(listOf(ADMIN_EMAIL), issuedFor)
+        assertEquals(listOf(ADMIN_SUB), issuedSubs)
         assertFalse(result.toString().contains("admin-token"))
     }
 
@@ -97,10 +106,13 @@ class AdminAuthServiceTest {
     }
 
     @Test
-    fun `요청별 어드민 확인은 이메일을 소문자로 바꿔 admins 를 조회한다`() {
-        assertTrue(service.isAdmin("Admin@Example.COM"))
-        assertFalse(service.isAdmin("someone@example.com"))
-        assertEquals(listOf(ADMIN_EMAIL, "someone@example.com"), checkedEmails)
+    fun `요청별 어드민 확인은 이메일을 소문자로 바꾸고 지금 묶인 구글 sub 와 비교한다`() {
+        boundSubs[ADMIN_EMAIL] = ADMIN_SUB
+
+        assertTrue(service.isAdmin("Admin@Example.COM", ADMIN_SUB))
+        assertFalse(service.isAdmin(ADMIN_EMAIL, "previous-owner-sub"))
+        assertFalse(service.isAdmin("someone@example.com", ADMIN_SUB))
+        assertEquals(listOf(ADMIN_EMAIL, ADMIN_EMAIL, "someone@example.com"), checkedEmails)
     }
 
     private companion object {

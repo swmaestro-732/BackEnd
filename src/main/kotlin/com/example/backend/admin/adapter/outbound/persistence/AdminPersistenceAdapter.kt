@@ -12,10 +12,13 @@ import org.springframework.stereotype.Component
 
 @Component
 class AdminPersistenceAdapter : AdminPersistencePort {
-    override fun exists(email: String): Boolean =
+    override fun isBound(
+        email: String,
+        googleSub: String,
+    ): Boolean =
         AdminTable
             .selectAll()
-            .where { AdminTable.email eq email }
+            .where { (AdminTable.email eq email) and (AdminTable.googleSub eq googleSub) }
             .empty()
             .not()
 

@@ -16,12 +16,18 @@ class AdminPersistenceTest
         private val adminPersistencePort: AdminPersistencePort,
     ) : IntegrationTestBase() {
         @Test
-        fun `admins 에 있는 이메일만 존재한다고 답한다`() {
+        fun `이메일과 지금 묶인 구글 sub 가 모두 맞을 때만 묶여 있다고 답한다`() {
             transaction {
-                AdminTable.insert { it[email] = "persistence-admin@example.com" }
+                AdminTable.insert {
+                    it[email] = "persistence-admin@example.com"
+                    it[googleSub] = "sub-a"
+                }
+                AdminTable.insert { it[email] = "persistence-unbound@example.com" }
 
-                assertTrue(adminPersistencePort.exists("persistence-admin@example.com"))
-                assertFalse(adminPersistencePort.exists("persistence-other@example.com"))
+                assertTrue(adminPersistencePort.isBound("persistence-admin@example.com", "sub-a"))
+                assertFalse(adminPersistencePort.isBound("persistence-admin@example.com", "sub-b"))
+                assertFalse(adminPersistencePort.isBound("persistence-unbound@example.com", "sub-a"))
+                assertFalse(adminPersistencePort.isBound("persistence-other@example.com", "sub-a"))
                 rollback()
             }
         }

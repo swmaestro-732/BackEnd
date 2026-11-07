@@ -31,7 +31,7 @@ import java.time.Instant
     statements =
         [
             "DELETE FROM admins",
-            "INSERT INTO admins (email) VALUES ('admin@example.com')",
+            "INSERT INTO admins (email, google_sub) VALUES ('admin@example.com', 'admin-google-sub')",
         ],
     executionPhase = Sql.ExecutionPhase.BEFORE_TEST_METHOD,
 )
@@ -71,6 +71,7 @@ class AdminAuthControllerTest
 
         @Test
         fun `첫 로그인한 구글 계정에 묶이고 같은 이메일의 다른 구글 계정은 403 4032 로 거부한다`() {
+            jdbcTemplate.update("UPDATE admins SET google_sub = NULL WHERE email = 'admin@example.com'")
             `when`(
                 adminIdentityPort.verifyGoogle("google-id-token"),
             ).thenReturn(VerifiedGoogleAccount("admin@example.com", ADMIN_SUB))
@@ -130,6 +131,24 @@ class AdminAuthControllerTest
         }
 
         @Test
+        fun `다른 구글 계정으로 다시 묶으면 이전 계정의 만료 전 토큰은 즉시 403 이다`() {
+            val previousToken = adminToken()
+            jdbcTemplate.update("UPDATE admins SET google_sub = 'new-owner-sub' WHERE email = 'admin@example.com'")
+
+            mockMvc
+                .perform(get("/admin/v1/me").header(HttpHeaders.AUTHORIZATION, "Bearer $previousToken"))
+                .andExpect(status().isForbidden)
+            mockMvc
+                .perform(
+                    get("/admin/v1/me")
+                        .header(
+                            HttpHeaders.AUTHORIZATION,
+                            "Bearer ${adminTokenPort.issue("admin@example.com", "new-owner-sub").token}",
+                        ),
+                ).andExpect(status().isOk)
+        }
+
+        @Test
         fun `admins 에서 삭제된 어드민은 만료 전 토큰이어도 즉시 403 이다`() {
             val token = adminToken()
             jdbcTemplate.update("DELETE FROM admins WHERE email = ?", "admin@example.com")
@@ -167,7 +186,7 @@ class AdminAuthControllerTest
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("""{"idToken":"google-id-token"}""")
 
-        private fun adminToken() = adminTokenPort.issue("admin@example.com").token
+        private fun adminToken() = adminTokenPort.issue("admin@example.com", ADMIN_SUB).token
 
         private fun appAccessToken() = jwtTokenProvider.issueAccessToken(1L)
 

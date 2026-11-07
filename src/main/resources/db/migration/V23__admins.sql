@@ -6,3 +6,6 @@ CREATE TABLE admins (
     google_sub varchar(255),
     created_at timestamptz NOT NULL DEFAULT now()
 );
+
+-- 한 구글 계정은 한 어드민 행에만 묶인다. 아직 묶이지 않은 행(NULL)은 여럿이어도 된다.
+CREATE UNIQUE INDEX uq_admins_google_sub ON admins (google_sub) WHERE google_sub IS NOT NULL;
