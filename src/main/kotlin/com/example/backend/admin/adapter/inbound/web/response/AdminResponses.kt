@@ -22,7 +22,7 @@ data class AdminMeResponse(
     val email: String,
 )
 
-/** 등록되지 않은 어드민 로그인의 403 응답 data. 본인이 운영자에게 전달할 등록 정보다. */
+/** 등록되지 않은 어드민 로그인의 403(4032) 응답 data. 본인이 운영자에게 전달할 등록 정보다. */
 data class AdminRegistrationResponse(
     val email: String,
     val googleSub: String,

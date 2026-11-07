@@ -1,6 +1,9 @@
 package com.example.backend.bootstrap.exception
 
+import com.example.backend.admin.adapter.inbound.web.response.AdminRegistrationResponse
+import com.example.backend.admin.application.port.inbound.AdminNotRegisteredException
 import com.example.backend.common.exception.BusinessException
+import com.example.backend.common.response.AdminErrorCode
 import com.example.backend.common.response.ApiResponse
 import com.example.backend.common.response.CommonErrorCode
 import com.example.backend.common.response.CourseErrorCode
@@ -33,6 +36,13 @@ class GlobalExceptionHandler {
     /** 도메인/애플리케이션이 던진 비즈니스 예외 → ErrorCode 기준 응답. */
     @ExceptionHandler(BusinessException::class)
     fun handleBusiness(e: BusinessException): ResponseEntity<ApiResponse<Nothing?>> = respond(e.errorCode, e.message)
+
+    /** 등록되지 않은 어드민 로그인 → 403(4032) + 본인이 운영자에게 전달할 등록 정보(email, googleSub). */
+    @ExceptionHandler(AdminNotRegisteredException::class)
+    fun handleAdminNotRegistered(
+        e: AdminNotRegisteredException,
+    ): ResponseEntity<ApiResponse<AdminRegistrationResponse?>> =
+        respond(AdminErrorCode.ADMIN_FORBIDDEN, data = AdminRegistrationResponse(e.email, e.googleSub))
 
     /** Bean Validation 실패(@RequestBody) → 400 + 필드별 사유. */
     @ExceptionHandler(MethodArgumentNotValidException::class)
@@ -132,12 +142,13 @@ class GlobalExceptionHandler {
         return respond(CommonErrorCode.INTERNAL_ERROR)
     }
 
-    private fun respond(
+    private fun <T> respond(
         errorCode: ErrorCode,
         message: String? = null,
         fieldErrors: List<ApiResponse.FieldError>? = null,
-    ): ResponseEntity<ApiResponse<Nothing?>> =
-        ResponseEntity.status(errorCode.status).body(ApiResponse.error(errorCode, message, fieldErrors))
+        data: T? = null,
+    ): ResponseEntity<ApiResponse<T?>> =
+        ResponseEntity.status(errorCode.status).body(ApiResponse.error(errorCode, message, fieldErrors, data))
 
     private companion object {
         const val UNIQUE_VIOLATION_SQL_STATE = "23505"

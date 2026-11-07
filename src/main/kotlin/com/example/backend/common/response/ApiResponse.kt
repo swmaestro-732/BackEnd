@@ -37,14 +37,17 @@ data class ApiResponse<T>(
         /** 본문 없는 성공(204 등). 안내 문구가 필요하면 [message] 를 채운다. */
         fun ok(message: String? = null): ApiResponse<Nothing?> = ApiResponse(code = SUCCESS_CODE, message = message)
 
-        fun error(
+        /** [data] 는 대부분 null 이고, 클라이언트가 다음 행동에 쓸 정보가 있을 때만 채운다. */
+        fun <T> error(
             errorCode: ErrorCode,
             message: String? = null,
             fieldErrors: List<FieldError>? = null,
-        ): ApiResponse<Nothing?> =
+            data: T? = null,
+        ): ApiResponse<T?> =
             ApiResponse(
                 code = errorCode.code,
                 message = message ?: errorCode.message,
+                data = data,
                 fieldErrors = fieldErrors,
             )
     }

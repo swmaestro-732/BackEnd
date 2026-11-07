@@ -33,7 +33,7 @@ class AdminAuthService(
         if (!adminPersistencePort.isRegistered(email, account.sub)) {
             // 토큰은 남기지 않는다. 등록 요청을 확인할 수 있게 이메일과 구글 계정 id 를 남긴다.
             log.warn { "등록되지 않은 계정의 어드민 로그인 시도: email=$email, googleSub=${account.sub}" }
-            throw AdminNotRegisteredException(email, account.sub)
+            throw AdminNotRegisteredException(email = email, googleSub = account.sub)
         }
         val issued = adminTokenPort.issue(email, account.sub)
         return AdminLogin(accessToken = issued.token, expiresAt = issued.expiresAt, email = email)

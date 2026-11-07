@@ -1,9 +1,11 @@
 -- 어드민 계정(SCRUM-768). 앱 사용자(users)와 별개이며 구글 계정(이메일과 sub)으로 식별한다.
 -- 등록 절차: 등록할 사람이 어드민 로그인을 시도하면 403 응답(과 서버 로그)에 본인 이메일과 googleSub 가 나온다.
--- 운영자가 본인에게 직접 확인한 뒤 두 값을 함께 INSERT 한다. 이메일은 소문자로 저장한다(로그인 시 소문자로 비교).
+-- 운영자는 그 값을 등록할 사람에게 이메일이 아닌 다른 경로(대면, 팀 메신저 본인 계정)로 직접 확인한 뒤 두 값을 함께 INSERT 한다.
 -- 같은 이메일이라도 등록한 구글 계정(sub)만 통과하므로, 이메일 주인이 바뀌어도 이전 주인은 로그인할 수 없다.
+-- 같은 구글 계정의 이메일이 바뀌면 UPDATE admins SET email = '<새 이메일>' WHERE google_sub = '<sub>' 로 고친다.
+-- 이메일은 소문자로 저장한다(로그인 시 소문자로 비교). 대문자가 섞이면 매칭되지 않으므로 CHECK 로 막는다.
 CREATE TABLE admins (
-    email varchar(320) PRIMARY KEY,
+    email varchar(320) PRIMARY KEY CHECK (email = lower(email)),
     google_sub varchar(255) NOT NULL UNIQUE,
     created_at timestamptz NOT NULL DEFAULT now()
 );
