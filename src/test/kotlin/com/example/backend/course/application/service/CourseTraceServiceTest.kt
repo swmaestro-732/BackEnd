@@ -373,29 +373,30 @@ class CourseTraceServiceTest {
     }
 
     @Test
-    fun `시작 V2 — 같은 코스를 진행 중이면 요청 루트를 저장하지 않고 기존 세션과 그 루트를 돌려준다`() {
+    fun `시작 V2 — 같은 코스를 진행 중이면 요청 루트는 검증도 저장도 하지 않고 기존 세션과 그 루트를 돌려준다`() {
         stubViewableCourse()
-        `when`(placeLookupPort.findPlacesByIds(listOf(22L))).thenReturn(listOf(ref(22L)))
         `when`(courseTracePersistencePort.findInProgress(1L)).thenReturn(inProgressRow(5L))
         `when`(courseTracePersistencePort.findRoutePlaceIds(5L)).thenReturn(listOf(23L, 24L))
 
-        val result = service.startWithRoute(1L, 1L, listOf(22L))
+        // 앱 재시작 뒤 지워진 장소가 든 옛 placeIds 로 다시 시작해도 이어가기는 성공해야 한다.
+        val result = service.startWithRoute(1L, 1L, listOf(99L))
 
         assertEquals(5L, result.traceId)
         assertEquals(listOf(23L, 24L), result.placeIds)
+        verifyNoInteractions(placeLookupPort)
         verify(courseTracePersistencePort, never()).insertInProgress(anyLong(), anyLong())
         verify(courseTracePersistencePort, never()).insertRoutePlaces(anyLong(), anyList())
     }
 
     @Test
-    fun `시작 V2 — 다른 코스를 진행 중이면 COURSE_TRACE_ALREADY_IN_PROGRESS 다`() {
+    fun `시작 V2 — 다른 코스를 진행 중이면 장소 검증보다 먼저 COURSE_TRACE_ALREADY_IN_PROGRESS 다`() {
         stubViewableCourse()
-        `when`(placeLookupPort.findPlacesByIds(listOf(22L))).thenReturn(listOf(ref(22L)))
         `when`(courseTracePersistencePort.findInProgress(1L)).thenReturn(inProgressRow(5L).copy(courseId = 4L))
 
-        val exception = assertThrows<BusinessException> { service.startWithRoute(1L, 1L, listOf(22L)) }
+        val exception = assertThrows<BusinessException> { service.startWithRoute(1L, 1L, listOf(99L)) }
 
         assertEquals(CourseErrorCode.COURSE_TRACE_ALREADY_IN_PROGRESS, exception.errorCode)
+        verifyNoInteractions(placeLookupPort)
     }
 
     // --- checkIn · end (루트 세션) ---

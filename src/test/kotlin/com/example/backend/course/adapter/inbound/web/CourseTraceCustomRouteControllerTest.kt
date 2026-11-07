@@ -69,7 +69,8 @@ class CourseTraceCustomRouteControllerTest
             val traceId = startV2Id("[23, 24]")
             checkIn(traceId, 24L, "2026-10-10T05:00:00Z").andExpect(status().isOk)
 
-            startV2(1L, "[22]")
+            // 요청 루트는 검증조차 하지 않는다 — 지워진 장소(99)가 든 옛 placeIds 로 재시도해도 이어가기는 된다.
+            startV2(1L, "[22, 99]")
                 .andExpect(status().isOk)
                 .andExpect(jsonPath("$.data.traceId").value(traceId))
                 .andExpect(jsonPath("$.data.placeIds").value(contains(23, 24)))

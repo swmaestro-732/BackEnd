@@ -76,19 +76,11 @@ class CourseTraceService(
         ) {
             throw BusinessException(CourseErrorCode.COURSE_NOT_FOUND, "따라가기를 시작할 코스를 찾을 수 없습니다: courseId=$courseId")
         }
-        routePlaceIds?.let { requirePlacesInOrder(it.distinct()) }
 
-        // 진행 중 세션이 있으면 이어간다. 없으면 만들되, 동시 시작으로 삽입이 무시되면(부분 유니크) 그 사이 생긴 세션을 다시 읽는다.
+        // 진행 중 세션이 있으면 이어간다(요청 루트는 보지 않는다). 없으면 만들되, 동시 시작으로 삽입이 무시되면(부분 유니크) 그 사이 생긴 세션을 다시 읽는다.
         val trace =
             courseTracePersistencePort.findInProgress(userId)
-                ?: courseTracePersistencePort
-                    .insertInProgress(
-                        userId,
-                        courseId,
-                    )?.let { traceId ->
-                        routePlaceIds?.let { courseTracePersistencePort.insertRoutePlaces(traceId, it) }
-                        courseTracePersistencePort.findById(traceId)
-                    }
+                ?: createSession(userId, courseId, routePlaceIds)
                 ?: courseTracePersistencePort.findInProgress(userId)
                 ?: error("따라가기 세션 생성 실패: userId=$userId, courseId=$courseId")
         if (trace.courseId != courseId) {
@@ -98,6 +90,18 @@ class CourseTraceService(
             )
         }
         return trace.toResult()
+    }
+
+    /** 새 세션을 만든다 — 루트가 있으면 장소를 검증(없으면 404)한 뒤 함께 저장한다. 동시 시작으로 삽입이 무시되면 null. */
+    private fun createSession(
+        userId: Long,
+        courseId: Long,
+        routePlaceIds: List<Long>?,
+    ): CourseTraceRow? {
+        routePlaceIds?.let { requirePlacesInOrder(it.distinct()) }
+        val traceId = courseTracePersistencePort.insertInProgress(userId, courseId) ?: return null
+        routePlaceIds?.let { courseTracePersistencePort.insertRoutePlaces(traceId, it) }
+        return courseTracePersistencePort.findById(traceId)
     }
 
     override fun listCompleted(query: CourseTracesQuery): CourseTracesResult {
