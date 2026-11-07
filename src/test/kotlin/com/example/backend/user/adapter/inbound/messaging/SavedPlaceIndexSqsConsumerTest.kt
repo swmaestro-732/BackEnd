@@ -36,6 +36,7 @@ class SavedPlaceIndexSqsConsumerTest {
                 imageUrl = "https://img/42.jpg",
                 rating = 4.8,
                 ratingCount = 212,
+                categoryDetail = "카페",
             ),
         )
 
@@ -51,6 +52,7 @@ class SavedPlaceIndexSqsConsumerTest {
                 imageUrl = "https://img/42.jpg",
                 rating = 4.8,
                 ratingCount = 212,
+                categoryDetail = "카페",
             ),
         )
     }

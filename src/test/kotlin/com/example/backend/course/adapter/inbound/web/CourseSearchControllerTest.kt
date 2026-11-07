@@ -48,7 +48,7 @@ class CourseSearchControllerTest {
             authorId = 10L,
             title = "코스 $id",
             coverImageUrl = "https://img/$id.jpg",
-            theme = "CAFETOUR",
+            themes = listOf("CAFETOUR"),
             area = "서울",
             likesCnt = 100,
             savesCnt = 50,

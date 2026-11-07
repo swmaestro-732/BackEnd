@@ -120,6 +120,25 @@ class DeviceControllerTest
         }
 
         @Test
+        fun `토큰이 비워진 계정 기기에 토큰 없이 동의를 심을 수 없다`() {
+            jdbcTemplate.update("INSERT INTO users (id, nickname) VALUES (?, '기기주인')", ME)
+            jdbcTemplate.update("INSERT INTO devices (device_id, user_id) VALUES (?, ?)", DEVICE, ME)
+
+            mockMvc
+                .perform(put("""{"marketing":true}"""))
+                .andExpect(status().isBadRequest)
+                .andExpect(jsonPath("$.code").value(4001))
+            assertNull(row()["marketing_agreed_at"])
+
+            // 철회는 토큰 없이도 받는다.
+            mockMvc.perform(put("""{"marketing":false}""")).andExpect(status().isOk)
+
+            // 토큰을 보내면 비로그인 등록으로 계정 연결이 끊겨, 이 동의는 계정 재등록 때 이어지지 않는다.
+            mockMvc.perform(put("""{"fcmToken":"$TOKEN","marketing":true}""")).andExpect(status().isOk)
+            assertNull(row()["user_id"])
+        }
+
+        @Test
         fun `토큰 없이 받은 동의는 처음 토큰을 붙일 때 지운다`() {
             mockMvc.perform(put("""{"marketing":true}""")).andExpect(status().isOk)
 

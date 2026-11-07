@@ -62,6 +62,7 @@ class PlaceDetailScreenService(
             openStatus = openingHours.openStatus,
             openingHoursText = PlaceOpeningHoursText.of(openingHours.hours),
             reviewSummary = reviewSummary,
+            categoryDetail = place.categoryDetail,
         )
     }
 

@@ -3,13 +3,16 @@ package com.example.backend.mobile.home.application.port.inbound.dto
 import com.example.backend.mobile.home.application.port.outbound.dto.HomeFeedCourse
 import com.example.backend.mobile.home.application.port.outbound.dto.HomeNearbyPlace
 import com.example.backend.mobile.home.application.port.outbound.dto.HomeProfile
+import com.example.backend.mobile.home.application.port.outbound.dto.HomeTracingCourse
 
 /**
  * 홈 화면 조합 결과 (BFF). profile 은 비로그인이면 null, 추천 코스는 피드 랭킹 상위, 근처 저장 장소는 거리순이다.
+ * tracingCourse 는 진행 중 따라가기(비로그인·없으면 null)다.
  * 재료는 도메인 타입이 아닌 BFF 격리 DTO 다.
  */
 data class HomeResult(
     val profile: HomeProfile?,
+    val tracingCourse: HomeTracingCourse?,
     val recommendedCourses: List<HomeFeedCourse>,
     val nearbySavedPlaces: List<NearbySavedPlace>,
 ) {

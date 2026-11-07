@@ -3,6 +3,7 @@ package com.example.backend.course.adapter.inbound.web.request
 import com.example.backend.common.domain.CourseVisibility
 import com.example.backend.course.application.port.inbound.dto.CreateCoursePlaceCommand
 import com.example.backend.course.application.port.inbound.dto.EditCourseCommand
+import com.example.backend.course.domain.model.CourseCategory
 import jakarta.validation.Valid
 import jakarta.validation.constraints.NotBlank
 import jakarta.validation.constraints.Size
@@ -21,7 +22,7 @@ private const val MAX_TAG_LENGTH = 50
  *
  * - tags: 태그 이름 목록(추천 태그 응답과 동일하게 이름 문자열 기반).
  * - thumbnailUrl: 코스 커버 이미지(courses.cover_image_url).
- * - category 는 요청에 없다 — 담은 장소들의 카테고리로 서비스가 도출한다.
+ * - companions: 작성자가 고르는 코스 카테고리(DATE·FAMILY·SOLO, 선택). 요청에 없으면(null) 기존 값을 유지하고, 빈 배열이면 비운다.
  * - isPublished: true 면 발행, false 면 임시저장 — 임시저장 코스를 편집하며 발행 전환하는 경우 포함.
  * - places 요소는 코스 생성과 동일한 [CreateCoursePlaceRequest] 를 재사용한다.
  */
@@ -40,6 +41,7 @@ data class EditCourseRequest(
     > = emptyList(),
     val visibility: CourseVisibility,
     val isPublished: Boolean,
+    val companions: List<CourseCategory>? = null,
     @field:Valid
     val places: List<CreateCoursePlaceRequest> = emptyList(),
 ) {
@@ -56,6 +58,7 @@ data class EditCourseRequest(
             tags = tags,
             visibility = visibility,
             isPublished = isPublished,
+            companions = companions,
             places =
                 places.map {
                     CreateCoursePlaceCommand(

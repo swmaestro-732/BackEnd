@@ -39,7 +39,7 @@ class MyPageCourseAdapter(
                         id = it.id,
                         title = it.title,
                         coverImageUrl = it.coverImageUrl,
-                        theme = it.theme,
+                        themes = it.themes,
                         likesCnt = it.likesCnt,
                         savesCnt = it.savesCnt,
                         createdAt = it.createdAt,

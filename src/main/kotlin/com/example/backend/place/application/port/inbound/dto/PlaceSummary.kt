@@ -12,6 +12,7 @@ package com.example.backend.place.application.port.inbound.dto
  * - [rating]·[ratingCount] DB 에서 읽은 최신 평점과 평점수.
  * - [address] 장소 주소.
  * - [areaCode] 법정동코드 10자리(미확인 시 null). 코스 지역(area_code) 도출 입력으로 쓰인다.
+ * - [categoryDetail] 카카오 상세 분류 원문(예: "수목원,식물원"). 클라이언트 아이콘 매핑용, 없으면 null.
  */
 data class PlaceSummary(
     val id: Long,
@@ -24,4 +25,5 @@ data class PlaceSummary(
     val areaCode: String?,
     val rating: Double = 0.0,
     val ratingCount: Int = 0,
+    val categoryDetail: String? = null,
 )

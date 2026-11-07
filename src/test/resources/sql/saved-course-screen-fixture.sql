@@ -19,9 +19,10 @@ INSERT INTO places (name, category, location, address, image_url) VALUES
     ('블루스퀘어',    'LANDMARK', 'SRID=4326;POINT(127.0086 37.5326)'::geography, '서울 용산구 한남동 D', 'https://img/place-blue.jpg');
 
 -- course 1: 성수 카페 코스(작성자 2 지호, 공개). course 2: 한남 갤러리 코스(작성자 1 dev = 내 코스, 공개).
-INSERT INTO courses (user_id, title, area, category, cover_image_url, is_published, visibility) VALUES
-    (2, '성수 카페 코스',    '성수', 'CAFETOUR', 'https://img/cover-cafe.jpg',    true, 'PUBLIC'),
-    (1, '한남 갤러리 코스',  '한남', 'CULTURE',  'https://img/cover-gallery.jpg', true, 'PUBLIC');
+INSERT INTO courses (user_id, title, area, cover_image_url, is_published, visibility) VALUES
+    (2, '성수 카페 코스',    '성수', 'https://img/cover-cafe.jpg',    true, 'PUBLIC'),
+    (1, '한남 갤러리 코스',  '한남', 'https://img/cover-gallery.jpg', true, 'PUBLIC');
+INSERT INTO course_categories (course_id, category) VALUES (1, 'CAFETOUR'), (2, 'CULTURE');
 
 -- 코스 장소(order_no·caption·도보시간). course_places id: 1·2 = course1, 3·4 = course2.
 INSERT INTO course_places (course_id, place_id, order_no, caption, walking_minutes) VALUES

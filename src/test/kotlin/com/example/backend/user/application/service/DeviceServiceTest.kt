@@ -149,6 +149,8 @@ class DeviceServiceTest {
         ) = Unit
 
         override fun unlinkAllByUser(userId: Long) = Unit
+
+        override fun clearTokens(fcmTokens: Collection<String>) = Unit
     }
 
     private companion object {

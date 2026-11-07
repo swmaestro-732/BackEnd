@@ -40,6 +40,7 @@ class SavedPlaceReindexService(
                             imageUrl = place.imageUrl,
                             rating = place.rating,
                             ratingCount = place.ratingCount,
+                            categoryDetail = place.categoryDetail,
                         )
                     }
                 }

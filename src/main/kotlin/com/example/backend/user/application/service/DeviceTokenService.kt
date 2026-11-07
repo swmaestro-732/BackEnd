@@ -30,4 +30,9 @@ class DeviceTokenService(
         userId: Long,
         deviceId: String,
     ) = devicePersistencePort.unlink(userId, deviceId)
+
+    override fun clearInvalidTokens(fcmTokens: Collection<String>) {
+        if (fcmTokens.isEmpty()) return
+        devicePersistencePort.clearTokens(fcmTokens)
+    }
 }

@@ -27,6 +27,7 @@ class PlaceAccessAdapter(
                 location = Coordinate(it.latitude, it.longitude),
                 rating = it.rating,
                 ratingCount = it.ratingCount,
+                categoryDetail = it.categoryDetail,
             )
         }
 }
