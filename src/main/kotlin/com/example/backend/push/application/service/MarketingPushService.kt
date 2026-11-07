@@ -23,6 +23,7 @@ import java.time.ZoneId
  * 광고성 정보 전송 규정(정보통신망법 제50조)에 맞춰 광고 표기, 수신거부 안내, 야간 동의를 적용해 발송한다.
  * 제목에는 서비스명([커미])을, 본문 앞에는 (광고)를 붙인다.
  * 트랜잭션으로 묶지 않는다. 발송 이력을 먼저 커밋해 두어, 큐 발행이 묶음 중간에 실패해도 이미 나간 광고의 기록이 남게 한다.
+ * 부분 실패(enqueuedCount < recipientCount) 뒤에는 재발송하지 않는다. 이미 받은 기기에 같은 광고가 다시 가는 것을 피하는 쪽을 택한다.
  */
 @Service
 class MarketingPushService(
@@ -57,25 +58,18 @@ class MarketingPushService(
                     e.message ?: CommonErrorCode.INVALID_INPUT.message,
                 )
             }
-        // 버튼 연타와 재시도로 같은 광고가 두 번 나가는 것을 막는다. 동시 요청까지 막는 잠금은 아니다.
-        if (pushCampaignPersistencePort.existsRecent(
-                command.adminEmail,
-                message.title,
-                message.body,
+        // 버튼 연타와 재시도로 같은 광고가 두 번 나가지 않게, 대상 조회 전에 중복 확인과 이력 저장을 어드민별 잠금 아래에서 한 번에 한다.
+        // 대상 수는 조회 뒤에 채운다. 이력을 먼저 커밋해 두어 큐 발행이 중간에 실패해도 나간 광고의 기록이 남는다.
+        val campaignId =
+            pushCampaignPersistencePort.saveUnlessRecent(
+                PushCampaign(command.adminEmail, message.title, message.body, command.link, night, recipientCount = 0),
                 now - DUPLICATE_WINDOW,
-            )
-        ) {
-            throw BusinessException(PushErrorCode.DUPLICATE_MARKETING_PUSH)
-        }
+            ) ?: throw BusinessException(PushErrorCode.DUPLICATE_MARKETING_PUSH)
         // ponytail: 대상 토큰 전체를 메모리에 올리고 요청 스레드에서 SQS 로 순차 발행한다.
         // 동의 기기가 10만 대 안팎이 되면 키셋 페이징 조회와 비동기 발행으로 바꾼다.
         val tokens = marketingRecipientPort.findTokens(night)
-        val campaignId =
-            pushCampaignPersistencePort.save(
-                PushCampaign(command.adminEmail, message.title, message.body, command.link, night, tokens.size),
-            )
         val enqueuedCount = if (tokens.isEmpty()) 0 else pushUseCase.request(message.copy(tokens = tokens))
-        if (enqueuedCount > 0) pushCampaignPersistencePort.updateEnqueuedCount(campaignId, enqueuedCount)
+        pushCampaignPersistencePort.updateCounts(campaignId, tokens.size, enqueuedCount)
         if (tokens.isNotEmpty() && enqueuedCount == 0) {
             log.error { "마케팅 푸시를 큐에 하나도 넣지 못함: campaignId=$campaignId, count=${tokens.size}" }
         }

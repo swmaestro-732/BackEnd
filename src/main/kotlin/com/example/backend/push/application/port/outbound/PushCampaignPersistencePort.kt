@@ -13,20 +13,19 @@ data class PushCampaign(
 )
 
 interface PushCampaignPersistencePort {
-    /** 발송 기록을 남기고 id 를 돌려준다. */
-    fun save(campaign: PushCampaign): Long
+    /**
+     * 같은 어드민이 [since] 이후 같은 제목과 본문으로 남긴 기록이 없을 때만 [campaign] 을 저장하고 id 를 돌려준다. 있으면 null.
+     * 어드민별 잠금 아래에서 확인과 저장을 한 번에 해, 버튼 연타처럼 동시에 들어온 요청도 하나만 저장된다.
+     */
+    fun saveUnlessRecent(
+        campaign: PushCampaign,
+        since: Instant,
+    ): Long?
 
-    /** 큐에 실제로 넣은 토큰 수를 기록한다. */
-    fun updateEnqueuedCount(
+    /** 실제 대상 수와 큐에 넣은 토큰 수를 기록한다. */
+    fun updateCounts(
         id: Long,
+        recipientCount: Int,
         enqueuedCount: Int,
     )
-
-    /** 같은 어드민이 [since] 이후에 같은 제목과 본문으로 남긴 발송 기록이 있는지. */
-    fun existsRecent(
-        adminEmail: String,
-        title: String,
-        body: String,
-        since: Instant,
-    ): Boolean
 }

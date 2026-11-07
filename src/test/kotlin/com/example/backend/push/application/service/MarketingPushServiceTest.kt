@@ -28,6 +28,7 @@ class MarketingPushServiceTest {
     private val requestedNights = mutableListOf<Boolean>()
     private val savedCampaigns = mutableListOf<Pair<PushCampaign, Instant>>()
     private val enqueuedCounts = mutableMapOf<Long, Int>()
+    private val recipientCounts = mutableMapOf<Long, Int>()
     private val requestedMessages = mutableListOf<PushMessage>()
     private var now = kst("2026-11-04T12:00")
 
@@ -42,28 +43,28 @@ class MarketingPushServiceTest {
     // 실제 어댑터처럼 저장 시각을 남겨 최근 발송 여부를 판단한다.
     private val pushCampaignPersistencePort =
         object : PushCampaignPersistencePort {
-            override fun save(campaign: PushCampaign): Long {
+            override fun saveUnlessRecent(
+                campaign: PushCampaign,
+                since: Instant,
+            ): Long? {
+                val duplicated =
+                    savedCampaigns.any { (saved, createdAt) ->
+                        saved.adminEmail == campaign.adminEmail && saved.title == campaign.title &&
+                            saved.body == campaign.body && createdAt >= since
+                    }
+                if (duplicated) return null
                 savedCampaigns.add(campaign to now)
                 return savedCampaigns.size.toLong()
             }
 
-            override fun updateEnqueuedCount(
+            override fun updateCounts(
                 id: Long,
+                recipientCount: Int,
                 enqueuedCount: Int,
             ) {
+                recipientCounts[id] = recipientCount
                 enqueuedCounts[id] = enqueuedCount
             }
-
-            override fun existsRecent(
-                adminEmail: String,
-                title: String,
-                body: String,
-                since: Instant,
-            ): Boolean =
-                savedCampaigns.any { (campaign, createdAt) ->
-                    campaign.adminEmail == adminEmail && campaign.title == title && campaign.body == body &&
-                        createdAt >= since
-                }
         }
 
     private val pushUseCase =
@@ -122,9 +123,10 @@ class MarketingPushServiceTest {
         assertEquals(mapOf("type" to "MARKETING", "link" to LINK), message.data)
         assertEquals(Duration.ofMinutes(30), message.androidTtl)
         assertEquals(
-            PushCampaign("admin@example.com", message.title, message.body, LINK, false, 2),
+            PushCampaign("admin@example.com", message.title, message.body, LINK, false, 0),
             savedCampaigns.single().first,
         )
+        assertEquals(mapOf(result.campaignId to 2), recipientCounts)
         assertEquals(mapOf(result.campaignId to 2), enqueuedCounts)
         assertEquals(2, result.recipientCount)
         assertEquals(2, result.enqueuedCount)
@@ -137,7 +139,8 @@ class MarketingPushServiceTest {
         val result = send()
 
         assertTrue(requestedMessages.isEmpty())
-        assertEquals(0, savedCampaigns.single().first.recipientCount)
+        assertEquals(mapOf(result.campaignId to 0), recipientCounts)
+        assertEquals(mapOf(result.campaignId to 0), enqueuedCounts)
         assertEquals(0, result.recipientCount)
         assertEquals(0, result.enqueuedCount)
     }
@@ -162,6 +165,7 @@ class MarketingPushServiceTest {
         assertEquals(2, result.recipientCount)
         assertEquals(0, result.enqueuedCount)
         assertEquals(1, savedCampaigns.size)
+        assertEquals(mapOf(result.campaignId to 0), enqueuedCounts)
     }
 
     @Test
