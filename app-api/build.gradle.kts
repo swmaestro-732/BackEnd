@@ -1,6 +1,7 @@
-// 어플리케이션 계층: 실행 가능한 API 서버. 하위 모듈(domain-rds, client-opensearch, common)을 조립해 서비스를 완성한다.
-// 포함: main, 설정(보안, JWT, OpenAPI 등), 인바운드 어댑터(컨트롤러, SQS 소비), BFF(mobile),
-//       RDB 외 아웃바운드 어댑터(OpenSearch 검색/색인, S3, SQS 발행, FCM, Kakao/TMAP/소셜 로그인), 색인 초기화/재색인, 전체 테스트.
+// 어플리케이션 계층: 실행 가능한 API 서버. 하위 모듈(core-web, client-*, domain-rds, common)을 조립해 서비스를 완성한다.
+// 포함: main, 앱 버전 정책, JWT 발급/검증 빈, 인바운드 어댑터(컨트롤러, SQS 소비), BFF(mobile),
+//       도메인 포트를 구현하는 얇은 아웃바운드 어댑터(client-* 를 써서 외부 응답을 도메인 타입으로 옮긴다),
+//       DB(Exposed) 예외 변환, 색인 초기화/재색인, 전체 테스트.
 // 유일하게 bootJar 를 만든다.
 plugins {
     id("backend.kotlin-conventions")
@@ -16,6 +17,13 @@ dependencies {
     implementation(project(":domain-rds"))
     implementation(project(":core-web"))
     implementation(project(":client-opensearch"))
+    implementation(project(":client-s3"))
+    implementation(project(":client-sqs"))
+    implementation(project(":client-kakao"))
+    implementation(project(":client-tmap"))
+    implementation(project(":client-google"))
+    implementation(project(":client-naver"))
+    implementation(project(":client-fcm"))
 
     // 웹, 보안, 검증(필터 체인, 예외 핸들러, OpenAPI, Sentry 설정은 core-web 이 가진다)
     implementation("org.springframework.boot:spring-boot-starter-webmvc")
@@ -23,7 +31,6 @@ dependencies {
     implementation("org.springframework.boot:spring-boot-starter-oauth2-resource-server")
     implementation("org.springframework.boot:spring-boot-starter-validation")
     implementation(libs.springdoc.openapi.webmvc.ui)
-    implementation("org.apache.httpcomponents.client5:httpclient5")
 
     // 직렬화, 로깅, 날짜
     implementation("org.jetbrains.kotlin:kotlin-reflect")
@@ -43,13 +50,8 @@ dependencies {
     implementation("org.flywaydb:flyway-database-postgresql")
     implementation("org.postgresql:postgresql")
 
-    // AWS: S3(미디어 업로드 프리사인), SQS(코스 개수 폴백 큐, 푸시 발송 큐)
+    // S3, SQS, FCM SDK 는 각 client-* 모듈이 가진다. AWS BOM 은 아래 DocumentDB 인증(auth)용.
     implementation(platform(libs.aws.bom))
-    implementation(libs.aws.s3)
-    implementation(platform(libs.spring.cloud.aws.bom))
-    implementation("io.awspring.cloud:spring-cloud-aws-starter-sqs")
-    // FCM 푸시 발송. 서비스 계정 JSON 미설정 시 발송을 생략한다.
-    implementation(libs.firebase.admin)
 
     // DocumentDB(MongoDB 호환): 연결 설정은 bootstrap/config/MongoConfig. MONGODB-AWS 인증은 SDK v2 기본 자격증명 체인(EC2 인스턴스 역할)
     implementation("org.springframework.boot:spring-boot-starter-data-mongodb")
@@ -110,7 +112,21 @@ tasks.register<Test>("archTest") {
 // 테스트는 이 모듈에 있지만 코드는 하위 모듈에도 있다. 전 모듈을 합친 집계 리포트를 만든다.
 tasks.jacocoTestReport {
     dependsOn(tasks.test)
-    val coveredModules = listOf("common", "domain-rds", "core-web", "client-opensearch", "app-api")
+    val coveredModules =
+        listOf(
+            "common",
+            "domain-rds",
+            "core-web",
+            "client-opensearch",
+            "client-s3",
+            "client-sqs",
+            "client-kakao",
+            "client-tmap",
+            "client-google",
+            "client-naver",
+            "client-fcm",
+            "app-api",
+        )
     sourceDirectories.setFrom(files(coveredModules.map { rootProject.project(it).file("src/main/kotlin") }))
     classDirectories.setFrom(
         files(

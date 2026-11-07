@@ -1,5 +1,6 @@
 package com.example.backend.place.adapter.outbound.search
 
+import com.example.backend.kakao.KakaoLocalDocument
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Test

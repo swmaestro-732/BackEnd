@@ -2,20 +2,17 @@ package com.example.backend.user.adapter.outbound.social
 
 import com.example.backend.common.exception.BusinessException
 import com.example.backend.common.response.CommonErrorCode
+import com.example.backend.naver.NaverProfileClient
 import com.example.backend.user.application.port.outbound.SocialIdentity
 import com.example.backend.user.domain.model.SocialProvider
-import com.fasterxml.jackson.annotation.JsonIgnoreProperties
 import io.github.oshai.kotlinlogging.KotlinLogging
-import org.springframework.beans.factory.annotation.Qualifier
 import org.springframework.stereotype.Component
-import org.springframework.web.client.RestClient
 import org.springframework.web.client.RestClientException
 
 /** 네이버 액세스 토큰으로 프로필 API를 호출해 검증한 id만 사용한다. 토큰·프로필 원문은 저장하거나 로그에 남기지 않는다. */
 @Component
 class NaverSocialVerifier(
-    @param:Qualifier("naverRestClient")
-    private val naverRestClient: RestClient,
+    private val naverProfileClient: NaverProfileClient,
 ) : SocialTokenVerifier {
     private val log = KotlinLogging.logger {}
 
@@ -27,18 +24,13 @@ class NaverSocialVerifier(
         }
         val profile =
             try {
-                naverRestClient
-                    .get()
-                    .uri("/v1/nid/me")
-                    .headers { it.setBearerAuth(token) }
-                    .retrieve()
-                    .onStatus({ !it.is2xxSuccessful }) { _, response ->
-                        if (response.statusCode.value() in AUTH_FAILURE_STATUSES) {
-                            throw BusinessException(CommonErrorCode.SOCIAL_AUTHENTICATION_FAILED)
-                        }
-                        log.warn { "네이버 인증 API 응답 실패: status=${response.statusCode.value()}" }
-                        throw BusinessException(CommonErrorCode.SOCIAL_AUTHENTICATION_UNAVAILABLE)
-                    }.body(NaverProfileResponse::class.java)
+                naverProfileClient.fetchProfile(token) { status ->
+                    if (status in AUTH_FAILURE_STATUSES) {
+                        throw BusinessException(CommonErrorCode.SOCIAL_AUTHENTICATION_FAILED)
+                    }
+                    log.warn { "네이버 인증 API 응답 실패: status=$status" }
+                    throw BusinessException(CommonErrorCode.SOCIAL_AUTHENTICATION_UNAVAILABLE)
+                }
             } catch (exception: RestClientException) {
                 // 예외 메시지/스택에는 응답 본문이 포함될 수 있으므로 예외 종류만 기록한다.
                 log.warn { "네이버 인증 API 통신 또는 응답 해석 실패: type=${exception.javaClass.simpleName}" }
@@ -63,14 +55,3 @@ class NaverSocialVerifier(
         const val MAX_SOCIAL_ID_LENGTH = 255
     }
 }
-
-@JsonIgnoreProperties(ignoreUnknown = true)
-internal data class NaverProfileResponse(
-    val resultcode: String? = null,
-    val response: NaverProfile? = null,
-)
-
-@JsonIgnoreProperties(ignoreUnknown = true)
-internal data class NaverProfile(
-    val id: String? = null,
-)

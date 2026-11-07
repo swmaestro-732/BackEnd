@@ -1,17 +1,13 @@
 package com.example.backend.media.adapter.outbound.s3
 
 import com.example.backend.media.application.port.outbound.MediaStoragePort
+import com.example.backend.s3.S3StorageClient
 import io.github.oshai.kotlinlogging.KotlinLogging
 import org.springframework.stereotype.Component
-import software.amazon.awssdk.services.s3.S3Client
-import software.amazon.awssdk.services.s3.model.PutObjectRequest
-import software.amazon.awssdk.services.s3.presigner.S3Presigner
-import software.amazon.awssdk.services.s3.presigner.model.PutObjectPresignRequest
 
 @Component
 class S3MediaStorageAdapter(
-    private val s3Presigner: S3Presigner,
-    private val s3Client: S3Client,
+    private val s3StorageClient: S3StorageClient,
     private val mediaProperties: MediaProperties,
 ) : MediaStoragePort {
     private val log = KotlinLogging.logger {}
@@ -20,31 +16,20 @@ class S3MediaStorageAdapter(
         key: String,
         contentType: String,
         contentLength: Long,
-    ): String {
-        val putObjectRequest =
-            PutObjectRequest
-                .builder()
-                .bucket(mediaProperties.bucket)
-                .key(key)
-                .contentType(contentType)
-                .contentLength(contentLength)
-                .build()
-
-        val presignRequest =
-            PutObjectPresignRequest
-                .builder()
-                .signatureDuration(mediaProperties.presignTtl)
-                .putObjectRequest(putObjectRequest)
-                .build()
-
-        return s3Presigner.presignPutObject(presignRequest).url().toString()
-    }
+    ): String =
+        s3StorageClient.presignPut(
+            bucket = mediaProperties.bucket,
+            key = key,
+            contentType = contentType,
+            contentLength = contentLength,
+            ttl = mediaProperties.presignTtl,
+        )
 
     override fun publicUrl(key: String): String = "${mediaProperties.cdnBaseUrl.trimEnd('/')}/$key"
 
     override fun delete(key: String) {
         try {
-            s3Client.deleteObject { it.bucket(mediaProperties.bucket).key(key) }
+            s3StorageClient.deleteObject(mediaProperties.bucket, key)
         } catch (exception: Exception) {
             log.warn(exception) { "S3 객체 삭제 실패(무시): key=$key" }
         }

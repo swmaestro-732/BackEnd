@@ -1,6 +1,7 @@
 package com.example.backend.user.adapter.outbound.messaging
 
 import com.example.backend.common.domain.CourseVisibility
+import com.example.backend.sqs.SqsMessageSender
 import io.awspring.cloud.sqs.operations.SqsTemplate
 import org.junit.jupiter.api.Assertions.assertDoesNotThrow
 import org.junit.jupiter.api.Assertions.assertTrue
@@ -30,7 +31,7 @@ class CourseCountFallbackAdapterTest {
 
     private val adapter =
         CourseCountFallbackAdapter(
-            sqsTemplateProvider = emptyProvider,
+            sqsMessageSender = SqsMessageSender(emptyProvider),
             sqsProperties = SqsProperties(courseCountQueueUrl = ""),
         )
 
@@ -51,7 +52,7 @@ class CourseCountFallbackAdapterTest {
         val mockTemplate = mock(SqsTemplate::class.java)
         val adapterWithTemplate =
             CourseCountFallbackAdapter(
-                sqsTemplateProvider = providerOf(mockTemplate),
+                sqsMessageSender = SqsMessageSender(providerOf(mockTemplate)),
                 sqsProperties =
                     SqsProperties(
                         courseCountQueueUrl = "https://sqs.ap-northeast-2.amazonaws.com/123/test-queue",
@@ -80,7 +81,7 @@ class CourseCountFallbackAdapterTest {
         val mockTemplate = mock(SqsTemplate::class.java)
         val adapterBlankUrl =
             CourseCountFallbackAdapter(
-                sqsTemplateProvider = providerOf(mockTemplate),
+                sqsMessageSender = SqsMessageSender(providerOf(mockTemplate)),
                 sqsProperties = SqsProperties(courseCountQueueUrl = ""),
             )
 

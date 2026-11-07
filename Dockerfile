@@ -11,6 +11,13 @@ COPY common/build.gradle.kts common/
 COPY domain-rds/build.gradle.kts domain-rds/
 COPY core-web/build.gradle.kts core-web/
 COPY client-opensearch/build.gradle.kts client-opensearch/
+COPY client-s3/build.gradle.kts client-s3/
+COPY client-sqs/build.gradle.kts client-sqs/
+COPY client-kakao/build.gradle.kts client-kakao/
+COPY client-tmap/build.gradle.kts client-tmap/
+COPY client-google/build.gradle.kts client-google/
+COPY client-naver/build.gradle.kts client-naver/
+COPY client-fcm/build.gradle.kts client-fcm/
 COPY app-api/build.gradle.kts app-api/
 RUN chmod +x gradlew && ./gradlew :app-api:dependencies --no-daemon > /dev/null 2>&1 || true
 
@@ -19,6 +26,13 @@ COPY common/src common/src
 COPY domain-rds/src domain-rds/src
 COPY core-web/src core-web/src
 COPY client-opensearch/src client-opensearch/src
+COPY client-s3/src client-s3/src
+COPY client-sqs/src client-sqs/src
+COPY client-kakao/src client-kakao/src
+COPY client-tmap/src client-tmap/src
+COPY client-google/src client-google/src
+COPY client-naver/src client-naver/src
+COPY client-fcm/src client-fcm/src
 COPY app-api/src app-api/src
 RUN ./gradlew :app-api:bootJar --no-daemon
 

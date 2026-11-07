@@ -1,5 +1,7 @@
 package com.example.backend.push.adapter.outbound.fcm
 
+import com.example.backend.fcm.FcmSender
+import com.example.backend.fcm.androidConfig
 import com.example.backend.push.adapter.config.PushProperties
 import com.example.backend.push.application.port.inbound.dto.PushMessage
 import com.example.backend.push.application.port.outbound.PushSendResult
@@ -53,7 +55,7 @@ class FcmPushSenderTest {
     @Test
     fun `Firebase 미설정이면 발송을 생략하고 토큰 수만큼 생략 카운터를 올린다`() {
         val firebaseMessagingProvider = DefaultListableBeanFactory().getBeanProvider(FirebaseMessaging::class.java)
-        val fcmPushSender = FcmPushSender(firebaseMessagingProvider, PushProperties(), meterRegistry)
+        val fcmPushSender = FcmPushSender(FcmSender(firebaseMessagingProvider), PushProperties(), meterRegistry)
 
         val result = fcmPushSender.send(PushMessage(listOf("secret-token", "token-2"), "제목", "본문"))
 
@@ -85,7 +87,11 @@ class FcmPushSenderTest {
         val beanFactory = DefaultListableBeanFactory()
         beanFactory.registerSingleton("firebaseMessaging", firebaseMessaging)
         val fcmPushSender =
-            FcmPushSender(beanFactory.getBeanProvider(FirebaseMessaging::class.java), PushProperties(), meterRegistry)
+            FcmPushSender(
+                FcmSender(beanFactory.getBeanProvider(FirebaseMessaging::class.java)),
+                PushProperties(),
+                meterRegistry,
+            )
         val success = mock(SendResponse::class.java)
         `when`(success.isSuccessful).thenReturn(true)
         val batchResponse = mock(BatchResponse::class.java)
@@ -120,7 +126,11 @@ class FcmPushSenderTest {
         val beanFactory = DefaultListableBeanFactory()
         beanFactory.registerSingleton("firebaseMessaging", firebaseMessaging)
         val fcmPushSender =
-            FcmPushSender(beanFactory.getBeanProvider(FirebaseMessaging::class.java), PushProperties(), meterRegistry)
+            FcmPushSender(
+                FcmSender(beanFactory.getBeanProvider(FirebaseMessaging::class.java)),
+                PushProperties(),
+                meterRegistry,
+            )
         val failure = mock(FirebaseMessagingException::class.java)
         `when`(firebaseMessaging.sendEachForMulticast(any(MulticastMessage::class.java))).thenThrow(failure)
 
@@ -220,7 +230,7 @@ class FcmPushSenderTest {
         `when`(batchResponse.responses).thenReturn(responses.toList())
         `when`(firebaseMessaging.sendEachForMulticast(any(MulticastMessage::class.java))).thenReturn(batchResponse)
         return FcmPushSender(
-            beanFactory.getBeanProvider(FirebaseMessaging::class.java),
+            FcmSender(beanFactory.getBeanProvider(FirebaseMessaging::class.java)),
             PushProperties(),
             meterRegistry,
         )

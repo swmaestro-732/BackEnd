@@ -1,5 +1,6 @@
 package com.example.backend.media.adapter.outbound.s3
 
+import com.example.backend.s3.S3StorageClient
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
@@ -34,7 +35,7 @@ class S3MediaStorageAdapterTest {
             presignTtl = Duration.ofMinutes(5),
         )
 
-    private val adapter = S3MediaStorageAdapter(s3Presigner, s3Client, mediaProperties)
+    private val adapter = S3MediaStorageAdapter(S3StorageClient(s3Presigner, s3Client), mediaProperties)
 
     @Test
     fun `presignedPutUrl은 서명 쿼리 파라미터가 포함된 URL을 반환한다`() {

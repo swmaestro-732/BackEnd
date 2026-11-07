@@ -1,6 +1,7 @@
 package com.example.backend.user.adapter.outbound.messaging
 
 import com.example.backend.common.geo.Coordinate
+import com.example.backend.sqs.SqsMessageSender
 import com.example.backend.user.adapter.messaging.SavedPlaceIndexMessage
 import com.example.backend.user.application.port.outbound.SavedPlaceIndexDocument
 import io.awspring.cloud.sqs.operations.SqsSendOptions
@@ -53,7 +54,8 @@ class SavedPlaceIndexFallbackAdapterTest {
 
     @Test
     fun `SqsTemplate 이 없으면 예외 없이 no-op 한다`() {
-        val adapter = SavedPlaceIndexFallbackAdapter(emptyProvider, SqsProperties(savedPlaceQueueUrl = ""))
+        val adapter =
+            SavedPlaceIndexFallbackAdapter(SqsMessageSender(emptyProvider), SqsProperties(savedPlaceQueueUrl = ""))
         assertDoesNotThrow {
             adapter.enqueueIndex(document)
             adapter.enqueueDelete(7L, 42L)
@@ -65,7 +67,7 @@ class SavedPlaceIndexFallbackAdapterTest {
         val template = mock(SqsTemplate::class.java)
         val adapter =
             SavedPlaceIndexFallbackAdapter(
-                providerOf(template),
+                SqsMessageSender(providerOf(template)),
                 SqsProperties(savedPlaceQueueUrl = "https://sqs.ap-northeast-2.amazonaws.com/123/saved-place"),
             )
 
@@ -104,7 +106,11 @@ class SavedPlaceIndexFallbackAdapterTest {
     @Test
     fun `queueUrl 이 비면 send 를 호출하지 않는다`() {
         val template = mock(SqsTemplate::class.java)
-        val adapter = SavedPlaceIndexFallbackAdapter(providerOf(template), SqsProperties(savedPlaceQueueUrl = ""))
+        val adapter =
+            SavedPlaceIndexFallbackAdapter(
+                SqsMessageSender(providerOf(template)),
+                SqsProperties(savedPlaceQueueUrl = ""),
+            )
 
         adapter.enqueueDelete(7L, 42L)
 

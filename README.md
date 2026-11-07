@@ -33,8 +33,10 @@ pre-commit install               # commit-msg·pre-commit 훅 자동 설치
 >
 > | 모듈 | 계층 | 역할 | 원칙 |
 > |---|---|---|---|
-> | `:app-api` | 어플리케이션 | 실행 가능한 API 서버. 컨트롤러, BFF, 설정, RDB 외 어댑터(검색, S3, SQS, 외부 API), 전체 테스트 | 하위 모듈을 조립한다. 유일하게 bootJar 를 만든다 |
+> | `:app-api` | 어플리케이션 | 실행 가능한 API 서버. 컨트롤러, BFF, 앱 버전, JWT, 도메인 포트를 구현하는 얇은 어댑터(client-* 사용), 전체 테스트 | 하위 모듈을 조립한다. 유일하게 bootJar 를 만든다 |
+> | `:core-web` | 내부 | 웹, 보안 공통: 보안 필터 체인, 웹 애노테이션과 인자 리졸버, 전역 예외 핸들러, OpenAPI, Sentry | 도메인과 영속성(Exposed)을 모른다 |
 > | `:client-opensearch` | 내부 | OpenSearch 연결 설정(basic, IAM), 검색용/색인용 클라이언트, 헬스체크 | 도메인과 서비스 비즈니스를 모른다 |
+> | `:client-s3`, `:client-sqs`, `:client-kakao`, `:client-tmap`, `:client-google`, `:client-naver`, `:client-fcm` | 내부 | 외부 시스템별 연결 설정과 클라이언트, 요청/응답 DTO | 도메인을 모른다. 도메인 타입 변환은 app-api 어댑터가 한다 |
 > | `:domain-rds` | 도메인 | 모든 컨텍스트의 도메인 모델 + 유스케이스(포트, 서비스) + PostgreSQL 영속성 + Flyway 마이그레이션 | 책임지는 인프라는 RDB 하나. 웹, 보안, 검색, AWS 를 모른다 |
 > | `:common` | 공통 | 응답 엔벨로프, 에러 코드, 예외, 좌표, 공통 타입 | 외부 의존을 두지 않는다 |
 >

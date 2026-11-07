@@ -3,6 +3,7 @@ package com.example.backend.push.adapter.outbound.messaging
 import com.example.backend.push.adapter.config.PushQueueProperties
 import com.example.backend.push.adapter.messaging.PushQueueMessage
 import com.example.backend.push.application.port.inbound.dto.PushMessage
+import com.example.backend.sqs.SqsMessageSender
 import io.awspring.cloud.sqs.operations.SqsSendOptions
 import io.awspring.cloud.sqs.operations.SqsTemplate
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry
@@ -71,7 +72,7 @@ class PushQueueAdapterTest {
         val beanFactory = DefaultListableBeanFactory()
         sqsTemplate?.let { beanFactory.registerSingleton("sqsTemplate", it) }
         return PushQueueAdapter(
-            beanFactory.getBeanProvider(SqsTemplate::class.java),
+            SqsMessageSender(beanFactory.getBeanProvider(SqsTemplate::class.java)),
             PushQueueProperties(pushQueueUrl = queueUrl),
             Clock.fixed(now, ZoneOffset.UTC),
             meterRegistry,

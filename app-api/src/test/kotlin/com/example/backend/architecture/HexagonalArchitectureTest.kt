@@ -192,6 +192,24 @@ class HexagonalArchitectureTest {
     }
 
     /**
+     * 내부 계층 모듈(core-web, client-*)은 도메인을 모른다. 도메인 포트 구현과 도메인 타입 변환은 app-api 어댑터가 한다.
+     * Gradle 의존(domain-rds 미의존)으로도 막히지만, app-api 의 도메인 패키지(mobile 등)까지 이 규칙으로 함께 막는다.
+     */
+    @Test
+    fun `내부 계층 모듈은 도메인을 참조하지 않는다`() {
+        val internalModules = listOf("web", "opensearch", "s3", "sqs", "kakao", "tmap", "google", "naver", "fcm")
+        val domainPackages =
+            listOf("area", "course", "direction", "media", "mobile", "place", "push", "report", "user")
+        noClasses()
+            .that()
+            .resideInAnyPackage(*internalModules.map { "com.example.backend.$it.." }.toTypedArray())
+            .should()
+            .dependOnClassesThat()
+            .resideInAnyPackage(*domainPackages.map { "com.example.backend.$it.." }.toTypedArray())
+            .check(classes)
+    }
+
+    /**
      * 멀티모듈 전환 시 영속성(domain-rds)과 테스트(app-api)가 다른 모듈이 되어 Table/Entity 의 internal 가시성을 제거했다.
      * 가시성(internal) 대신 이 규칙으로 "어댑터의 Exposed 영속성 내부는 어댑터 밖에서 참조 금지"를 강제한다.
      * (domain, application 과 영속성 어댑터가 같은 domain-rds 모듈이라 컴파일로는 못 막는다. 이 규칙이 전 모듈을 커버한다.)

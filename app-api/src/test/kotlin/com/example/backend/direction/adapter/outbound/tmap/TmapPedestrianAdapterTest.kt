@@ -2,6 +2,8 @@ package com.example.backend.direction.adapter.outbound.tmap
 
 import com.example.backend.common.geo.Coordinate
 import com.example.backend.direction.application.port.outbound.PedestrianRoute
+import com.example.backend.tmap.TmapPedestrianClient
+import com.example.backend.tmap.TmapProperties
 import org.hamcrest.Matchers.containsString
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Test
@@ -24,8 +26,10 @@ class TmapPedestrianAdapterTest {
         val server = MockRestServiceServer.bindTo(builder).build()
         val adapter =
             TmapPedestrianAdapter(
-                tmapRestClient = builder.build(),
-                tmapProperties = TmapProperties(appKey = appKey),
+                TmapPedestrianClient(
+                    tmapRestClient = builder.build(),
+                    tmapProperties = TmapProperties(appKey = appKey),
+                ),
             )
         return adapter to server
     }
