@@ -1,5 +1,6 @@
 package com.example.backend
 
+import com.example.backend.bootstrap.config.AiChatLlmProperties
 import com.example.backend.bootstrap.config.CourseRecommendProperties
 import com.example.backend.bootstrap.config.DocumentDbProperties
 import com.example.backend.bootstrap.config.GooglePlacesProperties
@@ -32,6 +33,7 @@ import org.springframework.boot.runApplication
     DocumentDbProperties::class,
     RedisProperties::class,
     SqsProperties::class,
+    AiChatLlmProperties::class,
 )
 class BackendApplication
 

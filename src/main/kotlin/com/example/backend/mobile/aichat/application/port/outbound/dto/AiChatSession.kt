@@ -15,6 +15,8 @@ data class AiChatSession(
     val place: PlaceSlot? = null,
     val placeCandidates: Map<String, PlaceSlot> = emptyMap(),
     val shownCourseIds: List<Long> = emptyList(),
+    /** 이 세션에서 LLM 슬롯 추출을 호출한 횟수(세션당 상한용). */
+    val llmCalls: Int = 0,
 ) {
     /** 지역 슬롯 — 표시 이름과 법정동코드 prefix(시도 2·시군구 5·읍면동 10자리 혼재 가능). */
     data class RegionSlot(

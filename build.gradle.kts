@@ -89,6 +89,8 @@ dependencies {
         exclude(group = "org.opensearch.client", module = "opensearch-rest-client")
     }
     implementation("org.apache.httpcomponents.client5:httpclient5")
+    // Claude API 공식 Java SDK — AI 채팅의 자유 입력 → 슬롯 JSON 변환(구조화 출력). 키가 비면 빈 미생성·규칙 기반만 동작.
+    implementation("com.anthropic:anthropic-java:2.34.0")
     testImplementation("org.springframework.boot:spring-boot-starter-flyway-test")
     testImplementation("org.springframework.boot:spring-boot-starter-jdbc-test")
     testImplementation("org.springframework.boot:spring-boot-starter-security-test")
