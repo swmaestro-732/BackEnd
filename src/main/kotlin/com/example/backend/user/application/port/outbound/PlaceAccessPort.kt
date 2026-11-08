@@ -31,4 +31,5 @@ data class PlaceRef(
     val location: Coordinate,
     val rating: Double,
     val ratingCount: Int,
+    val categoryDetail: String? = null,
 )

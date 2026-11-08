@@ -50,7 +50,7 @@ class CourseRecommendServiceTest {
             authorId = 7L,
             title = "코스 $id",
             coverImageUrl = "https://img/$id.jpg",
-            theme = "CAFETOUR",
+            themes = listOf("CAFETOUR"),
             area = "성수",
             likesCnt = 1,
             savesCnt = 2,
@@ -65,7 +65,7 @@ class CourseRecommendServiceTest {
         userId = 3L,
         title = "코스 $id",
         coverImageUrl = null,
-        category = CourseCategory.CAFETOUR,
+        categories = listOf(CourseCategory.CAFETOUR),
         area = "성수",
         visibility = CourseVisibility.PUBLIC,
         isPublished = true,
@@ -134,7 +134,7 @@ class CourseRecommendServiceTest {
         val first = page.items[0]
         assertThat(first.authorId).isEqualTo(7L)
         assertThat(first.title).isEqualTo("코스 1")
-        assertThat(first.theme).isEqualTo("CAFETOUR")
+        assertThat(first.themes).containsExactly("CAFETOUR")
         assertThat(first.placeCount).isEqualTo(4)
         assertThat(first.walkingMinutes).isEqualTo(30)
         assertThat(page.items[1].placeCount).isEqualTo(0)
@@ -199,7 +199,7 @@ class CourseRecommendServiceTest {
         assertThat(page.items.map { it.id }).containsExactly(10L, 11L)
         val first = page.items[0]
         assertThat(first.authorId).isEqualTo(3L)
-        assertThat(first.theme).isEqualTo("CAFETOUR")
+        assertThat(first.themes).containsExactly("CAFETOUR")
         assertThat(first.savesCnt).isEqualTo(9)
         assertThat(first.placeCount).isEqualTo(0)
         assertThat(page.items[1].placeCount).isEqualTo(3)

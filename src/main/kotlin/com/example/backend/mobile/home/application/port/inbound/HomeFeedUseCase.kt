@@ -10,7 +10,7 @@ import com.example.backend.mobile.home.application.port.inbound.dto.HomeResult
  */
 interface HomeFeedUseCase {
     /**
-     * 홈 한 화면. 비로그인([viewerId] null)이면 프로필은 null, 좌표([userLocation])가 없거나 비로그인이면
+     * 홈 한 화면. 비로그인([viewerId] null)이면 프로필·따라가는 중 코스는 null, 좌표([userLocation])가 없거나 비로그인이면
      * 근처 저장 장소는 빈 목록이다.
      */
     fun getHome(

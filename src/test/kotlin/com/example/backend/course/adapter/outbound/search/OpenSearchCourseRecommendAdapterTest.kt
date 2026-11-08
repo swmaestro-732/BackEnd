@@ -54,7 +54,7 @@ class OpenSearchCourseRecommendAdapterTest {
         title = "코스 $id",
         description = "설명",
         area = "성수",
-        category = "CAFETOUR",
+        category = listOf("CAFETOUR"),
         tags = listOf("데이트"),
         coverImageUrl = "https://img/$id.jpg",
         visibility = "PUBLIC",
@@ -153,7 +153,7 @@ class OpenSearchCourseRecommendAdapterTest {
         val row = page.hits.first().row
         assertThat(row.authorId).isEqualTo(7L)
         assertThat(row.title).isEqualTo("코스 1")
-        assertThat(row.theme).isEqualTo("CAFETOUR")
+        assertThat(row.themes).containsExactly("CAFETOUR")
         assertThat(row.area).isEqualTo("성수")
         assertThat(row.savesCnt).isEqualTo(11)
         assertThat(row.createdAt).isEqualTo(Instant.ofEpochMilli(1000L))

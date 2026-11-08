@@ -33,7 +33,7 @@ class CourseSearchServiceTest {
             authorId = 1,
             title = "코스",
             coverImageUrl = null,
-            theme = null,
+            themes = emptyList(),
             area = null,
             likesCnt = 0,
             savesCnt = 0,

@@ -5,7 +5,7 @@ import java.time.Instant
 
 /**
  * 웹 응답 DTO — 코스 검색 결과. 검색 히트를 프론트 카드 형태로 내려준다.
- * theme 은 코스 카테고리 이름(HomeFeed 와 동일 계약). nextCursor/hasNext 로 다음 페이지를 잇는다.
+ * themes 는 코스 카테고리 이름들, theme 은 그 첫 값(HomeFeed 와 동일 계약). nextCursor/hasNext 로 다음 페이지를 잇는다.
  */
 data class CourseSearchResponse(
     val courses: List<Item>,
@@ -18,6 +18,7 @@ data class CourseSearchResponse(
         val title: String,
         val coverImageUrl: String?,
         val theme: String?,
+        val themes: List<String>,
         val area: String?,
         val likesCnt: Int,
         val savesCnt: Int,
@@ -34,7 +35,8 @@ data class CourseSearchResponse(
                             authorId = it.authorId,
                             title = it.title,
                             coverImageUrl = it.coverImageUrl,
-                            theme = it.theme,
+                            theme = it.themes.firstOrNull(),
+                            themes = it.themes,
                             area = it.area,
                             likesCnt = it.likesCnt,
                             savesCnt = it.savesCnt,
