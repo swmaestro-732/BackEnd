@@ -16,6 +16,7 @@ import org.junit.jupiter.api.Test
 import org.junit.jupiter.params.ParameterizedTest
 import org.junit.jupiter.params.provider.CsvSource
 import org.junit.jupiter.params.provider.ValueSource
+import java.sql.SQLException
 import java.time.Clock
 import java.time.Duration
 import java.time.Instant
@@ -25,7 +26,8 @@ import java.time.ZoneOffset
 class MarketingPushServiceTest {
     private var tokens = listOf("token-1", "token-2")
     private var enqueuedCount: Int? = null
-    private var recipientFailure: RuntimeException? = null
+    private var recipientFailure: Exception? = null
+    private var deleteFailure: Exception? = null
     private val requestedNights = mutableListOf<Boolean>()
     private val savedCampaigns = mutableListOf<Pair<PushCampaign, Instant>>()
     private val enqueuedCounts = mutableMapOf<Long, Int>()
@@ -69,6 +71,7 @@ class MarketingPushServiceTest {
             }
 
             override fun delete(id: Long) {
+                deleteFailure?.let { throw it }
                 savedCampaigns.removeAt((id - 1).toInt())
             }
         }
@@ -188,10 +191,11 @@ class MarketingPushServiceTest {
 
     @Test
     fun `대상 조회가 실패하면 이력을 지우고 예외를 그대로 던져 바로 다시 보낼 수 있게 한다`() {
-        val failure = IllegalStateException("DB 오류")
+        // 실제 Exposed 쿼리 오류처럼 RuntimeException 이 아닌 SQLException 으로 확인한다.
+        val failure = SQLException("DB 오류")
         recipientFailure = failure
 
-        val thrown = assertThrows(IllegalStateException::class.java) { send() }
+        val thrown = assertThrows(SQLException::class.java) { send() }
 
         assertEquals(failure, thrown)
         assertTrue(savedCampaigns.isEmpty())
@@ -199,6 +203,19 @@ class MarketingPushServiceTest {
         recipientFailure = null
         send()
         assertEquals(1, requestedMessages.size)
+    }
+
+    @Test
+    fun `이력 삭제까지 실패해도 원래 대상 조회 예외를 던지고 삭제 실패는 suppressed 로 붙인다`() {
+        val failure = SQLException("대상 조회 실패")
+        val deleteError = IllegalStateException("삭제 실패")
+        recipientFailure = failure
+        deleteFailure = deleteError
+
+        val thrown = assertThrows(SQLException::class.java) { send() }
+
+        assertEquals(failure, thrown)
+        assertEquals(listOf(deleteError), thrown.suppressed.toList())
     }
 
     @Test

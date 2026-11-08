@@ -104,6 +104,15 @@ class PushSqsConsumerTest {
     }
 
     @Test
+    fun `생성 시각이 소비자 시계보다 앞서도 TTL 을 늘리지 않고 그대로 발송한다`() {
+        val marketing = message.copy(androidTtl = Duration.ofMinutes(30))
+
+        pushSqsConsumer.onMessage(PushQueueMessage(marketing, now.plusSeconds(5)))
+
+        assertEquals(Duration.ofMinutes(30), deliveredMessages.single().androidTtl)
+    }
+
+    @Test
     fun `TTL 이 없는 메시지는 큐에서 기다려도 TTL 없이 발송해 설정값을 쓰게 한다`() {
         pushSqsConsumer.onMessage(PushQueueMessage(message, now.minus(Duration.ofMinutes(29))))
 

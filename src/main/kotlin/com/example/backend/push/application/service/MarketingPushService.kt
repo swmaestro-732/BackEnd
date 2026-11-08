@@ -23,6 +23,7 @@ import java.time.ZoneId
  * 광고성 정보 전송 규정(정보통신망법 제50조)에 맞춰 광고 표기, 수신거부 안내, 야간 동의를 적용해 발송한다.
  * 제목에는 서비스명([커미])을, 본문 앞에는 (광고)를 붙인다.
  * 트랜잭션으로 묶지 않는다. 발송 이력을 먼저 커밋해 두어, 큐 발행이 묶음 중간에 실패해도 이미 나간 광고의 기록이 남게 한다.
+ * 이력 삭제는 발행 전 실패(대상 조회)에만 한다. 발행이 시작된 뒤에는 일부가 이미 나갔을 수 있어 기록을 남긴다.
  * 부분 실패(enqueuedCount < recipientCount) 뒤에는 재발송하지 않는다. 이미 받은 기기에 같은 광고가 다시 가는 것을 피하는 쪽을 택한다.
  */
 @Service
@@ -71,8 +72,9 @@ class MarketingPushService(
         val tokens =
             try {
                 marketingRecipientPort.findTokens(night)
-            } catch (e: RuntimeException) {
-                pushCampaignPersistencePort.delete(campaignId)
+            } catch (e: Exception) {
+                // Exposed 쿼리 오류(ExposedSQLException)는 SQLException 이라 RuntimeException 으로는 잡히지 않는다.
+                runCatching { pushCampaignPersistencePort.delete(campaignId) }.onFailure(e::addSuppressed)
                 throw e
             }
         val enqueuedCount = if (tokens.isEmpty()) 0 else pushUseCase.request(message.copy(tokens = tokens))
