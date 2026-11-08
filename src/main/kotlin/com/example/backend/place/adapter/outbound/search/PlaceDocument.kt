@@ -21,5 +21,6 @@ data class GeoLocation(
 data class PlaceMapSource(
     val name: String,
     val category: String,
+    val address: String,
     val location: GeoLocation,
 )

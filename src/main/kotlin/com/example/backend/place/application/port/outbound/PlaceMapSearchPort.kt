@@ -27,6 +27,7 @@ data class PlaceMapHit(
     val id: Long,
     val name: String,
     val category: String,
+    val address: String,
     val location: Coordinate,
 )
 
