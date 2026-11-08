@@ -98,8 +98,14 @@ class OpenSearchPlaceSearchIntegrationTest
                 assertEquals(101L, hits.totalCount)
                 assertEquals(101L, hits.buckets.sumOf { it.count })
                 assertEquals(listOf(1L, 40L, 60L), hits.buckets.map { it.count }.sorted())
-                assertEquals(baseId + 100, hits.buckets.single { it.count == 1L }.singlePlaceId)
-                assertTrue(hits.ids.size <= 100)
+                assertEquals(
+                    baseId + 100,
+                    hits.buckets
+                        .single { it.count == 1L }
+                        .single
+                        ?.id,
+                )
+                assertTrue(hits.hits.size <= 100)
             } finally {
                 delete(documents.map { it.first })
             }
@@ -136,8 +142,8 @@ class OpenSearchPlaceSearchIntegrationTest
                         sort = PlaceMapSort.DISTANCE,
                     )
 
-                assertEquals(listOf(near, mid, far), hits.ids)
-                assertEquals(listOf(near, mid, far), hits.buckets.map { it.singlePlaceId })
+                assertEquals(listOf(near, mid, far), hits.hits.map { it.id })
+                assertEquals(listOf(near, mid, far), hits.buckets.map { it.single?.id })
             } finally {
                 delete(documents.map { it.first })
             }
@@ -179,7 +185,7 @@ class OpenSearchPlaceSearchIntegrationTest
                 assertEquals(2L, listHits.totalCount)
                 assertEquals(setOf(seoulJung, seoulJungnang), listHits.ids.toSet())
                 assertEquals(2L, mapHits.totalCount)
-                assertEquals(setOf(seoulJung, seoulJungnang), mapHits.ids.toSet())
+                assertEquals(setOf(seoulJung, seoulJungnang), mapHits.hits.map { it.id }.toSet())
                 assertEquals(2L, mapHits.buckets.sumOf { it.count })
             } finally {
                 delete(documents.map { it.first })

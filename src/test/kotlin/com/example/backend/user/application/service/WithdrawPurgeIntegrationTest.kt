@@ -21,7 +21,8 @@ import org.springframework.test.context.jdbc.Sql
 @Sql(
     statements = [
         "TRUNCATE TABLE follows, saved_courses, saved_course_folders, user_like_categories, user_areas, " +
-            "course_likes, tracing_course_places, tracing_courses, plan_places, plans, courses, places, users " +
+            "course_likes, tracing_course_places, tracing_courses, plan_places, plans, courses, places, users, " +
+            "devices " +
             "RESTART IDENTITY CASCADE",
         // A(1) — 탈퇴 대상. 카운터를 실제 관계/코스 수와 맞춰 preset.
         "INSERT INTO users (nickname, handle, bio, profile_image_url, status, social_provider, social_id, " +
@@ -33,6 +34,8 @@ import org.springframework.test.context.jdbc.Sql
         // C(3) — A 가 저장한 코스의 작성자.
         "INSERT INTO users (nickname, handle, status) VALUES ('유저씨', 'c_handle', 'ACTIVE')",
         "INSERT INTO follows (follower_id, following_id) VALUES (1, 2), (2, 1)",
+        "INSERT INTO devices (user_id, device_id, fcm_token) VALUES " +
+            "(1, 'fid-a', 'withdraw-device-a'), (1, 'fid-b', 'withdraw-device-b'), (2, 'fid-o', 'other-device')",
         "INSERT INTO courses (user_id, title, is_published, visibility, created_at) " +
             "VALUES (1, 'A코스1', true, 'PUBLIC', now())",
         "INSERT INTO courses (user_id, title, is_published, visibility, created_at) " +
@@ -67,6 +70,20 @@ class WithdrawPurgeIntegrationTest
         @Test
         fun `탈퇴하면 소유 데이터가 전부 정리되고 상대방 카운터가 보정된다`() {
             userUseCase.withdraw(ME)
+
+            // 기기 행과 토큰은 남고 탈퇴자 연결만 끊긴다. 다른 사용자의 연결은 그대로다.
+            assertEquals(0L, count("SELECT count(*) FROM devices WHERE user_id = 1"))
+            assertEquals(
+                listOf("withdraw-device-a", "withdraw-device-b"),
+                jdbc.queryForList(
+                    "SELECT fcm_token FROM devices WHERE user_id IS NULL ORDER BY fcm_token",
+                    String::class.java,
+                ),
+            )
+            assertEquals(
+                listOf("other-device"),
+                jdbc.queryForList("SELECT fcm_token FROM devices WHERE user_id = 2", String::class.java),
+            )
 
             // 1) 팔로우 — A 가 얽힌 양방향 관계가 전부 사라진다(여기선 그게 전부라 0행).
             assertEquals(0L, count("SELECT count(*) FROM follows"))
