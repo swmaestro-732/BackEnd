@@ -142,20 +142,20 @@ class OpenSearchPlaceSearchAdapterTest {
         assertThat(hits.hits.map { it.id }).containsExactly(7L, 3L)
         // 마커 본문은 DB 재조회 없이 _source 에서 읽는다.
         assertThat(hits.hits).containsExactly(
-            PlaceMapHit(7L, "장소 7", "CAFE", Coordinate(37.07, 127.07)),
-            PlaceMapHit(3L, "장소 3", "RESTAURANT", Coordinate(37.03, 127.03)),
+            PlaceMapHit(7L, "장소 7", "CAFE", "주소 7", Coordinate(37.07, 127.07)),
+            PlaceMapHit(3L, "장소 3", "RESTAURANT", "주소 3", Coordinate(37.03, 127.03)),
         )
         assertThat(hits.buckets.map { it.single?.id }).containsExactly(3L, 7L, null)
         assertThat(
             hits.buckets.first().single,
-        ).isEqualTo(PlaceMapHit(3L, "장소 3", "RESTAURANT", Coordinate(37.03, 127.03)))
+        ).isEqualTo(PlaceMapHit(3L, "장소 3", "RESTAURANT", "주소 3", Coordinate(37.03, 127.03)))
         assertThat(hits.buckets.last().count).isEqualTo(10L)
         assertThat(hits.buckets.last().center).isEqualTo(Coordinate(37.3, 127.3))
         val request = capturedRequest()
         assertThat(request.index()).containsExactly("dev-place")
         assertThat(
             request.source()!!.filter().includes(),
-        ).containsExactly("name", "category", "location", "categoryDetail")
+        ).containsExactly("name", "category", "address", "location", "categoryDetail")
         assertThat(
             request
                 .query()!!
@@ -175,7 +175,7 @@ class OpenSearchPlaceSearchAdapterTest {
                 .source()!!
                 .filter()
                 .includes(),
-        ).containsExactly("name", "category", "location", "categoryDetail")
+        ).containsExactly("name", "category", "address", "location", "categoryDetail")
     }
 
     @Test
@@ -315,6 +315,7 @@ class OpenSearchPlaceSearchAdapterTest {
         PlaceMapSource(
             name = "장소 $id",
             category = if (id == "3") "RESTAURANT" else "CAFE",
+            address = "주소 $id",
             location = GeoLocation(lat = 37.0 + id.toInt() / 100.0, lon = 127.0 + id.toInt() / 100.0),
         )
 
