@@ -35,7 +35,7 @@ class AsyncConfig {
 
     /**
      * 기기 일별 활동 기록 전용 실행기. DB 커넥션 풀이 고갈돼도 요청 스레드가 커넥션을 기다리지 않게 기록을 밖으로 뺀다.
-     * 큐가 차면 기본 AbortPolicy 로 거절하고, 호출부(DeviceActivityRecorder)가 받아 로그를 남기고 다음 요청에 다시 시도한다.
+     * 큐가 차면 기본 AbortPolicy 로 거절하고, 호출부(DeviceActivityService)가 받아 로그를 남기고 다음 요청에 다시 시도한다.
      */
     @Bean(DEVICE_ACTIVITY_EXECUTOR)
     fun deviceActivityExecutor(): ThreadPoolTaskExecutor =

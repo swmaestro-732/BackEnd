@@ -2,7 +2,6 @@ package com.example.backend.user.adapter.outbound.persistence.exposed.repository
 
 import com.example.backend.user.adapter.outbound.persistence.exposed.DeviceActivityTable
 import com.example.backend.user.adapter.outbound.persistence.exposed.DeviceTable
-import com.example.backend.user.adapter.outbound.persistence.exposed.UserTable
 import com.example.backend.user.application.port.inbound.dto.DeviceConsent
 import com.example.backend.user.application.port.inbound.dto.RegisterDeviceTokenCommand
 import com.example.backend.user.application.port.outbound.LockedDevice
@@ -14,10 +13,8 @@ import org.jetbrains.exposed.v1.core.case
 import org.jetbrains.exposed.v1.core.eq
 import org.jetbrains.exposed.v1.core.inList
 import org.jetbrains.exposed.v1.core.isNotNull
-import org.jetbrains.exposed.v1.core.isNull
 import org.jetbrains.exposed.v1.core.neq
 import org.jetbrains.exposed.v1.core.or
-import org.jetbrains.exposed.v1.core.vendors.ForUpdateOption
 import org.jetbrains.exposed.v1.datetime.CurrentTimestamp
 import org.jetbrains.exposed.v1.jdbc.insertIgnore
 import org.jetbrains.exposed.v1.jdbc.select
@@ -32,7 +29,9 @@ import kotlin.time.toJavaInstant
 import kotlin.time.toKotlinInstant
 
 @Repository
-class DeviceRepository {
+class DeviceRepository(
+    private val userRepository: UserRepository,
+) {
     fun saveToken(
         command: RegisterDeviceTokenCommand,
         userId: Long?,
@@ -125,15 +124,8 @@ class DeviceRepository {
         platform: String?,
     ) {
         // 탈퇴(FOR UPDATE)와 같은 사용자 행을 잠가 직렬화한다. 탈퇴 정리 뒤 늦게 온 쓰기가 user_id 를 되살리지 않게
-        // 활성 사용자일 때만 user_id 를 남긴다. 활성 조건은 UserRepository.lockActive 와 같아야 한다.
-        val activeUserId =
-            userId?.takeIf { id ->
-                UserTable
-                    .select(UserTable.id)
-                    .where { (UserTable.id eq id) and UserTable.deletedAt.isNull() }
-                    .forUpdate(ForUpdateOption.PostgreSQL.ForShare())
-                    .any()
-            }
+        // 활성 사용자일 때만 user_id 를 남긴다.
+        val activeUserId = userId?.takeIf { it in userRepository.lockActiveShared(listOf(it)) }
         DeviceActivityTable.upsert(
             onUpdate = {
                 it[DeviceActivityTable.userId] =
