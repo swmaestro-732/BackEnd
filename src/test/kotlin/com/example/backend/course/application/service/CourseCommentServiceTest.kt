@@ -2,6 +2,8 @@ package com.example.backend.course.application.service
 
 import com.example.backend.common.exception.BusinessException
 import com.example.backend.common.response.CourseErrorCode
+import com.example.backend.course.application.event.CourseActivityEvent
+import com.example.backend.course.application.port.inbound.CourseActivityKind
 import com.example.backend.course.application.port.inbound.dto.CreateCourseCommentCommand
 import com.example.backend.course.application.port.inbound.dto.EditCourseCommentCommand
 import com.example.backend.course.application.port.outbound.CourseCommentPersistencePort
@@ -9,20 +11,25 @@ import com.example.backend.course.application.port.outbound.CourseCommentRow
 import com.example.backend.course.application.port.outbound.CoursePersistencePort
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertThrows
-import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import org.mockito.Mockito.inOrder
 import org.mockito.Mockito.mock
 import org.mockito.Mockito.never
 import org.mockito.Mockito.verify
 import org.mockito.Mockito.verifyNoInteractions
+import org.mockito.Mockito.verifyNoMoreInteractions
 import org.mockito.Mockito.`when`
+import org.springframework.context.ApplicationEventPublisher
+import java.time.Clock
 import java.time.Instant
+import java.time.ZoneOffset
 
 class CourseCommentServiceTest {
     private val courses = mock(CoursePersistencePort::class.java)
     private val comments = mock(CourseCommentPersistencePort::class.java)
-    private val service = CourseCommentService(courses, comments)
+    private val eventPublisher = mock(ApplicationEventPublisher::class.java)
+    private val clock = Clock.fixed(CREATED_AT, ZoneOffset.UTC)
+    private val service = CourseCommentService(courses, comments, eventPublisher, clock)
 
     @Test
     fun `댓글을 저장한 결과를 반환하고 코스 댓글 수를 증가시킨다`() {
@@ -34,10 +41,15 @@ class CourseCommentServiceTest {
         val result = service.create(CreateCourseCommentCommand(10L, 7L, "요청 댓글"))
 
         assertEquals(30L, result)
-        val order = inOrder(courses, comments)
+        val order = inOrder(courses, comments, eventPublisher)
         order.verify(courses).existsById(10L)
         order.verify(comments).save(10L, 7L, "요청 댓글")
         order.verify(courses).increaseCommentsCount(10L)
+        order
+            .verify(
+                eventPublisher,
+            ).publishEvent(CourseActivityEvent(CourseActivityKind.COMMENTED, 7L, 10L, CREATED_AT))
+        verifyNoMoreInteractions(eventPublisher)
     }
 
     @Test
@@ -50,6 +62,7 @@ class CourseCommentServiceTest {
             }
 
         assertEquals(CourseErrorCode.COURSE_NOT_FOUND, exception.errorCode)
+        verifyNoInteractions(eventPublisher)
         verifyNoInteractions(comments)
         verify(courses, never()).increaseCommentsCount(10L)
     }
@@ -67,6 +80,7 @@ class CourseCommentServiceTest {
             }
 
         assertEquals(CourseErrorCode.COURSE_NOT_FOUND, exception.errorCode)
+        verifyNoInteractions(eventPublisher)
     }
 
     @Test
@@ -76,7 +90,7 @@ class CourseCommentServiceTest {
         service.edit(EditCourseCommentCommand(10L, 30L, 7L, "수정 댓글"))
 
         verify(comments).updateContent(10L, 30L, 7L, "수정 댓글")
-        verifyNoInteractions(courses)
+        verifyNoInteractions(courses, eventPublisher)
     }
 
     @Test
@@ -89,7 +103,7 @@ class CourseCommentServiceTest {
             }
 
         assertEquals(CourseErrorCode.COURSE_COMMENT_NOT_FOUND, exception.errorCode)
-        verifyNoInteractions(courses)
+        verifyNoInteractions(courses, eventPublisher)
     }
 
     @Test
@@ -111,7 +125,7 @@ class CourseCommentServiceTest {
         val exception = assertThrows(BusinessException::class.java) { service.delete(7L, 10L, 30L) }
 
         assertEquals(CourseErrorCode.COURSE_COMMENT_NOT_FOUND, exception.errorCode)
-        verifyNoInteractions(courses)
+        verifyNoInteractions(courses, eventPublisher)
     }
 
     @Test

@@ -14,6 +14,7 @@ import org.junit.jupiter.api.Test
 
 class PushServiceTest {
     private val enqueuedMessages = mutableListOf<PushMessage>()
+    private val enqueueResults = ArrayDeque<Boolean>()
     private val sentMessages = mutableListOf<PushMessage>()
     private val sendResults = ArrayDeque<PushSendResult>()
     private var sendFailure: RuntimeException? = null
@@ -21,8 +22,10 @@ class PushServiceTest {
 
     private val pushQueuePort =
         object : PushQueuePort {
-            override fun enqueue(message: PushMessage) {
+            override fun enqueue(message: PushMessage): Boolean {
+                if (enqueueResults.removeFirstOrNull() == false) return false
                 enqueuedMessages.add(message)
+                return true
             }
         }
 
@@ -69,11 +72,25 @@ class PushServiceTest {
     fun `토큰 1001개는 500개씩 나누어 큐 메시지 3개로 발행한다`() {
         val tokens = (1..1001).map { "token-$it" }
 
-        pushService.request(message.copy(tokens = tokens))
+        assertEquals(1001, pushService.request(message.copy(tokens = tokens)))
 
         assertEquals(listOf(500, 500, 1), enqueuedMessages.map { it.tokens.size })
         assertEquals(tokens, enqueuedMessages.flatMap { it.tokens })
         enqueuedMessages.forEach { assertEquals("제목", it.title) }
+    }
+
+    @Test
+    fun `큐에 넣지 못한 묶음은 발행 수에서 뺀다`() {
+        enqueueResults.addAll(listOf(true, false, true))
+
+        assertEquals(501, pushService.request(message.copy(tokens = (1..1001).map { "token-$it" })))
+    }
+
+    @Test
+    fun `큐에 하나도 넣지 못하면 0 을 돌려준다`() {
+        enqueueResults.addAll(listOf(false, false))
+
+        assertEquals(0, pushService.request(message.copy(tokens = (1..600).map { "token-$it" })))
     }
 
     @Test

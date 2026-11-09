@@ -159,5 +159,5 @@ class PlaceMapQueryServiceTest {
 
     private fun hits(vararg ids: Long) = ids.map(::hit)
 
-    private fun hit(id: Long) = PlaceMapHit(id, "카페 $id", "CAFE", Coordinate(37.5, 127.0))
+    private fun hit(id: Long) = PlaceMapHit(id, "카페 $id", "CAFE", "주소 $id", Coordinate(37.5, 127.0))
 }
