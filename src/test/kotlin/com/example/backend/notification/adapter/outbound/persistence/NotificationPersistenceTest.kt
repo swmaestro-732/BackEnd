@@ -202,6 +202,26 @@ class NotificationPersistenceTest
         }
 
         @Test
+        fun `행동자를 빼서 인원이 바뀐 묶음은 갱신 시각도 갱신한다`() {
+            transaction {
+                val like = bundle()
+                notificationPersistencePort.upsert(like)
+                notificationPersistencePort.upsert(like.copy(displayActorId = OTHER_ACTOR_ID))
+                // 같은 트랜잭션 안에서는 now() 가 같으므로 기존 갱신 시각을 과거로 돌려 구분한다.
+                exec("UPDATE notifications SET updated_at = updated_at - interval '1 hour' WHERE user_id = $USER_ID")
+                val pastUpdatedAt = notificationPersistencePort.findPage(USER_ID, null, 10).single().updatedAt
+
+                notificationPersistencePort.removeActor(OTHER_ACTOR_ID, like.type, like.targetId, null)
+
+                val row = notificationPersistencePort.findPage(USER_ID, null, 10).single()
+                assertThat(row.actorCount).isEqualTo(1)
+                assertThat(row.displayActorId).isEqualTo(ACTOR_ID)
+                assertThat(row.updatedAt).isAfter(pastUpdatedAt)
+                rollback()
+            }
+        }
+
+        @Test
         fun `받는 사람을 지정하면 그 사람의 묶음에서만 행동자를 뺀다`() {
             transaction {
                 val follow =

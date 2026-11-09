@@ -202,6 +202,7 @@ class NotificationRepository {
             NotificationTable.update({ NotificationTable.id eq id }) {
                 it[NotificationTable.actorCount] = count
                 if (affected[id] == actorId) it[displayActorId] = latestActorId
+                it[updatedAt] = CurrentTimestamp
             }
         }
         return remaining.filterKeys { affected[it] == actorId }.mapValues { it.value.second }
