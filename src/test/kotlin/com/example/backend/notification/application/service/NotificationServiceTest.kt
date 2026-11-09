@@ -155,8 +155,13 @@ class NotificationServiceTest {
         verifyNoInteractions(targets, settings, actors, notifications)
     }
 
+    // 운영 알림은 record 가 아니라 recordSystem 으로만 남고 끄는 설정이 없어 제외한다.
     @ParameterizedTest
-    @EnumSource(NotificationType::class)
+    @EnumSource(
+        NotificationType::class,
+        names = ["COURSE_HIDDEN_BY_ADMIN", "COURSE_DELETED_BY_ADMIN"],
+        mode = EnumSource.Mode.EXCLUDE,
+    )
     fun `받는 사람이 해당 활동 알림을 껐으면 기록하지 않는다`(type: NotificationType) {
         `when`(targets.findCourse(COURSE_ID)).thenReturn(NotificationCourseTarget(OWNER_ID, "한강 산책", COVER_URL))
         `when`(settings.findByUser(OWNER_ID)).thenReturn(
