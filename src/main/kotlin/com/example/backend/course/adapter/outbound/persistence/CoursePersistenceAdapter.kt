@@ -7,12 +7,12 @@ import com.example.backend.course.adapter.outbound.persistence.exposed.repositor
 import com.example.backend.course.adapter.outbound.persistence.exposed.repository.CourseTagRepository
 import com.example.backend.course.adapter.outbound.persistence.exposed.repository.TagRepository
 import com.example.backend.course.application.port.inbound.dto.AuthorCourseCursor
-import com.example.backend.course.application.port.inbound.dto.FeedCursor
 import com.example.backend.course.application.port.outbound.CourseDetailRow
 import com.example.backend.course.application.port.outbound.CoursePersistencePort
 import com.example.backend.course.application.port.outbound.CoursePlaceRow
 import com.example.backend.course.application.port.outbound.CoursePlaceStats
 import com.example.backend.course.application.port.outbound.CourseSummaryRow
+import com.example.backend.course.application.port.outbound.FeedCursor
 import com.example.backend.course.domain.model.Course
 import com.example.backend.course.domain.model.CourseCategory
 import org.springframework.stereotype.Component

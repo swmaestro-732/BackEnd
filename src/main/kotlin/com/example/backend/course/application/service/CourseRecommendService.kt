@@ -4,16 +4,17 @@ import com.example.backend.course.application.port.inbound.CourseRecommendUseCas
 import com.example.backend.course.application.port.inbound.dto.CourseRecommendPage
 import com.example.backend.course.application.port.inbound.dto.CourseRecommendQuery
 import com.example.backend.course.application.port.inbound.dto.CourseSummary
-import com.example.backend.course.application.port.inbound.dto.FeedCursor
 import com.example.backend.course.application.port.outbound.CoursePersistencePort
 import com.example.backend.course.application.port.outbound.CoursePlaceStats
 import com.example.backend.course.application.port.outbound.CourseRecommendAfter
 import com.example.backend.course.application.port.outbound.CourseRecommendCriteria
 import com.example.backend.course.application.port.outbound.CourseRecommendQueryPort
 import com.example.backend.course.application.port.outbound.CourseSearchRow
+import com.example.backend.course.application.port.outbound.FeedCursor
 import com.example.backend.course.domain.model.CourseCategory
 import org.springframework.stereotype.Service
-import org.springframework.transaction.annotation.Transactional
+import org.springframework.transaction.PlatformTransactionManager
+import org.springframework.transaction.support.TransactionTemplate
 import java.time.Instant
 
 /**
@@ -21,13 +22,16 @@ import java.time.Instant
  * 커서 출처(엔진/DB)는 [CourseRecommendCursorCodec] 이 접두사로 보존해 페이지 사이에 정렬이 바뀌지 않는다.
  * 엔진 커서로 진행 중 엔진이 실패하면 DB 로 갈아타지 않고 빈 페이지를 준다(갈아타면 중복·누락이 생긴다).
  * 카드 메타(장소 수·도보 시간)는 두 경로 모두 DB 집계([CoursePersistencePort.findPlaceStats])로 붙인다.
+ * 읽기 트랜잭션은 DB 조회 구간에만 건다 — 엔진 호출 동안 커넥션을 잡아두지 않는다.
  */
 @Service
-@Transactional(readOnly = true)
 class CourseRecommendService(
     private val courseRecommendQueryPort: CourseRecommendQueryPort,
     private val coursePersistencePort: CoursePersistencePort,
+    transactionManager: PlatformTransactionManager,
 ) : CourseRecommendUseCase {
+    private val readTx = TransactionTemplate(transactionManager).apply { isReadOnly = true }
+
     override fun recommend(query: CourseRecommendQuery): CourseRecommendPage {
         val size = query.size.coerceAtLeast(1)
         val category =
@@ -69,7 +73,11 @@ class CourseRecommendService(
                 size = size,
             )
         val page = courseRecommendQueryPort.recommend(criteria) ?: return null
-        val statsByCourse = coursePersistencePort.findPlaceStats(page.hits.map { it.row.id })
+        val statsByCourse =
+            readTx
+                .execute { _ ->
+                    coursePersistencePort.findPlaceStats(page.hits.map { it.row.id })
+                }.orEmpty()
         val nextCursor =
             page.hits.lastOrNull()?.takeIf { page.hasNext }?.let {
                 CourseRecommendCursorCodec.encode(CourseRecommendCursor.Engine(origin, it.score, it.row.id))
@@ -87,10 +95,10 @@ class CourseRecommendService(
         size: Int,
         category: CourseCategory?,
     ): CourseRecommendPage {
-        val rows = coursePersistencePort.findPublishedPublic(cursor, size, category)
+        val rows = readTx.execute { _ -> coursePersistencePort.findPublishedPublic(cursor, size, category) }.orEmpty()
         val page = rows.take(size)
         val hasNext = rows.size > size
-        val statsByCourse = coursePersistencePort.findPlaceStats(page.map { it.id })
+        val statsByCourse = readTx.execute { _ -> coursePersistencePort.findPlaceStats(page.map { it.id }) }.orEmpty()
         val nextCursor =
             page.lastOrNull()?.takeIf { hasNext }?.let {
                 CourseRecommendCursorCodec.encode(

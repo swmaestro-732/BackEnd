@@ -2,7 +2,7 @@ package com.example.backend.course.application.service
 
 import com.example.backend.common.exception.BusinessException
 import com.example.backend.common.response.CommonErrorCode
-import com.example.backend.course.application.port.inbound.dto.FeedCursor
+import com.example.backend.course.application.port.outbound.FeedCursor
 import java.nio.charset.StandardCharsets
 import java.time.DateTimeException
 import java.time.Instant

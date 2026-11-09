@@ -2,7 +2,6 @@ package com.example.backend.course.application.port.outbound
 
 import com.example.backend.common.domain.CourseVisibility
 import com.example.backend.course.application.port.inbound.dto.AuthorCourseCursor
-import com.example.backend.course.application.port.inbound.dto.FeedCursor
 import com.example.backend.course.domain.model.Course
 import com.example.backend.course.domain.model.CourseCategory
 import com.example.backend.course.domain.model.CourseStatus

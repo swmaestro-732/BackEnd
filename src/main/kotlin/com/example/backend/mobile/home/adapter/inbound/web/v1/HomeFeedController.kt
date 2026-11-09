@@ -15,8 +15,8 @@ import org.springframework.web.bind.annotation.RestController
 
 /**
  * 인바운드 어댑터 — **홈 화면** 공개 코스 피드 **화면 조합 API** (BFF). `GET /service/v1/home`.
- * 홈 메인 피드의 MVP — 저장수 내림차순·최신순으로 랭킹한 공개 코스 목록을 내려준다(비로그인 포함 누구나 조회 가능).
- * 조합(공개 후보 조회 + 저장수 집계)은 인바운드 포트([HomeFeedUseCase])가 담당하고,
+ * 홈 메인 피드의 MVP — 추천 점수순(최신성·관심 테마·지역·저장수)으로 랭킹한 공개 코스 목록을 내려준다(비로그인 포함 누구나 조회 가능).
+ * 조합(추천 조회 + 카드 메타)은 인바운드 포트([HomeFeedUseCase])가 담당하고,
  * 컨트롤러는 Request → 포트 호출 → Response 매핑만 한다.
  *
  * 시드/DB 없이 프론트가 붙어볼 수 있도록 `?mock=true` 면 조회 없이 고정 목([HomeFeedResponse.MOCK])을 반환한다.

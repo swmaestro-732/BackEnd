@@ -2,7 +2,6 @@ package com.example.backend.course.application.service
 
 import com.example.backend.common.domain.CourseVisibility
 import com.example.backend.course.application.port.inbound.dto.CourseRecommendQuery
-import com.example.backend.course.application.port.inbound.dto.FeedCursor
 import com.example.backend.course.application.port.outbound.CoursePersistencePort
 import com.example.backend.course.application.port.outbound.CoursePlaceStats
 import com.example.backend.course.application.port.outbound.CourseRecommendAfter
@@ -12,6 +11,7 @@ import com.example.backend.course.application.port.outbound.CourseRecommendQuery
 import com.example.backend.course.application.port.outbound.CourseRecommendResultPage
 import com.example.backend.course.application.port.outbound.CourseSearchRow
 import com.example.backend.course.application.port.outbound.CourseSummaryRow
+import com.example.backend.course.application.port.outbound.FeedCursor
 import com.example.backend.course.domain.model.CourseCategory
 import org.assertj.core.api.Assertions.assertThat
 import org.assertj.core.api.Assertions.assertThatThrownBy
@@ -27,6 +27,8 @@ import org.mockito.Mockito.mock
 import org.mockito.Mockito.never
 import org.mockito.Mockito.verify
 import org.mockito.Mockito.`when`
+import org.springframework.transaction.PlatformTransactionManager
+import org.springframework.transaction.support.SimpleTransactionStatus
 import java.time.Instant
 import java.time.temporal.ChronoUnit
 
@@ -36,7 +38,11 @@ import java.time.temporal.ChronoUnit
 class CourseRecommendServiceTest {
     private val recommendPort = mock(CourseRecommendQueryPort::class.java)
     private val persistence = mock(CoursePersistencePort::class.java)
-    private val service = CourseRecommendService(recommendPort, persistence)
+    private val transactionManager =
+        mock(PlatformTransactionManager::class.java).also {
+            `when`(it.getTransaction(any())).thenReturn(SimpleTransactionStatus())
+        }
+    private val service = CourseRecommendService(recommendPort, persistence, transactionManager)
 
     private val createdAt = Instant.parse("2026-09-01T00:00:00Z")
 

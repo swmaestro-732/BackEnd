@@ -7,9 +7,9 @@ import com.example.backend.course.adapter.outbound.persistence.exposed.CourseCat
 import com.example.backend.course.adapter.outbound.persistence.exposed.CourseEntity
 import com.example.backend.course.adapter.outbound.persistence.exposed.CourseTable
 import com.example.backend.course.application.port.inbound.dto.AuthorCourseCursor
-import com.example.backend.course.application.port.inbound.dto.FeedCursor
 import com.example.backend.course.application.port.outbound.CourseDetailRow
 import com.example.backend.course.application.port.outbound.CourseSummaryRow
+import com.example.backend.course.application.port.outbound.FeedCursor
 import com.example.backend.course.domain.model.Course
 import com.example.backend.course.domain.model.CourseCategory
 import com.example.backend.course.domain.model.CourseStatus
