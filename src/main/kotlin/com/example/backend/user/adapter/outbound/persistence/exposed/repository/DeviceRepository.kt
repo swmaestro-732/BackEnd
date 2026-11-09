@@ -2,6 +2,7 @@ package com.example.backend.user.adapter.outbound.persistence.exposed.repository
 
 import com.example.backend.user.adapter.outbound.persistence.exposed.DeviceActivityTable
 import com.example.backend.user.adapter.outbound.persistence.exposed.DeviceTable
+import com.example.backend.user.adapter.outbound.persistence.exposed.UserTable
 import com.example.backend.user.application.port.inbound.dto.DeviceConsent
 import com.example.backend.user.application.port.inbound.dto.RegisterDeviceTokenCommand
 import com.example.backend.user.application.port.outbound.LockedDevice
@@ -12,10 +13,13 @@ import org.jetbrains.exposed.v1.core.and
 import org.jetbrains.exposed.v1.core.case
 import org.jetbrains.exposed.v1.core.eq
 import org.jetbrains.exposed.v1.core.inList
+import org.jetbrains.exposed.v1.core.isNull
 import org.jetbrains.exposed.v1.core.neq
 import org.jetbrains.exposed.v1.core.or
+import org.jetbrains.exposed.v1.core.vendors.ForUpdateOption
 import org.jetbrains.exposed.v1.datetime.CurrentTimestamp
 import org.jetbrains.exposed.v1.jdbc.insertIgnore
+import org.jetbrains.exposed.v1.jdbc.select
 import org.jetbrains.exposed.v1.jdbc.selectAll
 import org.jetbrains.exposed.v1.jdbc.update
 import org.jetbrains.exposed.v1.jdbc.upsert
@@ -119,6 +123,16 @@ class DeviceRepository {
         userId: Long?,
         platform: String?,
     ) {
+        // 탈퇴(FOR UPDATE)와 같은 사용자 행을 잠가 직렬화한다. 탈퇴 정리 뒤 늦게 온 쓰기가 user_id 를 되살리지 않게
+        // 활성 사용자일 때만 user_id 를 남긴다.
+        val activeUserId =
+            userId?.takeIf { id ->
+                UserTable
+                    .select(UserTable.id)
+                    .where { (UserTable.id eq id) and UserTable.deletedAt.isNull() }
+                    .forUpdate(ForUpdateOption.PostgreSQL.ForShare())
+                    .any()
+            }
         DeviceActivityTable.upsert(
             onUpdate = {
                 it[DeviceActivityTable.userId] =
@@ -129,7 +143,7 @@ class DeviceRepository {
         ) {
             it[DeviceActivityTable.deviceId] = deviceId
             it[activeDate] = date.toKotlinLocalDate()
-            it[DeviceActivityTable.userId] = userId
+            it[DeviceActivityTable.userId] = activeUserId
             it[DeviceActivityTable.platform] = platform
         }
     }

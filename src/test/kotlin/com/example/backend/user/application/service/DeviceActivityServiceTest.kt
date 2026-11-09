@@ -27,6 +27,16 @@ class DeviceActivityServiceTest {
     }
 
     @Test
+    fun `플랫폼 없이 먼저 기록된 기기는 첫 유효 플랫폼이 오면 한 번 더 쓴다`() {
+        val service = DeviceActivityService(devicePersistencePort, Clock.systemUTC(), sync)
+
+        service.record("device-a", null, null)
+        repeat(2) { service.record("device-a", null, "android") }
+
+        assertEquals(listOf("device-a" to null, "device-a" to null), devicePersistencePort.recorded)
+    }
+
+    @Test
     fun `큐가 차서 거절되면 다음 요청에 같은 기기를 다시 기록하려 한다`() {
         var calls = 0
         val rejecting =

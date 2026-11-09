@@ -35,7 +35,10 @@ class DeviceActivityInterceptorIntegrationTest
     ) : IntegrationTestBase() {
         @AfterEach
         fun cleanUp() {
-            transaction { DeviceActivityTable.deleteAll() }
+            transaction {
+                DeviceActivityTable.deleteAll()
+                exec("DELETE FROM users WHERE id = $USER_ID")
+            }
         }
 
         @Test
@@ -85,6 +88,8 @@ class DeviceActivityInterceptorIntegrationTest
         @Test
         fun `비로그인으로 먼저 기록된 기기가 그날 로그인하면 user_id 를 채우고 탈퇴하면 지운다`() {
             val device = UUID.randomUUID().toString()
+            // 활동에는 활성 사용자만 user_id 로 남으므로 사용자 행이 있어야 한다.
+            transaction { exec("INSERT INTO users (id, nickname) VALUES ($USER_ID, '활동사용자') ON CONFLICT DO NOTHING") }
             mockMvc.perform(
                 get("/api/v1/courses/999999")
                     .header(HEADER, device)

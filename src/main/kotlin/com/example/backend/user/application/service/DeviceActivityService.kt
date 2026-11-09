@@ -42,7 +42,9 @@ class DeviceActivityService(
     ) {
         val today = LocalDate.now(clock.withZone(KST))
         val current = seen.takeIf { it.date == today && it.ids.size < MAX_SEEN } ?: DaySeen(today).also { seen = it }
-        val key = if (userId == null) deviceId else "$deviceId$LOGGED_IN_SUFFIX"
+        // 플랫폼 유무도 키에 넣어, 헤더 없이 먼저 기록된 기기도 첫 유효 플랫폼을 한 번 더 써서 채운다(DB 는 NULL 일 때만 채움).
+        val key =
+            deviceId + (if (userId == null) "" else LOGGED_IN_SUFFIX) + (if (platform == null) "" else PLATFORM_SUFFIX)
         if (!current.ids.add(key)) return
 
         try {
@@ -71,5 +73,6 @@ class DeviceActivityService(
         val KST: ZoneId = ZoneId.of("Asia/Seoul")
         const val MAX_SEEN = 100_000
         const val LOGGED_IN_SUFFIX = "#user"
+        const val PLATFORM_SUFFIX = "#platform"
     }
 }
