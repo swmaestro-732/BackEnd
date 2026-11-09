@@ -23,6 +23,7 @@ import org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delet
 import org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get
 import org.springframework.test.web.servlet.result.MockMvcResultMatchers.status
 import java.util.UUID
+import java.util.concurrent.TimeUnit
 
 @AutoConfigureMockMvc
 class DeviceActivityInterceptorIntegrationTest
@@ -136,11 +137,10 @@ class DeviceActivityInterceptorIntegrationTest
                     .map { it[DeviceActivityTable.userId] to it[DeviceActivityTable.platform] }
             }
 
+        // 실행기 스레드가 하나라 빈 작업이 끝나면 앞서 제출된 쓰기도 끝난 것이다.
+        // 큐와 활성 스레드 수를 보는 방식은 워커가 작업을 꺼낸 직후 둘 다 0 으로 보여 쓰기 전에 통과할 수 있다.
         private fun ThreadPoolTaskExecutor.awaitIdle() {
-            val deadline = System.nanoTime() + 5_000_000_000
-            while ((threadPoolExecutor.queue.isNotEmpty() || activeCount > 0) && System.nanoTime() < deadline) {
-                Thread.sleep(10)
-            }
+            submit {}.get(5, TimeUnit.SECONDS)
         }
 
         private companion object {
