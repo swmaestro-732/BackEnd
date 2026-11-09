@@ -225,7 +225,7 @@ class CourseService(
         userId: Long,
     ): CourseDetailRow {
         val existingCourse =
-            coursePersistencePort.findCourseDetail(courseId)
+            coursePersistencePort.findCourseDetailForUpdate(courseId)
                 ?: throw BusinessException(CourseErrorCode.COURSE_NOT_FOUND)
         Course.ensureModifiable(existingCourse.status, existingCourse.userId, userId)
         return existingCourse

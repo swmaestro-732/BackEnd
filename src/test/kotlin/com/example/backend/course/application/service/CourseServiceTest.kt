@@ -163,7 +163,7 @@ class CourseServiceTest {
 
     @Test
     fun `발행 코스의 장소 구성을 바꾸면 수정하지 않는다`() {
-        `when`(persistence.findCourseDetail(10L)).thenReturn(detail(isPublished = true))
+        `when`(persistence.findCourseDetailForUpdate(10L)).thenReturn(detail(isPublished = true))
         `when`(persistence.findPlaces(10L)).thenReturn(storedPlaces().dropLast(1))
 
         val exception = assertThrows(BusinessException::class.java) { service.edit(editCommand(true)) }
@@ -174,7 +174,7 @@ class CourseServiceTest {
 
     @Test
     fun `발행 코스를 삭제하면 삭제 이벤트로 공개범위 감소를 알린다`() {
-        `when`(persistence.findCourseDetail(10L)).thenReturn(detail(isPublished = true))
+        `when`(persistence.findCourseDetailForUpdate(10L)).thenReturn(detail(isPublished = true))
         `when`(persistence.softDelete(10L)).thenReturn(1) // 실제 1행 삭제됨(동시삭제 아님)
 
         service.delete(1L, 10L)
@@ -187,7 +187,7 @@ class CourseServiceTest {
 
     @Test
     fun `softDelete 가 0 을 반환하면(동시 삭제) 이벤트를 발행하지 않는다`() {
-        `when`(persistence.findCourseDetail(10L)).thenReturn(detail(isPublished = true))
+        `when`(persistence.findCourseDetailForUpdate(10L)).thenReturn(detail(isPublished = true))
         `when`(persistence.softDelete(10L)).thenReturn(0) // 이미 다른 요청이 삭제함
 
         service.delete(1L, 10L)
@@ -379,7 +379,7 @@ class CourseServiceTest {
 
     @Test
     fun `다른 사용자 코스를 삭제하려 하면 COURSE_NOT_FOUND 를 던진다`() {
-        `when`(persistence.findCourseDetail(10L)).thenReturn(detail(isPublished = true)) // userId=1L 소유
+        `when`(persistence.findCourseDetailForUpdate(10L)).thenReturn(detail(isPublished = true)) // userId=1L 소유
 
         val exception = assertThrows(BusinessException::class.java) { service.delete(userId = 2L, courseId = 10L) }
 
@@ -420,7 +420,7 @@ class CourseServiceTest {
     }
 
     private fun stubEdit(existing: CourseDetailRow) {
-        `when`(persistence.findCourseDetail(10L)).thenReturn(existing)
+        `when`(persistence.findCourseDetailForUpdate(10L)).thenReturn(existing)
         `when`(persistence.findPlaces(10L)).thenReturn(storedPlaces())
     }
 

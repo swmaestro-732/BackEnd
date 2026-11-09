@@ -2,6 +2,7 @@ package com.example.backend.course.adapter.inbound.web.admin
 
 import com.example.backend.common.exception.BusinessException
 import com.example.backend.common.response.ApiResponse
+import com.example.backend.common.response.CommonErrorCode
 import com.example.backend.course.application.port.inbound.AdminCourseUseCase
 import com.example.backend.course.application.port.inbound.dto.AdminCourseAuthorType
 import com.example.backend.course.application.port.inbound.dto.AdminCourseDetail
@@ -9,6 +10,7 @@ import com.example.backend.course.application.port.inbound.dto.AdminCoursePage
 import com.example.backend.course.application.port.inbound.dto.AdminCourseQuery
 import com.example.backend.course.application.port.inbound.dto.AdminCourseStatus
 import com.example.backend.course.domain.model.CourseCategory
+import io.github.oshai.kotlinlogging.KotlinLogging
 import jakarta.validation.Valid
 import org.springframework.security.core.annotation.AuthenticationPrincipal
 import org.springframework.security.oauth2.jwt.Jwt
@@ -33,6 +35,8 @@ import org.springframework.web.bind.annotation.RestController
 class AdminCourseController(
     private val adminCourseUseCase: AdminCourseUseCase,
 ) {
+    private val log = KotlinLogging.logger {}
+
     /** 목록. status 가 없으면 삭제되지 않은 전체, page 는 0부터, size 는 1~100. q 는 제목, 작성자 닉네임, 코스 id. */
     @GetMapping
     fun list(
@@ -98,13 +102,14 @@ class AdminCourseController(
         return ApiResponse.ok("코스를 삭제했습니다.")
     }
 
+    /** 삭제된 코스를 숨김 상태로 복원한다. 공개하려면 unhide 를 따로 부른다. */
     @PostMapping("/{courseId}/restore")
     fun restore(
         @AuthenticationPrincipal jwt: Jwt,
         @PathVariable courseId: Long,
     ): ApiResponse<Nothing?> {
         adminCourseUseCase.restore(adminEmail(jwt), courseId)
-        return ApiResponse.ok("코스를 복원했습니다.")
+        return ApiResponse.ok("코스를 숨김 상태로 복원했습니다. 공개하려면 숨김을 해제하세요.")
     }
 
     /** 일괄 조치: 건마다 별도 트랜잭션이라 일부만 성공할 수 있고, 건별 결과를 요청 순서대로 돌려준다. */
@@ -125,6 +130,15 @@ class AdminCourseController(
                     AdminCourseBulkItemResponse(id, success = true)
                 } catch (e: BusinessException) {
                     AdminCourseBulkItemResponse(id, success = false, code = e.errorCode.code, message = e.message)
+                } catch (e: Exception) {
+                    // 한 건의 예기치 못한 실패가 나머지 건을 막지 않게 건별 실패로 담는다.
+                    log.error(e) { "어드민 코스 일괄 조치 실패: id=$id, action=${request.action}" }
+                    AdminCourseBulkItemResponse(
+                        id,
+                        success = false,
+                        code = CommonErrorCode.INTERNAL_ERROR.code,
+                        message = CommonErrorCode.INTERNAL_ERROR.message,
+                    )
                 }
             },
         )

@@ -91,7 +91,7 @@ class AdminCoursePersistenceAdapter(
                 (CourseTable.id eq courseId) and (CourseTable.status eq CourseStatus.DELETED) and
                     CourseTable.deletedAt.isNotNull()
             }) {
-                it[status] = CourseStatus.ACTIVE
+                it[status] = CourseStatus.HIDDEN
                 it[deletedAt] = null
                 it[updatedAt] = Clock.System.now()
             }

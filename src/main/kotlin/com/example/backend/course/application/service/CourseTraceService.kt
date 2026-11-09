@@ -139,8 +139,9 @@ class CourseTraceService(
     @Transactional
     override fun end(command: EndCourseTraceCommand) {
         val trace = ownedInProgress(command.userId, command.traceId)
-        requirePlacesInCourse(trace.courseId, command.visitedPlaces.map { it.placeId })
-        command.visitedPlaces.forEach {
+        // 따라가는 동안 코스에서 빠진 장소(어드민 편집 등)는 400 으로 완주를 막지 않고 기록에서만 뺀다.
+        val coursePlaceIds = coursePersistencePort.findPlaces(trace.courseId).mapTo(mutableSetOf()) { it.placeId }
+        command.visitedPlaces.filter { it.placeId in coursePlaceIds }.forEach {
             courseTracePersistencePort.insertVisitedPlace(trace.id, it.placeId, it.visitedAt)
         }
         // 0행이면 그 사이 다른 요청이 먼저 종료한 것 — 체크인 병합까지 롤백한다.

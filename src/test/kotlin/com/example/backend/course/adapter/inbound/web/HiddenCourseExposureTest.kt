@@ -101,6 +101,26 @@ class HiddenCourseExposureTest
         }
 
         @Test
+        fun `소유자 편집과 삭제가 404 로 끝나 작성자 개수가 그대로다`() {
+            val body =
+                """
+                {"title":"편집","visibility":"PRIVATE","isPublished":false,
+                 "places":[{"placeId":1,"orderNo":0},{"placeId":2,"orderNo":1}]}
+                """.trimIndent()
+            expectNotFound(patch("/api/v1/courses/$HIDDEN_COURSE_ID").asUser(OWNER_ID).json(body))
+            expectNotFound(delete("/api/v1/courses/$HIDDEN_COURSE_ID").asUser(OWNER_ID))
+
+            assertEquals(
+                1,
+                jdbcTemplate.queryForObject("SELECT public_courses_cnt FROM users WHERE id = 2", Int::class.java),
+            )
+            assertEquals(
+                "숨긴 큐레이터 코스",
+                jdbcTemplate.queryForObject("SELECT title FROM courses WHERE id = 4", String::class.java),
+            )
+        }
+
+        @Test
         fun `좋아요와 따라가기를 할 수 없다`() {
             expectNotFound(post("/api/v1/courses/$HIDDEN_COURSE_ID/likes").asUser(OTHER_ID))
             expectNotFound(post("/api/v1/courses/$HIDDEN_COURSE_ID/traces").asUser(OTHER_ID))

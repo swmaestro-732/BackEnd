@@ -246,13 +246,14 @@ class AdminCourseService(
         courseId: Long,
     ) {
         val course = requireCourse(courseId, lock = true)
-        // 탈퇴한 작성자의 코스는 되살리지 않는다(닉네임 조회는 활성 사용자만 돌려준다).
-        if (course.userId !in courseAuthorPort.findNicknames(listOf(course.userId))) {
+        // 탈퇴한 작성자의 코스는 되살리지 않는다. 작성자 행을 공유 잠금해 복원 커밋까지 탈퇴와 직렬화한다.
+        if (course.userId !in courseAuthorPort.lockActive(listOf(course.userId))) {
             throw BusinessException(CourseErrorCode.COURSE_STATUS_CONFLICT, "탈퇴한 작성자의 코스는 복원할 수 없습니다: id=$courseId")
         }
         val restored =
             adminCoursePersistencePort.restore(courseId)
                 ?: throw BusinessException(CourseErrorCode.COURSE_STATUS_CONFLICT, "삭제된 코스만 복원할 수 있습니다: id=$courseId")
+        // 숨김으로 돌아오므로 개수 전이는 null 에서 null(변화 없음), 색인기는 공개가 아니라 지운다.
         eventPublisher.publishEvent(CourseSavedEvent(restored, oldVisibility = null))
         adminActionPort.record(adminEmail, courseId, ACTION_RESTORE)
     }

@@ -65,6 +65,6 @@ interface AdminCoursePersistencePort {
         to: CourseStatus,
     ): Course?
 
-    /** 삭제된 코스를 ACTIVE 로 되돌리고(deleted_at 비움) 색인용 코스를 돌려준다. 삭제 상태가 아니면 null. */
+    /** 삭제된 코스를 숨김(HIDDEN)으로 되돌리고(deleted_at 비움) 색인용 코스를 돌려준다. 삭제 상태가 아니면 null. */
     fun restore(courseId: Long): Course?
 }

@@ -230,10 +230,14 @@ class CourseRepository(
             .empty()
 
     /** deleted_at IS NULL 인 코스 본문만 읽어 상세 읽기 모델을 만든다(상태·공개범위 판정은 서비스). */
-    fun findDetail(courseId: Long): CourseDetailRow? =
+    fun findDetail(
+        courseId: Long,
+        forUpdate: Boolean = false,
+    ): CourseDetailRow? =
         CourseTable
             .selectAll()
             .where { (CourseTable.id eq courseId) and CourseTable.deletedAt.isNull() }
+            .let { if (forUpdate) it.forUpdate() else it }
             .singleOrNull()
             ?.let { listOf(it).toDetailRows().single() }
 

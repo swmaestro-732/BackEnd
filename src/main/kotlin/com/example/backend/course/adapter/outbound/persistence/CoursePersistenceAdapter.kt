@@ -37,6 +37,9 @@ class CoursePersistenceAdapter(
 
     override fun findCourseDetail(courseId: Long): CourseDetailRow? = courseRepository.findDetail(courseId)
 
+    override fun findCourseDetailForUpdate(courseId: Long): CourseDetailRow? =
+        courseRepository.findDetail(courseId, forUpdate = true)
+
     override fun findCourseDetails(courseIds: List<Long>): List<CourseDetailRow> =
         courseRepository.findDetails(courseIds)
 

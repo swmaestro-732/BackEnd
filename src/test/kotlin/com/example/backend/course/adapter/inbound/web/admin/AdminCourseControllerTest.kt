@@ -208,9 +208,10 @@ class AdminCourseControllerTest
         }
 
         @Test
-        fun `사용자 코스를 삭제하면 작성자에게 알리고 삭제된 코스는 활성으로 복원한다`() {
+        fun `사용자 코스를 삭제하면 작성자에게 알리고 삭제된 코스는 숨김 상태로 복원한다`() {
             mockMvc.perform(admin(delete("/admin/v1/courses/1"))).andExpect(status().isOk)
             assertEquals("DELETED", courseStatus(1))
+            assertEquals(0, publicCount(1))
             assertEquals(
                 1L,
                 events
@@ -223,13 +224,52 @@ class AdminCourseControllerTest
             assertEquals(listOf("COURSE_DELETED_BY_ADMIN"), notifications(1))
 
             mockMvc.perform(admin(post("/admin/v1/courses/5/restore"))).andExpect(status().isOk)
-            assertEquals("ACTIVE", courseStatus(5))
+            assertEquals("HIDDEN", courseStatus(5))
             assertNull(jdbcTemplate.queryForObject("SELECT deleted_at FROM courses WHERE id = 5", Any::class.java))
+            // 복원은 숨김이라 앱에는 아직 안 보이고 개수도 그대로다. 공개는 unhide 로 따로 한다.
+            mockMvc.perform(get("/service/v1/courses/5")).andExpect(status().isNotFound)
+            assertEquals(0, publicCount(1))
+            mockMvc.perform(admin(post("/admin/v1/courses/5/unhide"))).andExpect(status().isOk)
             mockMvc.perform(get("/service/v1/courses/5")).andExpect(status().isOk)
-            assertEquals(listOf("DELETE"), actions(1))
-            assertEquals(listOf("RESTORE"), actions(5))
-            // 삭제 -1, 복원 +1 로 처음과 같다.
             assertEquals(1, publicCount(1))
+            assertEquals(listOf("DELETE"), actions(1))
+            assertEquals(listOf("RESTORE", "UNHIDE"), actions(5))
+        }
+
+        @Test
+        fun `숨긴 코스를 삭제했다 복원하면 숨김으로 돌아오고 색인과 개수가 그대로다`() {
+            mockMvc.perform(admin(delete("/admin/v1/courses/4"))).andExpect(status().isOk)
+            mockMvc.perform(admin(post("/admin/v1/courses/4/restore"))).andExpect(status().isOk)
+
+            assertEquals("HIDDEN", courseStatus(4))
+            // 숨김 코스는 개수에 잡히지 않아 삭제(old=null)와 복원(old=null, new=null) 모두 변화가 없다.
+            assertEquals(
+                null,
+                events
+                    .stream(CourseDeletedEvent::class.java)
+                    .toList()
+                    .single()
+                    .oldVisibility,
+            )
+            val restored = events.stream(CourseSavedEvent::class.java).toList().single()
+            assertEquals(null, restored.oldVisibility)
+            assertEquals(null, restored.newVisibility)
+            assertEquals(false, restored.newCourse.isPubliclyVisible)
+            assertEquals(1, publicCount(2))
+        }
+
+        @Test
+        fun `숨긴 큐레이터 코스를 어드민이 편집해도 숨김 그대로라 색인에서 빠지고 개수가 그대로다`() {
+            mockMvc
+                .perform(admin(patch("/admin/v1/courses/4")).json(editBody(currentUpdatedAt(4))))
+                .andExpect(status().isOk)
+                .andExpect(jsonPath("$.data.status").value("HIDDEN"))
+
+            val saved = events.stream(CourseSavedEvent::class.java).toList().single()
+            assertEquals(false, saved.newCourse.isPubliclyVisible)
+            assertEquals(null, saved.oldVisibility)
+            assertEquals(null, saved.newVisibility)
+            assertEquals(1, publicCount(2))
         }
 
         @Test
