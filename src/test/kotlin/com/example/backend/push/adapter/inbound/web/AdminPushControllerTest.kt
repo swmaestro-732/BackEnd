@@ -2,14 +2,18 @@ package com.example.backend.push.adapter.inbound.web
 
 import com.example.backend.admin.application.port.outbound.AdminTokenPort
 import com.example.backend.bootstrap.security.JwtTokenProvider
+import com.example.backend.push.application.port.outbound.PushQueuePort
 import com.example.backend.support.IntegrationTestBase
+import com.jayway.jsonpath.JsonPath
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Test
+import org.mockito.Mockito.`when`
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc
 import org.springframework.http.HttpHeaders
 import org.springframework.http.MediaType
 import org.springframework.jdbc.core.JdbcTemplate
+import org.springframework.test.context.bean.override.mockito.MockitoBean
 import org.springframework.test.context.jdbc.Sql
 import org.springframework.test.web.servlet.MockMvc
 import org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post
@@ -40,6 +44,41 @@ class AdminPushControllerTest
         private val jwtTokenProvider: JwtTokenProvider,
         private val jdbcTemplate: JdbcTemplate,
     ) : IntegrationTestBase() {
+        // 테스트 환경은 SQS 가 없으므로 큐 발행 결과를 테스트마다 정한다. 기본값 false 는 발행 실패다.
+        @MockitoBean
+        private lateinit var pushQueuePort: PushQueuePort
+
+        @Test
+        fun `어드민 토큰으로 발송하면 캠페인을 기록하고 id 와 대상 수와 큐 발행 수를 돌려준다`() {
+            // 실제 시계를 쓰므로 발송 금지 시간대(KST 20시 30분부터 21시 전)에는 건너뛴다. 거부 응답은 아래 테스트가 확인한다.
+            val kstTime = LocalTime.now(ZoneId.of("Asia/Seoul"))
+            if (kstTime >= LocalTime.of(20, 30) && kstTime < LocalTime.of(21, 0)) return
+            `when`(pushQueuePort.enqueue(anyArg())).thenReturn(true)
+
+            val body =
+                mockMvc
+                    .perform(
+                        sendRequest(adminTokenPort.issue("admin@example.com", "admin-google-sub").token, validBody),
+                    ).andExpect(status().isOk)
+                    .andExpect(jsonPath("$.code").value(2000))
+                    .andExpect(jsonPath("$.data.recipientCount").value(1))
+                    .andExpect(jsonPath("$.data.enqueuedCount").value(1))
+                    .andReturn()
+                    .response.contentAsString
+            val campaignId = (JsonPath.read<Number>(body, "$.data.campaignId")).toLong()
+
+            val row = jdbcTemplate.queryForMap("SELECT * FROM push_campaigns WHERE id = ?", campaignId)
+            assertEquals("admin@example.com", row["admin_email"])
+            assertEquals("[커미] 가을 코스", row["title"])
+            assertEquals(1, row["recipient_count"])
+            assertEquals(1, row["enqueued_count"])
+
+            mockMvc
+                .perform(sendRequest(adminTokenPort.issue("admin@example.com", "admin-google-sub").token, validBody))
+                .andExpect(status().isConflict)
+                .andExpect(jsonPath("$.code").value(4300))
+        }
+
         @Test
         fun `큐에 하나도 넣지 못하면 500 으로 응답하고 이력을 남기지 않는다`() {
             // 실제 시계를 쓰므로 발송 금지 시간대(KST 20시 30분부터 21시 전)에는 거부 응답을 확인한다.
@@ -52,7 +91,6 @@ class AdminPushControllerTest
                     .andExpect(jsonPath("$.code").value(4001))
                 return
             }
-            // 테스트 환경은 큐가 없어 발행되지 않는다.
             mockMvc
                 .perform(sendRequest(adminTokenPort.issue("admin@example.com", "admin-google-sub").token, validBody))
                 .andExpect(status().isInternalServerError)
@@ -98,3 +136,7 @@ class AdminPushControllerTest
             .contentType(MediaType.APPLICATION_JSON)
             .content(content)
     }
+
+/** Kotlin 에서 null 검사 없이 쓰는 Mockito any(). mockito-kotlin 과 같은 방식이다. */
+@Suppress("UNCHECKED_CAST")
+private fun <T> anyArg(): T = org.mockito.Mockito.any<T>() as T
