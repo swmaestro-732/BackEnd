@@ -208,12 +208,17 @@ class CourseRepository(
         }
     }
 
-    /** deleted_at IS NULL 인 코스가 존재하는지만 확인한다(duplicate 원본 검증 등, 본문 미적재). */
+    /**
+     * 활성(status=ACTIVE, deleted_at IS NULL) 코스가 존재하는지만 확인한다(본문 미적재).
+     * 댓글, 리뷰 작성, 계획 원본, 저장 같은 사용자 행동의 대상 확인이라 숨김(HIDDEN) 코스는 없는 코스로 본다.
+     */
     fun existsById(courseId: Long): Boolean =
         !CourseTable
             .selectAll()
-            .where { (CourseTable.id eq courseId) and CourseTable.deletedAt.isNull() }
-            .limit(1)
+            .where {
+                (CourseTable.id eq courseId) and
+                    (CourseTable.status eq CourseStatus.ACTIVE) and CourseTable.deletedAt.isNull()
+            }.limit(1)
             .empty()
 
     /** deleted_at IS NULL 인 코스 본문만 읽어 상세 읽기 모델을 만든다(상태·공개범위 판정은 서비스). */

@@ -54,6 +54,24 @@ class CourseSearchSyncListenerTest {
     }
 
     @Test
+    fun `onCourseSaved 는 숨김 초안 비공개 코스를 색인에서 지운다`() {
+        listener.onCourseSaved(CourseSavedEvent(course(1L, status = CourseStatus.HIDDEN), CourseVisibility.PUBLIC))
+        listener.onCourseSaved(CourseSavedEvent(course(2L, isPublished = false), null))
+        listener.onCourseSaved(CourseSavedEvent(course(3L, visibility = CourseVisibility.FOLLOWER), null))
+
+        assertEquals(emptyList<Course>(), savedCourses)
+        assertEquals(listOf(1L, 2L, 3L), deletedIds)
+    }
+
+    @Test
+    fun `숨김 코스는 작성자 개수에 잡히지 않는다`() {
+        val hidden = CourseSavedEvent(course(1L, status = CourseStatus.HIDDEN), CourseVisibility.PUBLIC)
+
+        assertEquals(CourseVisibility.PUBLIC, hidden.oldVisibility)
+        assertNull(hidden.newVisibility)
+    }
+
+    @Test
     fun `저장 이벤트는 발행 코스만 집계하고 코스 교체 시 파생값도 바뀐다`() {
         for (visibility in CourseVisibility.entries) {
             val published = CourseSavedEvent(course(1L, visibility = visibility), CourseVisibility.FOLLOWER)
@@ -89,11 +107,12 @@ class CourseSearchSyncListenerTest {
         visibility: CourseVisibility = CourseVisibility.PUBLIC,
         isPublished: Boolean = true,
         userId: Long = 1L,
+        status: CourseStatus = CourseStatus.ACTIVE,
     ): Course =
         Course.reconstitute(
             id = id,
             userId = userId,
-            status = CourseStatus.ACTIVE,
+            status = status,
             title = "코스 $id",
             description = null,
             coverImageUrl = null,

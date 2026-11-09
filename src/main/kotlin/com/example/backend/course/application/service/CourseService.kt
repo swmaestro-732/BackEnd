@@ -81,24 +81,36 @@ class CourseService(
     }
 
     /** 코스 편집(전체 치환) — 소유·발행 불변식 검증 후 저장하고 [CourseSavedEvent] 를 발행한다. */
-    override fun edit(command: EditCourseCommand): Course {
-        val existingCourse = requireOwnedCourse(command.courseId, command.userId)
+    override fun edit(command: EditCourseCommand): Course =
+        editCourse(requireOwnedCourse(command.courseId, command.userId), command, byAdmin = false)
 
+    /**
+     * 접근 정책을 통과한 코스를 편집한다. 어드민 편집([AdminCourseService])도 같은 경로를 탄다.
+     * [byAdmin] 이면 발행 코스의 장소 구성 불변식을 건너뛰고(큐레이터 코스 장소 교정) 지역코드를 장소로 다시 정한다.
+     * 장소 수, 발행 시 커버와 장소 사진 같은 도메인 규칙은 그대로 적용한다.
+     */
+    fun editCourse(
+        existingCourse: CourseDetailRow,
+        command: EditCourseCommand,
+        byAdmin: Boolean,
+    ): Course {
         val newPlaces = command.places.toCoursePlaces()
-        Course.ensurePublishedPlacesUnchanged(
-            wasPublished = existingCourse.isPublished,
-            storedPlaces =
-                coursePersistencePort.findPlaces(command.courseId).map {
-                    CoursePlace(
-                        it.placeId,
-                        it.orderNo,
-                        it.caption,
-                        it.images.map(CoursePlaceImageRow::imageUrl),
-                        it.walkingMinutes,
-                    )
-                },
-            newPlaces = newPlaces,
-        )
+        if (!byAdmin) {
+            Course.ensurePublishedPlacesUnchanged(
+                wasPublished = existingCourse.isPublished,
+                storedPlaces =
+                    coursePersistencePort.findPlaces(command.courseId).map {
+                        CoursePlace(
+                            it.placeId,
+                            it.orderNo,
+                            it.caption,
+                            it.images.map(CoursePlaceImageRow::imageUrl),
+                            it.walkingMinutes,
+                        )
+                    },
+                newPlaces = newPlaces,
+            )
+        }
         // 복제 초안은 편집(발행 포함)에서도 원본 장소 유지 규칙을 다시 본다 — 발행 코스는 위 가드로 장소가 안 바뀐다.
         // 원본 공개범위는 생성 시점에 이미 통과했으니 여기선 삭제 여부만 본다: 원본이 삭제됐으면 참조를 끊고 일반 코스로 전환한다.
         val duplicatedFromId = existingCourse.duplicatedFromId?.takeIf { coursePersistencePort.existsById(it) }
@@ -112,7 +124,7 @@ class CourseService(
         val areaCode =
             Course.editAreaCode(
                 isPublished = command.isPublished,
-                wasPublished = existingCourse.isPublished,
+                wasPublished = existingCourse.isPublished && !byAdmin,
                 existingAreaCode = existingCourse.areaCode,
                 places = newPlaces,
                 placeAreaCodeByPlaceId = foundPlaces.associate { it.id to it.areaCode },
@@ -127,7 +139,8 @@ class CourseService(
                 areaCode,
                 resolveAreaName(areaCode),
             ),
-            removed = Course.countedVisibility(existingCourse.isPublished, existingCourse.visibility),
+            removed =
+                Course.countedVisibility(existingCourse.status, existingCourse.isPublished, existingCourse.visibility),
         )
     }
 
@@ -147,7 +160,12 @@ class CourseService(
             CourseDeletedEvent(
                 courseId = courseId,
                 authorId = userId,
-                oldVisibility = Course.countedVisibility(existingCourse.isPublished, existingCourse.visibility),
+                oldVisibility =
+                    Course.countedVisibility(
+                        existingCourse.status,
+                        existingCourse.isPublished,
+                        existingCourse.visibility,
+                    ),
             ),
         )
     }
@@ -158,7 +176,7 @@ class CourseService(
         removed: CourseVisibility?,
     ): Course {
         val updatedCourse = coursePersistencePort.update(course)
-        // 편집은 ACTIVE 코스만 통과한다(위 가드). 발행 상태·공개범위 전이(초안→발행, 발행→초안, 공개범위 변경, 변화 없음)를
+        // 사용자 편집은 ACTIVE 코스만 통과한다(위 가드, 어드민 편집은 숨김 코스도 통과하며 상태는 그대로 둔다). 발행 상태, 공개범위 전이(초안→발행, 발행→초안, 공개범위 변경, 변화 없음)를
         // 이벤트에 실어 보내면 user 도메인이 버킷 델타를 계산한다. 검색 색인도 같은 이벤트를 소비한다(커밋 후).
         // 새 상태는 요청이 아니라 저장 결과([updatedCourse])에서 도출한다.
         eventPublisher.publishEvent(

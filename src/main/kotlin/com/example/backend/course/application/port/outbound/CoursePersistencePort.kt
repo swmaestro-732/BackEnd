@@ -111,7 +111,7 @@ interface CoursePersistencePort {
         category: CourseCategory? = null,
     ): List<CourseSummaryRow>
 
-    /** 미삭제(deleted_at IS NULL) 코스가 존재하는지 확인한다(duplicate 원본 검증 등). */
+    /** 활성(status=ACTIVE, 미삭제) 코스가 존재하는지 확인한다: 숨김 코스는 사용자 행동(댓글, 리뷰, 계획, 저장) 대상이 아니다. */
     fun existsById(courseId: Long): Boolean
 
     fun findPlaces(courseId: Long): List<CoursePlaceRow>

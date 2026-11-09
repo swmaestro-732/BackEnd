@@ -13,6 +13,8 @@ import org.jetbrains.exposed.v1.core.eq
 import org.jetbrains.exposed.v1.core.inList
 import org.jetbrains.exposed.v1.core.isNotNull
 import org.jetbrains.exposed.v1.core.isNull
+import org.jetbrains.exposed.v1.core.like
+import org.jetbrains.exposed.v1.core.lowerCase
 import org.jetbrains.exposed.v1.core.neq
 import org.jetbrains.exposed.v1.core.plus
 import org.jetbrains.exposed.v1.core.vendors.ForUpdateOption
@@ -117,6 +119,18 @@ class UserRepository(
                     handle = it.handle,
                 )
             }
+
+    /** 닉네임 부분 일치(대소문자 무시) 활성 사용자 id. 어드민 검색어라 LIKE 와일드카드는 이스케이프하지 않는다. */
+    fun findIdsByNickname(
+        keyword: String,
+        limit: Int,
+    ): List<Long> =
+        UserTable
+            .select(UserTable.id)
+            .where { (UserTable.nickname.lowerCase() like "%${keyword.lowercase()}%") and UserTable.deletedAt.isNull() }
+            .orderBy(UserTable.id to SortOrder.ASC)
+            .limit(limit)
+            .map { it[UserTable.id].value }
 
     internal fun save(user: User): UserEntity =
         UserEntity

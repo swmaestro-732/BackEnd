@@ -35,8 +35,14 @@ data class Course private constructor(
     val tags: List<String>,
     val places: List<CoursePlace>,
 ) {
-    /** 이 코스가 작성자 개수에 기여하는 공개범위. 임시저장은 집계하지 않는다. */
-    val countedVisibility: CourseVisibility? get() = countedVisibility(isPublished, visibility)
+    /** 이 코스가 작성자 개수에 기여하는 공개범위. 임시저장과 숨김, 삭제 코스는 집계하지 않는다. */
+    val countedVisibility: CourseVisibility? get() = countedVisibility(status, isPublished, visibility)
+
+    /**
+     * 누구에게나 보이는 코스인지(활성, 발행, PUBLIC): "공개"의 단일 정의.
+     * 검색 색인은 이 값이 참이면 저장, 거짓이면 삭제하고, 작성자 코스 개수도 같은 [countedVisibility] 규칙을 쓴다.
+     */
+    val isPubliclyVisible: Boolean get() = countedVisibility == CourseVisibility.PUBLIC
 
     companion object {
         /** 코스가 담아야 하는 최소 장소 수 — 발행·임시저장 공통. */
@@ -64,27 +70,43 @@ data class Course private constructor(
         }
 
         /**
-         * 작성자 코스 개수에 "잡히는" 공개범위 — 발행·활성 코스만 카운트 대상이라 발행이면 [visibility], 임시저장이면 null.
+         * 작성자 코스 개수에 "잡히는" 공개범위: 발행, 활성 코스만 카운트 대상이라 활성 발행이면 [visibility], 아니면 null.
+         * 숨김(HIDDEN)은 활성이 아니라 빠진다: 숨김, 해제, 삭제, 복원이 이 규칙 하나로 개수를 옮긴다.
          * 어느 공개범위가 어느 버킷으로 가는지·델타 계산은 카운트를 소유한 user 도메인 몫이고 여기선 카운트 대상 여부만 정한다.
          * 편집·삭제 전 읽기 모델의 상태에도 같은 규칙을 적용한다. Course 객체는 [Course.countedVisibility] 로 조회한다.
          */
         fun countedVisibility(
+            status: CourseStatus,
             isPublished: Boolean,
             visibility: CourseVisibility,
-        ): CourseVisibility? = if (isPublished) visibility else null
+        ): CourseVisibility? = if (status == CourseStatus.ACTIVE && isPublished) visibility else null
 
         /**
-         * 편집·삭제 접근 정책 — 소유자 본인의 아직 삭제되지 않은 코스만 쓰기(편집/삭제)할 수 있다.
-         * 접근 정책이 바뀌면(예: 발행 코스 삭제 제한, 관리자 예외) **이 함수만** 고친다 — 서비스는 조회 후 위임만 한다.
+         * 편집, 삭제 접근 정책: 소유자 본인의 활성 코스만 쓰기(편집/삭제)할 수 있다.
+         * 숨김(HIDDEN) 코스는 소유자에게도 없는 코스처럼 404 다(어드민 API 만 다룬다).
+         * 접근 정책이 바뀌면(예: 발행 코스 삭제 제한) **이 함수만** 고친다: 서비스는 조회 후 위임만 한다.
          */
         fun ensureModifiable(
             status: CourseStatus,
             ownerId: Long,
             requesterId: Long,
         ) {
-            if (status == CourseStatus.DELETED || ownerId != requesterId) {
+            if (status != CourseStatus.ACTIVE || ownerId != requesterId) {
                 throw BusinessException(CourseErrorCode.COURSE_NOT_FOUND)
             }
+        }
+
+        /**
+         * 어드민 편집 정책: 큐레이터 계정의 삭제되지 않은 코스만 편집할 수 있다(숨김 포함).
+         * 사용자 코스는 숨김, 삭제만 하고 내용은 바꾸지 않는다.
+         */
+        fun ensureAdminEditable(
+            status: CourseStatus,
+            ownerId: Long,
+            curatorUserId: Long,
+        ) {
+            if (status == CourseStatus.DELETED) throw BusinessException(CourseErrorCode.COURSE_NOT_FOUND)
+            if (ownerId != curatorUserId) throw BusinessException(CourseErrorCode.COURSE_NOT_CURATOR)
         }
 
         /**
@@ -296,6 +318,14 @@ data class Course private constructor(
                 tags = tags,
                 places = places,
             )
+
+        /** 발행 코스로 저장될 때와 같은 카테고리(저장 순서 포함): 어드민 미리보기가 저장 없이 테마를 계산할 때 쓴다. */
+        fun publishedCategories(
+            companions: List<CourseCategory>,
+            places: List<CoursePlace>,
+            placeCategoryByPlaceId: Map<Long, String>,
+        ): List<CourseCategory> =
+            resolveCategories(true, companions, places, placeCategoryByPlaceId).distinct().sorted()
 
         /**
          * 작성자가 고를 수 있는 값([CourseCategory.COMPANIONS])만 받아 코스 카테고리를 정한다.

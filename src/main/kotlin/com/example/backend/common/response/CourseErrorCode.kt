@@ -27,4 +27,9 @@ enum class CourseErrorCode(
 
     // 4099 까지 선점 — 채번 규칙(HTTP 상태 × 10 + 일련번호)대로 4100 으로 채번했다.
     COURSE_TRACE_ALREADY_IN_PROGRESS(409, 4100, "이미 따라가는 중인 코스가 있습니다."),
+
+    // 어드민 코스 관리(SCRUM-752). 도메인별 100번대 대역 규칙(PushErrorCode)대로 course 는 4100번대를 이어 쓴다.
+    COURSE_NOT_CURATOR(403, 4101, "큐레이터 코스만 편집할 수 있습니다."),
+    COURSE_MODIFIED_CONCURRENTLY(409, 4102, "다른 곳에서 먼저 수정된 코스입니다. 새로고침 후 다시 시도해 주세요."),
+    COURSE_STATUS_CONFLICT(409, 4103, "지금 상태에서는 할 수 없는 작업입니다."),
 }

@@ -15,4 +15,9 @@ class UserSummaryService(
         if (ids.isEmpty()) return emptyList()
         return userSummaryPort.findByIds(ids)
     }
+
+    override fun findIdsByNickname(
+        keyword: String,
+        limit: Int,
+    ): List<Long> = userSummaryPort.findIdsByNickname(keyword, limit)
 }

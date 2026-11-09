@@ -12,15 +12,16 @@ class CourseReindexService(
     private val coursePersistencePort: CoursePersistencePort,
     private val courseSearchIndexPort: CourseSearchIndexPort,
 ) : CourseReindexUseCase {
-    /** 전체 코스를 페이지 단위로 재색인(멱등 upsert). 색인 자체는 어댑터가 fail-soft. */
+    /** 공개 코스([com.example.backend.course.domain.model.Course.isPubliclyVisible])를 페이지 단위로 재색인(멱등 upsert). 색인 자체는 어댑터가 fail-soft. */
     override fun reindexAll(): Int {
         var afterId: Long? = null
         var total = 0
         while (true) {
             val batch = coursePersistencePort.findForIndex(afterId, PAGE)
             if (batch.isEmpty()) break
-            courseSearchIndexPort.save(batch)
-            total += batch.size
+            val visible = batch.filter { it.isPubliclyVisible }
+            courseSearchIndexPort.save(visible)
+            total += visible.size
             afterId = batch.last().id!!
             if (batch.size < PAGE) break
         }

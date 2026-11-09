@@ -25,6 +25,7 @@ class PlaceLookupAdapter(
                     areaCode = it.areaCode,
                     name = it.name,
                     coordinate = Coordinate(latitude = it.latitude, longitude = it.longitude),
+                    address = it.address,
                 )
             }
 }

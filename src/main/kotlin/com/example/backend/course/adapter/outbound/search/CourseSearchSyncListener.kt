@@ -4,6 +4,7 @@ import com.example.backend.course.application.event.CourseAuthorWithdrawnEvent
 import com.example.backend.course.application.event.CourseDeletedEvent
 import com.example.backend.course.application.event.CourseSavedEvent
 import com.example.backend.course.application.port.outbound.CourseSearchIndexPort
+import com.example.backend.course.domain.model.Course
 import org.springframework.stereotype.Component
 import org.springframework.transaction.event.TransactionPhase
 import org.springframework.transaction.event.TransactionalEventListener
@@ -20,9 +21,11 @@ import org.springframework.transaction.event.TransactionalEventListener
 class CourseSearchSyncListener(
     private val port: CourseSearchIndexPort,
 ) {
+    /** 공개 코스([Course.isPubliclyVisible])만 색인에 둔다: 숨김, 비공개로 바뀐 코스는 이후 저장 이벤트에도 지운다. */
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
     fun onCourseSaved(event: CourseSavedEvent) {
-        port.save(event.newCourse)
+        val course = event.newCourse
+        if (course.isPubliclyVisible) port.save(course) else course.id?.let(port::delete)
     }
 
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)

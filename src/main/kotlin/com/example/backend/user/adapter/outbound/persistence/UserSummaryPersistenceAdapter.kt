@@ -12,4 +12,9 @@ class UserSummaryPersistenceAdapter(
 ) : UserSummaryPort {
     override fun findByIds(ids: Collection<Long>): List<UserSummaryUseCase.UserSummary> =
         userRepository.findSummariesByIds(ids)
+
+    override fun findIdsByNickname(
+        keyword: String,
+        limit: Int,
+    ): List<Long> = userRepository.findIdsByNickname(keyword, limit)
 }
