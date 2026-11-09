@@ -2,6 +2,7 @@ package com.example.backend.course.adapter.outbound.search
 
 import com.example.backend.bootstrap.config.OpenSearchConfig
 import com.example.backend.bootstrap.config.OpenSearchProperties
+import com.example.backend.course.application.event.CourseCounter
 import com.example.backend.course.application.port.outbound.CourseSearchIndexPort
 import com.example.backend.course.domain.model.Course
 import io.github.oshai.kotlinlogging.KotlinLogging
@@ -82,26 +83,30 @@ class OpenSearchCourseIndexAdapter(
         }
     }
 
-    override fun adjustSavesCount(
+    override fun adjustCounter(
         courseId: Long,
+        counter: CourseCounter,
         delta: Int,
     ) {
         if (delta == 0) return
         val client = clientProvider.ifAvailable ?: return // endpoint 미설정 → no-op
+        val field = counter.indexField()
         try {
-            // 델타 가산 스크립트라 동시 저장/취소 이벤트의 도착 순서와 무관하게 수렴한다(스냅샷 덮어쓰기와 달리 순서 역전에 안전).
+            // 델타 가산 스크립트라 동시 이벤트의 도착 순서가 바뀌어도 같은 값으로 수렴한다(스냅샷 덮어쓰기와 달리 순서 역전에 안전).
+            // 단 0 클램프가 걸린 경우(취소가 색인보다 먼저 닿음)는 수렴하지 않고 다음 전체 색인에서 복구된다.
             client.update(
                 { req: UpdateRequest.Builder<CourseDocument, CourseDocument> ->
                     req
                         .index(indexAlias)
                         .requireAlias(true)
                         .id(courseId.toString())
-                        .retryOnConflict(SAVES_COUNT_RETRY_ON_CONFLICT)
+                        .retryOnConflict(COUNTER_RETRY_ON_CONFLICT)
                         .script { s ->
                             s.inline { i ->
                                 i
                                     .lang("painless")
-                                    .source(ADJUST_SAVES_COUNT_SCRIPT)
+                                    .source(ADJUST_COUNTER_SCRIPT)
+                                    .params("field", JsonData.of(field))
                                     .params("delta", JsonData.of(delta))
                             }
                         }
@@ -111,14 +116,20 @@ class OpenSearchCourseIndexAdapter(
         } catch (e: OpenSearchException) {
             // 아직 색인되지 않은 코스(미백필·색인 실패분)는 다음 전체 색인이 채운다 — 404 는 정상 경로로 본다.
             if (e.status() == NOT_FOUND_STATUS) {
-                log.debug { "course 저장수 갱신 대상 문서 없음(무시): id=$courseId" }
+                log.debug { "course $field 갱신 대상 문서 없음(무시): id=$courseId" }
             } else {
-                log.error(e) { "course 저장수 갱신 실패(무시): id=$courseId delta=$delta — ${e.message}" }
+                log.error(e) { "course $field 갱신 실패(무시): id=$courseId delta=$delta — ${e.message}" }
             }
         } catch (e: Exception) {
-            log.error(e) { "course 저장수 갱신 실패(무시): id=$courseId delta=$delta — ${e.message}" }
+            log.error(e) { "course $field 갱신 실패(무시): id=$courseId delta=$delta — ${e.message}" }
         }
     }
+
+    private fun CourseCounter.indexField(): String =
+        when (this) {
+            CourseCounter.SAVES -> "savesCnt"
+            CourseCounter.LIKES -> "likesCnt"
+        }
 
     override fun deleteByAuthor(authorId: Long) {
         val client = clientProvider.ifAvailable ?: return // endpoint 미설정 → no-op
@@ -155,12 +166,12 @@ class OpenSearchCourseIndexAdapter(
 
     private companion object {
         const val SIGUNGU_CODE_LENGTH = 5
-        const val SAVES_COUNT_RETRY_ON_CONFLICT = 3
+        const val COUNTER_RETRY_ON_CONFLICT = 3
         const val NOT_FOUND_STATUS = 404
 
-        /** 색인 문서의 savesCnt 에 delta 를 더한다(음수 방지). 구 문서에 필드가 없으면 0 으로 본다. */
-        const val ADJUST_SAVES_COUNT_SCRIPT =
-            "int current = ctx._source.savesCnt == null ? 0 : (int) ctx._source.savesCnt; " +
-                "ctx._source.savesCnt = Math.max(0, current + (int) params.delta);"
+        /** 색인 문서의 params.field 카운터에 params.delta 를 더한다(음수 방지). 구 문서에 필드가 없으면 0 으로 본다. */
+        const val ADJUST_COUNTER_SCRIPT =
+            "int current = ctx._source[params.field] == null ? 0 : (int) ctx._source[params.field]; " +
+                "ctx._source[params.field] = Math.max(0, current + (int) params.delta);"
     }
 }

@@ -1,5 +1,6 @@
 package com.example.backend.course.adapter.outbound.search
 
+import com.example.backend.course.application.event.CourseCounter
 import com.example.backend.course.application.port.inbound.CourseRecommendUseCase
 import com.example.backend.course.application.port.inbound.dto.CourseRecommendQuery
 import com.example.backend.course.application.port.outbound.CourseSearchIndexPort
@@ -72,8 +73,8 @@ class OpenSearchCourseRecommendIntegrationTest
             }
         }
 
-        private fun savesCntOf(id: Long): Int? =
-            client.get({ g -> g.index(INDEX).id(id.toString()) }, CourseDocument::class.java).source()?.savesCnt
+        private fun documentOf(id: Long): CourseDocument? =
+            client.get({ g -> g.index(INDEX).id(id.toString()) }, CourseDocument::class.java).source()
 
         @Test
         fun `관심 테마·지역이 맞는 코스가 앞서지만 맞지 않는 공개 코스도 추천에 남는다`() {
@@ -96,16 +97,25 @@ class OpenSearchCourseRecommendIntegrationTest
         }
 
         @Test
-        fun `저장수 델타 스크립트는 실제 엔진에서 가산·0 클램프되고 미색인 문서는 무시한다`() {
+        fun `카운터 델타 스크립트는 실제 엔진에서 가산·0 클램프되고 미색인 문서는 무시한다`() {
             index(id = 10, category = "FOOD", areaCode = null, savesCnt = 5)
 
-            courseSearchIndexPort.adjustSavesCount(10L, 1)
-            assertThat(savesCntOf(10L)).isEqualTo(6)
+            courseSearchIndexPort.adjustCounter(10L, CourseCounter.SAVES, 1)
+            assertThat(documentOf(10L)?.savesCnt).isEqualTo(6)
 
-            courseSearchIndexPort.adjustSavesCount(10L, -10)
-            assertThat(savesCntOf(10L)).isEqualTo(0)
+            courseSearchIndexPort.adjustCounter(10L, CourseCounter.SAVES, -10)
+            assertThat(documentOf(10L)?.savesCnt).isEqualTo(0)
 
-            assertThatCode { courseSearchIndexPort.adjustSavesCount(999L, 1) }.doesNotThrowAnyException()
+            courseSearchIndexPort.adjustCounter(10L, CourseCounter.LIKES, 2)
+            assertThat(documentOf(10L)?.likesCnt).isEqualTo(2)
+
+            assertThatCode {
+                courseSearchIndexPort.adjustCounter(
+                    999L,
+                    CourseCounter.SAVES,
+                    1,
+                )
+            }.doesNotThrowAnyException()
         }
 
         companion object {

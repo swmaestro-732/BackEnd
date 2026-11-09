@@ -5,7 +5,7 @@ import org.springframework.boot.context.properties.ConfigurationProperties
 /**
  * 추천 코스 랭킹 가중치 — OpenSearch function_score 의 항별 weight 와 최신성 감쇠 파라미터(재배포 없이 조정).
  * 점수 = 최신성(exp decay × recencyWeight) + 관심 테마 일치(themeWeight) + 관심 시군구 일치(sigunguWeight)
- *      + 관심 읍면동 일치(dongWeight, 시군구에 가산) + log1p(저장수) × savesWeight.
+ *      + 관심 읍면동 일치(dongWeight, 시군구에 가산) + log1p(저장수) × savesWeight + log1p(좋아요수) × likesWeight.
  */
 @ConfigurationProperties(prefix = "course.recommend")
 data class CourseRecommendProperties(
@@ -19,4 +19,6 @@ data class CourseRecommendProperties(
     val sigunguWeight: Double = 3.0,
     val dongWeight: Double = 2.0,
     val savesWeight: Double = 1.5,
+    /** 좋아요는 저장보다 약한 신호라 절반 가중치 — 100개여도 약 3.5점으로 관심 일치 한 항목을 넘지 않는다. */
+    val likesWeight: Double = 0.75,
 )

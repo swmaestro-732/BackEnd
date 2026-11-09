@@ -1,6 +1,7 @@
 package com.example.backend.course.application.service
 
-import com.example.backend.course.application.event.CourseSavesCountChangedEvent
+import com.example.backend.course.application.event.CourseCounter
+import com.example.backend.course.application.event.CourseCounterChangedEvent
 import com.example.backend.course.application.port.outbound.CoursePersistencePort
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Test
@@ -20,7 +21,7 @@ class CourseCounterServiceTest {
         `when`(persistence.increaseSavesCount(10L)).thenReturn(1)
 
         assertEquals(1, service.increaseSavesCount(10L))
-        verify(eventPublisher).publishEvent(CourseSavesCountChangedEvent(10L, delta = 1))
+        verify(eventPublisher).publishEvent(CourseCounterChangedEvent(10L, CourseCounter.SAVES, delta = 1))
     }
 
     @Test
@@ -30,7 +31,7 @@ class CourseCounterServiceTest {
         service.decreaseSavesCount(10L)
 
         verify(persistence).decreaseSavesCount(10L)
-        verify(eventPublisher).publishEvent(CourseSavesCountChangedEvent(10L, delta = -1))
+        verify(eventPublisher).publishEvent(CourseCounterChangedEvent(10L, CourseCounter.SAVES, delta = -1))
     }
 
     @Test

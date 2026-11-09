@@ -44,6 +44,7 @@ class OpenSearchCourseRecommendAdapterTest {
             sigunguWeight = 3.5,
             dongWeight = 2.5,
             savesWeight = 1.25,
+            likesWeight = 0.5,
         )
 
     private fun doc(
@@ -195,7 +196,7 @@ class OpenSearchCourseRecommendAdapterTest {
         val fs = request.query()!!.functionScore()
         assertThat(fs.scoreMode()).isEqualTo(FunctionScoreMode.Sum)
         assertThat(fs.boostMode()).isEqualTo(FunctionBoostMode.Sum)
-        assertThat(fs.functions()).hasSize(2)
+        assertThat(fs.functions()).hasSize(3)
 
         val recency = fs.functions()[0]
         assertThat(recency.weight()).isEqualTo(7.0)
@@ -211,6 +212,11 @@ class OpenSearchCourseRecommendAdapterTest {
         assertThat(saves.fieldValueFactor().field()).isEqualTo("savesCnt")
         assertThat(saves.fieldValueFactor().modifier()).isEqualTo(FieldValueFactorModifier.Log1p)
         assertThat(saves.fieldValueFactor().missing()).isEqualTo(0.0)
+        val likes = fs.functions()[2]
+        assertThat(likes.weight()).isEqualTo(0.5)
+        assertThat(likes.fieldValueFactor().field()).isEqualTo("likesCnt")
+        assertThat(likes.fieldValueFactor().modifier()).isEqualTo(FieldValueFactorModifier.Log1p)
+        assertThat(likes.fieldValueFactor().missing()).isEqualTo(0.0)
     }
 
     @Test

@@ -1,5 +1,6 @@
 package com.example.backend.course.application.port.outbound
 
+import com.example.backend.course.application.event.CourseCounter
 import com.example.backend.course.domain.model.Course
 
 /**
@@ -16,9 +17,10 @@ interface CourseSearchIndexPort {
     /** 코스를 색인에서 제거한다(삭제 시). */
     fun delete(courseId: Long)
 
-    /** 색인 문서의 저장수(savesCnt)에 [delta] 를 더한다 — 저장/취소는 코스 저장 이벤트를 안 내므로 카운터만 따로 맞춘다. */
-    fun adjustSavesCount(
+    /** 색인 문서의 [counter](저장수·좋아요수)에 [delta] 를 더한다 — 저장·좋아요는 코스 저장 이벤트를 안 내므로 카운터만 따로 맞춘다. */
+    fun adjustCounter(
         courseId: Long,
+        counter: CourseCounter,
         delta: Int,
     )
 

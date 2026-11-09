@@ -2,6 +2,8 @@ package com.example.backend.course.adapter.outbound.search
 
 import com.example.backend.common.domain.CourseVisibility
 import com.example.backend.course.application.event.CourseAuthorWithdrawnEvent
+import com.example.backend.course.application.event.CourseCounter
+import com.example.backend.course.application.event.CourseCounterChangedEvent
 import com.example.backend.course.application.event.CourseDeletedEvent
 import com.example.backend.course.application.event.CourseSavedEvent
 import com.example.backend.course.application.port.outbound.CourseSearchIndexPort
@@ -19,6 +21,7 @@ class CourseSearchSyncListenerTest {
     private val savedCourses = mutableListOf<Course>()
     private val deletedIds = mutableListOf<Long>()
     private val deletedAuthorIds = mutableListOf<Long>()
+    private val adjusted = mutableListOf<Triple<Long, CourseCounter, Int>>()
 
     private val port =
         object : CourseSearchIndexPort {
@@ -36,10 +39,13 @@ class CourseSearchSyncListenerTest {
                 deletedAuthorIds += authorId
             }
 
-            override fun adjustSavesCount(
+            override fun adjustCounter(
                 courseId: Long,
+                counter: CourseCounter,
                 delta: Int,
-            ) = Unit
+            ) {
+                adjusted += Triple(courseId, counter, delta)
+            }
         }
 
     private val listener = CourseSearchSyncListener(port)
@@ -80,6 +86,13 @@ class CourseSearchSyncListenerTest {
         )
 
         assertEquals(listOf(42L), deletedIds)
+    }
+
+    @Test
+    fun `onCourseCounterChanged 는 카운터 종류와 델타를 포트에 넘긴다`() {
+        listener.onCourseCounterChanged(CourseCounterChangedEvent(42L, CourseCounter.LIKES, delta = -1))
+
+        assertEquals(listOf(Triple(42L, CourseCounter.LIKES, -1)), adjusted)
     }
 
     @Test

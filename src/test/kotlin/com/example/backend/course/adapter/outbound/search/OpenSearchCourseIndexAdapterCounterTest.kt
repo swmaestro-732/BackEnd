@@ -1,6 +1,7 @@
 package com.example.backend.course.adapter.outbound.search
 
 import com.example.backend.bootstrap.config.OpenSearchProperties
+import com.example.backend.course.application.event.CourseCounter
 import org.assertj.core.api.Assertions.assertThat
 import org.assertj.core.api.Assertions.assertThatCode
 import org.junit.jupiter.api.Test
@@ -26,10 +27,10 @@ private typealias UpdateBuilder = UpdateRequest.Builder<CourseDocument, CourseDo
 private typealias UpdateFn = Function<UpdateBuilder, ObjectBuilder<UpdateRequest<CourseDocument, CourseDocument>>>
 
 /**
- * [OpenSearchCourseIndexAdapter.adjustSavesCount] 단위 테스트 — 델타 스크립트 요청 구성, delta 0·클라이언트 없음 no-op,
+ * [OpenSearchCourseIndexAdapter.adjustCounter] 단위 테스트 — 카운터 델타 스크립트 요청 구성, delta 0·클라이언트 없음 no-op,
  * 미색인 문서(404)와 그 밖의 실패를 모두 fail-soft 로 삼키는지 검증한다.
  */
-class OpenSearchCourseIndexAdapterSavesCountTest {
+class OpenSearchCourseIndexAdapterCounterTest {
     private fun anyUpdateFn(): UpdateFn? = any()
 
     private fun providerOf(client: OpenSearchClient?): ObjectProvider<OpenSearchClient> {
@@ -68,7 +69,7 @@ class OpenSearchCourseIndexAdapterSavesCountTest {
         val client = mock(OpenSearchClient::class.java)
         val adapter = OpenSearchCourseIndexAdapter(providerOf(client), OpenSearchProperties())
 
-        adapter.adjustSavesCount(1L, 0)
+        adapter.adjustCounter(1L, CourseCounter.SAVES, 0)
 
         verify(client, never()).update(anyUpdateFn(), eq(CourseDocument::class.java))
     }
@@ -77,7 +78,7 @@ class OpenSearchCourseIndexAdapterSavesCountTest {
     fun `클라이언트가 없으면 no-op 한다`() {
         val adapter = OpenSearchCourseIndexAdapter(providerOf(null), OpenSearchProperties())
 
-        assertThatCode { adapter.adjustSavesCount(1L, 1) }.doesNotThrowAnyException()
+        assertThatCode { adapter.adjustCounter(1L, CourseCounter.SAVES, 1) }.doesNotThrowAnyException()
     }
 
     @Test
@@ -86,7 +87,7 @@ class OpenSearchCourseIndexAdapterSavesCountTest {
         val client = clientCapturing { request = it }
         val adapter = OpenSearchCourseIndexAdapter(providerOf(client), OpenSearchProperties(indexPrefix = "dev-"))
 
-        adapter.adjustSavesCount(42L, -1)
+        adapter.adjustCounter(42L, CourseCounter.SAVES, -1)
 
         val built = request!!
         assertThat(built.index()).isEqualTo("dev-course")
@@ -95,8 +96,21 @@ class OpenSearchCourseIndexAdapterSavesCountTest {
         assertThat(built.retryOnConflict()).isEqualTo(3)
         val script = built.script()!!.inline()
         assertThat(script.lang()).isEqualTo("painless")
-        assertThat(script.source()).contains("Math.max(0, current + (int) params.delta)")
-        assertThat(toJson(built.script()!!)).contains("\"delta\":-1")
+        assertThat(
+            script.source(),
+        ).contains("ctx._source[params.field]").contains("Math.max(0, current + (int) params.delta)")
+        assertThat(toJson(built.script()!!)).contains("\"field\":\"savesCnt\"").contains("\"delta\":-1")
+    }
+
+    @Test
+    fun `좋아요 카운터는 likesCnt 필드를 파라미터로 넘긴다`() {
+        var request: UpdateRequest<CourseDocument, CourseDocument>? = null
+        val client = clientCapturing { request = it }
+        val adapter = OpenSearchCourseIndexAdapter(providerOf(client), OpenSearchProperties())
+
+        adapter.adjustCounter(7L, CourseCounter.LIKES, 1)
+
+        assertThat(toJson(request!!.script()!!)).contains("\"field\":\"likesCnt\"").contains("\"delta\":1")
     }
 
     @Test
@@ -105,7 +119,7 @@ class OpenSearchCourseIndexAdapterSavesCountTest {
         `when`(client.update(anyUpdateFn(), eq(CourseDocument::class.java))).thenThrow(openSearchException(404))
         val adapter = OpenSearchCourseIndexAdapter(providerOf(client), OpenSearchProperties())
 
-        assertThatCode { adapter.adjustSavesCount(1L, 1) }.doesNotThrowAnyException()
+        assertThatCode { adapter.adjustCounter(1L, CourseCounter.SAVES, 1) }.doesNotThrowAnyException()
     }
 
     @Test
@@ -114,7 +128,7 @@ class OpenSearchCourseIndexAdapterSavesCountTest {
         `when`(client.update(anyUpdateFn(), eq(CourseDocument::class.java))).thenThrow(openSearchException(500))
         val adapter = OpenSearchCourseIndexAdapter(providerOf(client), OpenSearchProperties())
 
-        assertThatCode { adapter.adjustSavesCount(1L, 1) }.doesNotThrowAnyException()
+        assertThatCode { adapter.adjustCounter(1L, CourseCounter.SAVES, 1) }.doesNotThrowAnyException()
     }
 
     @Test
@@ -123,6 +137,6 @@ class OpenSearchCourseIndexAdapterSavesCountTest {
         `when`(client.update(anyUpdateFn(), eq(CourseDocument::class.java))).thenThrow(RuntimeException("boom"))
         val adapter = OpenSearchCourseIndexAdapter(providerOf(client), OpenSearchProperties())
 
-        assertThatCode { adapter.adjustSavesCount(1L, 1) }.doesNotThrowAnyException()
+        assertThatCode { adapter.adjustCounter(1L, CourseCounter.SAVES, 1) }.doesNotThrowAnyException()
     }
 }

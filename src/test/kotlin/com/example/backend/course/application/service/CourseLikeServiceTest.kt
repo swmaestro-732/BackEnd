@@ -3,6 +3,8 @@ package com.example.backend.course.application.service
 import com.example.backend.common.domain.CourseVisibility
 import com.example.backend.common.exception.BusinessException
 import com.example.backend.common.response.CourseErrorCode
+import com.example.backend.course.application.event.CourseCounter
+import com.example.backend.course.application.event.CourseCounterChangedEvent
 import com.example.backend.course.application.port.outbound.CourseDetailRow
 import com.example.backend.course.application.port.outbound.CourseLikePersistencePort
 import com.example.backend.course.application.port.outbound.CoursePersistencePort
@@ -13,7 +15,9 @@ import org.junit.jupiter.api.assertThrows
 import org.mockito.Mockito.mock
 import org.mockito.Mockito.never
 import org.mockito.Mockito.verify
+import org.mockito.Mockito.verifyNoInteractions
 import org.mockito.Mockito.`when`
+import org.springframework.context.ApplicationEventPublisher
 
 /**
  * 코스 좋아요 서비스 단위 테스트 — 열람 권한(공개범위·팔로우) 검사와 원자적 증감(UPDATE … RETURNING),
@@ -24,7 +28,8 @@ class CourseLikeServiceTest {
     private val likePort = mock(CourseLikePersistencePort::class.java)
     private val coursePort = mock(CoursePersistencePort::class.java)
     private val viewPolicy = mock(CourseViewPolicy::class.java)
-    private val service = CourseLikeService(likePort, coursePort, viewPolicy)
+    private val eventPublisher = mock(ApplicationEventPublisher::class.java)
+    private val service = CourseLikeService(likePort, coursePort, viewPolicy, eventPublisher)
 
     private val ownerId = 99L
     private val courseId = 42L
@@ -51,6 +56,7 @@ class CourseLikeServiceTest {
 
         verify(likePort).insert(1L, courseId)
         assertEquals(4, result)
+        verify(eventPublisher).publishEvent(CourseCounterChangedEvent(courseId, CourseCounter.LIKES, delta = 1))
     }
 
     @Test
@@ -100,6 +106,7 @@ class CourseLikeServiceTest {
         val ex = assertThrows<BusinessException> { service.like(userId = 1L, courseId = courseId) }
 
         assertEquals(CourseErrorCode.COURSE_NOT_FOUND, ex.errorCode)
+        verifyNoInteractions(eventPublisher)
     }
 
     // --- unlike (열람 권한 검사 없음 — 본인 좋아요 제거) ---
@@ -113,6 +120,7 @@ class CourseLikeServiceTest {
 
         verify(coursePort, never()).readLikesCount(courseId)
         assertEquals(4, result)
+        verify(eventPublisher).publishEvent(CourseCounterChangedEvent(courseId, CourseCounter.LIKES, delta = -1))
     }
 
     @Test
@@ -124,6 +132,7 @@ class CourseLikeServiceTest {
 
         verify(coursePort, never()).decreaseLikesCountReturning(courseId)
         assertEquals(5, result)
+        verifyNoInteractions(eventPublisher)
     }
 
     @Test
@@ -145,6 +154,8 @@ class CourseLikeServiceTest {
         service.purgeByUser(1L)
 
         verify(coursePort).decreaseLikesCounts(listOf(10L, 20L))
+        verify(eventPublisher).publishEvent(CourseCounterChangedEvent(10L, CourseCounter.LIKES, delta = -1))
+        verify(eventPublisher).publishEvent(CourseCounterChangedEvent(20L, CourseCounter.LIKES, delta = -1))
     }
 
     @Test
@@ -154,5 +165,6 @@ class CourseLikeServiceTest {
         service.purgeByUser(1L)
 
         verify(coursePort, never()).decreaseLikesCounts(org.mockito.ArgumentMatchers.anyList())
+        verifyNoInteractions(eventPublisher)
     }
 }
