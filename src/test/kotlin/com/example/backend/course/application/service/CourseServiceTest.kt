@@ -355,7 +355,7 @@ class CourseServiceTest {
     @Test
     fun `복제 초안 편집에서 원본 장소를 두 곳 미만으로 줄이면 수정하지 않는다`() {
         stubEdit(detail(isPublished = false, areaCode = null, categories = emptyList(), duplicatedFromId = 50L))
-        `when`(persistence.existsById(50L)).thenReturn(true)
+        `when`(persistence.existsUndeletedById(50L)).thenReturn(true)
         `when`(persistence.findPlaces(50L)).thenReturn(originPlaces(listOf(1L, 3L, 4L)))
 
         val exception = assertThrows(BusinessException::class.java) { service.edit(editCommand(isPublished = true)) }
@@ -367,7 +367,7 @@ class CourseServiceTest {
     @Test
     fun `복제 원본이 삭제됐으면 참조를 끊고 일반 코스로 수정한다`() {
         stubEdit(detail(isPublished = false, areaCode = null, categories = emptyList(), duplicatedFromId = 50L))
-        `when`(persistence.existsById(50L)).thenReturn(false)
+        `when`(persistence.existsUndeletedById(50L)).thenReturn(false)
         stubPlaces()
         `when`(persistence.update(anyValue())).thenAnswer { it.arguments[0] as Course }
 

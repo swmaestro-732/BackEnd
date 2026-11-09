@@ -97,6 +97,15 @@ class AdminCourseControllerTest
         }
 
         @Test
+        fun `검색어의 LIKE 와일드카드는 문자 그대로 찾는다`() {
+            jdbcTemplate.update("UPDATE courses SET title = '할인 100% 코스' WHERE id = 3")
+
+            assertIds("q=%", 3)
+            assertIds("q=_")
+            assertIds("q=\\")
+        }
+
+        @Test
         fun `상세는 삭제된 코스도 장소 정보와 함께 돌려준다`() {
             mockMvc
                 .perform(admin(get("/admin/v1/courses/2")))
@@ -224,6 +233,18 @@ class AdminCourseControllerTest
         }
 
         @Test
+        fun `작성자가 탈퇴한 코스는 복원하지 않는다`() {
+            jdbcTemplate.update("UPDATE users SET deleted_at = now() WHERE id = 1")
+
+            mockMvc
+                .perform(admin(post("/admin/v1/courses/5/restore")))
+                .andExpect(status().isConflict)
+                .andExpect(jsonPath("$.code").value(4103))
+            assertEquals("DELETED", courseStatus(5))
+            assertEquals(emptyList<String?>(), actions(5))
+        }
+
+        @Test
         fun `일괄 조치는 건마다 처리해 부분 성공을 건별 결과로 돌려준다`() {
             mockMvc
                 .perform(admin(post("/admin/v1/courses/bulk")).json("""{"ids":[1,4,999],"action":"HIDE"}"""))
@@ -256,7 +277,7 @@ class AdminCourseControllerTest
             vararg ids: Int,
         ) {
             mockMvc
-                .perform(admin(get("/admin/v1/courses?$query")))
+                .perform(admin(get("/admin/v1/courses").param(query.substringBefore("="), query.substringAfter("="))))
                 .andExpect(status().isOk)
                 .andExpect(jsonPath("$.data.total").value(ids.size))
                 .andExpect(jsonPath("$.data.items[*].id", containsInAnyOrder(*ids.toTypedArray())))

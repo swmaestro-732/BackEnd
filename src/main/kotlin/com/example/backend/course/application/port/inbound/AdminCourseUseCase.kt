@@ -37,7 +37,7 @@ interface AdminCourseUseCase {
         courseId: Long,
     )
 
-    /** 삭제된 코스를 활성으로 되돌린다(삭제 전 숨김이었어도 활성). */
+    /** 삭제된 코스를 활성으로 되돌린다(삭제 전 숨김이었어도 활성). 작성자가 탈퇴했으면 4103. */
     fun restore(
         adminEmail: String,
         courseId: Long,

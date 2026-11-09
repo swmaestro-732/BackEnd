@@ -2,11 +2,13 @@ package com.example.backend.course.adapter.inbound.web
 
 import com.example.backend.bootstrap.security.JwtTokenProvider
 import com.example.backend.support.IntegrationTestBase
+import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Test
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc
 import org.springframework.http.HttpHeaders
 import org.springframework.http.MediaType
+import org.springframework.jdbc.core.JdbcTemplate
 import org.springframework.test.context.jdbc.Sql
 import org.springframework.test.web.servlet.MockMvc
 import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder
@@ -28,6 +30,7 @@ class HiddenCourseExposureTest
     constructor(
         private val mockMvc: MockMvc,
         private val jwtTokenProvider: JwtTokenProvider,
+        private val jdbcTemplate: JdbcTemplate,
     ) : IntegrationTestBase() {
         @Test
         fun `코스 상세 화면은 404 다`() {
@@ -72,6 +75,29 @@ class HiddenCourseExposureTest
         @Test
         fun `소유자도 삭제할 수 없다`() {
             expectNotFound(delete("/api/v1/courses/$HIDDEN_COURSE_ID").asUser(OWNER_ID))
+        }
+
+        @Test
+        fun `숨긴 원본에서 복제한 초안을 편집해도 원본 참조는 유지된다`() {
+            jdbcTemplate.update(
+                "INSERT INTO courses (id, user_id, title, is_published, visibility, duplicated_from_id) " +
+                    "VALUES (100, 3, '복제 초안', false, 'PRIVATE', 4)",
+            )
+            jdbcTemplate.update(
+                "INSERT INTO course_places (course_id, place_id, order_no) VALUES (100, 1, 0), (100, 2, 1)",
+            )
+            val body =
+                """
+                {"title":"복제 초안 편집","visibility":"PRIVATE","isPublished":false,
+                 "places":[{"placeId":1,"orderNo":0},{"placeId":2,"orderNo":1}]}
+                """.trimIndent()
+
+            mockMvc.perform(patch("/api/v1/courses/100").asUser(OTHER_ID).json(body)).andExpect(status().isOk)
+
+            assertEquals(
+                HIDDEN_COURSE_ID,
+                jdbcTemplate.queryForObject("SELECT duplicated_from_id FROM courses WHERE id = 100", Long::class.java),
+            )
         }
 
         @Test

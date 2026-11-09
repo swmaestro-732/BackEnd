@@ -113,7 +113,9 @@ class CourseService(
         }
         // 복제 초안은 편집(발행 포함)에서도 원본 장소 유지 규칙을 다시 본다 — 발행 코스는 위 가드로 장소가 안 바뀐다.
         // 원본 공개범위는 생성 시점에 이미 통과했으니 여기선 삭제 여부만 본다: 원본이 삭제됐으면 참조를 끊고 일반 코스로 전환한다.
-        val duplicatedFromId = existingCourse.duplicatedFromId?.takeIf { coursePersistencePort.existsById(it) }
+        // 숨김 원본은 삭제가 아니라 참조를 유지한다(사용자 행동용 existsById 는 활성만 보므로 따로 판정한다).
+        val duplicatedFromId =
+            existingCourse.duplicatedFromId?.takeIf { coursePersistencePort.existsUndeletedById(it) }
         duplicatedFromId?.let { originId ->
             Course.ensureDuplicatePlacesKept(
                 coursePersistencePort.findPlaces(originId).map(CoursePlaceRow::placeId),

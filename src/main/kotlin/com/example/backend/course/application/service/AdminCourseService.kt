@@ -245,7 +245,11 @@ class AdminCourseService(
         adminEmail: String,
         courseId: Long,
     ) {
-        requireCourse(courseId, lock = true)
+        val course = requireCourse(courseId, lock = true)
+        // 탈퇴한 작성자의 코스는 되살리지 않는다(닉네임 조회는 활성 사용자만 돌려준다).
+        if (course.userId !in courseAuthorPort.findNicknames(listOf(course.userId))) {
+            throw BusinessException(CourseErrorCode.COURSE_STATUS_CONFLICT, "탈퇴한 작성자의 코스는 복원할 수 없습니다: id=$courseId")
+        }
         val restored =
             adminCoursePersistencePort.restore(courseId)
                 ?: throw BusinessException(CourseErrorCode.COURSE_STATUS_CONFLICT, "삭제된 코스만 복원할 수 있습니다: id=$courseId")

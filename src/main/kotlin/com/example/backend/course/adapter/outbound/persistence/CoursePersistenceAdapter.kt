@@ -58,6 +58,8 @@ class CoursePersistenceAdapter(
 
     override fun existsById(courseId: Long): Boolean = courseRepository.existsById(courseId)
 
+    override fun existsUndeletedById(courseId: Long): Boolean = courseRepository.existsUndeletedById(courseId)
+
     override fun findPlaces(courseId: Long): List<CoursePlaceRow> = coursePlaceRepository.findByCourseId(courseId)
 
     override fun findPlacesByCourseIds(courseIds: List<Long>): Map<Long, List<CoursePlaceRow>> =

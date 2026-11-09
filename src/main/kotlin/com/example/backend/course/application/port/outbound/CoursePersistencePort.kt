@@ -114,6 +114,9 @@ interface CoursePersistencePort {
     /** 활성(status=ACTIVE, 미삭제) 코스가 존재하는지 확인한다: 숨김 코스는 사용자 행동(댓글, 리뷰, 계획, 저장) 대상이 아니다. */
     fun existsById(courseId: Long): Boolean
 
+    /** 삭제되지 않은 코스(숨김 포함)가 존재하는지 확인한다. 복제본 편집 시 원본 참조를 유지할지 판정한다. */
+    fun existsUndeletedById(courseId: Long): Boolean
+
     fun findPlaces(courseId: Long): List<CoursePlaceRow>
 
     /** 여러 코스의 장소들을 courseId 별로(각 코스 안은 orderNo 오름차순) 한 번에 읽는다 — 목록 화면 배치 조회용. */

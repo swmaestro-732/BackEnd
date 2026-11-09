@@ -7,6 +7,7 @@ import com.example.backend.user.application.port.outbound.UserProfileRow
 import com.example.backend.user.domain.model.SocialProvider
 import com.example.backend.user.domain.model.User
 import com.example.backend.user.domain.model.UserStatus
+import org.jetbrains.exposed.v1.core.LikePattern
 import org.jetbrains.exposed.v1.core.SortOrder
 import org.jetbrains.exposed.v1.core.and
 import org.jetbrains.exposed.v1.core.eq
@@ -120,17 +121,20 @@ class UserRepository(
                 )
             }
 
-    /** 닉네임 부분 일치(대소문자 무시) 활성 사용자 id. 어드민 검색어라 LIKE 와일드카드는 이스케이프하지 않는다. */
+    /** 닉네임 부분 일치(대소문자 무시) 활성 사용자 id. 검색어의 %, _, \ 는 문자 그대로 찾는다. */
     fun findIdsByNickname(
         keyword: String,
         limit: Int,
     ): List<Long> =
         UserTable
             .select(UserTable.id)
-            .where { (UserTable.nickname.lowerCase() like "%${keyword.lowercase()}%") and UserTable.deletedAt.isNull() }
+            .where { (UserTable.nickname.lowerCase() like nicknamePattern(keyword)) and UserTable.deletedAt.isNull() }
             .orderBy(UserTable.id to SortOrder.ASC)
             .limit(limit)
             .map { it[UserTable.id].value }
+
+    private fun nicknamePattern(keyword: String) =
+        LikePattern("%", '\\') + LikePattern.ofLiteral(keyword.lowercase(), '\\') + "%"
 
     internal fun save(user: User): UserEntity =
         UserEntity

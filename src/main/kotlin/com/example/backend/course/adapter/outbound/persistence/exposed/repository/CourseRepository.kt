@@ -221,6 +221,14 @@ class CourseRepository(
             }.limit(1)
             .empty()
 
+    /** 삭제되지 않은(deleted_at IS NULL, 숨김 포함) 코스가 존재하는지 확인한다. 복제 원본 참조 유지 판정용. */
+    fun existsUndeletedById(courseId: Long): Boolean =
+        !CourseTable
+            .selectAll()
+            .where { (CourseTable.id eq courseId) and CourseTable.deletedAt.isNull() }
+            .limit(1)
+            .empty()
+
     /** deleted_at IS NULL 인 코스 본문만 읽어 상세 읽기 모델을 만든다(상태·공개범위 판정은 서비스). */
     fun findDetail(courseId: Long): CourseDetailRow? =
         CourseTable

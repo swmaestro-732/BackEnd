@@ -12,6 +12,7 @@ import com.example.backend.course.application.port.outbound.AdminCourseRow
 import com.example.backend.course.domain.model.Course
 import com.example.backend.course.domain.model.CourseCategory
 import com.example.backend.course.domain.model.CourseStatus
+import org.jetbrains.exposed.v1.core.LikePattern
 import org.jetbrains.exposed.v1.core.Op
 import org.jetbrains.exposed.v1.core.ResultRow
 import org.jetbrains.exposed.v1.core.SortOrder
@@ -142,7 +143,7 @@ class AdminCoursePersistenceAdapter(
             condition = condition and (CourseTable.id inSubQuery courseIds)
         }
         filter.keyword?.let { keyword ->
-            var matched: Op<Boolean> = CourseTable.title.lowerCase() like "%${keyword.lowercase()}%"
+            var matched: Op<Boolean> = CourseTable.title.lowerCase() like containsPattern(keyword)
             if (filter.keywordAuthorIds.isNotEmpty()) {
                 matched =
                     matched or (CourseTable.userId inList filter.keywordAuthorIds)
@@ -152,6 +153,10 @@ class AdminCoursePersistenceAdapter(
         }
         return condition
     }
+
+    /** 부분 일치 패턴. 검색어의 %, _, \ 는 문자 그대로 찾도록 이스케이프한다. */
+    private fun containsPattern(keyword: String) =
+        LikePattern("%", ESCAPE) + LikePattern.ofLiteral(keyword.lowercase(), ESCAPE) + "%"
 
     private fun activeWith(published: Boolean): Op<Boolean> =
         (CourseTable.status eq CourseStatus.ACTIVE) and (CourseTable.isPublished eq published) and
@@ -175,4 +180,8 @@ class AdminCoursePersistenceAdapter(
             createdAt = this[CourseTable.createdAt].toJavaInstant(),
             updatedAt = this[CourseTable.updatedAt].toJavaInstant(),
         )
+
+    private companion object {
+        const val ESCAPE = '\\'
+    }
 }
