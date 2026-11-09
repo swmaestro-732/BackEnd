@@ -1,9 +1,7 @@
 package com.example.backend.user.adapter.outbound.persistence
 
 import com.example.backend.support.IntegrationTestBase
-import com.example.backend.user.adapter.outbound.persistence.exposed.DeviceActivityTable
 import com.example.backend.user.adapter.outbound.persistence.exposed.DeviceTable
-import com.example.backend.user.adapter.outbound.persistence.exposed.UserTable
 import com.example.backend.user.application.port.inbound.dto.DeviceConsent
 import com.example.backend.user.application.port.inbound.dto.RegisterDeviceTokenCommand
 import com.example.backend.user.application.port.outbound.DevicePersistencePort
@@ -167,24 +165,6 @@ class DevicePersistenceTest
         }
 
         @Test
-        fun `탈퇴한 사용자의 늦은 활동 기록은 user_id를 남기지 않는다`() {
-            transaction {
-                insertUsers()
-                devicePersistencePort.recordActivity("fid-late", TODAY, null, null)
-                devicePersistencePort.unlinkAllByUser(ME)
-                UserTable.update({ UserTable.id eq ME }) { it[deletedAt] = OLD }
-
-                devicePersistencePort.recordActivity("fid-late", TODAY, ME, "android")
-                devicePersistencePort.recordActivity("fid-late-new", TODAY, ME, "android")
-
-                assertNull(activity("fid-late")[DeviceActivityTable.userId])
-                assertEquals("android", activity("fid-late")[DeviceActivityTable.platform])
-                assertNull(activity("fid-late-new")[DeviceActivityTable.userId])
-                rollback()
-            }
-        }
-
-        @Test
         fun `clearTokens는 그 토큰의 행만 토큰을 비우고 연결과 다른 행은 남긴다`() {
             transaction {
                 insertUsers()
@@ -296,14 +276,10 @@ class DevicePersistenceTest
 
         private fun row(deviceId: String) = DeviceTable.selectAll().where { DeviceTable.deviceId eq deviceId }.single()
 
-        private fun activity(deviceId: String) =
-            DeviceActivityTable.selectAll().where { DeviceActivityTable.deviceId eq deviceId }.single()
-
         private companion object {
             const val ME = 730101L
             const val OTHER = 730102L
             val OLD = Instant.parse("2000-01-01T00:00:00Z")
-            val TODAY: java.time.LocalDate = java.time.LocalDate.parse("2026-11-09")
             val AGREED_AT: java.time.Instant = java.time.Instant.parse("2026-11-01T00:00:00Z")
         }
     }

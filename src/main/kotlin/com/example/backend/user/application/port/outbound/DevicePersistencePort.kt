@@ -51,7 +51,7 @@ interface DevicePersistencePort {
 
     /**
      * 그날 활동 행을 만든다. 이미 있으면 비어 있는 user_id, platform 만 채운다(처음 값 유지).
-     * 요청 밖(전용 실행기)에서 불리므로 자체 트랜잭션으로 쓴다.
+     * [userId] 는 호출부가 같은 트랜잭션에서 활성 사용자로 확인한 값이다. 탈퇴자면 null 을 넘긴다.
      */
     fun recordActivity(
         deviceId: String,

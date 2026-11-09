@@ -3,11 +3,13 @@ package com.example.backend.user.application.service
 import com.example.backend.bootstrap.config.AsyncConfig
 import com.example.backend.user.application.port.inbound.DeviceActivityUseCase
 import com.example.backend.user.application.port.outbound.DevicePersistencePort
+import com.example.backend.user.application.port.outbound.UserPersistencePort
 import io.github.oshai.kotlinlogging.KotlinLogging
 import org.springframework.beans.factory.annotation.Qualifier
 import org.springframework.core.task.TaskExecutor
 import org.springframework.core.task.TaskRejectedException
 import org.springframework.stereotype.Service
+import org.springframework.transaction.support.TransactionOperations
 import java.time.Clock
 import java.time.LocalDate
 import java.time.ZoneId
@@ -21,6 +23,8 @@ import java.util.concurrent.ConcurrentHashMap
 @Service
 class DeviceActivityService(
     private val devicePersistencePort: DevicePersistencePort,
+    private val userPersistencePort: UserPersistencePort,
+    private val transactionOperations: TransactionOperations,
     private val clock: Clock,
     @Qualifier(AsyncConfig.DEVICE_ACTIVITY_EXECUTOR) private val deviceActivityExecutor: TaskExecutor,
 ) : DeviceActivityUseCase {
@@ -49,7 +53,7 @@ class DeviceActivityService(
 
         try {
             deviceActivityExecutor.execute {
-                runCatching { devicePersistencePort.recordActivity(deviceId, today, userId, platform) }
+                runCatching { write(deviceId, today, userId, platform) }
                     .onFailure {
                         current.ids.remove(key)
                         // 예외 메시지에는 바인딩 값을 펼친 SQL(기기 ID 포함)이 들어가므로 예외 종류만 남긴다.
@@ -60,6 +64,22 @@ class DeviceActivityService(
             current.ids.remove(key)
             // 폭주 때 요청마다 쌓이지 않게 debug 로 둔다.
             log.debug { "기기 활동 기록 큐가 가득 차 이번 기록을 건너뜀" }
+        }
+    }
+
+    /**
+     * 탈퇴(FOR UPDATE)와 같은 사용자 행을 FOR SHARE 로 잠가 직렬화하고, 활성 사용자일 때만 user_id 를 남긴다.
+     * 탈퇴 정리 뒤 늦게 온 쓰기가 user_id 를 되살리지 않게 잠금과 쓰기를 한 트랜잭션으로 묶는다.
+     */
+    private fun write(
+        deviceId: String,
+        date: LocalDate,
+        userId: Long?,
+        platform: String?,
+    ) {
+        transactionOperations.executeWithoutResult {
+            val activeUserId = userId?.takeIf { it in userPersistencePort.lockActiveShared(listOf(it)) }
+            devicePersistencePort.recordActivity(deviceId, date, activeUserId, platform)
         }
     }
 
