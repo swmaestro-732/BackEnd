@@ -1,6 +1,7 @@
 package com.example.backend.mobile.course.application.service
 
 import com.example.backend.common.domain.CourseVisibility
+import com.example.backend.course.application.port.inbound.AdminCourseUseCase
 import com.example.backend.course.application.port.inbound.CourseQueryUseCase
 import com.example.backend.course.application.port.inbound.dto.CourseDetailResult
 import com.example.backend.course.application.port.inbound.dto.CoursePlaceResult
@@ -28,6 +29,7 @@ class CourseMobileServiceTest {
             userUseCase,
             placeQueryUseCase,
             courseReviewScreenUseCase,
+            mock(AdminCourseUseCase::class.java),
         )
 
     @Test
