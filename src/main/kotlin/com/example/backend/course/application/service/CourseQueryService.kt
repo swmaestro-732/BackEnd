@@ -11,7 +11,6 @@ import com.example.backend.course.application.port.inbound.dto.CoursePlaceResult
 import com.example.backend.course.application.port.inbound.dto.CourseSummary
 import com.example.backend.course.application.port.inbound.dto.CourseSummaryPage
 import com.example.backend.course.application.port.outbound.CoursePersistencePort
-import com.example.backend.course.application.port.outbound.CourseSummaryRow
 import com.example.backend.course.application.port.outbound.CourseTagQueryPort
 import com.example.backend.course.application.port.outbound.ViewerInteractionPort
 import com.example.backend.course.domain.model.CourseStatus
@@ -123,7 +122,7 @@ class CourseQueryService(
                 size = size,
             )
         return CourseSummaryPage(
-            items = rows.take(size).map(::toCourseSummary),
+            items = rows.take(size).map { it.toCourseSummary() },
             hasNext = rows.size > size,
         )
     }
@@ -132,7 +131,7 @@ class CourseQueryService(
     override fun listDraftsByAuthor(authorId: Long): List<CourseSummary> =
         coursePersistencePort
             .findDraftsByAuthor(authorId)
-            .map(::toCourseSummary)
+            .map { it.toCourseSummary() }
 
     /** 조회자에게 허용된 공개범위를 SQL 조건으로 전달해 필터 이후에도 페이지 크기와 hasNext가 정확하게 유지되게 한다. */
     private fun viewableVisibilities(
@@ -152,20 +151,4 @@ class CourseQueryService(
                 setOf(CourseVisibility.PUBLIC)
             }
         }
-
-    private fun toCourseSummary(row: CourseSummaryRow) =
-        CourseSummary(
-            id = row.id,
-            authorId = row.userId,
-            title = row.title,
-            coverImageUrl = row.coverImageUrl,
-            themes = row.categories.map { it.name },
-            area = row.area,
-            likesCnt = row.likesCnt,
-            savesCnt = row.savesCnt,
-            createdAt = row.createdAt,
-            // 장소 수·도보 시간은 추천(CourseRecommendService)에서만 채운다.
-            placeCount = null,
-            walkingMinutes = null,
-        )
 }

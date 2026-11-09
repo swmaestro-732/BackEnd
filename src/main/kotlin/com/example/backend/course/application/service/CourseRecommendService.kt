@@ -3,13 +3,11 @@ package com.example.backend.course.application.service
 import com.example.backend.course.application.port.inbound.CourseRecommendUseCase
 import com.example.backend.course.application.port.inbound.dto.CourseRecommendPage
 import com.example.backend.course.application.port.inbound.dto.CourseRecommendQuery
-import com.example.backend.course.application.port.inbound.dto.CourseSummary
 import com.example.backend.course.application.port.outbound.CoursePersistencePort
 import com.example.backend.course.application.port.outbound.CoursePlaceStats
 import com.example.backend.course.application.port.outbound.CourseRecommendAfter
 import com.example.backend.course.application.port.outbound.CourseRecommendCriteria
 import com.example.backend.course.application.port.outbound.CourseRecommendQueryPort
-import com.example.backend.course.application.port.outbound.CourseSearchRow
 import com.example.backend.course.application.port.outbound.FeedCursor
 import com.example.backend.course.domain.model.CourseCategory
 import org.springframework.stereotype.Service
@@ -83,7 +81,7 @@ class CourseRecommendService(
                 CourseRecommendCursorCodec.encode(CourseRecommendCursor.Engine(origin, it.score, it.row.id))
             }
         return CourseRecommendPage(
-            items = page.hits.map { toCourseSummary(it.row, statsByCourse[it.row.id]) },
+            items = page.hits.map { it.row.toCourseSummary(statsByCourse[it.row.id] ?: CoursePlaceStats(0, 0)) },
             hasNext = page.hasNext,
             nextCursor = nextCursor,
         )
@@ -108,44 +106,11 @@ class CourseRecommendService(
                 )
             }
         return CourseRecommendPage(
-            items =
-                page.map {
-                    val stats = statsByCourse[it.id] ?: CoursePlaceStats(0, 0)
-                    CourseSummary(
-                        id = it.id,
-                        authorId = it.userId,
-                        title = it.title,
-                        coverImageUrl = it.coverImageUrl,
-                        themes = it.categories.map { category -> category.name },
-                        area = it.area,
-                        likesCnt = it.likesCnt,
-                        savesCnt = it.savesCnt,
-                        createdAt = it.createdAt,
-                        placeCount = stats.placeCount,
-                        walkingMinutes = stats.walkingMinutes,
-                    )
-                },
+            items = page.map { it.toCourseSummary(statsByCourse[it.id] ?: CoursePlaceStats(0, 0)) },
             hasNext = hasNext,
             nextCursor = nextCursor,
         )
     }
-
-    private fun toCourseSummary(
-        row: CourseSearchRow,
-        stats: CoursePlaceStats?,
-    ) = CourseSummary(
-        id = row.id,
-        authorId = row.authorId,
-        title = row.title,
-        coverImageUrl = row.coverImageUrl,
-        themes = row.themes,
-        area = row.area,
-        likesCnt = row.likesCnt,
-        savesCnt = row.savesCnt,
-        createdAt = row.createdAt,
-        placeCount = stats?.placeCount ?: 0,
-        walkingMinutes = stats?.walkingMinutes ?: 0,
-    )
 
     private companion object {
         val EMPTY = CourseRecommendPage(items = emptyList(), hasNext = false, nextCursor = null)
