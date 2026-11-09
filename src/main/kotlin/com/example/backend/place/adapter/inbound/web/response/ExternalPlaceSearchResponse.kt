@@ -18,6 +18,7 @@ data class ExternalPlaceSearchResponse(
         val latitude: Double,
         val longitude: Double,
         val telephone: String?,
+        val categoryDetail: String? = null,
     )
 
     companion object {
@@ -34,6 +35,7 @@ data class ExternalPlaceSearchResponse(
                             latitude = it.latitude,
                             longitude = it.longitude,
                             telephone = it.telephone,
+                            categoryDetail = it.categoryDetail,
                         )
                     },
             )

@@ -14,7 +14,15 @@ data class PlaceMapResponse(
                 totalCount = result.totalCount,
                 places =
                     result.places.map {
-                        PlaceMapMarkerResponse(it.id, it.name, it.category, it.latitude, it.longitude)
+                        PlaceMapMarkerResponse(
+                            it.id,
+                            it.name,
+                            it.category,
+                            it.address,
+                            it.latitude,
+                            it.longitude,
+                            it.categoryDetail,
+                        )
                     },
                 clusters =
                     result.clusters.map {
@@ -33,8 +41,10 @@ data class PlaceMapMarkerResponse(
     val id: Long,
     val name: String,
     val category: String,
+    val address: String,
     val latitude: Double,
     val longitude: Double,
+    val categoryDetail: String? = null,
 )
 
 data class PlaceMapClusterResponse(

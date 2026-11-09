@@ -103,8 +103,10 @@ class PlaceMapQueryService(
             id = id,
             name = name,
             category = category,
+            address = address,
             latitude = location.latitude,
             longitude = location.longitude,
+            categoryDetail = categoryDetail,
         )
 
     private fun Viewport.center() =

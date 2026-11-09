@@ -217,6 +217,8 @@ class AuthServiceTest {
                 userId: Long?,
                 platform: String?,
             ) = Unit
+
+            override fun clearTokens(fcmTokens: Collection<String>) = Unit
         }
 
     private val service =

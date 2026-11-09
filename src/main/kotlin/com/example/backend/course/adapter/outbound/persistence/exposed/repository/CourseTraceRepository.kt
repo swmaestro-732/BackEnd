@@ -1,16 +1,17 @@
 package com.example.backend.course.adapter.outbound.persistence.exposed.repository
 
+import com.example.backend.common.domain.CourseTraceStatus
 import com.example.backend.course.adapter.outbound.persistence.exposed.CourseTracePlaceTable
 import com.example.backend.course.adapter.outbound.persistence.exposed.CourseTraceTable
 import com.example.backend.course.application.port.inbound.dto.VisitedPlaceResult
 import com.example.backend.course.application.port.outbound.CourseTraceRow
-import com.example.backend.course.domain.model.CourseTraceStatus
 import org.jetbrains.exposed.v1.core.ResultRow
 import org.jetbrains.exposed.v1.core.SortOrder
 import org.jetbrains.exposed.v1.core.and
 import org.jetbrains.exposed.v1.core.eq
 import org.jetbrains.exposed.v1.core.inList
 import org.jetbrains.exposed.v1.core.inSubQuery
+import org.jetbrains.exposed.v1.core.less
 import org.jetbrains.exposed.v1.core.min
 import org.jetbrains.exposed.v1.jdbc.deleteWhere
 import org.jetbrains.exposed.v1.jdbc.insertIgnore
@@ -27,20 +28,31 @@ import kotlin.time.toKotlinInstant
 /** tracing_courses·tracing_course_places 테이블 접근 리포지토리 — 따라가기 세션의 시작·체크인·종료와 완주 조회. */
 @Repository
 class CourseTraceRepository {
-    fun findInProgress(
-        userId: Long,
-        courseId: Long,
-    ): CourseTraceRow? =
+    fun findInProgress(userId: Long): CourseTraceRow? =
         CourseTraceTable
             .selectAll()
             .where {
-                (CourseTraceTable.userId eq userId) and
-                    (CourseTraceTable.courseId eq courseId) and
-                    (CourseTraceTable.status eq CourseTraceStatus.IN_PROGRESS)
+                (CourseTraceTable.userId eq userId) and (CourseTraceTable.status eq CourseTraceStatus.IN_PROGRESS)
             }.singleOrNull()
             ?.toRow()
 
-    /** 부분 유니크 인덱스(진행 중 세션은 (user, course) 당 하나)와 충돌하면 null — 동시 시작은 호출부가 기존 세션을 다시 읽는다. */
+    /** 사용자의 완주 세션을 id DESC 키셋으로 읽는다 — (user_id, course_id) 인덱스의 user_id 접두로 탄다. 한 사용자의 세션 수는 적다. */
+    fun findCompleted(
+        userId: Long,
+        beforeId: Long?,
+        size: Int,
+    ): List<CourseTraceRow> {
+        var condition = (CourseTraceTable.userId eq userId) and (CourseTraceTable.status eq CourseTraceStatus.COMPLETED)
+        beforeId?.let { condition = condition and (CourseTraceTable.id less it) }
+        return CourseTraceTable
+            .selectAll()
+            .where(condition)
+            .orderBy(CourseTraceTable.id to SortOrder.DESC)
+            .limit(size)
+            .map { it.toRow() }
+    }
+
+    /** 부분 유니크 인덱스(진행 중 세션은 사용자당 하나)와 충돌하면 null — 동시 시작은 호출부가 기존 세션을 다시 읽는다. */
     fun insertInProgress(
         userId: Long,
         courseId: Long,
@@ -60,6 +72,14 @@ class CourseTraceRepository {
             .selectAll()
             .where { CourseTraceTable.id eq traceId }
             .forUpdate()
+            .singleOrNull()
+            ?.toRow()
+
+    /** 잠금 없이 읽는다 — 읽기 전용 트랜잭션에서는 FOR UPDATE 를 쓸 수 없다. */
+    fun readById(traceId: Long): CourseTraceRow? =
+        CourseTraceTable
+            .selectAll()
+            .where { CourseTraceTable.id eq traceId }
             .singleOrNull()
             ?.toRow()
 
@@ -143,5 +163,8 @@ class CourseTraceRepository {
             courseId = this[CourseTraceTable.courseId],
             status = this[CourseTraceTable.status],
             startedAt = this[CourseTraceTable.createdAt].toJavaInstant(),
+            endedAt = this[CourseTraceTable.endedAt]?.toJavaInstant(),
+            durationMinutes = this[CourseTraceTable.durationMinutes],
+            distanceMeters = this[CourseTraceTable.distanceMeters],
         )
 }

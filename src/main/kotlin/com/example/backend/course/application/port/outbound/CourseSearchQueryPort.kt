@@ -41,14 +41,14 @@ data class CourseSearchPage(
 /**
  * 검색 엔진이 돌려준 코스 한 줄(읽기 모델). 아웃바운드가 소유하는 행이며, 서비스가 인바운드 계약
  * [com.example.backend.course.application.port.inbound.dto.CourseSummary] 로 매핑한다
- * (영속성 [CourseSummaryRow]→CourseSummary 와 동형). theme 은 카테고리 이름 문자열.
+ * (영속성 [CourseSummaryRow]→CourseSummary 와 동형). themes 는 카테고리 이름 문자열 목록.
  */
 data class CourseSearchRow(
     val id: Long,
     val authorId: Long,
     val title: String,
     val coverImageUrl: String?,
-    val theme: String?,
+    val themes: List<String>,
     val area: String?,
     val likesCnt: Int,
     val savesCnt: Int,

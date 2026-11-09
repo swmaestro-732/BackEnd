@@ -59,6 +59,7 @@ data class SavedPlaceScreenResponse(
                                             latitude = item.place.latitude,
                                             longitude = item.place.longitude,
                                         ),
+                                    categoryDetail = item.place.categoryDetail,
                                 ),
                         )
                     },
@@ -210,4 +211,6 @@ data class SavedPlaceSummaryResponse(
     val walkingTime: String?,
     // 좌표 — 지도 핀 표시용(장소 상세 화면 조합과 동일 표현)
     val location: PlaceLocationResponse,
+    // 카카오 상세 분류 원문(예: "제과,베이커리") — 클라이언트 아이콘 매핑용, 없으면 null.
+    val categoryDetail: String? = null,
 )

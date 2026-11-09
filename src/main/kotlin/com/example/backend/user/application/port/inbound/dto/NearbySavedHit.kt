@@ -13,4 +13,5 @@ data class NearbySavedHit(
     val imageUrl: String?,
     val rating: Double,
     val ratingCount: Int,
+    val categoryDetail: String? = null,
 )

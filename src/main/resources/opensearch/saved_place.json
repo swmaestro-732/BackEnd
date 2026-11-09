@@ -11,7 +11,8 @@
       "category": { "type": "keyword", "index": false },
       "imageUrl": { "type": "keyword", "index": false },
       "rating": { "type": "double", "index": false },
-      "ratingCount": { "type": "long", "index": false }
+      "ratingCount": { "type": "long", "index": false },
+      "categoryDetail": { "type": "keyword", "index": false }
     }
   }
 }

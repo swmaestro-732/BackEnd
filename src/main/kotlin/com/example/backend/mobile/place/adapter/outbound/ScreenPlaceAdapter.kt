@@ -29,5 +29,6 @@ class ScreenPlaceAdapter(
             longitude = longitude,
             address = address,
             areaCode = areaCode,
+            categoryDetail = categoryDetail,
         )
 }

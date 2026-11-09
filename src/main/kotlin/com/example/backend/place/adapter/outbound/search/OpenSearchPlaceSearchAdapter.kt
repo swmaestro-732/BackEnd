@@ -209,7 +209,9 @@ class OpenSearchPlaceSearchAdapter(
             id = id.toLong(),
             name = document.name,
             category = document.category,
+            address = document.address,
             location = Coordinate(document.location.lat, document.location.lon),
+            categoryDetail = document.categoryDetail,
         )
 
     private fun unavailable() = BusinessException(PlaceErrorCode.PLACE_SEARCH_UNAVAILABLE)
@@ -313,6 +315,6 @@ class OpenSearchPlaceSearchAdapter(
 
     private companion object {
         const val STATUS_ACTIVE = "ACTIVE"
-        val MAP_SOURCE_FIELDS = listOf("name", "category", "location")
+        val MAP_SOURCE_FIELDS = listOf("name", "category", "address", "location", "categoryDetail")
     }
 }

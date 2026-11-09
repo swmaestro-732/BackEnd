@@ -50,6 +50,33 @@ class PlaceRepositoryTest
         }
 
         @Test
+        fun `insertIgnoringConflicts 는 상세 분류와 카카오 분류 원문을 저장하고 되읽는다`() {
+            transaction {
+                repository.insertIgnoringConflicts(
+                    listOf(
+                        place(
+                            "국립수목원",
+                            kakaoId = "kakao-detail",
+                            categoryDetail = "수목원,식물원",
+                            kakaoCategoryName = "여행 > 관광,명소 > 수목원,식물원",
+                        ),
+                        place("상세없음", kakaoId = "kakao-no-detail"),
+                    ),
+                )
+
+                val found =
+                    repository
+                        .findByKakaoIds(listOf("kakao-detail", "kakao-no-detail"))
+                        .associateBy { it.kakaoPlaceId }
+                assertThat(found.getValue("kakao-detail").categoryDetail).isEqualTo("수목원,식물원")
+                assertThat(found.getValue("kakao-detail").kakaoCategoryName).isEqualTo("여행 > 관광,명소 > 수목원,식물원")
+                assertThat(found.getValue("kakao-no-detail").categoryDetail).isNull()
+                assertThat(found.getValue("kakao-no-detail").kakaoCategoryName).isNull()
+                rollback()
+            }
+        }
+
+        @Test
         fun `findByKakaoIds 는 공백을 걸러내고 전부 공백이면 빈 목록을 즉시 반환한다`() {
             transaction {
                 assertThat(repository.findByKakaoIds(emptyList())).isEmpty()
@@ -105,11 +132,15 @@ class PlaceRepositoryTest
         private fun place(
             name: String,
             kakaoId: String?,
+            categoryDetail: String? = null,
+            kakaoCategoryName: String? = null,
         ): Place =
             Place.create(
                 name = name,
                 description = null,
                 category = PlaceCategory.CAFE,
+                categoryDetail = categoryDetail,
+                kakaoCategoryName = kakaoCategoryName,
                 location = Coordinate(latitude = 37.5, longitude = 127.0),
                 address = "서울시 $name",
                 imageUrl = null,

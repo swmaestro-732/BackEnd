@@ -12,8 +12,10 @@ data class PlaceMapMarker(
     val id: Long,
     val name: String,
     val category: String,
+    val address: String,
     val latitude: Double,
     val longitude: Double,
+    val categoryDetail: String? = null,
 )
 
 data class PlaceMapCluster(
