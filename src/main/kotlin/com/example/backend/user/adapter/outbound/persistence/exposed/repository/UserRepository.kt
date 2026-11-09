@@ -15,6 +15,7 @@ import org.jetbrains.exposed.v1.core.isNotNull
 import org.jetbrains.exposed.v1.core.isNull
 import org.jetbrains.exposed.v1.core.neq
 import org.jetbrains.exposed.v1.core.plus
+import org.jetbrains.exposed.v1.core.vendors.ForUpdateOption
 import org.jetbrains.exposed.v1.jdbc.select
 import org.jetbrains.exposed.v1.jdbc.selectAll
 import org.jetbrains.exposed.v1.jdbc.update
@@ -138,13 +139,20 @@ class UserRepository(
         check(updated == 1) { "갱신할 활성 사용자를 찾지 못했습니다: id=$id" }
     }
 
-    fun lockActive(userIds: List<Long>): Set<Long> {
+    fun lockActive(userIds: List<Long>): Set<Long> = lockActive(userIds, ForUpdateOption.ForUpdate)
+
+    fun lockActiveShared(userIds: List<Long>): Set<Long> = lockActive(userIds, ForUpdateOption.PostgreSQL.ForShare)
+
+    private fun lockActive(
+        userIds: List<Long>,
+        option: ForUpdateOption,
+    ): Set<Long> {
         if (userIds.isEmpty()) return emptySet()
         return UserTable
             .select(UserTable.id)
             .where { (UserTable.id inList userIds) and UserTable.deletedAt.isNull() }
             .orderBy(UserTable.id to SortOrder.ASC)
-            .forUpdate()
+            .forUpdate(option)
             .mapTo(mutableSetOf()) { it[UserTable.id].value }
     }
 
