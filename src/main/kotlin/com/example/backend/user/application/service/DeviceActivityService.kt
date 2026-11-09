@@ -32,7 +32,7 @@ class DeviceActivityService(
     private var seen = DaySeen(LocalDate.MIN)
 
     /**
-     * 처음 본 (기기, 로그인 여부) 만 쓰기를 넘긴다. 비로그인으로 먼저 기록된 기기가 그날 로그인하면 한 번 더 써서 user_id 를 채운다.
+     * 처음 본 (기기, 로그인 여부, 플랫폼 유무) 만 쓰기를 넘긴다. 비로그인으로 먼저 기록된 기기가 그날 로그인하면 한 번 더 써서 user_id 를 채운다.
      * 쓰기가 실패하면 집합에서 빼 다음 요청에 다시 시도한다.
      */
     override fun record(

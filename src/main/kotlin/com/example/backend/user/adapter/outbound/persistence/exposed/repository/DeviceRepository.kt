@@ -124,7 +124,7 @@ class DeviceRepository {
         platform: String?,
     ) {
         // 탈퇴(FOR UPDATE)와 같은 사용자 행을 잠가 직렬화한다. 탈퇴 정리 뒤 늦게 온 쓰기가 user_id 를 되살리지 않게
-        // 활성 사용자일 때만 user_id 를 남긴다.
+        // 활성 사용자일 때만 user_id 를 남긴다. 활성 조건은 UserRepository.lockActive 와 같아야 한다.
         val activeUserId =
             userId?.takeIf { id ->
                 UserTable
