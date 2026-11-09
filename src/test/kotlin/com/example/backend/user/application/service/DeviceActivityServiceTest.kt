@@ -100,5 +100,7 @@ class DeviceActivityServiceTest {
         override fun unlinkAllByUser(userId: Long) = Unit
 
         override fun clearTokens(fcmTokens: Collection<String>) = Unit
+
+        override fun findMarketingTokens(night: Boolean): List<String> = emptyList()
     }
 }
