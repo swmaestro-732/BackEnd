@@ -35,4 +35,6 @@ class DevicePersistenceAdapter(
     override fun unlinkAllByUser(userId: Long) = deviceRepository.unlinkAllByUser(userId)
 
     override fun clearTokens(fcmTokens: Collection<String>) = deviceRepository.clearTokens(fcmTokens)
+
+    override fun findMarketingTokens(night: Boolean): List<String> = deviceRepository.findMarketingTokens(night)
 }

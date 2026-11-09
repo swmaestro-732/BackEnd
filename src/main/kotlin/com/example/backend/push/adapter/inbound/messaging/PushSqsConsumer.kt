@@ -35,7 +35,10 @@ class PushSqsConsumer(
     @SqsListener("\${aws.sqs.push-queue-url}")
     fun onMessage(message: PushQueueMessage) {
         val createdAt = message.createdAt
-        if (createdAt != null && Duration.between(createdAt, clock.instant()) > pushProperties.maxAge) {
+        val age = createdAt?.let { Duration.between(it, clock.instant()) }
+        // TTL 을 지정한 메시지(마케팅 등)는 큐에서 TTL 만큼 기다렸으면 남은 TTL 이 없으므로 발송하지 않는다.
+        val ttlExpired = message.androidTtlSeconds?.let { age != null && age >= Duration.ofSeconds(it) } ?: false
+        if (age != null && (age > pushProperties.maxAge || ttlExpired)) {
             staleCounter.increment(message.tokens.size.toDouble())
             log.warn { "오래된 푸시 메시지라 발송하지 않고 버림: tokenCount=${message.tokens.size}, createdAt=$createdAt" }
             return
@@ -50,6 +53,17 @@ class PushSqsConsumer(
                 log.error { "잘못된 푸시 메시지라 발송하지 않고 버림: tokenCount=${message.tokens.size}, error=${e.message}" }
                 return
             }
-        pushDeliveryUseCase.deliver(pushMessage)
+        // TTL 을 지정한 메시지는 큐에서 기다린 만큼 줄여 넘긴다. FCM 은 받은 시점부터 TTL 을 세므로, 그대로 넘기면
+        // 큐 대기와 기기 보관이 더해져 TTL 의 두 배까지 늦게 도착할 수 있다(마케팅의 21시 경계).
+        val ttl = pushMessage.androidTtl
+        pushDeliveryUseCase.deliver(
+            if (ttl != null &&
+                age != null
+            ) {
+                pushMessage.copy(androidTtl = ttl - age.coerceAtLeast(Duration.ZERO))
+            } else {
+                pushMessage
+            },
+        )
     }
 }

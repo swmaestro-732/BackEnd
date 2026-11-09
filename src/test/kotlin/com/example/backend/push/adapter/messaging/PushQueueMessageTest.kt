@@ -8,6 +8,7 @@ import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import tools.jackson.module.kotlin.jacksonObjectMapper
 import tools.jackson.module.kotlin.readValue
+import java.time.Duration
 import java.time.Instant
 
 class PushQueueMessageTest {
@@ -23,6 +24,26 @@ class PushQueueMessageTest {
 
         assertEquals(message, restored.toPushMessage())
         assertEquals(createdAt, restored.createdAt)
+    }
+
+    @Test
+    fun `큐 직렬화 왕복에서 TTL 이 유지된다`() {
+        val message = PushMessage(listOf("token-1"), "제목", "본문", androidTtl = Duration.ofMinutes(30))
+
+        val json = objectMapper.writeValueAsString(PushQueueMessage(message, Instant.EPOCH))
+        val restored = objectMapper.readValue<PushQueueMessage>(json)
+
+        assertEquals(1800L, restored.androidTtlSeconds)
+        assertEquals(message, restored.toPushMessage())
+    }
+
+    @Test
+    fun `TTL 이 없는 이전 형식 메시지는 androidTtl 을 null 로 읽는다`() {
+        val json = """{"tokens":["token-1"],"title":"제목","body":"본문","createdAt":"2026-11-04T01:02:03Z"}"""
+
+        val restored = objectMapper.readValue<PushQueueMessage>(json)
+
+        assertNull(restored.toPushMessage().androidTtl)
     }
 
     @Test
