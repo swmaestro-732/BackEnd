@@ -6,6 +6,8 @@ import com.example.backend.push.application.port.outbound.PushSendResult
 import com.example.backend.push.application.port.outbound.PushSenderPort
 import com.google.firebase.messaging.AndroidConfig
 import com.google.firebase.messaging.AndroidNotification
+import com.google.firebase.messaging.ApnsConfig
+import com.google.firebase.messaging.Aps
 import com.google.firebase.messaging.FirebaseMessaging
 import com.google.firebase.messaging.MessagingErrorCode
 import com.google.firebase.messaging.MulticastMessage
@@ -14,13 +16,16 @@ import io.github.oshai.kotlinlogging.KotlinLogging
 import io.micrometer.core.instrument.MeterRegistry
 import org.springframework.beans.factory.ObjectProvider
 import org.springframework.stereotype.Component
+import java.time.Clock
 import java.time.Duration
+import java.time.Instant
 
 /** FCM 멀티캐스트 응답을 성공, 무효 토큰, 기타 실패로 분류한다. */
 @Component
 class FcmPushSender(
     private val firebaseMessagingProvider: ObjectProvider<FirebaseMessaging>,
     private val pushProperties: PushProperties,
+    private val clock: Clock,
     meterRegistry: MeterRegistry,
 ) : PushSenderPort {
     private val log = KotlinLogging.logger {}
@@ -34,6 +39,7 @@ class FcmPushSender(
             log.warn { "Firebase 미설정으로 발송 생략: tokenCount=${message.tokens.size}" }
             return PushSendResult(0, emptyList(), 0)
         }
+        val ttl = message.androidTtl ?: pushProperties.androidTtl
         val multicastMessage =
             MulticastMessage
                 .builder()
@@ -45,9 +51,9 @@ class FcmPushSender(
                         .setBody(message.body)
                         .build(),
                 ).putAllData(message.data)
-                .setAndroidConfig(
-                    androidConfig(message.androidTtl ?: pushProperties.androidTtl, pushProperties.androidChannelId),
-                ).build()
+                .setAndroidConfig(androidConfig(ttl, pushProperties.androidChannelId))
+                .setApnsConfig(apnsConfig(clock.instant() + ttl))
+                .build()
         // 토큰별 실패는 예외 없이 응답에 담겨 온다. 호출 자체의 예외만 그대로 전파된다.
         val batchResponse = firebaseMessaging.sendEachForMulticast(multicastMessage)
         val invalidTokens = mutableListOf<String>()
@@ -81,6 +87,15 @@ internal fun androidConfig(
         .builder()
         .setTtl(ttl.toMillis())
         .setNotification(AndroidNotification.builder().setChannelId(channelId).build())
+        .build()
+
+/** iOS 는 TTL 대신 만료 시각(epoch 초)을 받는다. 안드로이드와 같은 시각에 만료되게 한다. */
+internal fun apnsConfig(expiresAt: Instant): ApnsConfig =
+    ApnsConfig
+        .builder()
+        .putHeader("apns-expiration", expiresAt.epochSecond.toString())
+        // SDK 가 aps 를 요구한다. 비워 두면 알림 제목과 본문은 FCM 이 notification 에서 채운다.
+        .setAps(Aps.builder().build())
         .build()
 
 /**

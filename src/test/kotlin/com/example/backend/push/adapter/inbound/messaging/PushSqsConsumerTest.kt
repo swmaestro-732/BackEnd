@@ -84,20 +84,20 @@ class PushSqsConsumerTest {
     }
 
     @Test
-    fun `TTL 메시지가 TTL 정각만큼 기다렸으면 버리지 않고 TTL 0 으로 발송한다`() {
+    fun `TTL 메시지가 TTL 1초 전까지 기다렸으면 남은 1초로 발송한다`() {
         val marketing = message.copy(androidTtl = Duration.ofMinutes(30))
 
-        pushSqsConsumer.onMessage(PushQueueMessage(marketing, now.minus(Duration.ofMinutes(30))))
+        pushSqsConsumer.onMessage(PushQueueMessage(marketing, now.minus(Duration.ofMinutes(30)).plusSeconds(1)))
 
-        assertEquals(Duration.ZERO, deliveredMessages.single().androidTtl)
+        assertEquals(Duration.ofSeconds(1), deliveredMessages.single().androidTtl)
         assertEquals(0.0, skippedCount("stale"))
     }
 
     @Test
-    fun `TTL 메시지가 TTL 보다 1초 더 기다렸으면 stale 로 버린다`() {
+    fun `TTL 메시지가 TTL 정각만큼 기다렸으면 남은 TTL 이 없어 stale 로 버린다`() {
         val marketing = message.copy(androidTtl = Duration.ofMinutes(30))
 
-        pushSqsConsumer.onMessage(PushQueueMessage(marketing, now.minus(Duration.ofMinutes(30)).minusSeconds(1)))
+        pushSqsConsumer.onMessage(PushQueueMessage(marketing, now.minus(Duration.ofMinutes(30))))
 
         assertTrue(deliveredMessages.isEmpty())
         assertEquals(2.0, skippedCount("stale"))

@@ -23,7 +23,7 @@ import java.time.ZoneId
  * 광고성 정보 전송 규정(정보통신망법 제50조)에 맞춰 광고 표기, 수신거부 안내, 야간 동의를 적용해 발송한다.
  * 제목에는 서비스명([커미])을, 본문 앞에는 (광고)를 붙인다.
  * 트랜잭션으로 묶지 않는다. 발송 이력을 먼저 커밋해 두어, 큐 발행이 묶음 중간에 실패해도 이미 나간 광고의 기록이 남게 한다.
- * 이력 삭제는 발행 전 실패(대상 조회)에만 한다. 발행이 시작된 뒤에는 일부가 이미 나갔을 수 있어 기록을 남긴다.
+ * 이력 삭제는 아무것도 나가지 않은 실패(대상 조회 실패, 큐에 하나도 넣지 못함)에만 한다. 일부라도 나갔으면 기록을 남긴다.
  * 부분 실패(enqueuedCount < recipientCount) 뒤에는 재발송하지 않는다. 이미 받은 기기에 같은 광고가 다시 가는 것을 피하는 쪽을 택한다.
  */
 @Service
@@ -78,10 +78,14 @@ class MarketingPushService(
                 throw e
             }
         val enqueuedCount = if (tokens.isEmpty()) 0 else pushUseCase.request(message.copy(tokens = tokens))
-        pushCampaignPersistencePort.updateCounts(campaignId, tokens.size, enqueuedCount)
+        // 하나도 넣지 못했으면(큐 미설정, SQS 장애) 나간 광고가 없으므로 이력을 지우고 실패로 응답한다. 성공 이력으로 남기지 않는다.
         if (tokens.isNotEmpty() && enqueuedCount == 0) {
             log.error { "마케팅 푸시를 큐에 하나도 넣지 못함: campaignId=$campaignId, count=${tokens.size}" }
+            val failure = BusinessException(CommonErrorCode.INTERNAL_ERROR, "광고 푸시를 발송 큐에 넣지 못했습니다")
+            runCatching { pushCampaignPersistencePort.delete(campaignId) }.onFailure(failure::addSuppressed)
+            throw failure
         }
+        pushCampaignPersistencePort.updateCounts(campaignId, tokens.size, enqueuedCount)
         log.info {
             "마케팅 푸시 발송 요청: campaignId=$campaignId, night=$night, count=${tokens.size}, enqueued=$enqueuedCount"
         }

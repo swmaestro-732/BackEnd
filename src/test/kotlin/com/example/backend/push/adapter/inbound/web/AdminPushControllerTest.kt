@@ -3,7 +3,6 @@ package com.example.backend.push.adapter.inbound.web
 import com.example.backend.admin.application.port.outbound.AdminTokenPort
 import com.example.backend.bootstrap.security.JwtTokenProvider
 import com.example.backend.support.IntegrationTestBase
-import com.jayway.jsonpath.JsonPath
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Test
 import org.springframework.beans.factory.annotation.Autowired
@@ -42,7 +41,7 @@ class AdminPushControllerTest
         private val jdbcTemplate: JdbcTemplate,
     ) : IntegrationTestBase() {
         @Test
-        fun `어드민 토큰으로 발송하면 캠페인을 기록하고 id 와 대상 수와 큐 발행 수를 돌려준다`() {
+        fun `큐에 하나도 넣지 못하면 500 으로 응답하고 이력을 남기지 않는다`() {
             // 실제 시계를 쓰므로 발송 금지 시간대(KST 20시 30분부터 21시 전)에는 거부 응답을 확인한다.
             val kstTime = LocalTime.now(ZoneId.of("Asia/Seoul"))
             if (kstTime >= LocalTime.of(20, 30) && kstTime < LocalTime.of(21, 0)) {
@@ -53,29 +52,13 @@ class AdminPushControllerTest
                     .andExpect(jsonPath("$.code").value(4001))
                 return
             }
-            val body =
-                mockMvc
-                    .perform(
-                        sendRequest(adminTokenPort.issue("admin@example.com", "admin-google-sub").token, validBody),
-                    ).andExpect(status().isOk)
-                    .andExpect(jsonPath("$.code").value(2000))
-                    .andExpect(jsonPath("$.data.recipientCount").value(1))
-                    // 테스트 환경은 큐가 없어 발행되지 않는다.
-                    .andExpect(jsonPath("$.data.enqueuedCount").value(0))
-                    .andReturn()
-                    .response.contentAsString
-            val campaignId = (JsonPath.read<Number>(body, "$.data.campaignId")).toLong()
-
-            val row = jdbcTemplate.queryForMap("SELECT * FROM push_campaigns WHERE id = ?", campaignId)
-            assertEquals("admin@example.com", row["admin_email"])
-            assertEquals("[커미] 가을 코스", row["title"])
-            assertEquals(1, row["recipient_count"])
-            assertEquals(0, row["enqueued_count"])
-
+            // 테스트 환경은 큐가 없어 발행되지 않는다.
             mockMvc
                 .perform(sendRequest(adminTokenPort.issue("admin@example.com", "admin-google-sub").token, validBody))
-                .andExpect(status().isConflict)
-                .andExpect(jsonPath("$.code").value(4300))
+                .andExpect(status().isInternalServerError)
+                .andExpect(jsonPath("$.code").value(5000))
+
+            assertEquals(0, jdbcTemplate.queryForObject("SELECT count(*) FROM push_campaigns", Int::class.java))
         }
 
         @Test

@@ -166,15 +166,17 @@ class MarketingPushServiceTest {
     }
 
     @Test
-    fun `하나도 큐에 넣지 못해도 실패로 던지지 않고 0을 돌려준다`() {
+    fun `하나도 큐에 넣지 못하면 이력을 지우고 INTERNAL_ERROR 로 던져 바로 다시 보낼 수 있게 한다`() {
         enqueuedCount = 0
 
-        val result = send()
+        val exception = assertThrows(BusinessException::class.java) { send() }
 
-        assertEquals(2, result.recipientCount)
-        assertEquals(0, result.enqueuedCount)
-        assertEquals(1, savedCampaigns.size)
-        assertEquals(mapOf(result.campaignId to 0), enqueuedCounts)
+        assertEquals(CommonErrorCode.INTERNAL_ERROR, exception.errorCode)
+        assertTrue(savedCampaigns.isEmpty())
+        assertTrue(enqueuedCounts.isEmpty())
+        enqueuedCount = null
+        send()
+        assertEquals(2, requestedMessages.size)
     }
 
     @Test
