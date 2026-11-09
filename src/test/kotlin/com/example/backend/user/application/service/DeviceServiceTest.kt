@@ -158,6 +158,8 @@ class DeviceServiceTest {
         ) = Unit
 
         override fun clearTokens(fcmTokens: Collection<String>) = Unit
+
+        override fun findMarketingTokens(night: Boolean): List<String> = emptyList()
     }
 
     private companion object {

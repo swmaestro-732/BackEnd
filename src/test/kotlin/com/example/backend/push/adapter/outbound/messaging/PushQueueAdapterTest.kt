@@ -8,6 +8,8 @@ import io.awspring.cloud.sqs.operations.SqsTemplate
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry
 import org.junit.jupiter.api.Assertions.assertDoesNotThrow
 import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertFalse
+import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import org.mockito.Answers
 import org.mockito.ArgumentMatchers.any
@@ -29,7 +31,7 @@ class PushQueueAdapterTest {
     fun `queueUrl 이 비면 SqsTemplate 을 호출하지 않고 토큰 수만큼 생략 카운터를 올린다`() {
         val sqsTemplate = mock(SqsTemplate::class.java)
 
-        adapter(sqsTemplate, queueUrl = "").enqueue(message)
+        assertFalse(adapter(sqsTemplate, queueUrl = "").enqueue(message))
 
         assertEquals(0, sendCount(sqsTemplate))
         assertEquals(2.0, queueNotConfiguredCount())
@@ -46,7 +48,7 @@ class PushQueueAdapterTest {
     fun `queueUrl 과 SqsTemplate 이 있으면 주입된 시각을 담아 발행한다`() {
         val sqsTemplate = mock(SqsTemplate::class.java)
 
-        adapter(sqsTemplate, QUEUE_URL).enqueue(message)
+        assertTrue(adapter(sqsTemplate, QUEUE_URL).enqueue(message))
 
         assertEquals(1, sendCount(sqsTemplate))
         assertEquals(PushQueueMessage(message, now), sentPayload(sqsTemplate))
@@ -61,7 +63,7 @@ class PushQueueAdapterTest {
             .`when`(sqsTemplate)
             .send(any<Consumer<SqsSendOptions<Any>>>())
 
-        assertDoesNotThrow { adapter(sqsTemplate, QUEUE_URL).enqueue(message) }
+        assertFalse(assertDoesNotThrow<Boolean> { adapter(sqsTemplate, QUEUE_URL).enqueue(message) })
     }
 
     private fun adapter(

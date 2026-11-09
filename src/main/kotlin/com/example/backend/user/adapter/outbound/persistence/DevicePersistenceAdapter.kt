@@ -43,4 +43,6 @@ class DevicePersistenceAdapter(
     ) = deviceRepository.recordActivity(deviceId, date, userId, platform)
 
     override fun clearTokens(fcmTokens: Collection<String>) = deviceRepository.clearTokens(fcmTokens)
+
+    override fun findMarketingTokens(night: Boolean): List<String> = deviceRepository.findMarketingTokens(night)
 }

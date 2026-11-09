@@ -9,6 +9,7 @@ import com.example.backend.user.application.port.inbound.dto.RegisterDeviceToken
 import com.example.backend.user.application.port.outbound.DevicePersistencePort
 import com.example.backend.user.application.port.outbound.LockedDevice
 import org.jetbrains.exposed.v1.core.eq
+import org.jetbrains.exposed.v1.jdbc.deleteAll
 import org.jetbrains.exposed.v1.jdbc.selectAll
 import org.jetbrains.exposed.v1.jdbc.transactions.TransactionManager
 import org.jetbrains.exposed.v1.jdbc.transactions.transaction
@@ -261,6 +262,27 @@ class DevicePersistenceTest
         }
 
         // devices.user_id 는 users(id) FK 라 소유자 행이 먼저 있어야 한다(테스트 트랜잭션과 함께 롤백).
+        @Test
+        fun `findMarketingTokens는 토큰과 광고 동의가 있는 기기만, 야간이면 야간 동의까지 있는 기기만 돌려준다`() {
+            transaction {
+                DeviceTable.deleteAll()
+                devicePersistencePort.saveToken(command("fid-day", "token-day"), null)
+                devicePersistencePort.updateConsent("fid-day", AGREED_AT, null)
+                devicePersistencePort.saveToken(command("fid-night", "token-night"), null)
+                devicePersistencePort.updateConsent("fid-night", AGREED_AT, AGREED_AT)
+                devicePersistencePort.saveToken(command("fid-no-consent", "token-no-consent"), null)
+                devicePersistencePort.lockConsent("fid-no-token")
+                devicePersistencePort.updateConsent("fid-no-token", AGREED_AT, AGREED_AT)
+
+                assertEquals(
+                    setOf("token-day", "token-night"),
+                    devicePersistencePort.findMarketingTokens(false).toSet(),
+                )
+                assertEquals(listOf("token-night"), devicePersistencePort.findMarketingTokens(true))
+                rollback()
+            }
+        }
+
         private fun insertUsers() {
             TransactionManager.current().exec(
                 "INSERT INTO users (id, nickname) VALUES ($ME, '기기주인'), ($OTHER, '다른사용자')",

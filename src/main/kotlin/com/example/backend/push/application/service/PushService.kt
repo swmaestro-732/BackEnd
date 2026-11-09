@@ -34,11 +34,11 @@ class PushService(
     }
 
     // 큐 메시지 하나에 FCM 한도(500)까지만 담는다. 발송 중 예외로 재전송되어도 다시 받는 범위가 그 묶음으로 그친다.
-    override fun request(message: PushMessage) {
-        for (tokens in message.tokens.chunked(FCM_MULTICAST_LIMIT)) {
-            pushQueuePort.enqueue(message.copy(tokens = tokens))
-        }
-    }
+    override fun request(message: PushMessage): Int =
+        message.tokens
+            .chunked(FCM_MULTICAST_LIMIT)
+            .filter { pushQueuePort.enqueue(message.copy(tokens = it)) }
+            .sumOf { it.size }
 
     override fun deliver(message: PushMessage) {
         for (tokens in message.tokens.chunked(FCM_MULTICAST_LIMIT)) {

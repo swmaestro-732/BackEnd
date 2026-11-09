@@ -3,6 +3,7 @@ package com.example.backend.bootstrap.appversion
 enum class AppFeature(
     val key: String,
 ) {
+    NOTIFICATION("notification"),
     AUTH("auth"),
     USER_PROFILE("user-profile"),
     USER_COURSE("user-course"),
