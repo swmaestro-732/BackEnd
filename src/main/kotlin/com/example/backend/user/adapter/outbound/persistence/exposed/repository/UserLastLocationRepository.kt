@@ -20,28 +20,21 @@ import kotlin.time.Instant
 
 /** user_last_locations 테이블 접근 리포지토리. 사용자당 한 행을 덮어쓴다. */
 @Repository
-class UserLastLocationRepository(
-    private val userRepository: UserRepository,
-) {
-    /**
-     * 활성 사용자일 때만 좌표를 저장한다. 활성 사용자가 아니면 아무것도 쓰지 않는다.
-     * - 먼저 잠금 없이 조회해 10분 안에 500m 안쪽 재진입이면 바로 끝낸다. 홈 조회 대부분은 여기서 끝나 잠금과 쓰기가 없다.
-     * - users 행 FOR SHARE: 탈퇴가 그 행을 FOR UPDATE 로 잡고 있으면 커밋까지 기다렸다가 deleted_at 을 다시 평가한다.
-     *   탈퇴가 위치 행을 지운 뒤에 다시 써서 탈퇴자 위치가 남는 일을 막는다. FOR SHARE 끼리는 서로 막지 않는다.
-     * - ON CONFLICT ... WHERE: 조회와 잠금 사이에 다른 요청이 먼저 쓴 경우에도 같은 조건으로 덮어쓰기를 건너뛴다.
-     * 10분 판단은 updated_at 과 같은 DB 시각(now())으로 한다.
-     */
-    fun upsertIfActive(
+class UserLastLocationRepository {
+    fun isRecentNear(
+        userId: Long,
+        location: Coordinate,
+    ): Boolean =
+        UserLastLocationTable
+            .select(UserLastLocationTable.userId)
+            .where { (UserLastLocationTable.userId eq userId) and recentNear(location) }
+            .any()
+
+    /** ON CONFLICT ... WHERE: 조회와 저장 사이에 다른 요청이 같은 자리로 먼저 쓴 경우에도 덮어쓰기를 건너뛴다. */
+    fun upsert(
         userId: Long,
         location: Coordinate,
     ) {
-        val isRecent =
-            UserLastLocationTable
-                .select(UserLastLocationTable.userId)
-                .where { (UserLastLocationTable.userId eq userId) and recentNear(location) }
-                .any()
-        if (isRecent) return
-        if (userId !in userRepository.lockActiveShared(listOf(userId))) return
         UserLastLocationTable.upsert(
             onUpdate = {
                 it[UserLastLocationTable.location] = insertValue(UserLastLocationTable.location)
@@ -69,10 +62,11 @@ class UserLastLocationRepository(
     /** DB 시각 기준 갱신 기준점 `now() - 10분`. updated_at 이 DB now() 로 채워지므로 같은 시계로 비교한다. */
     private object RefreshCutoff : Expression<Instant>() {
         override fun toQueryBuilder(queryBuilder: QueryBuilder) =
-            queryBuilder { append("(now() - interval '10 minutes')") }
+            queryBuilder { append("(now() - interval '$REFRESH_MINUTES minutes')") }
     }
 
     private companion object {
+        const val REFRESH_MINUTES = 10
         const val MOVE_THRESHOLD_METERS = 500.0
     }
 }

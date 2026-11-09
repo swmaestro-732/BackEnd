@@ -10,6 +10,7 @@ import org.jetbrains.exposed.v1.jdbc.transactions.TransactionManager
 import org.jetbrains.exposed.v1.jdbc.transactions.transaction
 import org.jetbrains.exposed.v1.jdbc.update
 import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import org.springframework.beans.factory.annotation.Autowired
@@ -24,10 +25,10 @@ class UserLastLocationPersistenceTest
         fun `갱신한 지 오래됐으면 같은 자리여도 한 행의 좌표와 갱신 시각을 바꾼다`() {
             transaction {
                 insertUsers()
-                userLastLocationPersistencePort.saveIfActive(ME, SEOUL)
+                userLastLocationPersistencePort.save(ME, SEOUL)
                 UserLastLocationTable.update({ UserLastLocationTable.userId eq ME }) { it[updatedAt] = OLD }
 
-                userLastLocationPersistencePort.saveIfActive(ME, SEOUL_NEAR)
+                userLastLocationPersistencePort.save(ME, SEOUL_NEAR)
 
                 val rows = rows(ME)
                 assertEquals(1, rows.size)
@@ -41,9 +42,9 @@ class UserLastLocationPersistenceTest
         fun `최근에 갱신했고 500m 안이면 덮어쓰지 않는다`() {
             transaction {
                 insertUsers()
-                userLastLocationPersistencePort.saveIfActive(ME, SEOUL)
+                userLastLocationPersistencePort.save(ME, SEOUL)
 
-                userLastLocationPersistencePort.saveIfActive(ME, SEOUL_NEAR)
+                userLastLocationPersistencePort.save(ME, SEOUL_NEAR)
 
                 assertEquals(SEOUL, rows(ME).single()[UserLastLocationTable.location])
                 rollback()
@@ -54,9 +55,9 @@ class UserLastLocationPersistenceTest
         fun `최근에 갱신했어도 500m 넘게 움직였으면 덮어쓴다`() {
             transaction {
                 insertUsers()
-                userLastLocationPersistencePort.saveIfActive(ME, SEOUL)
+                userLastLocationPersistencePort.save(ME, SEOUL)
 
-                userLastLocationPersistencePort.saveIfActive(ME, BUSAN)
+                userLastLocationPersistencePort.save(ME, BUSAN)
 
                 assertEquals(BUSAN, rows(ME).single()[UserLastLocationTable.location])
                 rollback()
@@ -64,16 +65,16 @@ class UserLastLocationPersistenceTest
         }
 
         @Test
-        fun `탈퇴했거나 없는 사용자면 저장하지 않는다`() {
+        fun `isRecentNear는 10분 안에 500m 안쪽으로 저장된 위치만 true`() {
             transaction {
                 insertUsers()
-                TransactionManager.current().exec("UPDATE users SET deleted_at = now() WHERE id = $ME")
+                userLastLocationPersistencePort.save(ME, SEOUL)
 
-                userLastLocationPersistencePort.saveIfActive(ME, SEOUL)
-                userLastLocationPersistencePort.saveIfActive(NOBODY, SEOUL)
-
-                assertTrue(rows(ME).isEmpty())
-                assertTrue(rows(NOBODY).isEmpty())
+                assertTrue(userLastLocationPersistencePort.isRecentNear(ME, SEOUL_NEAR))
+                assertFalse(userLastLocationPersistencePort.isRecentNear(ME, BUSAN))
+                assertFalse(userLastLocationPersistencePort.isRecentNear(OTHER, SEOUL))
+                UserLastLocationTable.update({ UserLastLocationTable.userId eq ME }) { it[updatedAt] = OLD }
+                assertFalse(userLastLocationPersistencePort.isRecentNear(ME, SEOUL))
                 rollback()
             }
         }
@@ -82,8 +83,8 @@ class UserLastLocationPersistenceTest
         fun `deleteByUser는 그 사용자의 위치만 지운다`() {
             transaction {
                 insertUsers()
-                userLastLocationPersistencePort.saveIfActive(ME, SEOUL)
-                userLastLocationPersistencePort.saveIfActive(OTHER, BUSAN)
+                userLastLocationPersistencePort.save(ME, SEOUL)
+                userLastLocationPersistencePort.save(OTHER, BUSAN)
 
                 userLastLocationPersistencePort.deleteByUser(ME)
 
@@ -105,7 +106,6 @@ class UserLastLocationPersistenceTest
         private companion object {
             const val ME = 780101L
             const val OTHER = 780102L
-            const val NOBODY = 780199L
             val SEOUL = Coordinate(37.544, 127.056)
 
             // SEOUL 에서 약 110m.

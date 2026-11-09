@@ -10,10 +10,15 @@ import org.springframework.stereotype.Component
 class UserLastLocationPersistenceAdapter(
     private val userLastLocationRepository: UserLastLocationRepository,
 ) : UserLastLocationPersistencePort {
-    override fun saveIfActive(
+    override fun isRecentNear(
         userId: Long,
         location: Coordinate,
-    ) = userLastLocationRepository.upsertIfActive(userId, location)
+    ): Boolean = userLastLocationRepository.isRecentNear(userId, location)
+
+    override fun save(
+        userId: Long,
+        location: Coordinate,
+    ) = userLastLocationRepository.upsert(userId, location)
 
     override fun deleteByUser(userId: Long) = userLastLocationRepository.deleteByUserId(userId)
 }

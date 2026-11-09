@@ -1,8 +1,8 @@
-package com.example.backend.user.adapter.outbound.persistence
+package com.example.backend.user.application.service
 
 import com.example.backend.common.geo.Coordinate
 import com.example.backend.support.IntegrationTestBase
-import com.example.backend.user.application.port.outbound.UserLastLocationPersistencePort
+import com.example.backend.user.application.port.inbound.UserLastLocationUseCase
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertTrue
@@ -23,7 +23,7 @@ import java.util.concurrent.TimeUnit
 class UserLastLocationWithdrawRaceTest
     @Autowired
     constructor(
-        private val userLastLocationPersistencePort: UserLastLocationPersistencePort,
+        private val userLastLocationUseCase: UserLastLocationUseCase,
         private val jdbcTemplate: JdbcTemplate,
         transactionManager: PlatformTransactionManager,
     ) : IntegrationTestBase() {
@@ -58,7 +58,7 @@ class UserLastLocationWithdrawRaceTest
                 assertTrue(locked.await(5, TimeUnit.SECONDS))
 
                 val startedAt = System.nanoTime()
-                tx.execute { userLastLocationPersistencePort.saveIfActive(USER_ID, Coordinate(37.544, 127.056)) }
+                userLastLocationUseCase.record(USER_ID, Coordinate(37.544, 127.056))
                 val waitedMillis = TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - startedAt)
                 withdraw.get(10, TimeUnit.SECONDS)
 
@@ -67,6 +67,24 @@ class UserLastLocationWithdrawRaceTest
             } finally {
                 pool.shutdownNow()
             }
+        }
+
+        @Test
+        fun `탈퇴했거나 없는 사용자면 저장하지 않는다`() {
+            jdbcTemplate.update("UPDATE users SET deleted_at = now() WHERE id = ?", USER_ID)
+
+            userLastLocationUseCase.record(USER_ID, Coordinate(37.544, 127.056))
+            userLastLocationUseCase.record(NOBODY, Coordinate(37.544, 127.056))
+
+            assertEquals(0, locationCount())
+            assertEquals(
+                0,
+                jdbcTemplate.queryForObject(
+                    "SELECT count(*) FROM user_last_locations WHERE user_id = ?",
+                    Int::class.java,
+                    NOBODY,
+                ),
+            )
         }
 
         private fun locationCount(): Int =
@@ -78,6 +96,7 @@ class UserLastLocationWithdrawRaceTest
 
         private companion object {
             const val USER_ID = 780301L
+            const val NOBODY = 780399L
             const val HOLD_MILLIS = 800L
         }
     }
