@@ -110,6 +110,24 @@ class DeviceActivityInterceptorIntegrationTest
             assertThat(activityOf(device)).containsExactly(null to "android")
         }
 
+        @Test
+        fun `탈퇴한 사용자의 남은 토큰으로 요청하면 활동은 남기되 user_id 는 비운다`() {
+            val device = UUID.randomUUID().toString()
+            transaction {
+                exec(
+                    "INSERT INTO users (id, nickname, deleted_at) VALUES ($USER_ID, '탈퇴사용자', now()) ON CONFLICT DO NOTHING",
+                )
+            }
+            mockMvc.perform(
+                get("/api/v1/courses/999999")
+                    .header(HEADER, device)
+                    .header(HttpHeaders.AUTHORIZATION, "Bearer ${jwtTokenProvider.issueAccessToken(USER_ID)}"),
+            )
+            deviceActivityExecutor.awaitIdle()
+
+            assertThat(activityOf(device)).containsExactly(null to null)
+        }
+
         private fun activityOf(device: String): List<Pair<Long?, String?>> =
             transaction {
                 DeviceActivityTable
