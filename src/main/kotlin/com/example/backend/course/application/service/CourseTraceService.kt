@@ -29,6 +29,7 @@ import com.example.backend.course.application.port.outbound.PlaceLookupPort
 import com.example.backend.course.application.port.outbound.PlaceRef
 import com.example.backend.course.application.port.outbound.WalkingRoutePort
 import com.example.backend.course.domain.model.CourseStatus
+import io.github.oshai.kotlinlogging.KotlinLogging
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Propagation
 import org.springframework.transaction.annotation.Transactional
@@ -48,6 +49,8 @@ class CourseTraceService(
     private val placeLookupPort: PlaceLookupPort,
     private val walkingRoutePort: WalkingRoutePort,
 ) : CourseTraceUseCase {
+    private val log = KotlinLogging.logger {}
+
     @Transactional
     override fun start(
         userId: Long,
@@ -141,7 +144,11 @@ class CourseTraceService(
         val trace = ownedInProgress(command.userId, command.traceId)
         // 따라가는 동안 코스에서 빠진 장소(어드민 편집 등)는 400 으로 완주를 막지 않고 기록에서만 뺀다.
         val coursePlaceIds = coursePersistencePort.findPlaces(trace.courseId).mapTo(mutableSetOf()) { it.placeId }
-        command.visitedPlaces.filter { it.placeId in coursePlaceIds }.forEach {
+        val (inCourse, dropped) = command.visitedPlaces.partition { it.placeId in coursePlaceIds }
+        if (dropped.isNotEmpty()) {
+            log.info { "코스에 없는 방문 장소 제외: traceId=${trace.id}, placeIds=${dropped.map { it.placeId }}" }
+        }
+        inCourse.forEach {
             courseTracePersistencePort.insertVisitedPlace(trace.id, it.placeId, it.visitedAt)
         }
         // 0행이면 그 사이 다른 요청이 먼저 종료한 것 — 체크인 병합까지 롤백한다.

@@ -75,6 +75,9 @@ class AdminCourseControllerTest
             assertIds("status=DRAFT", 3)
             assertIds("status=HIDDEN", 4)
             assertIds("status=DELETED", 5)
+            // 정지(SUSPENDED)도 목록 표시와 같게 숨김 필터에 들어간다.
+            jdbcTemplate.update("UPDATE courses SET status = 'SUSPENDED' WHERE id = 1")
+            assertIds("status=HIDDEN", 4, 1)
             mockMvc
                 .perform(admin(get("/admin/v1/courses?status=DELETED")))
                 .andExpect(jsonPath("$.data.items[0].status").value("DELETED"))

@@ -126,7 +126,8 @@ class AdminCoursePersistenceAdapter(
                 }
 
                 AdminCourseStatus.HIDDEN -> {
-                    (CourseTable.status eq CourseStatus.HIDDEN) and
+                    // 목록 표시(AdminCourseStatus.of)와 같게 SUSPENDED 도 숨김으로 본다.
+                    (CourseTable.status inList listOf(CourseStatus.HIDDEN, CourseStatus.SUSPENDED)) and
                         CourseTable.deletedAt.isNull()
                 }
 

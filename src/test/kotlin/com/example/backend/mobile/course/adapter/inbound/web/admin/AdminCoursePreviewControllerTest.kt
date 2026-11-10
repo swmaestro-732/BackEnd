@@ -79,6 +79,24 @@ class AdminCoursePreviewControllerTest
         }
 
         @Test
+        fun `장소가 10곳을 넘거나 태그가 30개를 넘으면 400 이다`() {
+            val tooManyPlaces = (0..10).joinToString(",") { "{\"placeId\": 1, \"orderNo\": $it}" }
+            val tooManyTags = (1..31).joinToString(",") { "\"t$it\"" }
+            listOf(
+                "{\"title\": \"x\", \"places\": [$tooManyPlaces]}",
+                "{\"title\": \"x\", \"tags\": [$tooManyTags]}",
+            ).forEach { invalid ->
+                mockMvc
+                    .perform(
+                        post("/admin/v1/course-previews")
+                            .header(HttpHeaders.AUTHORIZATION, "Bearer ${adminToken()}")
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(invalid),
+                    ).andExpect(status().isBadRequest)
+            }
+        }
+
+        @Test
         fun `앱 access token 은 403 으로 거부한다`() {
             mockMvc
                 .perform(

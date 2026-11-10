@@ -37,10 +37,13 @@ data class CoursePreviewRequest(
     val authorId: Long? = null,
     @field:Size(max = 200)
     val title: String = "",
+    @field:Size(max = MAX_DESCRIPTION)
     val description: String? = null,
     val thumbnailUrl: String? = null,
     /** DATE, FAMILY, SOLO 중(BFF 는 course 도메인 enum 을 참조하지 않아 이름으로 받는다). */
+    @field:Size(max = MAX_COMPANIONS)
     val companions: List<String> = emptyList(),
+    @field:Size(max = MAX_TAGS)
     val tags: List<String> = emptyList(),
     @field:Valid
     @field:Size(max = MAX_PLACES)
@@ -69,6 +72,9 @@ data class CoursePreviewRequest(
 
     private companion object {
         const val MAX_PLACES = 10
+        const val MAX_DESCRIPTION = 2000
+        const val MAX_COMPANIONS = 10
+        const val MAX_TAGS = 30
     }
 }
 
@@ -79,6 +85,7 @@ data class CoursePreviewPlaceRequest(
     @field:Min(0)
     val orderNo: Int,
     val caption: String? = null,
+    @field:Size(max = 10)
     val imageUrls: List<String> = emptyList(),
     val walkingMinutes: Int? = null,
 )

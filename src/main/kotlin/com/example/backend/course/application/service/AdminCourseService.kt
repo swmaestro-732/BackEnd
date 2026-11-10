@@ -64,7 +64,7 @@ class AdminCourseService(
     private val courseService: CourseService,
     private val eventPublisher: ApplicationEventPublisher,
     private val clock: Clock,
-    @Value("\${admin.curator-user-id:2}") private val curatorUserId: Long,
+    @Value("\${admin.curator-user-id}") private val curatorUserId: Long,
 ) : AdminCourseUseCase {
     @Transactional(readOnly = true)
     override fun list(query: AdminCourseQuery): AdminCoursePage {
