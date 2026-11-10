@@ -97,25 +97,24 @@ class OpenSearchCourseRecommendIntegrationTest
         }
 
         @Test
-        fun `카운터 델타 스크립트는 실제 엔진에서 가산·0 클램프되고 미색인 문서는 무시한다`() {
+        fun `카운터 델타 스크립트는 실제 엔진에서 가산·0 클램프되고 bulk 에 섞인 미색인 문서는 무시한다`() {
             index(id = 10, category = "FOOD", areaCode = null, savesCnt = 5)
+            index(id = 11, category = "FOOD", areaCode = null, savesCnt = 1)
 
-            courseSearchIndexPort.adjustCounter(10L, CourseCounter.SAVES, 1)
+            courseSearchIndexPort.adjustCounter(listOf(10L), CourseCounter.SAVES, 1)
             assertThat(documentOf(10L)?.savesCnt).isEqualTo(6)
 
-            courseSearchIndexPort.adjustCounter(10L, CourseCounter.SAVES, -10)
+            courseSearchIndexPort.adjustCounter(listOf(10L), CourseCounter.SAVES, -10)
             assertThat(documentOf(10L)?.savesCnt).isEqualTo(0)
 
-            courseSearchIndexPort.adjustCounter(10L, CourseCounter.LIKES, 2)
+            courseSearchIndexPort.adjustCounter(listOf(10L), CourseCounter.LIKES, 2)
             assertThat(documentOf(10L)?.likesCnt).isEqualTo(2)
 
-            assertThatCode {
-                courseSearchIndexPort.adjustCounter(
-                    999L,
-                    CourseCounter.SAVES,
-                    1,
-                )
-            }.doesNotThrowAnyException()
+            // 탈퇴 정리처럼 여러 코스를 한 번에 — 미색인(999)이 섞여도 나머지는 반영되고 예외는 없다.
+            assertThatCode { courseSearchIndexPort.adjustCounter(listOf(10L, 11L, 999L), CourseCounter.SAVES, 1) }
+                .doesNotThrowAnyException()
+            assertThat(documentOf(10L)?.savesCnt).isEqualTo(1)
+            assertThat(documentOf(11L)?.savesCnt).isEqualTo(2)
         }
 
         companion object {

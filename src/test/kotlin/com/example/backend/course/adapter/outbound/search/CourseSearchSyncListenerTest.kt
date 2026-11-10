@@ -1,5 +1,6 @@
 package com.example.backend.course.adapter.outbound.search
 
+import com.example.backend.bootstrap.config.AsyncConfig
 import com.example.backend.common.domain.CourseVisibility
 import com.example.backend.course.application.event.CourseAuthorWithdrawnEvent
 import com.example.backend.course.application.event.CourseCounter
@@ -12,6 +13,7 @@ import com.example.backend.course.domain.model.CourseStatus
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Test
+import org.springframework.scheduling.annotation.Async
 
 /**
  * AFTER_COMMIT 리스너가 각 이벤트를 검색 인덱스 포트의 대응 메서드로 위임하는지 검증한다.
@@ -21,7 +23,7 @@ class CourseSearchSyncListenerTest {
     private val savedCourses = mutableListOf<Course>()
     private val deletedIds = mutableListOf<Long>()
     private val deletedAuthorIds = mutableListOf<Long>()
-    private val adjusted = mutableListOf<Triple<Long, CourseCounter, Int>>()
+    private val adjusted = mutableListOf<Triple<List<Long>, CourseCounter, Int>>()
 
     private val port =
         object : CourseSearchIndexPort {
@@ -40,11 +42,11 @@ class CourseSearchSyncListenerTest {
             }
 
             override fun adjustCounter(
-                courseId: Long,
+                courseIds: List<Long>,
                 counter: CourseCounter,
                 delta: Int,
             ) {
-                adjusted += Triple(courseId, counter, delta)
+                adjusted += Triple(courseIds, counter, delta)
             }
         }
 
@@ -90,9 +92,22 @@ class CourseSearchSyncListenerTest {
 
     @Test
     fun `onCourseCounterChanged 는 카운터 종류와 델타를 포트에 넘긴다`() {
-        listener.onCourseCounterChanged(CourseCounterChangedEvent(42L, CourseCounter.LIKES, delta = -1))
+        listener.onCourseCounterChanged(CourseCounterChangedEvent(listOf(42L, 43L), CourseCounter.LIKES, delta = -1))
 
-        assertEquals(listOf(Triple(42L, CourseCounter.LIKES, -1)), adjusted)
+        assertEquals(listOf(Triple(listOf(42L, 43L), CourseCounter.LIKES, -1)), adjusted)
+    }
+
+    @Test
+    fun `카운터 갱신만 전용 실행기에서 비동기로 돈다`() {
+        val counterHandler =
+            CourseSearchSyncListener::class.java.getMethod(
+                "onCourseCounterChanged",
+                CourseCounterChangedEvent::class.java,
+            )
+        val savedHandler = CourseSearchSyncListener::class.java.getMethod("onCourseSaved", CourseSavedEvent::class.java)
+
+        assertEquals(AsyncConfig.SEARCH_INDEX_COUNTER_EXECUTOR, counterHandler.getAnnotation(Async::class.java)?.value)
+        assertNull(savedHandler.getAnnotation(Async::class.java))
     }
 
     @Test

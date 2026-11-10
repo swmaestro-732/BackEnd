@@ -70,7 +70,7 @@ class CourseLikeServiceTest {
             .verify(
                 eventPublisher,
             ).publishEvent(CourseActivityEvent(CourseActivityKind.LIKED, 1L, courseId, occurredAt))
-        verify(eventPublisher).publishEvent(CourseCounterChangedEvent(courseId, CourseCounter.LIKES, delta = 1))
+        verify(eventPublisher).publishEvent(CourseCounterChangedEvent(listOf(courseId), CourseCounter.LIKES, delta = 1))
         verifyNoMoreInteractions(eventPublisher)
         assertEquals(4, result)
     }
@@ -138,7 +138,9 @@ class CourseLikeServiceTest {
         val result = service.unlike(userId = 1L, courseId = courseId)
 
         verify(eventPublisher).publishEvent(CourseActivityEvent(CourseActivityKind.UNLIKED, 1L, courseId, occurredAt))
-        verify(eventPublisher).publishEvent(CourseCounterChangedEvent(courseId, CourseCounter.LIKES, delta = -1))
+        verify(
+            eventPublisher,
+        ).publishEvent(CourseCounterChangedEvent(listOf(courseId), CourseCounter.LIKES, delta = -1))
         verifyNoMoreInteractions(eventPublisher)
         verify(coursePort, never()).readLikesCount(courseId)
         assertEquals(4, result)
@@ -177,8 +179,10 @@ class CourseLikeServiceTest {
         service.purgeByUser(1L)
 
         verify(coursePort).decreaseLikesCounts(listOf(10L, 20L))
-        verify(eventPublisher).publishEvent(CourseCounterChangedEvent(10L, CourseCounter.LIKES, delta = -1))
-        verify(eventPublisher).publishEvent(CourseCounterChangedEvent(20L, CourseCounter.LIKES, delta = -1))
+        verify(
+            eventPublisher,
+        ).publishEvent(CourseCounterChangedEvent(listOf(10L, 20L), CourseCounter.LIKES, delta = -1))
+        verifyNoMoreInteractions(eventPublisher)
     }
 
     @Test

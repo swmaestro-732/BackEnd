@@ -21,7 +21,7 @@ class CourseCounterServiceTest {
         `when`(persistence.increaseSavesCount(10L)).thenReturn(1)
 
         assertEquals(1, service.increaseSavesCount(10L))
-        verify(eventPublisher).publishEvent(CourseCounterChangedEvent(10L, CourseCounter.SAVES, delta = 1))
+        verify(eventPublisher).publishEvent(CourseCounterChangedEvent(listOf(10L), CourseCounter.SAVES, delta = 1))
     }
 
     @Test
@@ -31,7 +31,7 @@ class CourseCounterServiceTest {
         service.decreaseSavesCount(10L)
 
         verify(persistence).decreaseSavesCount(10L)
-        verify(eventPublisher).publishEvent(CourseCounterChangedEvent(10L, CourseCounter.SAVES, delta = -1))
+        verify(eventPublisher).publishEvent(CourseCounterChangedEvent(listOf(10L), CourseCounter.SAVES, delta = -1))
     }
 
     @Test

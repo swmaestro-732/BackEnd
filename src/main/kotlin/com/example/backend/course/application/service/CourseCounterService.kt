@@ -24,7 +24,7 @@ class CourseCounterService(
         if (updated >
             0
         ) {
-            eventPublisher.publishEvent(CourseCounterChangedEvent(courseId, CourseCounter.SAVES, delta = 1))
+            eventPublisher.publishEvent(CourseCounterChangedEvent(listOf(courseId), CourseCounter.SAVES, delta = 1))
         }
         return updated
     }
@@ -35,7 +35,7 @@ class CourseCounterService(
         if (updated >
             0
         ) {
-            eventPublisher.publishEvent(CourseCounterChangedEvent(courseId, CourseCounter.SAVES, delta = -1))
+            eventPublisher.publishEvent(CourseCounterChangedEvent(listOf(courseId), CourseCounter.SAVES, delta = -1))
         }
     }
 }

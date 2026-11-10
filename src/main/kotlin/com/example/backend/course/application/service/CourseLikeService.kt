@@ -57,7 +57,7 @@ class CourseLikeService(
             coursePersistencePort.increaseLikesCountReturning(courseId)
                 ?: throw BusinessException(CourseErrorCode.COURSE_NOT_FOUND, "좋아요할 코스를 찾을 수 없습니다: courseId=$courseId")
         eventPublisher.publishEvent(CourseActivityEvent(CourseActivityKind.LIKED, userId, courseId, clock.instant()))
-        eventPublisher.publishEvent(CourseCounterChangedEvent(courseId, CourseCounter.LIKES, delta = 1))
+        eventPublisher.publishEvent(CourseCounterChangedEvent(listOf(courseId), CourseCounter.LIKES, delta = 1))
         return likesCnt
     }
 
@@ -77,7 +77,7 @@ class CourseLikeService(
             eventPublisher.publishEvent(
                 CourseActivityEvent(CourseActivityKind.UNLIKED, userId, courseId, clock.instant()),
             )
-            eventPublisher.publishEvent(CourseCounterChangedEvent(courseId, CourseCounter.LIKES, delta = -1))
+            eventPublisher.publishEvent(CourseCounterChangedEvent(listOf(courseId), CourseCounter.LIKES, delta = -1))
             likesCnt
         } else {
             coursePersistencePort.readLikesCount(courseId)
@@ -91,15 +91,11 @@ class CourseLikeService(
     override fun purgeByUser(userId: Long) {
         // 좋아요를 한 번의 DELETE … RETURNING 으로 지우고, 실제로 지워진 코스만 배치로 카운터를 내린다(총 2쿼리).
         // 행은 한 번만 삭제되므로 동시 unlike 와 경합해도 그 코스의 감소는 한 번뿐 — 코스 행 잠금 없이 이중 감소를 막는다.
-        // RETURNING 으로 받은 코스마다 정확히 한 번 감소했으므로 색인 델타도 코스별 -1 로 낸다(삭제된 코스 문서는 404 로 무시된다).
+        // RETURNING 으로 받은 코스마다 정확히 한 번 감소했으므로 색인 델타도 같은 목록으로 -1 을 한 번에 낸다(bulk 한 요청, 삭제된 코스 문서는 404 로 무시).
         val courseIds = courseLikePersistencePort.deleteAllByUser(userId)
         if (courseIds.isNotEmpty()) {
             coursePersistencePort.decreaseLikesCounts(courseIds)
-            courseIds.forEach {
-                eventPublisher.publishEvent(
-                    CourseCounterChangedEvent(it, CourseCounter.LIKES, delta = -1),
-                )
-            }
+            eventPublisher.publishEvent(CourseCounterChangedEvent(courseIds, CourseCounter.LIKES, delta = -1))
         }
     }
 }
