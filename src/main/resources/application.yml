@@ -27,6 +27,9 @@ spring:
     aws:
       region:
         static: ${AWS_REGION:ap-northeast-2}
+      # SCRUM-769: 발행 측 트레이스 컨텍스트를 메시지에 실어 리스너 처리까지 한 트레이스로 잇는다.
+      sqs:
+        observation-enabled: true
 
 # SCRUM-806: 쿼리 구간만 계측하고 사용자 파라미터 값은 수집하지 않는다.
 jdbc:
