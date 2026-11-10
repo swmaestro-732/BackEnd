@@ -65,6 +65,8 @@ class AuthServiceTest {
                 return userIds.toSet()
             }
 
+            override fun lockActiveShared(userIds: List<Long>): Set<Long> = lockActive(userIds)
+
             override fun findByHandle(handle: String): User? = null
 
             override fun findProfile(userId: Long): UserProfileRow? = null
@@ -210,6 +212,10 @@ class AuthServiceTest {
             }
 
             override fun unlinkAllByUser(userId: Long) = Unit
+
+            override fun clearTokens(fcmTokens: Collection<String>) = Unit
+
+            override fun findMarketingTokens(night: Boolean): List<String> = emptyList()
         }
 
     private val service =

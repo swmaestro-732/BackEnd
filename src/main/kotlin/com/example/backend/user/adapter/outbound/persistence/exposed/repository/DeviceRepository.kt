@@ -8,9 +8,13 @@ import org.jetbrains.exposed.v1.core.Op
 import org.jetbrains.exposed.v1.core.and
 import org.jetbrains.exposed.v1.core.case
 import org.jetbrains.exposed.v1.core.eq
+import org.jetbrains.exposed.v1.core.inList
+import org.jetbrains.exposed.v1.core.isNotNull
 import org.jetbrains.exposed.v1.core.neq
+import org.jetbrains.exposed.v1.core.or
 import org.jetbrains.exposed.v1.datetime.CurrentTimestamp
 import org.jetbrains.exposed.v1.jdbc.insertIgnore
+import org.jetbrains.exposed.v1.jdbc.select
 import org.jetbrains.exposed.v1.jdbc.selectAll
 import org.jetbrains.exposed.v1.jdbc.update
 import org.jetbrains.exposed.v1.jdbc.upsert
@@ -37,10 +41,12 @@ class DeviceRepository {
             onUpdate = {
                 val sameToken = DeviceTable.fcmToken eq insertValue(DeviceTable.fcmToken)
                 // 광고 동의는 그 토큰(그 설치)에 대한 것이다. 토큰이 바뀌면 동의를 지워, 기기 ID 로 토큰을 바꿔 심은 동의가
-                // 실제 설치로 넘어가지 않게 한다. 같은 기기 ID 에서 토큰만 바뀌는 경우는 드물다(백업 복원 등).
+                // 실제 설치로 넘어가지 않게 한다. 단 이미 이 계정에 연결된 기기를 같은 계정이 로그인 상태로 갱신하면
+                // 본인 기기의 토큰 교체(FCM 토큰 갱신, 무효 토큰 정리 후 재등록)로 보고 동의를 유지한다.
+                val keepConsent = if (userId != null) sameToken or (DeviceTable.userId eq userId) else sameToken
                 it[DeviceTable.marketingAgreedAt] =
-                    case().When(sameToken, DeviceTable.marketingAgreedAt).Else(Op.nullOp())
-                it[DeviceTable.nightAgreedAt] = case().When(sameToken, DeviceTable.nightAgreedAt).Else(Op.nullOp())
+                    case().When(keepConsent, DeviceTable.marketingAgreedAt).Else(Op.nullOp())
+                it[DeviceTable.nightAgreedAt] = case().When(keepConsent, DeviceTable.nightAgreedAt).Else(Op.nullOp())
                 it[DeviceTable.fcmToken] = insertValue(DeviceTable.fcmToken)
                 // 비로그인 경로는 인증이 없어 기기 ID 만으로 계정에 연결된 행의 토큰을 바꿀 수 있다.
                 // 토큰이 바뀌면 연결을 끊어, 남의 기기 ID 로 그 계정의 활동 알림을 가로채지 못하게 한다.
@@ -66,7 +72,7 @@ class DeviceRepository {
             .where { DeviceTable.deviceId eq deviceId }
             .forUpdate()
             .single()
-            .let { LockedDevice(it[DeviceTable.fcmToken], toConsent(it)) }
+            .let { LockedDevice(it[DeviceTable.fcmToken], toConsent(it), it[DeviceTable.userId] != null) }
     }
 
     fun updateConsent(
@@ -99,6 +105,19 @@ class DeviceRepository {
 
     fun unlinkAllByUser(userId: Long) {
         DeviceTable.update({ DeviceTable.userId eq userId }) { it[DeviceTable.userId] = null }
+    }
+
+    fun clearTokens(fcmTokens: Collection<String>) {
+        DeviceTable.update({ DeviceTable.fcmToken inList fcmTokens }) { it[fcmToken] = null }
+    }
+
+    fun findMarketingTokens(night: Boolean): List<String> {
+        val agreed = DeviceTable.fcmToken.isNotNull() and DeviceTable.marketingAgreedAt.isNotNull()
+        // fcm_token 은 UNIQUE 라 중복 제거(DISTINCT)가 필요 없다.
+        return DeviceTable
+            .select(DeviceTable.fcmToken)
+            .where { if (night) agreed and DeviceTable.nightAgreedAt.isNotNull() else agreed }
+            .map { checkNotNull(it[DeviceTable.fcmToken]) }
     }
 
     private fun toConsent(row: org.jetbrains.exposed.v1.core.ResultRow): DeviceConsent =

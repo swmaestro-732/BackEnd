@@ -1,0 +1,67 @@
+package com.example.backend.notification.adapter.inbound.event
+
+import com.example.backend.bootstrap.config.AsyncConfig
+import com.example.backend.course.application.port.inbound.CourseActivityKind
+import com.example.backend.course.application.port.inbound.CourseActivityOccurred
+import com.example.backend.notification.application.port.inbound.NotificationUseCase
+import com.example.backend.notification.application.port.inbound.dto.RecordNotificationCommand
+import com.example.backend.notification.domain.model.NotificationType
+import com.example.backend.user.application.port.inbound.UserActivityKind
+import com.example.backend.user.application.port.inbound.UserActivityOccurred
+import io.github.oshai.kotlinlogging.KotlinLogging
+import io.micrometer.core.instrument.MeterRegistry
+import org.springframework.scheduling.annotation.Async
+import org.springframework.stereotype.Component
+import org.springframework.transaction.event.TransactionPhase
+import org.springframework.transaction.event.TransactionalEventListener
+
+/** 발행 도메인의 공개 계약만 받아 커밋 이후 알림 기록을 시도한다. 취소 행동(좋아요 취소 등)은 묶음에서 행동자를 뺀다. */
+@Component
+class NotificationEventListener(
+    private val notificationUseCase: NotificationUseCase,
+    meterRegistry: MeterRegistry,
+) {
+    private val log = KotlinLogging.logger {}
+
+    // 첫 실패부터 increase() 로 잡히도록 종류별 카운터를 0 으로 미리 등록한다.
+    private val failedCounters =
+        NotificationType.entries.associateWith { meterRegistry.counter("notification.record.failed", "type", it.name) }
+
+    @Async(AsyncConfig.NOTIFICATION_EXECUTOR)
+    @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
+    fun onCourseActivity(event: CourseActivityOccurred) {
+        try {
+            val command =
+                RecordNotificationCommand(courseType(event.kind), event.actorId, event.courseId, event.occurredAt)
+            if (event.kind.isRetraction()) notificationUseCase.retract(command) else notificationUseCase.record(command)
+        } catch (e: Exception) {
+            log.warn(e) { "코스 활동 알림 기록 실패: type=${event.kind}" }
+            failedCounters.getValue(courseType(event.kind)).increment()
+        }
+    }
+
+    @Async(AsyncConfig.NOTIFICATION_EXECUTOR)
+    @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
+    fun onUserActivity(event: UserActivityOccurred) {
+        try {
+            val command =
+                RecordNotificationCommand(userType(event.kind), event.actorId, event.targetId, event.occurredAt)
+            if (event.kind.isRetraction()) notificationUseCase.retract(command) else notificationUseCase.record(command)
+        } catch (e: Exception) {
+            log.warn(e) { "사용자 활동 알림 기록 실패: type=${event.kind}" }
+            failedCounters.getValue(userType(event.kind)).increment()
+        }
+    }
+
+    private fun courseType(kind: CourseActivityKind): NotificationType =
+        when (kind) {
+            CourseActivityKind.LIKED, CourseActivityKind.UNLIKED -> NotificationType.COURSE_LIKED
+            CourseActivityKind.COMMENTED -> NotificationType.COURSE_COMMENTED
+            CourseActivityKind.REVIEWED, CourseActivityKind.REVIEW_DELETED -> NotificationType.COURSE_REVIEWED
+        }
+
+    private fun userType(kind: UserActivityKind): NotificationType =
+        when (kind) {
+            UserActivityKind.FOLLOWED, UserActivityKind.UNFOLLOWED -> NotificationType.USER_FOLLOWED
+        }
+}

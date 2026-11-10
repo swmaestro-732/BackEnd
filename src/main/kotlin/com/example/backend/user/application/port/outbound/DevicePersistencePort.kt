@@ -4,19 +4,23 @@ import com.example.backend.user.application.port.inbound.dto.DeviceConsent
 import com.example.backend.user.application.port.inbound.dto.RegisterDeviceTokenCommand
 import java.time.Instant
 
-/** 동의 변경을 위해 잠근 기기 행. 저장된 토큰은 요청이 실제 설치에서 왔는지 확인하는 데 쓴다. */
+/**
+ * 동의 변경을 위해 잠근 기기 행. 저장된 토큰은 요청이 실제 설치에서 왔는지 확인하는 데 쓴다.
+ * [linked] 는 계정 연결 여부다. 토큰이 비어도 계정에 연결된 행은 그 계정의 동의로 이어지므로 따로 막는다.
+ */
 data class LockedDevice(
     val fcmToken: String?,
     val consent: DeviceConsent,
+    val linked: Boolean = false,
 ) {
-    override fun toString(): String = "LockedDevice(fcmToken=[REDACTED], consent=$consent)"
+    override fun toString(): String = "LockedDevice(fcmToken=[REDACTED], consent=$consent, linked=$linked)"
 }
 
 interface DevicePersistencePort {
     /**
      * 기기 행을 만들거나 토큰과 헤더 값을 갱신한다. [userId] 가 있으면 그 계정으로 연결한다.
      * null(비로그인 경로)이면 토큰이 같을 때만 기존 연결을 유지하고, 토큰이 바뀌면 연결을 끊는다.
-     * 토큰이 바뀌면(경로와 무관하게) 광고, 야간 동의도 지운다.
+     * 토큰이 바뀌면 광고, 야간 동의도 지운다. 단 이미 [userId] 에 연결된 행을 같은 [userId] 로 갱신하면 동의를 유지한다.
      * 같은 토큰을 가진 다른 기기 행은 토큰과 연결을 비운다.
      */
     fun saveToken(
@@ -42,4 +46,10 @@ interface DevicePersistencePort {
     )
 
     fun unlinkAllByUser(userId: Long)
+
+    /** 이 토큰을 가진 기기 행의 토큰만 비운다. 행과 연결, 동의는 남는다. */
+    fun clearTokens(fcmTokens: Collection<String>)
+
+    /** 토큰이 있고 광고성 수신에 동의한 기기의 토큰. [night] 이면 야간 수신 동의도 있어야 한다. */
+    fun findMarketingTokens(night: Boolean): List<String>
 }

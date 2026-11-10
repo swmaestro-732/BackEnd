@@ -7,6 +7,7 @@ import com.example.backend.user.application.port.inbound.dto.UserProfileResult
 import com.example.backend.user.application.port.outbound.CourseCleanupPort
 import com.example.backend.user.application.port.outbound.DevicePersistencePort
 import com.example.backend.user.application.port.outbound.FollowPersistencePort
+import com.example.backend.user.application.port.outbound.NotificationCleanupPort
 import com.example.backend.user.application.port.outbound.RefreshTokenPort
 import com.example.backend.user.application.port.outbound.SavedCoursePersistencePort
 import com.example.backend.user.application.port.outbound.UserAreaPersistencePort
@@ -14,6 +15,7 @@ import com.example.backend.user.application.port.outbound.UserLikeThemePort
 import com.example.backend.user.application.port.outbound.UserPersistencePort
 import com.example.backend.user.application.port.outbound.UserProfileRow
 import org.springframework.stereotype.Service
+import org.springframework.transaction.annotation.Propagation
 import org.springframework.transaction.annotation.Transactional
 
 /**
@@ -32,6 +34,7 @@ class UserService(
     private val userLikeThemePort: UserLikeThemePort,
     private val courseCleanupPort: CourseCleanupPort,
     private val devicePersistencePort: DevicePersistencePort,
+    private val notificationCleanupPort: NotificationCleanupPort,
 ) : UserUseCase {
     override fun getProfile(
         userId: Long,
@@ -46,6 +49,10 @@ class UserService(
             isFollower = viewerId?.let { followPersistencePort.isFollowing(userId, it) } ?: false,
         )
     }
+
+    // 잠금은 호출한 쪽 트랜잭션이 끝날 때까지 유지돼야 하므로 바깥 트랜잭션 없이 부르면 실패시킨다.
+    @Transactional(propagation = Propagation.MANDATORY)
+    override fun lockActiveShared(userIds: List<Long>): Set<Long> = userPersistencePort.lockActiveShared(userIds)
 
     override fun getProfiles(
         userIds: List<Long>,
@@ -124,6 +131,8 @@ class UserService(
         followPersistencePort.purgeFollowsOf(userId)
         // 2-1) 기기: 이 사용자와의 연결만 끊는다. 토큰과 광고 동의는 기기 단위라 남는다.
         devicePersistencePort.unlinkAllByUser(userId)
+        // 2-2) 알림: 받은 알림, 남의 알림함에 남은 이 사용자의 닉네임 스냅샷 묶음, 수신 설정을 지운다.
+        notificationCleanupPort.purgeByUser(userId)
         // 3) 관심 지역·테마: 빈 목록으로 전체 치환(=전부 삭제).
         userAreaPersistencePort.replaceAreas(userId, emptyList())
         userLikeThemePort.replaceLikeThemes(userId, emptyList())

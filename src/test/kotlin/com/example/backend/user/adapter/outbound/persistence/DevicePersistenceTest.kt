@@ -7,6 +7,7 @@ import com.example.backend.user.application.port.inbound.dto.RegisterDeviceToken
 import com.example.backend.user.application.port.outbound.DevicePersistencePort
 import com.example.backend.user.application.port.outbound.LockedDevice
 import org.jetbrains.exposed.v1.core.eq
+import org.jetbrains.exposed.v1.jdbc.deleteAll
 import org.jetbrains.exposed.v1.jdbc.selectAll
 import org.jetbrains.exposed.v1.jdbc.transactions.TransactionManager
 import org.jetbrains.exposed.v1.jdbc.transactions.transaction
@@ -164,6 +165,54 @@ class DevicePersistenceTest
         }
 
         @Test
+        fun `clearTokens는 그 토큰의 행만 토큰을 비우고 연결과 다른 행은 남긴다`() {
+            transaction {
+                insertUsers()
+                devicePersistencePort.saveToken(command("fid-bad", "token-bad"), ME)
+                devicePersistencePort.saveToken(command("fid-ok", "token-ok"), ME)
+
+                devicePersistencePort.clearTokens(listOf("token-bad", "token-unknown"))
+
+                assertNull(row("fid-bad")[DeviceTable.fcmToken])
+                assertEquals(ME, row("fid-bad")[DeviceTable.userId])
+                assertEquals("token-ok", row("fid-ok")[DeviceTable.fcmToken])
+                rollback()
+            }
+        }
+
+        @Test
+        fun `같은 계정에 연결된 기기는 로그인 상태로 토큰이 바뀌어도 동의를 유지한다`() {
+            transaction {
+                insertUsers()
+                devicePersistencePort.saveToken(command("fid-rotate", "token-old"), ME)
+                devicePersistencePort.updateConsent("fid-rotate", AGREED_AT, AGREED_AT)
+                devicePersistencePort.clearTokens(listOf("token-old"))
+
+                devicePersistencePort.saveToken(command("fid-rotate", "token-new"), ME)
+
+                assertEquals(DeviceConsent(AGREED_AT, AGREED_AT), devicePersistencePort.findConsent("fid-rotate"))
+                rollback()
+            }
+        }
+
+        @Test
+        fun `다른 계정이나 비로그인 경로로 토큰이 바뀌면 동의를 지운다`() {
+            transaction {
+                insertUsers()
+                devicePersistencePort.saveToken(command("fid-other", "token-1"), ME)
+                devicePersistencePort.updateConsent("fid-other", AGREED_AT, AGREED_AT)
+                devicePersistencePort.saveToken(command("fid-other", "token-2"), OTHER)
+                assertEquals(DeviceConsent.NONE, devicePersistencePort.findConsent("fid-other"))
+
+                devicePersistencePort.saveToken(command("fid-guest", "token-3"), ME)
+                devicePersistencePort.updateConsent("fid-guest", AGREED_AT, AGREED_AT)
+                devicePersistencePort.saveToken(command("fid-guest", "token-4"), null)
+                assertEquals(DeviceConsent.NONE, devicePersistencePort.findConsent("fid-guest"))
+                rollback()
+            }
+        }
+
+        @Test
         fun `lockConsent는 행이 없으면 토큰 없는 빈 행을 만들고 미동의를 돌려준다`() {
             transaction {
                 assertEquals(LockedDevice(null, DeviceConsent.NONE), devicePersistencePort.lockConsent("fid-lock"))
@@ -193,6 +242,27 @@ class DevicePersistenceTest
         }
 
         // devices.user_id 는 users(id) FK 라 소유자 행이 먼저 있어야 한다(테스트 트랜잭션과 함께 롤백).
+        @Test
+        fun `findMarketingTokens는 토큰과 광고 동의가 있는 기기만, 야간이면 야간 동의까지 있는 기기만 돌려준다`() {
+            transaction {
+                DeviceTable.deleteAll()
+                devicePersistencePort.saveToken(command("fid-day", "token-day"), null)
+                devicePersistencePort.updateConsent("fid-day", AGREED_AT, null)
+                devicePersistencePort.saveToken(command("fid-night", "token-night"), null)
+                devicePersistencePort.updateConsent("fid-night", AGREED_AT, AGREED_AT)
+                devicePersistencePort.saveToken(command("fid-no-consent", "token-no-consent"), null)
+                devicePersistencePort.lockConsent("fid-no-token")
+                devicePersistencePort.updateConsent("fid-no-token", AGREED_AT, AGREED_AT)
+
+                assertEquals(
+                    setOf("token-day", "token-night"),
+                    devicePersistencePort.findMarketingTokens(false).toSet(),
+                )
+                assertEquals(listOf("token-night"), devicePersistencePort.findMarketingTokens(true))
+                rollback()
+            }
+        }
+
         private fun insertUsers() {
             TransactionManager.current().exec(
                 "INSERT INTO users (id, nickname) VALUES ($ME, '기기주인'), ($OTHER, '다른사용자')",
@@ -210,5 +280,6 @@ class DevicePersistenceTest
             const val ME = 730101L
             const val OTHER = 730102L
             val OLD = Instant.parse("2000-01-01T00:00:00Z")
+            val AGREED_AT: java.time.Instant = java.time.Instant.parse("2026-11-01T00:00:00Z")
         }
     }

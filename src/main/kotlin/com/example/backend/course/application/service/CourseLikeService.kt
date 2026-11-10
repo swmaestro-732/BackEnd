@@ -2,12 +2,16 @@ package com.example.backend.course.application.service
 
 import com.example.backend.common.exception.BusinessException
 import com.example.backend.common.response.CourseErrorCode
+import com.example.backend.course.application.event.CourseActivityEvent
+import com.example.backend.course.application.port.inbound.CourseActivityKind
 import com.example.backend.course.application.port.inbound.CourseLikeUseCase
 import com.example.backend.course.application.port.outbound.CourseLikePersistencePort
 import com.example.backend.course.application.port.outbound.CoursePersistencePort
 import com.example.backend.course.domain.model.CourseStatus
+import org.springframework.context.ApplicationEventPublisher
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
+import java.time.Clock
 
 /**
  * 코스 좋아요 유스케이스 — 좋아요/취소 토글. CourseReviewService 미러(사용자 검증·잠금 없이 인증된 userId 를 신뢰한다).
@@ -21,6 +25,8 @@ class CourseLikeService(
     private val courseLikePersistencePort: CourseLikePersistencePort,
     private val coursePersistencePort: CoursePersistencePort,
     private val courseViewPolicy: CourseViewPolicy,
+    private val eventPublisher: ApplicationEventPublisher,
+    private val clock: Clock,
 ) : CourseLikeUseCase {
     @Transactional
     override fun like(
@@ -44,8 +50,11 @@ class CourseLikeService(
 
         courseLikePersistencePort.insert(userId, courseId)
         // 원자적 +1 … RETURNING — 0행(비활성/삭제)이면 삽입도 롤백하고 404.
-        return coursePersistencePort.increaseLikesCountReturning(courseId)
-            ?: throw BusinessException(CourseErrorCode.COURSE_NOT_FOUND, "좋아요할 코스를 찾을 수 없습니다: courseId=$courseId")
+        val count =
+            coursePersistencePort.increaseLikesCountReturning(courseId)
+                ?: throw BusinessException(CourseErrorCode.COURSE_NOT_FOUND, "좋아요할 코스를 찾을 수 없습니다: courseId=$courseId")
+        eventPublisher.publishEvent(CourseActivityEvent(CourseActivityKind.LIKED, userId, courseId, clock.instant()))
+        return count
     }
 
     @Transactional
@@ -55,11 +64,16 @@ class CourseLikeService(
     ): Int =
         // 실제로 지웠을 때만 원자적 -1 … RETURNING 으로 감소한다 — 멱등 no-op 은 현재 likes_cnt 를 그대로 반환한다.
         if (courseLikePersistencePort.deleteByUserAndCourse(userId, courseId)) {
-            coursePersistencePort.decreaseLikesCountReturning(courseId)
-                ?: throw BusinessException(
-                    CourseErrorCode.COURSE_NOT_FOUND,
-                    "좋아요를 취소할 코스를 찾을 수 없습니다: courseId=$courseId",
-                )
+            val count =
+                coursePersistencePort.decreaseLikesCountReturning(courseId)
+                    ?: throw BusinessException(
+                        CourseErrorCode.COURSE_NOT_FOUND,
+                        "좋아요를 취소할 코스를 찾을 수 없습니다: courseId=$courseId",
+                    )
+            eventPublisher.publishEvent(
+                CourseActivityEvent(CourseActivityKind.UNLIKED, userId, courseId, clock.instant()),
+            )
+            count
         } else {
             coursePersistencePort.readLikesCount(courseId)
                 ?: throw BusinessException(
