@@ -3,6 +3,7 @@ package com.example.backend.bootstrap.config
 import com.fasterxml.jackson.databind.DeserializationFeature
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.module.kotlin.registerKotlinModule
+import io.micrometer.observation.ObservationRegistry
 import org.apache.hc.client5.http.auth.AuthScope
 import org.apache.hc.client5.http.auth.UsernamePasswordCredentials
 import org.apache.hc.client5.http.config.RequestConfig
@@ -135,18 +136,24 @@ class OpenSearchConfig(
     @Primary
     fun openSearchClient(
         @Qualifier("openSearchTransport") transport: OpenSearchTransport,
-    ): OpenSearchClient = OpenSearchClient(transport)
+        observationRegistry: ObservationRegistry,
+    ): OpenSearchClient = OpenSearchClient(ObservedOpenSearchTransport(transport, observationRegistry))
 
     /** 색인용 클라이언트(응답 대기 [INDEX_RESPONSE_TIMEOUT]). 주입 시 `@Qualifier(OpenSearchConfig.INDEX_CLIENT)`. */
     @Bean(INDEX_CLIENT)
     fun openSearchIndexClient(
         @Qualifier("openSearchIndexTransport") transport: OpenSearchTransport,
-    ): OpenSearchClient = OpenSearchClient(transport)
+        observationRegistry: ObservationRegistry,
+    ): OpenSearchClient = OpenSearchClient(ObservedOpenSearchTransport(transport, observationRegistry))
 
-    /** 연결 상태를 `/actuator/health` 에 노출(불통 시 UNKNOWN — ALB 보호). 엔드포인트 있을 때만 등록된다. */
+    /**
+     * 연결 상태를 `/actuator/health` 에 노출(불통 시 UNKNOWN, ALB 보호). 엔드포인트 있을 때만 등록된다.
+     * 관측 없는 클라이언트를 쓴다. /actuator 는 서버 관측에서 빠져 있어, 감싼 클라이언트면 헬스체크마다 부모 없는 트레이스가 생긴다.
+     */
     @Bean
-    fun openSearchHealthIndicator(openSearchClient: OpenSearchClient): HealthIndicator =
-        OpenSearchHealthIndicator(openSearchClient)
+    fun openSearchHealthIndicator(
+        @Qualifier("openSearchTransport") transport: OpenSearchTransport,
+    ): HealthIndicator = OpenSearchHealthIndicator(OpenSearchClient(transport))
 
     companion object {
         const val INDEX_CLIENT = "openSearchIndexClient"

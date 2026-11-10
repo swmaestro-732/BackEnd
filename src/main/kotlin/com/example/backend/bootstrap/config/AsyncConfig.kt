@@ -4,6 +4,7 @@ import io.github.oshai.kotlinlogging.KotlinLogging
 import io.micrometer.core.instrument.MeterRegistry
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
+import org.springframework.core.task.support.ContextPropagatingTaskDecorator
 import org.springframework.scheduling.annotation.EnableAsync
 import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor
 import java.util.concurrent.ThreadPoolExecutor
@@ -11,6 +12,7 @@ import java.util.concurrent.ThreadPoolExecutor
 /**
  * 커밋 후 운영시간 동기화와 알림 기록을 각각 전용 실행기에서 처리한다.
  * 두 Executor 빈이 있어 Boot의 기본 applicationTaskExecutor는 자동 구성되지 않으므로 실행기를 명시한다.
+ * 기본 실행기가 받던 컨텍스트 전파도 직접 붙여, 비동기 작업이 원 요청 트레이스에 이어지게 한다(SCRUM-769).
  */
 @Configuration
 @EnableAsync
@@ -31,6 +33,7 @@ class AsyncConfig {
             queueCapacity = BUSINESS_HOURS_SYNC_QUEUE_CAPACITY
             setRejectedExecutionHandler(ThreadPoolExecutor.DiscardPolicy())
             setThreadNamePrefix("business-hours-sync-")
+            setTaskDecorator(ContextPropagatingTaskDecorator())
         }
 
     @Bean(NOTIFICATION_EXECUTOR)
@@ -45,6 +48,7 @@ class AsyncConfig {
             maxPoolSize = 2
             queueCapacity = 1000
             setThreadNamePrefix("notification-")
+            setTaskDecorator(ContextPropagatingTaskDecorator())
             // 정상 종료(롤링 배포) 때 큐에 남은 기록을 마저 처리해 유실을 줄인다.
             setWaitForTasksToCompleteOnShutdown(true)
             setAwaitTerminationSeconds(10)
