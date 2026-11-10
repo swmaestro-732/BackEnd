@@ -24,19 +24,25 @@ class CourseReindexServiceTest {
     }
 
     @Test
-    fun `페이지 마지막 id를 커서로 사용해 전부 색인한다`() {
-        val first = (1L..100L).map(::course)
-        val second = listOf(course(101L), course(102L))
+    fun `페이지 마지막 id를 커서로 사용해 공개 코스만 색인한다`() {
+        val first = (1L..100L).map { course(it) }
+        val visible = course(101L)
+        // 숨김, 비공개 코스는 색인하지 않지만 커서는 페이지 마지막 id 로 넘어간다.
+        val hidden = course(102L, publiclyVisible = false)
         `when`(persistence.findForIndex(null, 100)).thenReturn(first)
-        `when`(persistence.findForIndex(100L, 100)).thenReturn(second)
+        `when`(persistence.findForIndex(100L, 100)).thenReturn(listOf(visible, hidden))
 
-        assertEquals(102, service.reindexAll())
+        assertEquals(101, service.reindexAll())
         verify(index).save(first)
-        verify(index).save(second)
+        verify(index).save(listOf(visible))
     }
 
-    private fun course(id: Long): Course =
+    private fun course(
+        id: Long,
+        publiclyVisible: Boolean = true,
+    ): Course =
         mock(Course::class.java).also {
             `when`(it.id).thenReturn(id)
+            `when`(it.isPubliclyVisible).thenReturn(publiclyVisible)
         }
 }

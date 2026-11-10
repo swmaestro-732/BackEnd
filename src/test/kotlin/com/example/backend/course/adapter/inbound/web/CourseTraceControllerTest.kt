@@ -264,7 +264,7 @@ class CourseTraceControllerTest
         }
 
         @Test
-        fun `종료 — 병합할 장소 중 코스에 없는 것이 있으면 400 과 4005 이고 세션은 진행 중 그대로다`() {
+        fun `종료, 병합할 장소 중 코스에 없는 것은 빼고 완주로 기록한다`() {
             val traceId = start()
 
             end(
@@ -279,12 +279,11 @@ class CourseTraceControllerTest
                   "distanceMeters": 10
                 }
                 """.trimIndent(),
-            ).andExpect(status().isBadRequest)
-                .andExpect(jsonPath("$.code").value(4005))
+            ).andExpect(status().isOk)
 
-            assertThat(traceStatus(traceId)).isEqualTo("IN_PROGRESS")
-            assertThat(visitedPlaces(traceId)).isEmpty()
-            assertThat(tracingsCnt(1L)).isZero()
+            assertThat(traceStatus(traceId)).isEqualTo("COMPLETED")
+            assertThat(visitedPlaces(traceId).map { it["place_id"] }).containsExactly(22L)
+            assertThat(tracingsCnt(1L)).isEqualTo(1)
         }
 
         @Test

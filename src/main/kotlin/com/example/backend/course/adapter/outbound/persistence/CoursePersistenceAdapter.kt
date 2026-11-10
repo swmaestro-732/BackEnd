@@ -37,6 +37,9 @@ class CoursePersistenceAdapter(
 
     override fun findCourseDetail(courseId: Long): CourseDetailRow? = courseRepository.findDetail(courseId)
 
+    override fun findCourseDetailForUpdate(courseId: Long): CourseDetailRow? =
+        courseRepository.findDetail(courseId, forUpdate = true)
+
     override fun findCourseDetails(courseIds: List<Long>): List<CourseDetailRow> =
         courseRepository.findDetails(courseIds)
 
@@ -57,6 +60,8 @@ class CoursePersistenceAdapter(
     ): List<CourseSummaryRow> = courseRepository.findPublishedPublic(cursor, size, category)
 
     override fun existsById(courseId: Long): Boolean = courseRepository.existsById(courseId)
+
+    override fun existsUndeletedById(courseId: Long): Boolean = courseRepository.existsUndeletedById(courseId)
 
     override fun findPlaces(courseId: Long): List<CoursePlaceRow> = coursePlaceRepository.findByCourseId(courseId)
 

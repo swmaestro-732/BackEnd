@@ -19,6 +19,9 @@ data class NotificationBundle(
     companion object {
         val BUNDLE_WINDOW: Duration = Duration.ofMinutes(10)
 
+        /** 행동자가 없는 운영 알림의 대표 행동자 자리(사용자 id 는 1부터라 겹치지 않는다). */
+        const val SYSTEM_ACTOR_ID = 0L
+
         fun windowStart(occurredAt: Instant): Instant =
             Instant.ofEpochSecond(Math.floorDiv(occurredAt.epochSecond, BUNDLE_WINDOW.seconds) * BUNDLE_WINDOW.seconds)
     }

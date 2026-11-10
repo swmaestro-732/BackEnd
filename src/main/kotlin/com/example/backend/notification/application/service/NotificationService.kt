@@ -3,6 +3,7 @@ package com.example.backend.notification.application.service
 import com.example.backend.notification.application.port.inbound.NotificationUseCase
 import com.example.backend.notification.application.port.inbound.dto.NotificationSummaryPage
 import com.example.backend.notification.application.port.inbound.dto.RecordNotificationCommand
+import com.example.backend.notification.application.port.inbound.dto.RecordSystemNotificationCommand
 import com.example.backend.notification.application.port.outbound.NotificationActorLookupPort
 import com.example.backend.notification.application.port.outbound.NotificationNicknamePort
 import com.example.backend.notification.application.port.outbound.NotificationPersistencePort
@@ -61,6 +62,25 @@ class NotificationService(
                 actorNickname = actorNickname,
                 courseTitle = course?.title,
                 courseImageUrl = course?.imageUrl,
+            ),
+        )
+    }
+
+    /** 받는 사람 행을 잠가 탈퇴와 직렬화하고, 이미 탈퇴했으면 남기지 않는다. 같은 창의 같은 조치는 한 건으로 묶인다. */
+    @Transactional
+    override fun recordSystem(command: RecordSystemNotificationCommand) {
+        if (command.recipientId !in notificationActorLookupPort.lockActive(listOf(command.recipientId))) return
+        notificationPersistencePort.upsert(
+            NotificationBundle(
+                userId = command.recipientId,
+                type = command.type,
+                targetType = command.type.targetType,
+                targetId = command.targetId,
+                windowStart = NotificationBundle.windowStart(command.occurredAt),
+                displayActorId = NotificationBundle.SYSTEM_ACTOR_ID,
+                actorNickname = null,
+                courseTitle = command.courseTitle,
+                courseImageUrl = command.courseImageUrl,
             ),
         )
     }

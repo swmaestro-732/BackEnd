@@ -25,4 +25,5 @@ data class PlaceRef(
     val areaCode: String?,
     val name: String,
     val coordinate: Coordinate,
+    val address: String? = null,
 )

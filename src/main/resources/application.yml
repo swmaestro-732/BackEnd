@@ -94,6 +94,10 @@ jwt:
   registration-ttl: PT10M
   admin-ttl: PT1H
 
+admin:
+  # 큐레이터(운영) 계정 user id. 어드민 편집은 이 계정의 코스만 허용하고, 이 계정 코스의 숨김, 삭제는 작성자 알림을 보내지 않는다.
+  curator-user-id: ${ADMIN_CURATOR_USER_ID:2}
+
 oauth:
   kakao:
     # 로그인(OIDC)용 카카오 앱 client_id(REST API 키). 로컬(지도) 검색 키(kakao.local.rest-key)와 별개 앱/키.

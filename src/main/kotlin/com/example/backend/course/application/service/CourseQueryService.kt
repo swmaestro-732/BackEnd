@@ -109,7 +109,7 @@ class CourseQueryService(
         }
     }
 
-    /** 미삭제 코스 존재 확인(크로스 도메인) — 다른 도메인(user 저장함 등)이 이 포트로만 접근한다. */
+    /** 활성(숨김, 삭제 제외) 코스 존재 확인(크로스 도메인): 다른 도메인(user 저장함 등)이 이 포트로만 접근한다. */
     override fun existsById(courseId: Long): Boolean = coursePersistencePort.existsById(courseId)
 
     /**

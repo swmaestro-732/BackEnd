@@ -81,6 +81,12 @@ interface CoursePersistencePort {
 
     fun findCourseDetail(courseId: Long): CourseDetailRow?
 
+    /**
+     * [findCourseDetail] 과 같되 행을 잠근다(FOR UPDATE). 사용자 편집, 삭제가 어드민 숨김과 경합할 때
+     * 먼저 잠근 쪽이 끝난 뒤의 상태로 판정해 숨긴 코스 변경이나 개수 이중 감소가 없게 한다.
+     */
+    fun findCourseDetailForUpdate(courseId: Long): CourseDetailRow?
+
     /** 여러 코스 본문을 한 번에 읽는다(deleted_at IS NULL). 없는 id 는 결과에서 빠진다 — 목록 화면 배치 조회용. */
     fun findCourseDetails(courseIds: List<Long>): List<CourseDetailRow>
 
@@ -111,8 +117,11 @@ interface CoursePersistencePort {
         category: CourseCategory? = null,
     ): List<CourseSummaryRow>
 
-    /** 미삭제(deleted_at IS NULL) 코스가 존재하는지 확인한다(duplicate 원본 검증 등). */
+    /** 활성(status=ACTIVE, 미삭제) 코스가 존재하는지 확인한다: 숨김 코스는 사용자 행동(댓글, 리뷰, 계획, 저장) 대상이 아니다. */
     fun existsById(courseId: Long): Boolean
+
+    /** 삭제되지 않은 코스(숨김 포함)가 존재하는지 확인한다. 복제본 편집 시 원본 참조를 유지할지 판정한다. */
+    fun existsUndeletedById(courseId: Long): Boolean
 
     fun findPlaces(courseId: Long): List<CoursePlaceRow>
 

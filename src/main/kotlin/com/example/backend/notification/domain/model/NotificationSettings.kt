@@ -12,6 +12,7 @@ data class NotificationSettings(
             NotificationCategory.COMMENT -> activityComment
             NotificationCategory.FOLLOW -> activityFollow
             NotificationCategory.REVIEW -> activityReview
+            NotificationCategory.SYSTEM -> true
         }
 
     companion object {

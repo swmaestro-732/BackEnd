@@ -3,8 +3,11 @@ package com.example.backend.notification.adapter.inbound.event
 import com.example.backend.bootstrap.config.AsyncConfig
 import com.example.backend.course.application.port.inbound.CourseActivityKind
 import com.example.backend.course.application.port.inbound.CourseActivityOccurred
+import com.example.backend.course.application.port.inbound.CourseModeratedByAdmin
+import com.example.backend.course.application.port.inbound.CourseModerationAction
 import com.example.backend.notification.application.port.inbound.NotificationUseCase
 import com.example.backend.notification.application.port.inbound.dto.RecordNotificationCommand
+import com.example.backend.notification.application.port.inbound.dto.RecordSystemNotificationCommand
 import com.example.backend.notification.domain.model.NotificationType
 import com.example.backend.user.application.port.inbound.UserActivityKind
 import com.example.backend.user.application.port.inbound.UserActivityOccurred
@@ -50,6 +53,31 @@ class NotificationEventListener(
         } catch (e: Exception) {
             log.warn(e) { "사용자 활동 알림 기록 실패: type=${event.kind}" }
             failedCounters.getValue(userType(event.kind)).increment()
+        }
+    }
+
+    @Async(AsyncConfig.NOTIFICATION_EXECUTOR)
+    @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
+    fun onCourseModerated(event: CourseModeratedByAdmin) {
+        val type =
+            when (event.action) {
+                CourseModerationAction.HIDDEN -> NotificationType.COURSE_HIDDEN_BY_ADMIN
+                CourseModerationAction.DELETED -> NotificationType.COURSE_DELETED_BY_ADMIN
+            }
+        try {
+            notificationUseCase.recordSystem(
+                RecordSystemNotificationCommand(
+                    type = type,
+                    recipientId = event.authorId,
+                    targetId = event.courseId,
+                    courseTitle = event.courseTitle,
+                    courseImageUrl = event.coverImageUrl,
+                    occurredAt = event.occurredAt,
+                ),
+            )
+        } catch (e: Exception) {
+            log.warn(e) { "어드민 조치 알림 기록 실패: type=$type" }
+            failedCounters.getValue(type).increment()
         }
     }
 
