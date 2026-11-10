@@ -3,8 +3,10 @@ package com.example.backend.course.application.service
 import com.example.backend.common.domain.CourseVisibility
 import com.example.backend.common.exception.BusinessException
 import com.example.backend.common.response.CourseErrorCode
+import com.example.backend.course.application.event.CourseActivityEvent
 import com.example.backend.course.application.event.CourseCounter
 import com.example.backend.course.application.event.CourseCounterChangedEvent
+import com.example.backend.course.application.port.inbound.CourseActivityKind
 import com.example.backend.course.application.port.outbound.CourseDetailRow
 import com.example.backend.course.application.port.outbound.CourseLikePersistencePort
 import com.example.backend.course.application.port.outbound.CoursePersistencePort
@@ -12,12 +14,17 @@ import com.example.backend.course.domain.model.CourseStatus
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
+import org.mockito.Mockito.inOrder
 import org.mockito.Mockito.mock
 import org.mockito.Mockito.never
 import org.mockito.Mockito.verify
 import org.mockito.Mockito.verifyNoInteractions
+import org.mockito.Mockito.verifyNoMoreInteractions
 import org.mockito.Mockito.`when`
 import org.springframework.context.ApplicationEventPublisher
+import java.time.Clock
+import java.time.Instant
+import java.time.ZoneOffset
 
 /**
  * 코스 좋아요 서비스 단위 테스트 — 열람 권한(공개범위·팔로우) 검사와 원자적 증감(UPDATE … RETURNING),
@@ -29,7 +36,9 @@ class CourseLikeServiceTest {
     private val coursePort = mock(CoursePersistencePort::class.java)
     private val viewPolicy = mock(CourseViewPolicy::class.java)
     private val eventPublisher = mock(ApplicationEventPublisher::class.java)
-    private val service = CourseLikeService(likePort, coursePort, viewPolicy, eventPublisher)
+    private val occurredAt = Instant.parse("2026-10-24T10:09:59Z")
+    private val clock = Clock.fixed(occurredAt, ZoneOffset.UTC)
+    private val service = CourseLikeService(likePort, coursePort, viewPolicy, eventPublisher, clock)
 
     private val ownerId = 99L
     private val courseId = 42L
@@ -54,9 +63,16 @@ class CourseLikeServiceTest {
 
         val result = service.like(userId = 1L, courseId = courseId)
 
-        verify(likePort).insert(1L, courseId)
-        assertEquals(4, result)
+        val order = inOrder(likePort, coursePort, eventPublisher)
+        order.verify(likePort).insert(1L, courseId)
+        order.verify(coursePort).increaseLikesCountReturning(courseId)
+        order
+            .verify(
+                eventPublisher,
+            ).publishEvent(CourseActivityEvent(CourseActivityKind.LIKED, 1L, courseId, occurredAt))
         verify(eventPublisher).publishEvent(CourseCounterChangedEvent(courseId, CourseCounter.LIKES, delta = 1))
+        verifyNoMoreInteractions(eventPublisher)
+        assertEquals(4, result)
     }
 
     @Test
@@ -71,6 +87,7 @@ class CourseLikeServiceTest {
         val ex = assertThrows<BusinessException> { service.like(userId = 1L, courseId = courseId) }
 
         assertEquals(CourseErrorCode.COURSE_NOT_FOUND, ex.errorCode)
+        verifyNoInteractions(eventPublisher)
         verify(likePort, never()).insert(1L, courseId)
         verify(coursePort, never()).increaseLikesCountReturning(courseId)
     }
@@ -82,6 +99,7 @@ class CourseLikeServiceTest {
         val ex = assertThrows<BusinessException> { service.like(userId = 1L, courseId = courseId) }
 
         assertEquals(CourseErrorCode.COURSE_NOT_FOUND, ex.errorCode)
+        verifyNoInteractions(eventPublisher)
         verify(likePort, never()).insert(1L, courseId)
     }
 
@@ -93,6 +111,7 @@ class CourseLikeServiceTest {
         val ex = assertThrows<BusinessException> { service.like(userId = 1L, courseId = courseId) }
 
         assertEquals(CourseErrorCode.COURSE_ALREADY_LIKED, ex.errorCode)
+        verifyNoInteractions(eventPublisher)
         verify(likePort, never()).insert(1L, courseId)
         verify(coursePort, never()).increaseLikesCountReturning(courseId)
     }
@@ -112,15 +131,17 @@ class CourseLikeServiceTest {
     // --- unlike (열람 권한 검사 없음 — 본인 좋아요 제거) ---
 
     @Test
-    fun `취소는 실제로 지웠을 때 원자적 감소가 돌려준 likes_cnt 를 반환한다`() {
+    fun `취소는 실제로 지웠을 때 원자적 감소가 돌려준 likes_cnt 를 반환하고 취소 활동을 발행한다`() {
         `when`(likePort.deleteByUserAndCourse(1L, courseId)).thenReturn(true)
         `when`(coursePort.decreaseLikesCountReturning(courseId)).thenReturn(4)
 
         val result = service.unlike(userId = 1L, courseId = courseId)
 
+        verify(eventPublisher).publishEvent(CourseActivityEvent(CourseActivityKind.UNLIKED, 1L, courseId, occurredAt))
+        verify(eventPublisher).publishEvent(CourseCounterChangedEvent(courseId, CourseCounter.LIKES, delta = -1))
+        verifyNoMoreInteractions(eventPublisher)
         verify(coursePort, never()).readLikesCount(courseId)
         assertEquals(4, result)
-        verify(eventPublisher).publishEvent(CourseCounterChangedEvent(courseId, CourseCounter.LIKES, delta = -1))
     }
 
     @Test
@@ -130,6 +151,7 @@ class CourseLikeServiceTest {
 
         val result = service.unlike(userId = 1L, courseId = courseId)
 
+        verifyNoInteractions(eventPublisher)
         verify(coursePort, never()).decreaseLikesCountReturning(courseId)
         assertEquals(5, result)
         verifyNoInteractions(eventPublisher)
@@ -143,6 +165,7 @@ class CourseLikeServiceTest {
         val ex = assertThrows<BusinessException> { service.unlike(userId = 1L, courseId = courseId) }
 
         assertEquals(CourseErrorCode.COURSE_NOT_FOUND, ex.errorCode)
+        verifyNoInteractions(eventPublisher)
     }
 
     // --- purgeByUser ---

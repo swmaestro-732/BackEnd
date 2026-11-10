@@ -17,15 +17,21 @@ import org.junit.jupiter.api.Assertions.assertSame
 import org.junit.jupiter.api.Assertions.assertThrows
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
+import org.mockito.ArgumentCaptor
 import org.mockito.ArgumentMatchers.any
 import org.mockito.Mockito.mock
 import org.mockito.Mockito.`when`
 import org.springframework.beans.factory.support.DefaultListableBeanFactory
 import tools.jackson.databind.json.JsonMapper
+import java.time.Clock
 import java.time.Duration
+import java.time.Instant
+import java.time.ZoneOffset
 
 class FcmPushSenderTest {
     private val meterRegistry = SimpleMeterRegistry()
+    private val now = Instant.parse("2026-11-04T01:00:00Z")
+    private val clock = Clock.fixed(now, ZoneOffset.UTC)
 
     @Test
     fun `등록 해제 오류만 무효 토큰으로 분류한다`() {
@@ -53,7 +59,7 @@ class FcmPushSenderTest {
     @Test
     fun `Firebase 미설정이면 발송을 생략하고 토큰 수만큼 생략 카운터를 올린다`() {
         val firebaseMessagingProvider = DefaultListableBeanFactory().getBeanProvider(FirebaseMessaging::class.java)
-        val fcmPushSender = FcmPushSender(firebaseMessagingProvider, PushProperties(), meterRegistry)
+        val fcmPushSender = FcmPushSender(firebaseMessagingProvider, PushProperties(), clock, meterRegistry)
 
         val result = fcmPushSender.send(PushMessage(listOf("secret-token", "token-2"), "제목", "본문"))
 
@@ -80,12 +86,26 @@ class FcmPushSenderTest {
     }
 
     @Test
+    fun `iOS 설정에 만료 시각을 epoch 초로 담는다`() {
+        val config = apnsConfig(Instant.parse("2026-11-04T01:30:00Z"))
+
+        val json = JsonMapper.builder().build().readTree(GsonFactory.getDefaultInstance().toString(config))
+
+        assertEquals("1793755800", json.get("headers").get("apns-expiration").asString())
+    }
+
+    @Test
     fun `개별 응답 순서에 맞춰 무효 토큰과 기타 실패를 분류한다`() {
         val firebaseMessaging = mock(FirebaseMessaging::class.java)
         val beanFactory = DefaultListableBeanFactory()
         beanFactory.registerSingleton("firebaseMessaging", firebaseMessaging)
         val fcmPushSender =
-            FcmPushSender(beanFactory.getBeanProvider(FirebaseMessaging::class.java), PushProperties(), meterRegistry)
+            FcmPushSender(
+                beanFactory.getBeanProvider(FirebaseMessaging::class.java),
+                PushProperties(),
+                clock,
+                meterRegistry,
+            )
         val success = mock(SendResponse::class.java)
         `when`(success.isSuccessful).thenReturn(true)
         val batchResponse = mock(BatchResponse::class.java)
@@ -120,7 +140,12 @@ class FcmPushSenderTest {
         val beanFactory = DefaultListableBeanFactory()
         beanFactory.registerSingleton("firebaseMessaging", firebaseMessaging)
         val fcmPushSender =
-            FcmPushSender(beanFactory.getBeanProvider(FirebaseMessaging::class.java), PushProperties(), meterRegistry)
+            FcmPushSender(
+                beanFactory.getBeanProvider(FirebaseMessaging::class.java),
+                PushProperties(),
+                clock,
+                meterRegistry,
+            )
         val failure = mock(FirebaseMessagingException::class.java)
         `when`(firebaseMessaging.sendEachForMulticast(any(MulticastMessage::class.java))).thenThrow(failure)
 
@@ -208,6 +233,44 @@ class FcmPushSenderTest {
         assertEquals(PushSendResult(0, emptyList(), 2), result)
     }
 
+    @Test
+    fun `메시지에 TTL 이 있으면 설정값 대신 그 TTL 로 보내고 iOS 도 같은 시각에 만료시킨다`() {
+        val firebaseMessaging = mock(FirebaseMessaging::class.java)
+        val beanFactory = DefaultListableBeanFactory()
+        beanFactory.registerSingleton("firebaseMessaging", firebaseMessaging)
+        val fcmPushSender =
+            FcmPushSender(
+                beanFactory.getBeanProvider(FirebaseMessaging::class.java),
+                PushProperties(),
+                clock,
+                meterRegistry,
+            )
+        val batchResponse = mock(BatchResponse::class.java)
+        `when`(batchResponse.responses).thenReturn(emptyList())
+        val captor = ArgumentCaptor.forClass(MulticastMessage::class.java)
+        `when`(firebaseMessaging.sendEachForMulticast(captor.capture())).thenReturn(batchResponse)
+
+        fcmPushSender.send(PushMessage(listOf("token-1"), "제목", "본문", androidTtl = Duration.ofMinutes(30)))
+
+        // MulticastMessage 는 안드로이드 설정을 감춰 두므로 필드를 꺼내 요청 JSON 으로 확인한다.
+        val field = MulticastMessage::class.java.getDeclaredField("androidConfig").apply { isAccessible = true }
+        val json =
+            JsonMapper.builder().build().readTree(
+                GsonFactory.getDefaultInstance().toString(field.get(captor.value)),
+            )
+        assertEquals("1800s", json.get("ttl").asString())
+        val apnsField = MulticastMessage::class.java.getDeclaredField("apnsConfig").apply { isAccessible = true }
+        val apnsJson =
+            JsonMapper.builder().build().readTree(
+                GsonFactory.getDefaultInstance().toString(apnsField.get(captor.value)),
+            )
+        // iOS 도 같은 30분 뒤에 만료된다.
+        assertEquals(
+            now.plus(Duration.ofMinutes(30)).epochSecond.toString(),
+            apnsJson.get("headers").get("apns-expiration").asString(),
+        )
+    }
+
     private fun senderReturning(
         successCount: Int,
         vararg responses: SendResponse,
@@ -222,6 +285,7 @@ class FcmPushSenderTest {
         return FcmPushSender(
             beanFactory.getBeanProvider(FirebaseMessaging::class.java),
             PushProperties(),
+            clock,
             meterRegistry,
         )
     }

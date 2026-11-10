@@ -14,7 +14,9 @@ import java.time.Duration
  * 어댑터가 요청마다 프로퍼티에서 읽어 인증 헤더를 붙인다(빈 키는 어댑터에서 fail-soft 처리).
  */
 @Configuration
-class HttpClientConfig {
+class HttpClientConfig(
+    private val builder: RestClient.Builder,
+) {
     @Bean
     fun kakaoRestClient(): RestClient = restClient("https://dapi.kakao.com")
 
@@ -28,8 +30,8 @@ class HttpClientConfig {
     fun googlePlacesRestClient(): RestClient = restClient("https://places.googleapis.com")
 
     private fun restClient(baseUrl: String): RestClient =
-        RestClient
-            .builder()
+        builder
+            .clone()
             .baseUrl(baseUrl)
             .requestFactory(timeoutFactory())
             .build()

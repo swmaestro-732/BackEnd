@@ -5,6 +5,7 @@ import com.example.backend.common.response.UserErrorCode
 import com.example.backend.user.application.port.outbound.CourseCleanupPort
 import com.example.backend.user.application.port.outbound.DevicePersistencePort
 import com.example.backend.user.application.port.outbound.FollowPersistencePort
+import com.example.backend.user.application.port.outbound.NotificationCleanupPort
 import com.example.backend.user.application.port.outbound.RefreshTokenPort
 import com.example.backend.user.application.port.outbound.SavedCoursePersistencePort
 import com.example.backend.user.application.port.outbound.UserAreaPersistencePort
@@ -28,6 +29,7 @@ class UserServiceTest {
     private val userLikeThemePort = mock(UserLikeThemePort::class.java)
     private val courseCleanupPort = mock(CourseCleanupPort::class.java)
     private val devicePersistencePort = mock(DevicePersistencePort::class.java)
+    private val notificationCleanupPort = mock(NotificationCleanupPort::class.java)
 
     private val service =
         UserService(
@@ -39,6 +41,7 @@ class UserServiceTest {
             userLikeThemePort = userLikeThemePort,
             courseCleanupPort = courseCleanupPort,
             devicePersistencePort = devicePersistencePort,
+            notificationCleanupPort = notificationCleanupPort,
         )
 
     @Test

@@ -7,6 +7,7 @@ import com.example.backend.course.adapter.outbound.persistence.exposed.CourseCat
 import com.example.backend.course.adapter.outbound.persistence.exposed.CourseEntity
 import com.example.backend.course.adapter.outbound.persistence.exposed.CourseTable
 import com.example.backend.course.application.port.inbound.dto.AuthorCourseCursor
+import com.example.backend.course.application.port.inbound.dto.CourseOwnerSummary
 import com.example.backend.course.application.port.outbound.CourseDetailRow
 import com.example.backend.course.application.port.outbound.CourseSummaryRow
 import com.example.backend.course.application.port.outbound.FeedCursor
@@ -48,6 +49,22 @@ import kotlin.time.toKotlinInstant
 class CourseRepository(
     private val courseCategoryRepository: CourseCategoryRepository,
 ) {
+    fun findOwnerSummary(courseId: Long): CourseOwnerSummary? =
+        CourseTable
+            .select(CourseTable.userId, CourseTable.title, CourseTable.coverImageUrl)
+            .where {
+                (CourseTable.id eq courseId) and
+                    (CourseTable.status eq CourseStatus.ACTIVE) and CourseTable.deletedAt.isNull()
+            }.singleOrNull()
+            ?.let {
+                CourseOwnerSummary(
+                    courseId = courseId,
+                    authorId = it[CourseTable.userId],
+                    title = it[CourseTable.title],
+                    coverImageUrl = it[CourseTable.coverImageUrl],
+                )
+            }
+
     /** 코스 본문을 삽입하고, 생성값(id·created_at·카운터 등)까지 적재된 엔티티를 반환한다(엔티티는 모듈 내부 구현이라 internal). */
     internal fun insert(course: Course): CourseEntity =
         CourseEntity

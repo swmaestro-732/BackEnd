@@ -8,6 +8,7 @@ import com.google.firebase.messaging.FirebaseMessagingException
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry
 import org.junit.jupiter.api.Assertions.assertDoesNotThrow
 import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Assertions.assertSame
 import org.junit.jupiter.api.Assertions.assertThrows
 import org.junit.jupiter.api.Assertions.assertTrue
@@ -61,6 +62,61 @@ class PushSqsConsumerTest {
 
         assertTrue(deliveredMessages.isEmpty())
         assertEquals(2.0, skippedCount("stale"))
+    }
+
+    @Test
+    fun `TTL 30분 메시지는 최대 보관 시간 안이어도 31분이 지나면 stale 로 버린다`() {
+        val marketing = message.copy(androidTtl = Duration.ofMinutes(30))
+
+        pushSqsConsumer.onMessage(PushQueueMessage(marketing, now.minus(Duration.ofMinutes(31))))
+
+        assertTrue(deliveredMessages.isEmpty())
+        assertEquals(2.0, skippedCount("stale"))
+    }
+
+    @Test
+    fun `TTL 메시지는 큐에서 기다린 만큼 줄인 TTL 로 발송해 큐 대기와 기기 보관 합이 TTL 을 넘지 않게 한다`() {
+        val marketing = message.copy(androidTtl = Duration.ofMinutes(30))
+
+        pushSqsConsumer.onMessage(PushQueueMessage(marketing, now.minus(Duration.ofMinutes(29))))
+
+        assertEquals(Duration.ofMinutes(1), deliveredMessages.single().androidTtl)
+    }
+
+    @Test
+    fun `TTL 메시지가 TTL 1초 전까지 기다렸으면 남은 1초로 발송한다`() {
+        val marketing = message.copy(androidTtl = Duration.ofMinutes(30))
+
+        pushSqsConsumer.onMessage(PushQueueMessage(marketing, now.minus(Duration.ofMinutes(30)).plusSeconds(1)))
+
+        assertEquals(Duration.ofSeconds(1), deliveredMessages.single().androidTtl)
+        assertEquals(0.0, skippedCount("stale"))
+    }
+
+    @Test
+    fun `TTL 메시지가 TTL 정각만큼 기다렸으면 남은 TTL 이 없어 stale 로 버린다`() {
+        val marketing = message.copy(androidTtl = Duration.ofMinutes(30))
+
+        pushSqsConsumer.onMessage(PushQueueMessage(marketing, now.minus(Duration.ofMinutes(30))))
+
+        assertTrue(deliveredMessages.isEmpty())
+        assertEquals(2.0, skippedCount("stale"))
+    }
+
+    @Test
+    fun `생성 시각이 소비자 시계보다 앞서도 TTL 을 늘리지 않고 그대로 발송한다`() {
+        val marketing = message.copy(androidTtl = Duration.ofMinutes(30))
+
+        pushSqsConsumer.onMessage(PushQueueMessage(marketing, now.plusSeconds(5)))
+
+        assertEquals(Duration.ofMinutes(30), deliveredMessages.single().androidTtl)
+    }
+
+    @Test
+    fun `TTL 이 없는 메시지는 큐에서 기다려도 TTL 없이 발송해 설정값을 쓰게 한다`() {
+        pushSqsConsumer.onMessage(PushQueueMessage(message, now.minus(Duration.ofMinutes(29))))
+
+        assertNull(deliveredMessages.single().androidTtl)
     }
 
     @Test

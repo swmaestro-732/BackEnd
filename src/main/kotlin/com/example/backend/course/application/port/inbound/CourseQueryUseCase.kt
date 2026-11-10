@@ -2,6 +2,7 @@ package com.example.backend.course.application.port.inbound
 
 import com.example.backend.course.application.port.inbound.dto.AuthorCourseCursor
 import com.example.backend.course.application.port.inbound.dto.CourseDetailResult
+import com.example.backend.course.application.port.inbound.dto.CourseOwnerSummary
 import com.example.backend.course.application.port.inbound.dto.CourseSummary
 import com.example.backend.course.application.port.inbound.dto.CourseSummaryPage
 
@@ -15,6 +16,9 @@ import com.example.backend.course.application.port.inbound.dto.CourseSummaryPage
  * - [listDraftsByAuthor] 작성자 본인의 임시저장 코스 요약 목록. 공개범위와 무관하게 최근 수정순으로 내려준다.
  */
 interface CourseQueryUseCase {
+    /** 활성 상태이며 삭제되지 않은 코스의 소유자와 제목을 읽는다. 없거나 비활성이면 null. */
+    fun findOwnerSummary(courseId: Long): CourseOwnerSummary?
+
     /** 코스 상세 단건. status=ACTIVE·미삭제만 반환(그 외 404), PRIVATE 은 소유자만, FOLLOWER 는 소유자·팔로워만. */
     fun getDetail(
         courseId: Long,

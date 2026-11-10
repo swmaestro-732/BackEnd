@@ -33,6 +33,16 @@ interface UserPersistencePort {
      */
     fun lockActive(userIds: List<Long>): Set<Long>
 
+    /**
+     * [lockActive] 와 같지만 `SELECT … FOR SHARE`(공유 행 잠금)로 잠근다. 탈퇴(사용자 행 UPDATE)와는 직렬화되고,
+     * 같은 사용자를 잠그는 공유 잠금끼리는 기다리지 않는다. 잠근 뒤 사용자 행을 고치지 않는 기록(알림)에만 쓴다.
+     * 잠근 뒤 사용자 행을 UPDATE 하는 쓰기(팔로우 카운터 등)는 공유 잠금끼리 데드락이 나므로 [lockActive] 를 쓴다.
+     * 알려진 드문 데드락: 탈퇴는 자기 행을 잠근 뒤 다른 사용자들의 팔로우 카운터 행을 고치는데, 알림 기록이 그중 한 명을
+     * FOR SHARE 로 잡은 채 탈퇴자를 기다리면 PostgreSQL 이 한쪽을 중단시킨다. 드물고 양쪽 다 안전하게 실패하므로
+     * (탈퇴는 재시도, 알림 한 건은 record.failed 로 집계) 받아들인다.
+     */
+    fun lockActiveShared(userIds: List<Long>): Set<Long>
+
     /** 핸들로 조회한다(deleted_at IS NULL, findById 와 동일한 소프트 삭제 시맨틱). 없으면 null. */
     fun findByHandle(handle: String): User?
 
