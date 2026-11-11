@@ -2,10 +2,15 @@ package com.example.backend.course.adapter.outbound.search
 
 import com.example.backend.bootstrap.config.OpenSearchConfig
 import com.example.backend.bootstrap.config.OpenSearchProperties
+import com.example.backend.course.application.event.CourseCounter
 import com.example.backend.course.application.port.outbound.CourseSearchIndexPort
 import com.example.backend.course.domain.model.Course
 import io.github.oshai.kotlinlogging.KotlinLogging
+import org.opensearch.client.json.JsonData
 import org.opensearch.client.opensearch.OpenSearchClient
+import org.opensearch.client.opensearch._types.OpenSearchException
+import org.opensearch.client.opensearch._types.Script
+import org.opensearch.client.opensearch.core.bulk.BulkOperation
 import org.springframework.beans.factory.ObjectProvider
 import org.springframework.beans.factory.annotation.Qualifier
 import org.springframework.stereotype.Component
@@ -53,7 +58,7 @@ class OpenSearchCourseIndexAdapter(
                     bulk.operations(
                         documents.map { course ->
                             val document = course.toDocument()
-                            org.opensearch.client.opensearch.core.bulk.BulkOperation
+                            BulkOperation
                                 .Builder()
                                 .index { op -> op.index(indexAlias).id(course.id.toString()).document(document) }
                                 .build()
@@ -79,6 +84,68 @@ class OpenSearchCourseIndexAdapter(
         }
     }
 
+    override fun adjustCounter(
+        courseIds: List<Long>,
+        counter: CourseCounter,
+        delta: Int,
+    ) {
+        if (delta == 0 || courseIds.isEmpty()) return
+        val client = clientProvider.ifAvailable ?: return // endpoint 미설정 → no-op
+        val field = counter.indexField()
+        val script =
+            Script.of { s ->
+                s.inline { i ->
+                    i
+                        .lang("painless")
+                        .source(ADJUST_COUNTER_SCRIPT)
+                        .params("field", JsonData.of(field))
+                        .params("delta", JsonData.of(delta))
+                }
+            }
+        try {
+            // 델타 가산 스크립트라 동시 이벤트의 도착 순서가 바뀌어도 같은 값으로 수렴한다(스냅샷 덮어쓰기와 달리 순서 역전에 안전).
+            // 단 0 클램프가 걸린 경우(취소가 색인보다 먼저 닿음)는 수렴하지 않고 다음 전체 색인에서 복구된다.
+            // 단건도 bulk 한 요청으로 보낸다 — 탈퇴 정리처럼 코스가 여러 개여도 OpenSearch 왕복은 한 번이다.
+            val response =
+                client.bulk { bulk ->
+                    bulk.requireAlias(true)
+                    bulk.operations(
+                        courseIds.distinct().map { courseId ->
+                            BulkOperation
+                                .Builder()
+                                .update<CourseDocument> { op ->
+                                    op
+                                        .index(indexAlias)
+                                        .id(courseId.toString())
+                                        .retryOnConflict(COUNTER_RETRY_ON_CONFLICT)
+                                        .script(script)
+                                }.build()
+                        },
+                    )
+                }
+            if (response.errors()) {
+                // 아직 색인되지 않은 코스(미백필·색인 실패분)는 다음 전체 색인이 채운다 — 404 는 정상 경로로 본다.
+                val failed = response.items().filter { it.error() != null && it.status() != NOT_FOUND_STATUS }
+                if (failed.isNotEmpty()) {
+                    val failedIds = failed.map { it.id() }
+                    log.error {
+                        "course $field 갱신 부분 실패(무시): ${failed.size}/${courseIds.size}건 delta=$delta ids=$failedIds"
+                    }
+                } else {
+                    log.debug { "course $field 갱신 대상 문서 없음(무시): ids=$courseIds" }
+                }
+            }
+        } catch (e: Exception) {
+            log.error(e) { "course $field 갱신 실패(무시): ids=$courseIds delta=$delta — ${e.message}" }
+        }
+    }
+
+    private fun CourseCounter.indexField(): String =
+        when (this) {
+            CourseCounter.SAVES -> "savesCnt"
+            CourseCounter.LIKES -> "likesCnt"
+        }
+
     override fun deleteByAuthor(authorId: Long) {
         val client = clientProvider.ifAvailable ?: return // endpoint 미설정 → no-op
         try {
@@ -99,6 +166,8 @@ class OpenSearchCourseIndexAdapter(
             title = title,
             description = description,
             area = area,
+            areaCode = areaCode,
+            sigunguCode = areaCode?.take(SIGUNGU_CODE_LENGTH),
             category = categories.map { it.name },
             tags = tags,
             coverImageUrl = coverImageUrl,
@@ -109,4 +178,15 @@ class OpenSearchCourseIndexAdapter(
             savesCnt = savesCnt,
             createdAt = createdAt?.toEpochMilliseconds(),
         )
+
+    private companion object {
+        const val SIGUNGU_CODE_LENGTH = 5
+        const val COUNTER_RETRY_ON_CONFLICT = 3
+        const val NOT_FOUND_STATUS = 404
+
+        /** 색인 문서의 params.field 카운터에 params.delta 를 더한다(음수 방지). 구 문서에 필드가 없으면 0 으로 본다. */
+        const val ADJUST_COUNTER_SCRIPT =
+            "int current = ctx._source[params.field] == null ? 0 : (int) ctx._source[params.field]; " +
+                "ctx._source[params.field] = Math.max(0, current + (int) params.delta);"
+    }
 }
