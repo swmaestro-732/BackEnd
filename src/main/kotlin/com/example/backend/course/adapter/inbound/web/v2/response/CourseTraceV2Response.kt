@@ -1,4 +1,4 @@
-package com.example.backend.course.adapter.inbound.web.response
+package com.example.backend.course.adapter.inbound.web.v2.response
 
 import com.example.backend.course.adapter.inbound.web.response.CourseTraceResponse.VisitedPlaceResponse
 import com.example.backend.course.application.port.inbound.dto.CourseTraceResult

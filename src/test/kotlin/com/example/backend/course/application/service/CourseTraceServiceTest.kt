@@ -555,22 +555,24 @@ class CourseTraceServiceTest {
     }
 
     @Test
-    fun `상세 — 코스에 같은 장소가 여러 번이면 루트의 n 번째 항목에 코스의 n 번째 항목을 짝짓고 넘치면 마지막을 쓴다`() {
+    fun `상세 — 코스에 같은 장소가 여러 번이면 루트의 n 번째 항목에 코스의 n 번째 항목을 짝짓고 넘치면 캡션 없이 사진만 붙인다`() {
         `when`(courseTracePersistencePort.readById(5L)).thenReturn(inProgressRow(5L))
         `when`(coursePersistencePort.findCourseDetails(listOf(1L))).thenReturn(emptyList())
         `when`(coursePersistencePort.findPlaces(1L)).thenReturn(
             listOf(
                 coursePlaceRow(22L, 0).copy(caption = "첫 방문"),
                 coursePlaceRow(23L, 1),
-                coursePlaceRow(22L, 2).copy(caption = "두 번째 방문"),
+                coursePlaceRow(22L, 2).copy(caption = "두 번째 방문", images = listOf(CoursePlaceImageRow("second.jpg", 0))),
             ),
         )
         `when`(courseTracePersistencePort.findRoutePlaceIds(5L)).thenReturn(listOf(22L, 22L, 22L))
         `when`(courseTracePersistencePort.findVisitedPlaces(5L)).thenReturn(emptyList())
 
-        val captions = service.getDetail(1L, 5L).places.map { it.caption }
+        val places = service.getDetail(1L, 5L).places
 
-        assertEquals(listOf("첫 방문", "두 번째 방문", "두 번째 방문"), captions)
+        assertEquals(listOf("첫 방문", "두 번째 방문", null), places.map { it.caption })
+        assertEquals(0L, places[2].id)
+        assertEquals(listOf("second.jpg"), places[2].images.map { it.imageUrl })
     }
 
     private fun stubViewableCourse() {

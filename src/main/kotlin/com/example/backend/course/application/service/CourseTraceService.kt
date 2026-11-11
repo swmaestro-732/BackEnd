@@ -283,7 +283,7 @@ class CourseTraceService(
             .findRoutePlaceIds(trace.id)
             .ifEmpty { coursePersistencePort.findPlaces(trace.courseId).map { it.placeId } }
 
-    /** [findTracePlaceIds] 의 상세판 — 루트의 장소 중 코스에 있던 곳만 캡션·사진을 붙이고(같은 장소가 여럿이면 순서대로 짝짓는다), 도보 시간은 코스와 다음 장소가 같을 때만 남긴다. */
+    /** [findTracePlaceIds] 의 상세판 — 루트의 장소 중 코스에 있던 곳만 캡션·사진을 붙이고(같은 장소가 여럿이면 순서대로 짝짓고, 코스보다 많으면 캡션 없이 사진만), 도보 시간은 코스와 다음 장소가 같을 때만 남긴다. */
     private fun findTracePlaces(trace: CourseTraceRow): List<CoursePlaceResult> {
         val coursePlaces = coursePersistencePort.findPlaces(trace.courseId)
         val routePlaceIds = courseTracePersistencePort.findRoutePlaceIds(trace.id)
@@ -293,11 +293,8 @@ class CourseTraceService(
         val seen = mutableMapOf<Long, Int>()
         return routePlaceIds.mapIndexed { index, placeId ->
             val nth = seen.merge(placeId, 1, Int::plus)!! - 1
-            val matched =
-                coursePlacesById[placeId]?.let { occurrences ->
-                    occurrences.getOrNull(nth)
-                        ?: occurrences.last()
-                }
+            val occurrences = coursePlacesById[placeId].orEmpty()
+            val matched = occurrences.getOrNull(nth)
             val coursePlace = matched?.value
             CoursePlaceResult(
                 id = coursePlace?.id ?: 0,
@@ -308,7 +305,10 @@ class CourseTraceService(
                     coursePlace?.walkingMinutes?.takeIf {
                         coursePlaces.getOrNull(matched.index + 1)?.placeId == routePlaceIds.getOrNull(index + 1)
                     },
-                images = coursePlace?.images.orEmpty().map { CoursePlaceImageResult(it.imageUrl, it.orderNo) },
+                images =
+                    (coursePlace ?: occurrences.lastOrNull()?.value)?.images.orEmpty().map {
+                        CoursePlaceImageResult(it.imageUrl, it.orderNo)
+                    },
             )
         }
     }
