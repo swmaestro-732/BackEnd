@@ -134,8 +134,7 @@ ai-chat:
     allow-in-memory: ${AI_CHAT_SESSION_ALLOW_IN_MEMORY:false}
   llm:
     enabled: ${AI_CHAT_LLM_ENABLED:true}
-    # 기본은 OpenRouter 경유(팀 결정 2026-11-11): 키(sk-or-…)만 넣으면 된다. Anthropic 직접 호출로 바꾸려면
-    # base-url 을 비우고 bearer-auth=false, model=claude-haiku-5-5 로 env 를 덮어쓴다.
+    # OpenRouter 로 호출한다 — ANTHROPIC_API_KEY 에 OpenRouter 키(sk-or-…)를 넣으면 된다.
     api-key: ${ANTHROPIC_API_KEY:}
     model: ${AI_CHAT_LLM_MODEL:anthropic/claude-haiku-5.5}
     timeout-millis: ${AI_CHAT_LLM_TIMEOUT_MILLIS:3000}
