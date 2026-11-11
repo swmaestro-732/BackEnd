@@ -12,6 +12,7 @@ import com.example.backend.place.application.port.outbound.PlaceMapSearchPort
 import com.example.backend.place.application.port.outbound.PlaceSearchCriteria
 import com.example.backend.place.application.port.outbound.PlaceSearchHits
 import com.example.backend.place.application.port.outbound.PlaceSearchQueryPort
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties
 import io.github.oshai.kotlinlogging.KotlinLogging
 import org.opensearch.client.json.JsonData
 import org.opensearch.client.opensearch.OpenSearchClient
@@ -63,6 +64,59 @@ class OpenSearchPlaceSearchAdapter(
             throw unavailable()
         }
     }
+
+    override fun findNearbyAreaCodes(
+        location: Coordinate,
+        radiusMeters: Int,
+        size: Int,
+    ): List<String> {
+        val client = clientProvider.ifAvailable ?: throw unavailable()
+        return try {
+            val response =
+                client.search(
+                    { s ->
+                        s
+                            .index(indexAlias)
+                            .size(size)
+                            .source { src -> src.filter { f -> f.includes(AREA_CODE_FIELD) } }
+                            .query { q ->
+                                q.bool { b ->
+                                    b
+                                        .filter { f ->
+                                            f.term { t -> t.field("status").value(FieldValue.of(STATUS_ACTIVE)) }
+                                        }.filter { f -> f.exists { e -> e.field(AREA_CODE_FIELD) } }
+                                        .filter { f ->
+                                            f.geoDistance { g ->
+                                                g
+                                                    .field("location")
+                                                    .distance("${radiusMeters}m")
+                                                    .location { l ->
+                                                        l.latlon { ll ->
+                                                            ll.lat(location.latitude).lon(location.longitude)
+                                                        }
+                                                    }
+                                            }
+                                        }
+                                }
+                            }.sort(distanceSort(location))
+                    },
+                    AreaCodeSource::class.java,
+                )
+            // 부분 응답으로 다수결을 내면 엉뚱한 지역이 될 수 있다 — 목록 검색과 같은 기준으로 불완전 응답은 실패로 본다.
+            check(!response.timedOut() && response.shards().failed() == 0) { "검색이 일부만 완료되었습니다." }
+            // exists 는 빈 문자열도 통과시키므로 코드가 비어 있는 장소는 여기서 뺀다.
+            response.hits().hits().mapNotNull { it.source()?.areaCode?.takeIf { code -> code.isNotBlank() } }
+        } catch (e: Exception) {
+            log.warn { "place 근처 법정동코드 조회 실패: ${e.message}" }
+            throw unavailable()
+        }
+    }
+
+    /** 근처 장소 조회용 _source — 법정동코드만 읽는다. */
+    @JsonIgnoreProperties(ignoreUnknown = true)
+    data class AreaCodeSource(
+        val areaCode: String? = null,
+    )
 
     private fun buildRequest(criteria: PlaceSearchCriteria): SearchRequest =
         SearchRequest
@@ -314,6 +368,7 @@ class OpenSearchPlaceSearchAdapter(
     }
 
     private companion object {
+        const val AREA_CODE_FIELD = "areaCode"
         const val STATUS_ACTIVE = "ACTIVE"
         val MAP_SOURCE_FIELDS = listOf("name", "category", "address", "location", "categoryDetail")
     }

@@ -168,6 +168,7 @@ class OpenSearchCourseIndexAdapter(
             area = area,
             areaCode = areaCode,
             sigunguCode = areaCode?.take(SIGUNGU_CODE_LENGTH),
+            placeIds = places.map { it.placeId.toString() }.distinct(),
             category = categories.map { it.name },
             tags = tags,
             coverImageUrl = coverImageUrl,
