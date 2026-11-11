@@ -35,6 +35,7 @@ import java.util.UUID
  * 한 문장에 여러 슬롯이 들어 있으면 뒤 질문을 건너뛴다. LLM 이 없거나 실패하면 규칙 기반으로 진행한다.
  * 해석 실패는 에러가 아니라 같은 단계를 안내 문구와 함께 다시 내리고, 현재 단계에 없는 칩·막힌 입력은 400(4001)이다.
  * 추천은 조건을 하나씩 풀며 찾는다: 장소 제거 → 테마를 가산으로 → 지역 확대(동 → 시군구 → 시도) → 전체 인기.
+ * 좁은 조건의 결과가 3개 미만이면 다음 단계에서 부족한 수만 더 가져와 채운다(좁은 결과가 앞에 온다).
  */
 @Service
 class AiChatService(
@@ -378,7 +379,8 @@ class AiChatService(
     }
 
     private fun recommend(session: AiChatSession): Pair<AiChatSession, AiChatTurnResult> {
-        val (courses, relaxation) = findCourses(session)
+        val found = findCourses(session)
+        val courses = found.courses
         if (courses.isEmpty()) {
             return session.copy(step = AiChatStep.RESULT) to
                 turn(
@@ -390,14 +392,7 @@ class AiChatService(
                     inputEnabled = false,
                 )
         }
-        val message =
-            when (relaxation) {
-                Relaxation.NONE -> if (session.shownCourseIds.isEmpty()) MSG_RESULT else MSG_RESULT_MORE
-                Relaxation.PLACE_DROPPED -> MSG_RESULT_PLACE_DROPPED
-                Relaxation.THEME_RELAXED -> MSG_RESULT_THEME_RELAXED
-                Relaxation.REGION_WIDENED -> MSG_RESULT_REGION_WIDENED.format(session.region?.label ?: LABEL_NEAR_ME)
-                Relaxation.POPULAR -> MSG_RESULT_POPULAR
-            }
+        val message = resultMessage(session, found)
         return session.copy(
             step = AiChatStep.RESULT,
             shownCourseIds = session.shownCourseIds + courses.map { it.id },
@@ -413,8 +408,26 @@ class AiChatService(
             )
     }
 
-    /** 조건을 좁은 것부터 넓은 것까지 순서대로 시도해 처음 결과가 나오는 조건을 쓴다. */
-    private fun findCourses(session: AiChatSession): Pair<List<AiChatCourse>, Relaxation> {
+    /** 가장 많이 푼 단계 기준 안내 문구. 좁은 조건 결과와 섞였으면([Found.mixed]) "적어서 … 도 함께" 로 말한다. */
+    private fun resultMessage(
+        session: AiChatSession,
+        found: Found,
+    ): String {
+        val regionLabel = session.region?.label ?: LABEL_NEAR_ME
+        return when (found.relaxation) {
+            Relaxation.NONE -> if (session.shownCourseIds.isEmpty()) MSG_RESULT else MSG_RESULT_MORE
+            Relaxation.PLACE_DROPPED -> if (found.mixed) MSG_RESULT_PLACE_DROPPED_MIXED else MSG_RESULT_PLACE_DROPPED
+            Relaxation.THEME_RELAXED -> if (found.mixed) MSG_RESULT_THEME_RELAXED_MIXED else MSG_RESULT_THEME_RELAXED
+            Relaxation.REGION_WIDENED -> MSG_RESULT_REGION_WIDENED.format(regionLabel)
+            Relaxation.POPULAR -> if (found.mixed) MSG_RESULT_POPULAR_MIXED else MSG_RESULT_POPULAR
+        }
+    }
+
+    /**
+     * 조건을 좁은 것부터 넓은 것까지 순서대로 시도해 [COURSE_COUNT] 개를 채운다.
+     * 단계마다 부족한 수만 요청하고 이미 담은 코스는 제외한다. [Found.relaxation] 은 결과를 낸 가장 넓은 단계다.
+     */
+    private fun findCourses(session: AiChatSession): Found {
         val regionLevels = regionLevels(session.region?.prefixes.orEmpty())
         val theme = session.theme
         val narrowest = regionLevels.first()
@@ -426,7 +439,12 @@ class AiChatService(
                 regionLevels.drop(1).forEach { add(Attempt(it, null, null, Relaxation.REGION_WIDENED)) }
                 add(Attempt(emptyList(), null, null, Relaxation.POPULAR))
             }.distinctBy { Triple(it.regionPrefixes, it.placeId, it.category) }
+        val collected = mutableListOf<AiChatCourse>()
+        var relaxation = Relaxation.NONE
+        var contributingAttempts = 0
         for (attempt in attempts) {
+            val remaining = COURSE_COUNT - collected.size
+            if (remaining <= 0) break
             val courses =
                 coursePort.recommend(
                     AiChatCourseCriteria(
@@ -435,14 +453,23 @@ class AiChatService(
                         likeThemes = theme?.likeThemes.orEmpty(),
                         keyword = theme?.keyword,
                         placeId = attempt.placeId,
-                        excludeIds = session.shownCourseIds,
-                        size = COURSE_COUNT,
+                        excludeIds = session.shownCourseIds + collected.map { it.id },
+                        size = remaining,
                     ),
                 )
-            if (courses.isNotEmpty()) return courses to attempt.relaxation
+            if (courses.isEmpty()) continue
+            collected += courses.take(remaining)
+            relaxation = attempt.relaxation
+            contributingAttempts++
         }
-        return emptyList<AiChatCourse>() to Relaxation.POPULAR
+        return Found(collected, relaxation, mixed = contributingAttempts > 1)
     }
+
+    private data class Found(
+        val courses: List<AiChatCourse>,
+        val relaxation: Relaxation,
+        val mixed: Boolean,
+    )
 
     /** prefix 목록을 좁은 순서로 넓힌다: 입력 그대로 → 시군구(5자리) → 시도(2자리). 이미 그 길이면 건너뛴다. */
     private fun regionLevels(prefixes: List<String>): List<List<String>> {
@@ -532,9 +559,12 @@ class AiChatService(
         private const val MSG_RESULT = "이런 코스는 어때요? 마음에 들면 저장해 두세요."
         private const val MSG_RESULT_MORE = "이런 코스도 있어요. 아직 안 보신 코스만 골랐어요."
         private const val MSG_RESULT_PLACE_DROPPED = "그 장소가 들어간 코스는 아직 없어요. 대신 근처 코스를 골라봤어요."
+        private const val MSG_RESULT_PLACE_DROPPED_MIXED = "그 장소가 들어간 코스가 적어서 근처 코스도 함께 골라봤어요."
         private const val MSG_RESULT_THEME_RELAXED = "딱 맞는 테마의 코스가 없어서 비슷한 분위기의 코스를 골라봤어요."
+        private const val MSG_RESULT_THEME_RELAXED_MIXED = "딱 맞는 테마의 코스가 적어서 비슷한 분위기의 코스도 함께 골라봤어요."
         private const val MSG_RESULT_REGION_WIDENED = "%s 안에는 코스가 적어서 주변까지 넓혀 봤어요."
         private const val MSG_RESULT_POPULAR = "조건에 맞는 코스가 아직 없어서 인기 코스를 골라봤어요."
+        private const val MSG_RESULT_POPULAR_MIXED = "조건에 맞는 코스가 적어서 인기 코스도 함께 골라봤어요."
         private const val MSG_NO_MORE = "더 보여드릴 코스가 없어요. 조건을 바꿔서 다시 찾아볼까요?"
     }
 }

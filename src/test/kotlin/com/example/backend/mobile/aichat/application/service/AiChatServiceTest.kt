@@ -585,6 +585,59 @@ class AiChatServiceTest {
     }
 
     @Test
+    fun `좁은 조건 결과가 3개 미만이면 다음 단계에서 부족한 만큼 채우고 좁은 결과를 앞에 둔다`() {
+        seed(AiChatStep.PLACE, theme = AiChatThemeDictionary.slotOf("DATE"))
+        courses.answer = { if (courses.calls.size == 1) courseList(1) else courseList(2, 3) }
+
+        val result = service().sendMessage(chip(AiChatService.NO_PLACE))
+
+        assertThat(result.courses.map { it.id }).containsExactly(1L, 2L, 3L)
+        assertThat(result.messages.single()).isEqualTo("딱 맞는 테마의 코스가 적어서 비슷한 분위기의 코스도 함께 골라봤어요.")
+        assertThat(courses.calls).hasSize(2)
+        assertThat(attempt(0)).matches { it.category == "DATE" && it.size == 3 && it.excludeIds.isEmpty() }
+        assertThat(attempt(1)).matches { it.category == null && it.size == 2 && it.excludeIds == listOf(1L) }
+        assertThat(saved().shownCourseIds).containsExactly(1L, 2L, 3L)
+    }
+
+    @Test
+    fun `채우기는 가장 많이 푼 단계 기준으로 알리고 더 추천받기의 제외 목록과 합쳐진다`() {
+        seed(AiChatStep.RESULT, theme = AiChatThemeDictionary.slotOf("DATE"), shown = listOf(9L))
+        courses.answer =
+            {
+                if (courses.calls.size ==
+                    1
+                ) {
+                    courseList(1)
+                } else if (courses.calls.size == 5) {
+                    courseList(2)
+                } else {
+                    emptyList()
+                }
+            }
+
+        val result = service().sendMessage(chip(AiChatService.RETRY))
+
+        assertThat(result.courses.map { it.id }).containsExactly(1L, 2L)
+        assertThat(result.messages.single()).isEqualTo("조건에 맞는 코스가 적어서 인기 코스도 함께 골라봤어요.")
+        assertThat(courses.calls).hasSize(5)
+        assertThat(
+            attempt(4),
+        ).matches { it.regionPrefixes.isEmpty() && it.size == 2 && it.excludeIds == listOf(9L, 1L) }
+    }
+
+    @Test
+    fun `3개가 다 차면 더 넓히지 않는다`() {
+        seed(AiChatStep.PLACE, theme = AiChatThemeDictionary.slotOf("DATE"))
+        courses.answer = { courseList(1, 2, 3) }
+
+        val result = service().sendMessage(chip(AiChatService.NO_PLACE))
+
+        assertThat(result.courses).hasSize(3)
+        assertThat(result.messages.single()).isEqualTo("이런 코스는 어때요? 마음에 들면 저장해 두세요.")
+        assertThat(courses.calls).hasSize(1)
+    }
+
+    @Test
     fun `장소를 풀어 찾았으면 그렇게 알린다`() {
         assertThat(recommendSucceedingAt(2).messages.single()).contains("그 장소가 들어간 코스는 아직 없어요")
     }
