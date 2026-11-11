@@ -9,7 +9,7 @@ import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor
 import java.util.concurrent.ThreadPoolExecutor
 
 /**
- * 커밋 후 운영시간 동기화·알림 기록·검색 색인 카운터 갱신을 각각 전용 실행기에서 처리한다.
+ * 커밋 후 운영시간 동기화, 알림 기록, 검색 색인 카운터 갱신, 기기 활동 기록을 각각 전용 실행기에서 처리한다.
  * Executor 빈이 여럿이라 Boot의 기본 applicationTaskExecutor는 자동 구성되지 않으므로 `@Async` 에 실행기를 명시한다.
  */
 @Configuration
@@ -31,6 +31,22 @@ class AsyncConfig {
             queueCapacity = BUSINESS_HOURS_SYNC_QUEUE_CAPACITY
             setRejectedExecutionHandler(ThreadPoolExecutor.DiscardPolicy())
             setThreadNamePrefix("business-hours-sync-")
+        }
+
+    /**
+     * 기기 일별 활동 기록 전용 실행기. DB 커넥션 풀이 고갈돼도 요청 스레드가 커넥션을 기다리지 않게 기록을 밖으로 뺀다.
+     * 큐가 차면 기본 AbortPolicy 로 거절하고, 호출부(DeviceActivityService)가 받아 로그를 남기고 다음 요청에 다시 시도한다.
+     */
+    @Bean(DEVICE_ACTIVITY_EXECUTOR)
+    fun deviceActivityExecutor(): ThreadPoolTaskExecutor =
+        ThreadPoolTaskExecutor().apply {
+            corePoolSize = 1
+            maxPoolSize = 1
+            queueCapacity = DEVICE_ACTIVITY_QUEUE_CAPACITY
+            // 배포 때 큐에 남은 기록을 잃지 않게 잠깐 기다린다.
+            setWaitForTasksToCompleteOnShutdown(true)
+            setAwaitTerminationSeconds(10)
+            setThreadNamePrefix("device-activity-")
         }
 
     @Bean(NOTIFICATION_EXECUTOR)
@@ -81,6 +97,8 @@ class AsyncConfig {
         }
 
     companion object {
+        const val DEVICE_ACTIVITY_EXECUTOR = "deviceActivityExecutor"
+        const val DEVICE_ACTIVITY_QUEUE_CAPACITY = 1_000
         const val NOTIFICATION_EXECUTOR = "notificationExecutor"
         const val DROP_QUEUE_FULL = "queue_full"
         const val DROP_SHUTDOWN = "shutdown"

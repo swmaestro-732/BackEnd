@@ -131,7 +131,7 @@ class UserService(
         courseCleanupPort.purgeTracesByUser(userId)
         // 2) 팔로우: 양방향 삭제 + 상대 카운터 보정.
         followPersistencePort.purgeFollowsOf(userId)
-        // 2-1) 기기: 이 사용자와의 연결만 끊는다. 토큰과 광고 동의는 기기 단위라 남는다.
+        // 2-1) 기기: 이 사용자와의 연결만 끊는다(기기 행, 일별 활동). 토큰, 광고 동의, 기기 단위 활동은 남는다.
         devicePersistencePort.unlinkAllByUser(userId)
         // 2-2) 알림: 받은 알림, 남의 알림함에 남은 이 사용자의 닉네임 스냅샷 묶음, 수신 설정을 지운다.
         notificationCleanupPort.purgeByUser(userId)
