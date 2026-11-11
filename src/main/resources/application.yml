@@ -134,13 +134,13 @@ ai-chat:
     allow-in-memory: ${AI_CHAT_SESSION_ALLOW_IN_MEMORY:false}
   llm:
     enabled: ${AI_CHAT_LLM_ENABLED:true}
+    # OpenRouter 로 호출한다 — ANTHROPIC_API_KEY 에 OpenRouter 키(sk-or-…)를 넣으면 된다.
     api-key: ${ANTHROPIC_API_KEY:}
-    model: ${AI_CHAT_LLM_MODEL:claude-haiku-5-5}
+    model: ${AI_CHAT_LLM_MODEL:anthropic/claude-haiku-5.5}
     timeout-millis: ${AI_CHAT_LLM_TIMEOUT_MILLIS:3000}
     max-calls-per-session: ${AI_CHAT_LLM_MAX_CALLS_PER_SESSION:20}
-    # Messages API 호환 중계(OpenRouter: https://openrouter.ai/api, Bearer)로 보낼 때만 설정. 비면 Anthropic 직접.
-    base-url: ${AI_CHAT_LLM_BASE_URL:}
-    bearer-auth: ${AI_CHAT_LLM_BEARER_AUTH:false}
+    base-url: ${AI_CHAT_LLM_BASE_URL:https://openrouter.ai/api}
+    bearer-auth: ${AI_CHAT_LLM_BEARER_AUTH:true}
 
 aws:
   region: ${AWS_REGION:ap-northeast-2}
