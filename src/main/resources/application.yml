@@ -97,6 +97,8 @@ jwt:
 admin:
   # 큐레이터(운영) 계정 user id. 어드민 편집은 이 계정의 코스만 허용하고, 이 계정 코스의 숨김, 삭제는 작성자 알림을 보내지 않는다.
   curator-user-id: ${ADMIN_CURATOR_USER_ID:2}
+  # 어드민 웹 오리진(CORS, /admin/v1/** 만). 운영 도메인과 로컬 개발 서버.
+  web-origins: ${ADMIN_WEB_ORIGINS:https://chilsami-admin.courmy.com,http://localhost:3001}
 
 oauth:
   kakao:

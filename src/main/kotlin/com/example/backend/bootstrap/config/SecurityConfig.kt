@@ -2,6 +2,7 @@ package com.example.backend.bootstrap.config
 
 import com.example.backend.admin.application.port.inbound.AdminAccessUseCase
 import com.example.backend.bootstrap.security.AdminJwtTokenIssuer
+import org.springframework.beans.factory.annotation.Value
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
 import org.springframework.security.authentication.AnonymousAuthenticationToken
@@ -12,6 +13,9 @@ import org.springframework.security.config.annotation.web.configuration.EnableWe
 import org.springframework.security.config.http.SessionCreationPolicy
 import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationToken
 import org.springframework.security.web.SecurityFilterChain
+import org.springframework.web.cors.CorsConfiguration
+import org.springframework.web.cors.CorsConfigurationSource
+import org.springframework.web.cors.UrlBasedCorsConfigurationSource
 
 /**
  * REST API 보안 기본 설정.
@@ -29,6 +33,8 @@ class SecurityConfig {
     ): SecurityFilterChain {
         http
             .csrf { it.disable() } // 토큰 기반 무상태 API
+            // 어드민 웹(정적 사이트)이 브라우저에서 /admin/v1/** 를 직접 부른다. 다른 경로는 CORS 를 열지 않는다.
+            .cors { }
             .httpBasic { it.disable() }
             .formLogin { it.disable() }
             .sessionManagement { it.sessionCreationPolicy(SessionCreationPolicy.STATELESS) }
@@ -99,4 +105,25 @@ class SecurityConfig {
             }
         return http.build()
     }
+
+    /**
+     * 어드민 API(/admin/v1 하위)에만 어드민 웹 오리진의 CORS 를 허용한다(preflight 는 인가 전에 응답).
+     * 토큰은 Authorization 헤더로만 오고 쿠키를 쓰지 않으므로 credentials 는 허용하지 않는다.
+     */
+    @Bean
+    fun corsConfigurationSource(
+        @Value("\${admin.web-origins}") adminWebOrigins: List<String>,
+    ): CorsConfigurationSource =
+        UrlBasedCorsConfigurationSource().apply {
+            registerCorsConfiguration(
+                "/admin/v1/**",
+                CorsConfiguration().apply {
+                    allowedOrigins = adminWebOrigins
+                    allowedMethods = listOf("GET", "POST", "PATCH", "DELETE", "OPTIONS")
+                    allowedHeaders = listOf("Authorization", "Content-Type")
+                    allowCredentials = false
+                    maxAge = 3600
+                },
+            )
+        }
 }
