@@ -22,4 +22,7 @@ interface AreaQueryUseCase {
      * 시군구 항목을 돌려준다. 코드 표시 이름(코스 area 등)이 필요한 다른 애그리거트가 쓴다. 미존재·비활성이면 null.
      */
     fun findAreaByCode(code: String): AreaDescriptor?
+
+    /** [prefix](시도 2자리·시 4자리·시군구 5자리 등)로 시작하는 활성 지역이 있는지 — 지역 필터 값 검증용. */
+    fun existsAreaWithPrefix(prefix: String): Boolean
 }

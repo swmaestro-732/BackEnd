@@ -4,6 +4,7 @@ import com.example.backend.area.adapter.outbound.persistence.exposed.repository.
 import com.example.backend.area.domain.model.Area
 import com.example.backend.area.domain.model.AreaCode
 import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import org.mockito.Mockito.mock
@@ -55,6 +56,17 @@ class AreaPersistenceAdapterTest {
 
         assertEquals(listOf("36"), adapter.resolveSearchPrefixes("세종"))
         assertEquals(listOf("3611010100"), adapter.resolveSearchPrefixes("반곡"))
+    }
+
+    @Test
+    fun `existsByPrefix 는 활성 지역 코드가 그 prefix 로 시작할 때만 true 다`() {
+        val adapter = adapter(listOf(area("1168010100", "서울특별시", "강남구", "역삼동")))
+
+        assertTrue(adapter.existsByPrefix("11"))
+        assertTrue(adapter.existsByPrefix("1168"))
+        assertTrue(adapter.existsByPrefix("11680"))
+        assertFalse(adapter.existsByPrefix("12"))
+        assertFalse(adapter.existsByPrefix("11690"))
     }
 
     @Test

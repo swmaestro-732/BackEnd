@@ -6,6 +6,7 @@ import com.example.backend.course.application.port.outbound.CourseRecommendCrite
 import com.example.backend.course.application.port.outbound.CourseRecommendHit
 import com.example.backend.course.application.port.outbound.CourseRecommendQueryPort
 import com.example.backend.course.application.port.outbound.CourseRecommendResultPage
+import com.example.backend.course.application.port.outbound.CourseRegionFilter
 import io.github.oshai.kotlinlogging.KotlinLogging
 import org.opensearch.client.json.JsonData
 import org.opensearch.client.opensearch.OpenSearchClient
@@ -82,7 +83,7 @@ class OpenSearchCourseRecommendAdapter(
         return builder.build()
     }
 
-    /** 고정 필터(발행 PUBLIC·재색인 완료분·선택 카테고리) + 관심 일치 가산 should. */
+    /** 고정 필터(발행 PUBLIC·재색인 완료분·선택 카테고리·선택 지역) + 관심 일치 가산 should. */
     private fun baseQuery(criteria: CourseRecommendCriteria): Query =
         Query.of { q ->
             q.bool { b ->
@@ -93,6 +94,7 @@ class OpenSearchCourseRecommendAdapter(
                         // 미백필 문서는 정렬 tiebreak(id)가 없어 search_after 가 어긋난다 → 재색인 완료 문서만.
                         add(Query.of { e -> e.exists { x -> x.field("id") } })
                         criteria.category?.let { add(termQuery("category", FieldValue.of(it))) }
+                        criteria.region?.let { add(regionQuery(it)) }
                     },
                 )
                 val interests =
@@ -163,4 +165,18 @@ class OpenSearchCourseRecommendAdapter(
         field: String,
         value: FieldValue,
     ): Query = Query.of { q -> q.term { t -> t.field(field).value(value) } }
+
+    /** areaCode 가 include prefix 중 하나로 시작하고 exclude prefix 로는 시작하지 않는 문서만. */
+    private fun regionQuery(region: CourseRegionFilter): Query =
+        Query.of { q ->
+            q.bool { b ->
+                region.includePrefixes.forEach { prefix ->
+                    b.should { s -> s.prefix { p -> p.field("areaCode").value(prefix) } }
+                }
+                region.excludePrefixes.forEach { prefix ->
+                    b.mustNot { m -> m.prefix { p -> p.field("areaCode").value(prefix) } }
+                }
+                b.minimumShouldMatch("1")
+            }
+        }
 }

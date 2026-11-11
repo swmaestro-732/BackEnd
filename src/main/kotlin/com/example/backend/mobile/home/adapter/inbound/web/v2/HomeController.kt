@@ -18,7 +18,7 @@ import org.springframework.web.bind.annotation.RestController
 /**
  * 인바운드 어댑터 — **홈 화면 조합 API** (BFF). 비로그인 포함 누구나 조회 가능하다.
  * - `GET /service/v2/home`: 헤더 프로필 + 따라가는 중 코스(최근 1건) + 추천 코스 5개 + 근처 저장 장소 5개(`userLat/userLng` 기준).
- * - `GET /service/v2/home/recommended-courses`: 추천 코스 전체보기(추천 점수순 커서 페이지). `category` 로 카테고리를 거른다.
+ * - `GET /service/v2/home/recommended-courses`: 추천 코스 전체보기(추천 점수순 커서 페이지). `category`·`region` 으로 거른다.
  * 추천은 로그인 사용자의 관심 테마·지역으로 개인화된다(비로그인은 최신성·저장수만).
  * 조합은 인바운드 포트([HomeFeedUseCase])가 담당하고, 컨트롤러는 Request → 포트 호출 → Response 매핑만 한다.
  *
@@ -55,6 +55,10 @@ class HomeController(
         size: Int = 20,
         // 코스 카테고리 이름(예: DATE). 생략하면 전체 카테고리, 알 수 없는 값이면 400.
         @RequestParam(required = false) category: String?,
+        // 법정동코드 prefix(시도 2자리·구 있는 시 4자리·시군구 5자리, 광주 29·전남 46). 생략하면 전체 지역, 알 수 없는 값이면 400.
+        @RequestParam(required = false) region: String?,
     ): ApiResponse<RecommendedCoursesResponse> =
-        ApiResponse.success(RecommendedCoursesResponse.from(homeFeedUseCase.getFeed(viewerId, cursor, size, category)))
+        ApiResponse.success(
+            RecommendedCoursesResponse.from(homeFeedUseCase.getFeed(viewerId, cursor, size, category, region)),
+        )
 }

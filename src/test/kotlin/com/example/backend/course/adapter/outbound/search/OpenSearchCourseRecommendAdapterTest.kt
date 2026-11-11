@@ -4,6 +4,7 @@ import com.example.backend.bootstrap.config.CourseRecommendProperties
 import com.example.backend.bootstrap.config.OpenSearchProperties
 import com.example.backend.course.application.port.outbound.CourseRecommendAfter
 import com.example.backend.course.application.port.outbound.CourseRecommendCriteria
+import com.example.backend.course.application.port.outbound.CourseRegionFilter
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.Test
 import org.mockito.ArgumentCaptor
@@ -105,6 +106,7 @@ class OpenSearchCourseRecommendAdapterTest {
         sigunguCodes: List<String> = listOf("11680"),
         dongCodes: List<String> = listOf("1168010100"),
         category: String? = null,
+        region: CourseRegionFilter? = null,
         after: CourseRecommendAfter? = null,
         size: Int = 2,
     ) = CourseRecommendCriteria(
@@ -112,6 +114,7 @@ class OpenSearchCourseRecommendAdapterTest {
         sigunguCodes = sigunguCodes,
         dongCodes = dongCodes,
         category = category,
+        region = region,
         origin = origin,
         after = after,
         size = size,
@@ -248,6 +251,28 @@ class OpenSearchCourseRecommendAdapterTest {
         assertThat(categoryFilters).hasSize(4)
         assertThat(categoryFilters[3].term().field()).isEqualTo("category")
         assertThat(categoryFilters[3].term().value().stringValue()).isEqualTo("FOOD")
+    }
+
+    @Test
+    fun `region 필터는 include prefix 를 should(최소 1개) 로, exclude prefix 를 must_not 으로 붙인다`() {
+        val region = CourseRegionFilter(includePrefixes = listOf("12"), excludePrefixes = listOf("12210", "12240"))
+        val request = capturedRequest(clientReturning(emptyList()), criteria(region = region))
+
+        val filters =
+            request
+                .query()!!
+                .functionScore()
+                .query()!!
+                .bool()
+                .filter()
+        assertThat(filters).hasSize(4)
+        val regionBool = filters[3].bool()
+        assertThat(regionBool.minimumShouldMatch()).isEqualTo("1")
+        assertThat(
+            regionBool.should().map { it.prefix().field() to it.prefix().value() },
+        ).containsExactly("areaCode" to "12")
+        assertThat(regionBool.mustNot().map { it.prefix().field() to it.prefix().value() })
+            .containsExactly("areaCode" to "12210", "areaCode" to "12240")
     }
 
     @Test

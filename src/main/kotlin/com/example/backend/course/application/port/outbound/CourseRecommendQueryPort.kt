@@ -12,6 +12,7 @@ interface CourseRecommendQueryPort {
 
 /**
  * 추천 조건. 관심 지역은 호출자가 시군구(앞 5자리)·읍면동(10자리, 동 선택분만)으로 갈라 준다.
+ * [category]·[region] 은 후보 집합을 거르는 필터(점수에는 영향 없음).
  * [origin] 은 최신성 감쇠 기준 시각 — 페이지를 넘겨도 같은 값을 써야 점수가 흔들리지 않는다.
  * [after] 는 직전 페이지 마지막 히트의 (점수, id) — search_after 용. 첫 페이지는 null.
  */
@@ -20,6 +21,7 @@ data class CourseRecommendCriteria(
     val sigunguCodes: List<String>,
     val dongCodes: List<String>,
     val category: String?,
+    val region: CourseRegionFilter?,
     val origin: Instant,
     val after: CourseRecommendAfter?,
     val size: Int,
