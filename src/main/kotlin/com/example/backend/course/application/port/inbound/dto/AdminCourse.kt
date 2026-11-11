@@ -55,6 +55,8 @@ data class AdminCourseItem(
     val coverImageUrl: String?,
     val themes: List<String>,
     val author: AdminCourseAuthor,
+    /** 큐레이터 코스면 CURATOR(어드민 편집 가능), 아니면 USER. */
+    val authorType: AdminCourseAuthorType,
     val areaCode: String?,
     val areaName: String?,
     val placeCount: Int,
@@ -104,6 +106,8 @@ data class AdminCourseDetail(
     val isPublished: Boolean,
     val visibility: CourseVisibility,
     val author: AdminCourseAuthor,
+    /** 큐레이터 코스면 CURATOR(어드민 편집 가능), 아니면 USER. */
+    val authorType: AdminCourseAuthorType,
     val places: List<AdminCoursePlace>,
     val likesCnt: Int,
     val savesCnt: Int,

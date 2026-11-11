@@ -66,6 +66,8 @@ class AdminCourseControllerTest
                 .andExpect(jsonPath("$.data.page").value(0))
                 .andExpect(jsonPath("$.data.items[*].id", contains(4, 3, 2, 1)))
                 .andExpect(jsonPath("$.data.items[3].author.nickname").value("일반작성자"))
+                .andExpect(jsonPath("$.data.items[3].authorType").value("USER"))
+                .andExpect(jsonPath("$.data.items[0].authorType").value("CURATOR"))
                 .andExpect(jsonPath("$.data.items[3].placeCount").value(2))
                 .andExpect(jsonPath("$.data.items[3].areaName").value("성수"))
                 .andExpect(jsonPath("$.data.items[3].likesCnt").value(3))
@@ -117,6 +119,7 @@ class AdminCourseControllerTest
                 .andExpect(jsonPath("$.data.companions", contains("DATE")))
                 .andExpect(jsonPath("$.data.tags", contains("성수")))
                 .andExpect(jsonPath("$.data.author.id").value(2))
+                .andExpect(jsonPath("$.data.authorType").value("CURATOR"))
                 .andExpect(jsonPath("$.data.places[0].name").value("카페A"))
                 .andExpect(jsonPath("$.data.places[0].category").value("CAFE"))
                 .andExpect(jsonPath("$.data.places[0].address").value("서울 성수동 1"))
@@ -141,6 +144,7 @@ class AdminCourseControllerTest
                     ).json(editBody(updatedAt, title = "고친 큐레이터 코스", reversed = true)),
                 ).andExpect(status().isOk)
                 .andExpect(jsonPath("$.data.title").value("고친 큐레이터 코스"))
+                .andExpect(jsonPath("$.data.authorType").value("CURATOR"))
                 .andExpect(jsonPath("$.data.places[0].placeId").value(2))
                 .andExpect(jsonPath("$.data.places[1].placeId").value(1))
 

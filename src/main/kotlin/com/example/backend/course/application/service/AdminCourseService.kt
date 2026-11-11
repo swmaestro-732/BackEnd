@@ -99,6 +99,7 @@ class AdminCourseService(
                         coverImageUrl = it.coverImageUrl,
                         themes = it.categories.map(CourseCategory::name),
                         author = AdminCourseAuthor(it.userId, nicknames[it.userId]),
+                        authorType = authorType(it.userId),
                         areaCode = it.areaCode,
                         areaName = it.area,
                         placeCount = stats[it.id]?.placeCount ?: 0,
@@ -146,6 +147,7 @@ class AdminCourseService(
                     course.userId,
                     courseAuthorPort.findNicknames(listOf(course.userId))[course.userId],
                 ),
+            authorType = authorType(course.userId),
             places =
                 coursePlaces.map {
                     val place = placesById[it.placeId]
@@ -314,6 +316,9 @@ class AdminCourseService(
     private fun toCategory(name: String): CourseCategory =
         CourseCategory.entries.find { it.name == name }
             ?: throw BusinessException(CommonErrorCode.INVALID_INPUT, "알 수 없는 테마입니다: $name")
+
+    private fun authorType(userId: Long) =
+        if (userId == curatorUserId) AdminCourseAuthorType.CURATOR else AdminCourseAuthorType.USER
 
     private fun requireCourse(
         courseId: Long,
