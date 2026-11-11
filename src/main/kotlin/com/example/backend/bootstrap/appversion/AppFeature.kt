@@ -18,6 +18,7 @@ enum class AppFeature(
     PLACE_REVIEW("place-review"),
     MEDIA("media"),
     AREA("area"),
+    AI_CHAT("ai-chat"),
     ;
 
     companion object {

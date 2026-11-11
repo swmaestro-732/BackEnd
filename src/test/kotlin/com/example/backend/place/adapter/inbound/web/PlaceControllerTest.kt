@@ -4,6 +4,7 @@ import com.example.backend.place.application.port.inbound.PlaceQueryUseCase
 import com.example.backend.place.application.port.inbound.dto.PlaceSummaryPage
 import com.example.backend.support.IntegrationTestBase
 import org.junit.jupiter.api.Test
+import org.mockito.ArgumentMatchers.anyList
 import org.mockito.ArgumentMatchers.nullable
 import org.mockito.Mockito.anyInt
 import org.mockito.Mockito.anyString
@@ -41,6 +42,7 @@ class PlaceControllerTest : IntegrationTestBase() {
                 nullable(String::class.java),
                 anyInt(),
                 nullable(Long::class.java),
+                anyList(),
             ),
         ).thenReturn(emptyPage)
 
@@ -60,6 +62,7 @@ class PlaceControllerTest : IntegrationTestBase() {
                 nullable(String::class.java),
                 anyInt(),
                 nullable(Long::class.java),
+                anyList(),
             ),
         ).thenReturn(emptyPage)
 

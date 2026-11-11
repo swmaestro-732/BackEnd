@@ -167,6 +167,8 @@ class AuthServiceTest {
             override fun resolveSearchPrefixes(keyword: String): List<String> = emptyList()
 
             override fun findAreaByCode(code: String): AreaDescriptor? = null
+
+            override fun existsAreaWithPrefix(prefix: String): Boolean = false
         }
 
     private val userLikeThemePort =

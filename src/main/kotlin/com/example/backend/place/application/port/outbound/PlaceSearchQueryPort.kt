@@ -11,6 +11,13 @@ import com.example.backend.place.domain.model.PlaceCategory
  */
 interface PlaceSearchQueryPort {
     fun search(criteria: PlaceSearchCriteria): PlaceSearchHits
+
+    /** [location] 반경 [radiusMeters] 안의 활성 장소를 가까운 순으로 [size] 곳 골라 법정동코드만 돌려준다(코드 없는 장소는 제외). */
+    fun findNearbyAreaCodes(
+        location: Coordinate,
+        radiusMeters: Int,
+        size: Int,
+    ): List<String>
 }
 
 /** 검색 조건 — 어댑터가 쿼리 DSL 로 번역한다(검색엔진 타입은 여기 드러나지 않는다). */

@@ -11,7 +11,7 @@ import java.util.Base64
 
 /**
  * 장소 리뷰 목록의 정렬 키(평점·작성일·id)를 URL-safe Base64 불투명 커서로 변환한다
- * ([com.example.backend.mobile.home.application.service.HomeFeedCursorCodec] 와 같은 형식).
+ * ([com.example.backend.course.application.service.CourseReviewCursorCodec] 와 같은 형식).
  * 페이로드 앞에 정렬 기준·방향을 담아, 디코딩 시 요청 정렬과 다르면(정렬 바꿔 페이지 넘김) 잘못된 커서로 막는다(400).
  * 클라이언트는 값을 해석하지 않고 그대로 되돌려 준다.
  */

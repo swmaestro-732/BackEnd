@@ -28,6 +28,12 @@ spring:
       region:
         static: ${AWS_REGION:ap-northeast-2}
 
+# SCRUM-806: 쿼리 구간만 계측하고 사용자 파라미터 값은 수집하지 않는다.
+jdbc:
+  includes: QUERY
+  datasource-proxy:
+    include-parameter-values: false
+
 # Actuator: health + prometheus 메트릭 노출. (스크레이프 소스는 SG로 모니터링 호스트만 허용)
 management:
   # DocumentDB 장애가 ALB 의 집계 health 로 전파되지 않게 기본 Mongo 헬스 체크를 끈다.
@@ -52,7 +58,17 @@ management:
     export:
       enabled: false
     sampling:
-      probability: 0.1
+      # SCRUM-806: 요청 누락 없이 추적하되 운영 환경변수로 조절한다.
+      probability: ${TRACING_SAMPLING_PROBABILITY:1.0}
+  # SCRUM-806: Security 필터의 고아 트레이스를 막는다.
+  observations:
+    enable:
+      spring.security: false
+  # SCRUM-806: Prometheus로 수집하므로 중복 OTLP 메트릭 전송을 끈다.
+  otlp:
+    metrics:
+      export:
+        enabled: false
   opentelemetry:
     tracing:
       export:
@@ -110,6 +126,21 @@ tmap:
 google:
   places:
     api-key: ${GOOGLE_PLACES_API_KEY:}
+
+# 코스 추천 AI 채팅(SCRUM-785) — 자유 입력 문장을 슬롯 JSON 으로 바꾸는 LLM. 키가 비면 규칙 기반 해석만 동작한다.
+ai-chat:
+  session:
+    # Redis(redis.endpoint) 없이 메모리에 세션을 두는 것을 허용 — 로컬·CI 전용. 운영(ASG 다중 인스턴스)은 반드시 false.
+    allow-in-memory: ${AI_CHAT_SESSION_ALLOW_IN_MEMORY:false}
+  llm:
+    enabled: ${AI_CHAT_LLM_ENABLED:true}
+    # OpenRouter 로 호출한다 — ANTHROPIC_API_KEY 에 OpenRouter 키(sk-or-…)를 넣으면 된다.
+    api-key: ${ANTHROPIC_API_KEY:}
+    model: ${AI_CHAT_LLM_MODEL:anthropic/claude-haiku-5.5}
+    timeout-millis: ${AI_CHAT_LLM_TIMEOUT_MILLIS:3000}
+    max-calls-per-session: ${AI_CHAT_LLM_MAX_CALLS_PER_SESSION:20}
+    base-url: ${AI_CHAT_LLM_BASE_URL:https://openrouter.ai/api}
+    bearer-auth: ${AI_CHAT_LLM_BEARER_AUTH:true}
 
 aws:
   region: ${AWS_REGION:ap-northeast-2}

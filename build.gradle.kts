@@ -53,6 +53,10 @@ dependencies {
     runtimeOnly("io.micrometer:micrometer-registry-prometheus")
     // Spring Boot 4: OTLP 트레이스 리포팅 공식 스타터(Micrometer Tracing + OTel autoconfig + OTLP exporter 일괄).
     implementation("org.springframework.boot:spring-boot-starter-opentelemetry")
+    // SCRUM-806: Boot 4 호환 JDBC 쿼리 계측.
+    implementation("net.ttddyy.observation:datasource-micrometer-spring-boot:2.3.0")
+    // SCRUM-806: Boot 4 는 RestClient.Builder 자동구성(관측 연동 포함)이 별도 모듈 — 없으면 HttpClientConfig 주입 실패.
+    implementation("org.springframework.boot:spring-boot-starter-restclient")
 
     // Sentry 에러 트래킹. Boot 4 전용 스타터(spring-boot-starter:4.1.0 대상). SENTRY_DSN 비면 no-op.
     implementation("io.sentry:sentry-spring-boot-4-starter:8.53.0")
@@ -91,6 +95,8 @@ dependencies {
         exclude(group = "org.opensearch.client", module = "opensearch-rest-client")
     }
     implementation("org.apache.httpcomponents.client5:httpclient5")
+    // Claude API 공식 Java SDK — AI 채팅의 자유 입력 → 슬롯 JSON 변환(구조화 출력). 키가 비면 빈 미생성·규칙 기반만 동작.
+    implementation("com.anthropic:anthropic-java:2.34.0")
     testImplementation("org.springframework.boot:spring-boot-starter-flyway-test")
     testImplementation("org.springframework.boot:spring-boot-starter-jdbc-test")
     testImplementation("org.springframework.boot:spring-boot-starter-security-test")
@@ -123,6 +129,8 @@ tasks.withType<Test> {
     // DefaultCredentialsProvider 가 EC2 인스턴스 메타데이터까지 폴백하며 네트워크를 타지 않도록 더미 고정 자격증명 주입.
     environment("AWS_ACCESS_KEY_ID", "test-access-key")
     environment("AWS_SECRET_ACCESS_KEY", "test-secret-key")
+    // AI 채팅 세션은 Redis 전용 — 테스트 컨텍스트엔 Redis 가 없어 메모리 폴백을 허용한다(운영 기본값은 false).
+    environment("AI_CHAT_SESSION_ALLOW_IN_MEMORY", "true")
 }
 
 // 메인 test: 아키텍처(ArchUnit) 테스트와 OpenSearch 실연결 통합테스트는 제외 —

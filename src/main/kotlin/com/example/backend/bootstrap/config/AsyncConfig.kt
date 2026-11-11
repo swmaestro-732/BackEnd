@@ -9,8 +9,8 @@ import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor
 import java.util.concurrent.ThreadPoolExecutor
 
 /**
- * 커밋 후 운영시간 동기화, 알림 기록, 기기 활동 기록을 각각 전용 실행기에서 처리한다.
- * Executor 빈이 여러 개라 Boot의 기본 applicationTaskExecutor는 자동 구성되지 않으므로 실행기를 명시한다.
+ * 커밋 후 운영시간 동기화, 알림 기록, 검색 색인 카운터 갱신, 기기 활동 기록을 각각 전용 실행기에서 처리한다.
+ * Executor 빈이 여럿이라 Boot의 기본 applicationTaskExecutor는 자동 구성되지 않으므로 `@Async` 에 실행기를 명시한다.
  */
 @Configuration
 @EnableAsync
@@ -73,6 +73,29 @@ class AsyncConfig {
         }
     }
 
+    /**
+     * 검색 색인 카운터(저장수·좋아요수) 델타 전용 실행기 — 저장·좋아요 응답 경로에서 OpenSearch 왕복을 떼어낸다.
+     * 델타는 가환이라 병렬로 돌아도 결과가 같고, 같은 문서 충돌은 스크립트의 retry_on_conflict 가 흡수한다. DB 커넥션은 쓰지 않는다.
+     * 큐가 넘치면 델타를 버리고 warn 만 남긴다 — 다음 전체 색인(코스 편집·재색인)에서 DB 값으로 복구되고,
+     * 기본 AbortPolicy 는 거절 예외를 커밋 후 콜백으로 이미 커밋된 요청에 되던지기 때문이다.
+     */
+    @Bean(SEARCH_INDEX_COUNTER_EXECUTOR)
+    fun searchIndexCounterExecutor(): ThreadPoolTaskExecutor =
+        ThreadPoolTaskExecutor().apply {
+            corePoolSize = SEARCH_INDEX_COUNTER_THREADS
+            maxPoolSize = SEARCH_INDEX_COUNTER_THREADS
+            queueCapacity = SEARCH_INDEX_COUNTER_QUEUE_CAPACITY
+            setThreadNamePrefix("search-index-counter-")
+            // 정상 종료(롤링 배포) 때 큐에 남은 델타를 마저 반영해 유실을 줄인다.
+            setWaitForTasksToCompleteOnShutdown(true)
+            setAwaitTerminationSeconds(10)
+            setRejectedExecutionHandler { _, executor ->
+                log.warn {
+                    "검색 색인 카운터 갱신 폐기(다음 전체 색인에서 복구): reason=${if (executor.isShutdown) DROP_SHUTDOWN else DROP_QUEUE_FULL}"
+                }
+            }
+        }
+
     companion object {
         const val DEVICE_ACTIVITY_EXECUTOR = "deviceActivityExecutor"
         const val DEVICE_ACTIVITY_QUEUE_CAPACITY = 1_000
@@ -82,5 +105,8 @@ class AsyncConfig {
         const val BUSINESS_HOURS_SYNC_EXECUTOR = "businessHoursSyncExecutor"
         private const val BUSINESS_HOURS_SYNC_THREADS = 2
         const val BUSINESS_HOURS_SYNC_QUEUE_CAPACITY = 100
+        const val SEARCH_INDEX_COUNTER_EXECUTOR = "searchIndexCounterExecutor"
+        private const val SEARCH_INDEX_COUNTER_THREADS = 2
+        const val SEARCH_INDEX_COUNTER_QUEUE_CAPACITY = 1000
     }
 }
