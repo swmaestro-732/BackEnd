@@ -322,7 +322,7 @@ class CourseRepository(
         cursor: FeedCursor?,
         size: Int,
         category: CourseCategory? = null,
-        region: CourseRegionFilter? = null,
+        region: CourseRegionFilter?,
     ): List<CourseSummaryRow> {
         var condition =
             (CourseTable.isPublished eq true) and

@@ -109,7 +109,7 @@ interface CoursePersistencePort {
         cursor: FeedCursor?,
         size: Int,
         category: CourseCategory? = null,
-        region: CourseRegionFilter? = null,
+        region: CourseRegionFilter?,
     ): List<CourseSummaryRow>
 
     /** 미삭제(deleted_at IS NULL) 코스가 존재하는지 확인한다(duplicate 원본 검증 등). */
