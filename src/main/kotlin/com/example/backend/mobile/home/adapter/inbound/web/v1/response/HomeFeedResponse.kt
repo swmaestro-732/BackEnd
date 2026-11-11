@@ -5,7 +5,7 @@ import java.time.Instant
 
 /**
  * 웹 응답 DTO — 공개 코스 피드 화면 조합(BFF). 프론트 화면 계약 형태.
- * 저장수 내림차순·최신순으로 랭킹된 코스 목록([Item])과 nextCursor/hasNext를 내려준다.
+ * 추천 점수순으로 랭킹된 코스 목록([Item])과 nextCursor/hasNext를 내려준다.
  * 목([MOCK]) 응답에만 고정 예시를 채워 프론트가 형태를 확인할 수 있게 한다.
  */
 data class HomeFeedResponse(

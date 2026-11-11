@@ -31,8 +31,24 @@ class AreaQueryServiceTest {
                 searchedCode = code
                 return areaByCode
             }
+
+            var existsPrefix: String? = null
+            var exists = false
+
+            override fun existsByPrefix(prefix: String): Boolean {
+                existsPrefix = prefix
+                return exists
+            }
         }
     private val service = AreaQueryService(fakePort)
+
+    @Test
+    fun `prefix 존재 확인은 포트에 그대로 위임한다`() {
+        fakePort.exists = true
+
+        assertEquals(true, service.existsAreaWithPrefix("11680"))
+        assertEquals("11680", fakePort.existsPrefix)
+    }
 
     @Test
     fun `지역 검색어와 결과를 그대로 전달한다`() {

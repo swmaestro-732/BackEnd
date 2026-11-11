@@ -7,12 +7,17 @@ import com.example.backend.common.geo.Coordinate
 import com.example.backend.common.response.CommonErrorCode
 import com.example.backend.common.response.CourseErrorCode
 import com.example.backend.common.response.PlaceErrorCode
+import com.example.backend.course.application.port.inbound.dto.CheckInPlaceCommand
+import com.example.backend.course.application.port.inbound.dto.CoursePlaceImageResult
 import com.example.backend.course.application.port.inbound.dto.CourseTraceSummary
 import com.example.backend.course.application.port.inbound.dto.CourseTracesQuery
+import com.example.backend.course.application.port.inbound.dto.EndCourseTraceCommand
 import com.example.backend.course.application.port.inbound.dto.TracedCourseSummary
+import com.example.backend.course.application.port.inbound.dto.VisitedPlaceCommand
 import com.example.backend.course.application.port.inbound.dto.VisitedPlaceResult
 import com.example.backend.course.application.port.outbound.CourseDetailRow
 import com.example.backend.course.application.port.outbound.CoursePersistencePort
+import com.example.backend.course.application.port.outbound.CoursePlaceImageRow
 import com.example.backend.course.application.port.outbound.CoursePlaceRow
 import com.example.backend.course.application.port.outbound.CoursePlaceStats
 import com.example.backend.course.application.port.outbound.CourseTracePersistencePort
@@ -27,7 +32,9 @@ import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
+import org.mockito.ArgumentMatchers.anyList
 import org.mockito.ArgumentMatchers.anyLong
+import org.mockito.Mockito.inOrder
 import org.mockito.Mockito.mock
 import org.mockito.Mockito.never
 import org.mockito.Mockito.verify
@@ -40,6 +47,9 @@ import java.time.Instant
  * - findRoute: 출발·도착 장소 검증(같으면 400, 없으면 404), 조회 순서 보정, 도보 경로 → 결과 DTO 변환, 도보 불가(null) 전파.
  * - findInProgress: 진행 중 세션 조회.
  * - listCompleted: 커서 디코딩 → beforeId 전달, size+1 조회로 hasNext 판정·페이지 절단·nextCursor 생성, 행 → Summary 변환.
+ * - startWithRoute·changeRoute·checkIn·end: 루트 세션 규칙 — 장소 검증 뒤 루트 저장, 이어가기면 루트 유지, 루트 기준 체크인 검증,
+ *   재전송(같은 장소·같은 시각)·담긴 횟수 초과 무시, 남은 루트 교체.
+ * - getDetail: 루트 세션의 장소 매핑(코스 캡션·사진 짝짓기, 코스 밖 장소, 도보 시간 유지 조건).
  */
 class CourseTraceServiceTest {
     private val courseTracePersistencePort = mock(CourseTracePersistencePort::class.java)
@@ -57,6 +67,9 @@ class CourseTraceServiceTest {
         )
 
     private val fromPlace = placeRef(22L, "어니언 성수", Coordinate(latitude = 37.5446, longitude = 127.0559))
+    private val visitedAt1 = Instant.parse("2026-10-10T05:00:00Z")
+    private val visitedAt2 = Instant.parse("2026-10-10T06:00:00Z")
+    private val visitedAt3 = Instant.parse("2026-10-10T07:00:00Z")
     private val toPlace = placeRef(23L, "대림창고", Coordinate(latitude = 37.5420, longitude = 127.0563))
 
     @Test
@@ -311,6 +324,265 @@ class CourseTraceServiceTest {
         assertEquals(CommonErrorCode.INVALID_INPUT, exception.errorCode)
         verifyNoInteractions(courseTracePersistencePort)
     }
+
+    // --- startWithRoute ---
+
+    @Test
+    fun `시작 V2 — 코스를 확인하고 장소를 검증한 뒤 세션을 만들고 받은 순서대로 루트를 저장한다`() {
+        stubViewableCourse()
+        `when`(placeLookupPort.findPlacesByIds(listOf(23L, 24L, 22L))).thenReturn(listOf(ref(23L), ref(24L), ref(22L)))
+        `when`(courseTracePersistencePort.findInProgress(1L)).thenReturn(null)
+        `when`(courseTracePersistencePort.insertInProgress(1L, 1L)).thenReturn(5L)
+        `when`(courseTracePersistencePort.findById(5L)).thenReturn(inProgressRow(5L))
+        `when`(courseTracePersistencePort.findRoutePlaceIds(5L)).thenReturn(listOf(23L, 24L, 22L))
+
+        val result = service.startWithRoute(1L, 1L, listOf(23L, 24L, 22L))
+
+        assertEquals(5L, result.traceId)
+        assertEquals(listOf(23L, 24L, 22L), result.placeIds)
+        assertEquals(emptyList<VisitedPlaceResult>(), result.visitedPlaces)
+        inOrder(courseTracePersistencePort).apply {
+            verify(courseTracePersistencePort).insertInProgress(1L, 1L)
+            verify(courseTracePersistencePort).insertRoutePlaces(5L, listOf(23L, 24L, 22L))
+        }
+    }
+
+    @Test
+    fun `시작 V2 — 같은 장소가 두 번이면 장소는 한 번만 조회하고 루트는 받은 그대로 저장한다`() {
+        stubViewableCourse()
+        `when`(placeLookupPort.findPlacesByIds(listOf(22L, 24L))).thenReturn(listOf(ref(22L), ref(24L)))
+        `when`(courseTracePersistencePort.findInProgress(1L)).thenReturn(null)
+        `when`(courseTracePersistencePort.insertInProgress(1L, 1L)).thenReturn(5L)
+        `when`(courseTracePersistencePort.findById(5L)).thenReturn(inProgressRow(5L))
+
+        service.startWithRoute(1L, 1L, listOf(22L, 24L, 22L))
+
+        verify(placeLookupPort).findPlacesByIds(listOf(22L, 24L))
+        verify(courseTracePersistencePort).insertRoutePlaces(5L, listOf(22L, 24L, 22L))
+    }
+
+    @Test
+    fun `시작 V2 — 없는 장소가 있으면 PLACE_NOT_FOUND 이고 세션을 만들지 않는다`() {
+        stubViewableCourse()
+        `when`(placeLookupPort.findPlacesByIds(listOf(22L, 99L))).thenReturn(listOf(ref(22L)))
+
+        val exception = assertThrows<BusinessException> { service.startWithRoute(1L, 1L, listOf(22L, 99L)) }
+
+        assertEquals(PlaceErrorCode.PLACE_NOT_FOUND, exception.errorCode)
+        verify(courseTracePersistencePort, never()).insertInProgress(anyLong(), anyLong())
+    }
+
+    @Test
+    fun `시작 V2 — 같은 코스를 진행 중이면 요청 루트는 검증도 저장도 하지 않고 기존 세션과 그 루트를 돌려준다`() {
+        stubViewableCourse()
+        `when`(courseTracePersistencePort.findInProgress(1L)).thenReturn(inProgressRow(5L))
+        `when`(courseTracePersistencePort.findRoutePlaceIds(5L)).thenReturn(listOf(23L, 24L))
+
+        // 앱 재시작 뒤 지워진 장소가 든 옛 placeIds 로 다시 시작해도 이어가기는 성공해야 한다.
+        val result = service.startWithRoute(1L, 1L, listOf(99L))
+
+        assertEquals(5L, result.traceId)
+        assertEquals(listOf(23L, 24L), result.placeIds)
+        verifyNoInteractions(placeLookupPort)
+        verify(courseTracePersistencePort, never()).insertInProgress(anyLong(), anyLong())
+        verify(courseTracePersistencePort, never()).insertRoutePlaces(anyLong(), anyList())
+    }
+
+    @Test
+    fun `시작 V2 — 다른 코스를 진행 중이면 장소 검증보다 먼저 COURSE_TRACE_ALREADY_IN_PROGRESS 다`() {
+        stubViewableCourse()
+        `when`(courseTracePersistencePort.findInProgress(1L)).thenReturn(inProgressRow(5L).copy(courseId = 4L))
+
+        val exception = assertThrows<BusinessException> { service.startWithRoute(1L, 1L, listOf(99L)) }
+
+        assertEquals(CourseErrorCode.COURSE_TRACE_ALREADY_IN_PROGRESS, exception.errorCode)
+        verifyNoInteractions(placeLookupPort)
+    }
+
+    // --- checkIn · end (루트 세션) ---
+
+    @Test
+    fun `체크인 — 루트 세션은 코스 장소를 보지 않고 루트 기준으로 검증한 뒤 방문을 기록한다`() {
+        `when`(courseTracePersistencePort.findById(5L)).thenReturn(inProgressRow(5L))
+        `when`(courseTracePersistencePort.findRoutePlaceIds(5L)).thenReturn(listOf(22L, 24L))
+        `when`(courseTracePersistencePort.findVisitedPlaces(5L)).thenReturn(emptyList())
+
+        service.checkIn(CheckInPlaceCommand(userId = 1L, traceId = 5L, placeId = 24L, visitedAt = visitedAt1))
+        val exception =
+            assertThrows<BusinessException> {
+                service.checkIn(CheckInPlaceCommand(userId = 1L, traceId = 5L, placeId = 23L, visitedAt = visitedAt1))
+            }
+
+        verify(courseTracePersistencePort).insertVisitedPlace(5L, 24L, visitedAt1)
+        assertEquals(CourseErrorCode.PLACE_NOT_IN_COURSE, exception.errorCode)
+        verify(courseTracePersistencePort, never()).insertVisitedPlace(5L, 23L, visitedAt1)
+        verify(coursePersistencePort, never()).findPlaces(anyLong())
+    }
+
+    @Test
+    fun `체크인 — 같은 장소·같은 시각은 재전송이라 기록하지 않고 마이크로초 아래는 같은 시각으로 본다`() {
+        `when`(courseTracePersistencePort.findById(5L)).thenReturn(inProgressRow(5L))
+        `when`(courseTracePersistencePort.findRoutePlaceIds(5L)).thenReturn(listOf(22L, 24L, 22L))
+        `when`(courseTracePersistencePort.findVisitedPlaces(5L)).thenReturn(listOf(VisitedPlaceResult(22L, visitedAt1)))
+
+        service.checkIn(CheckInPlaceCommand(userId = 1L, traceId = 5L, placeId = 22L, visitedAt = visitedAt1))
+        service.checkIn(
+            CheckInPlaceCommand(userId = 1L, traceId = 5L, placeId = 22L, visitedAt = visitedAt1.plusNanos(500)),
+        )
+
+        verify(courseTracePersistencePort, never()).insertVisitedPlace(5L, 22L, visitedAt1)
+        verify(courseTracePersistencePort, never()).insertVisitedPlace(5L, 22L, visitedAt1.plusNanos(500))
+    }
+
+    @Test
+    fun `체크인 — 시각이 다르면 다음 방문으로 기록하고 담긴 횟수를 넘으면 기록하지 않는다`() {
+        `when`(courseTracePersistencePort.findById(5L)).thenReturn(inProgressRow(5L))
+        `when`(courseTracePersistencePort.findRoutePlaceIds(5L)).thenReturn(listOf(22L, 24L, 22L))
+        `when`(courseTracePersistencePort.findVisitedPlaces(5L))
+            .thenReturn(listOf(VisitedPlaceResult(22L, visitedAt1)))
+            .thenReturn(listOf(VisitedPlaceResult(22L, visitedAt1), VisitedPlaceResult(22L, visitedAt2)))
+
+        service.checkIn(CheckInPlaceCommand(userId = 1L, traceId = 5L, placeId = 22L, visitedAt = visitedAt2))
+        service.checkIn(CheckInPlaceCommand(userId = 1L, traceId = 5L, placeId = 22L, visitedAt = visitedAt3))
+
+        verify(courseTracePersistencePort).insertVisitedPlace(5L, 22L, visitedAt2)
+        verify(courseTracePersistencePort, never()).insertVisitedPlace(5L, 22L, visitedAt3)
+    }
+
+    @Test
+    fun `종료 — 병합 체크인은 한 요청 안에서도 재전송·횟수 초과를 걸러 새 방문만 기록하고 완주 처리한다`() {
+        `when`(courseTracePersistencePort.findById(5L)).thenReturn(inProgressRow(5L))
+        `when`(courseTracePersistencePort.findRoutePlaceIds(5L)).thenReturn(listOf(22L, 24L, 22L))
+        `when`(courseTracePersistencePort.findVisitedPlaces(5L)).thenReturn(listOf(VisitedPlaceResult(22L, visitedAt1)))
+        `when`(courseTracePersistencePort.complete(5L, 90, 1500)).thenReturn(1)
+
+        service.end(
+            EndCourseTraceCommand(
+                userId = 1L,
+                traceId = 5L,
+                visitedPlaces =
+                    listOf(
+                        VisitedPlaceCommand(22L, visitedAt1),
+                        VisitedPlaceCommand(22L, visitedAt2),
+                        VisitedPlaceCommand(22L, visitedAt3),
+                        VisitedPlaceCommand(24L, visitedAt3),
+                    ),
+                durationMinutes = 90,
+                distanceMeters = 1500,
+            ),
+        )
+
+        verify(courseTracePersistencePort).insertVisitedPlace(5L, 22L, visitedAt2)
+        verify(courseTracePersistencePort).insertVisitedPlace(5L, 24L, visitedAt3)
+        verify(courseTracePersistencePort, never()).insertVisitedPlace(5L, 22L, visitedAt1)
+        verify(courseTracePersistencePort, never()).insertVisitedPlace(5L, 22L, visitedAt3)
+        verify(coursePersistencePort).increaseTracingsCount(1L)
+    }
+
+    // --- changeRoute ---
+
+    @Test
+    fun `루트 변경 — 장소를 검증하고 남은 루트를 받은 그대로 바꾼다`() {
+        `when`(courseTracePersistencePort.findById(5L)).thenReturn(inProgressRow(5L))
+        `when`(placeLookupPort.findPlacesByIds(listOf(24L, 22L))).thenReturn(listOf(ref(24L), ref(22L)))
+
+        service.changeRoute(1L, 5L, listOf(24L, 22L, 24L))
+
+        verify(courseTracePersistencePort).replaceRemainingRoutePlaces(5L, listOf(24L, 22L, 24L))
+    }
+
+    @Test
+    fun `루트 변경 — 체크인한 곳이 없는데 빈 루트면 INVALID_INPUT 이고 바꾸지 않으며, 체크인이 있으면 비울 수 있다`() {
+        `when`(courseTracePersistencePort.findById(5L)).thenReturn(inProgressRow(5L))
+        `when`(courseTracePersistencePort.findVisitedPlaces(5L))
+            .thenReturn(emptyList())
+            .thenReturn(listOf(VisitedPlaceResult(22L, visitedAt1)))
+
+        val exception = assertThrows<BusinessException> { service.changeRoute(1L, 5L, emptyList()) }
+        service.changeRoute(1L, 5L, emptyList())
+
+        assertEquals(CommonErrorCode.INVALID_INPUT, exception.errorCode)
+        verify(courseTracePersistencePort).replaceRemainingRoutePlaces(5L, emptyList())
+    }
+
+    @Test
+    fun `루트 변경 — 종료된 세션은 COURSE_TRACE_ALREADY_ENDED 이고 없는 장소는 PLACE_NOT_FOUND 다`() {
+        `when`(courseTracePersistencePort.findById(5L)).thenReturn(inProgressRow(5L))
+        `when`(courseTracePersistencePort.findById(6L)).thenReturn(completedRow(6L))
+        `when`(placeLookupPort.findPlacesByIds(listOf(99L))).thenReturn(emptyList())
+
+        assertEquals(
+            CourseErrorCode.COURSE_TRACE_ALREADY_ENDED,
+            assertThrows<BusinessException> { service.changeRoute(1L, 6L, listOf(22L)) }.errorCode,
+        )
+        assertEquals(
+            PlaceErrorCode.PLACE_NOT_FOUND,
+            assertThrows<BusinessException> { service.changeRoute(1L, 5L, listOf(99L)) }.errorCode,
+        )
+        verify(courseTracePersistencePort, never()).replaceRemainingRoutePlaces(anyLong(), anyList())
+    }
+
+    // --- getDetail (루트 세션) ---
+
+    @Test
+    fun `상세 — 루트 세션은 루트 순서대로 코스 장소의 캡션·사진을 붙이고 코스 밖 장소는 비우며 도보 시간은 다음 장소가 코스와 같을 때만 남긴다`() {
+        `when`(courseTracePersistencePort.readById(5L)).thenReturn(inProgressRow(5L))
+        `when`(coursePersistencePort.findCourseDetails(listOf(1L))).thenReturn(emptyList())
+        `when`(coursePersistencePort.findPlaces(1L)).thenReturn(
+            listOf(
+                coursePlaceRow(
+                    22L,
+                    0,
+                ).copy(caption = "첫 장소", walkingMinutes = 6, images = listOf(CoursePlaceImageRow("a.jpg", 0))),
+                coursePlaceRow(23L, 1).copy(walkingMinutes = 4),
+                coursePlaceRow(25L, 2),
+            ),
+        )
+        `when`(courseTracePersistencePort.findRoutePlaceIds(5L)).thenReturn(listOf(23L, 25L, 24L, 22L))
+        `when`(courseTracePersistencePort.findVisitedPlaces(5L)).thenReturn(emptyList())
+
+        val places = service.getDetail(1L, 5L).places
+
+        assertEquals(listOf(23L, 25L, 24L, 22L), places.map { it.placeId })
+        assertEquals(listOf(0, 1, 2, 3), places.map { it.orderNo })
+        // 23 → 25 는 코스에서도 이어지는 구간이라 도보 시간을 남기고, 22 는 다음이 코스(23)와 달라 비운다.
+        assertEquals(listOf(4, null, null, null), places.map { it.walkingMinutesToNext })
+        assertEquals(listOf(2L, 3L, 0L, 1L), places.map { it.id })
+        assertEquals("첫 장소", places[3].caption)
+        assertEquals(listOf("a.jpg"), places[3].images.map { it.imageUrl })
+        assertNull(places[2].caption)
+        assertEquals(emptyList<CoursePlaceImageResult>(), places[2].images)
+    }
+
+    @Test
+    fun `상세 — 코스에 같은 장소가 여러 번이면 루트의 n 번째 항목에 코스의 n 번째 항목을 짝짓고 넘치면 캡션 없이 사진만 붙인다`() {
+        `when`(courseTracePersistencePort.readById(5L)).thenReturn(inProgressRow(5L))
+        `when`(coursePersistencePort.findCourseDetails(listOf(1L))).thenReturn(emptyList())
+        `when`(coursePersistencePort.findPlaces(1L)).thenReturn(
+            listOf(
+                coursePlaceRow(22L, 0).copy(caption = "첫 방문"),
+                coursePlaceRow(23L, 1),
+                coursePlaceRow(22L, 2).copy(caption = "두 번째 방문", images = listOf(CoursePlaceImageRow("second.jpg", 0))),
+            ),
+        )
+        `when`(courseTracePersistencePort.findRoutePlaceIds(5L)).thenReturn(listOf(22L, 22L, 22L))
+        `when`(courseTracePersistencePort.findVisitedPlaces(5L)).thenReturn(emptyList())
+
+        val places = service.getDetail(1L, 5L).places
+
+        assertEquals(listOf("첫 방문", "두 번째 방문", null), places.map { it.caption })
+        assertEquals(0L, places[2].id)
+        assertEquals(listOf("second.jpg"), places[2].images.map { it.imageUrl })
+    }
+
+    private fun stubViewableCourse() {
+        `when`(coursePersistencePort.findCourseDetail(1L)).thenReturn(courseRow(CourseStatus.ACTIVE))
+        `when`(courseViewPolicy.isViewable(CourseVisibility.PUBLIC, 2L, 1L)).thenReturn(true)
+    }
+
+    private fun inProgressRow(id: Long) = completedRow(id).copy(status = CourseTraceStatus.IN_PROGRESS, endedAt = null)
+
+    private fun ref(id: Long) = placeRef(id, "장소 $id", Coordinate(latitude = 37.5, longitude = 127.0))
 
     private fun completedRow(id: Long) =
         CourseTraceRow(
