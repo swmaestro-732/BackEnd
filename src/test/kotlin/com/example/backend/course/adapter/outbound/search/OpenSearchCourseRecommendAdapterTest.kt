@@ -109,6 +109,9 @@ class OpenSearchCourseRecommendAdapterTest {
         region: CourseRegionFilter? = null,
         after: CourseRecommendAfter? = null,
         size: Int = 2,
+        placeId: Long? = null,
+        excludeIds: List<Long> = emptyList(),
+        keyword: String? = null,
     ) = CourseRecommendCriteria(
         likeThemes = likeThemes,
         sigunguCodes = sigunguCodes,
@@ -118,6 +121,9 @@ class OpenSearchCourseRecommendAdapterTest {
         origin = origin,
         after = after,
         size = size,
+        placeId = placeId,
+        excludeIds = excludeIds,
+        keyword = keyword,
     )
 
     private fun capturedRequest(
@@ -331,6 +337,65 @@ class OpenSearchCourseRecommendAdapterTest {
         assertThat(next.searchAfterVals()).hasSize(2)
         assertThat(next.searchAfterVals()[0].doubleValue()).isEqualTo(8.25)
         assertThat(next.searchAfterVals()[1].longValue()).isEqualTo(42L)
+    }
+
+    @Test
+    fun `장소 조건은 placeIds term 필터로, 제외 id 는 must_not ids 로 붙는다`() {
+        val request =
+            capturedRequest(clientReturning(emptyList()), criteria(placeId = 42L, excludeIds = listOf(1L, 2L)))
+
+        val bool =
+            request
+                .query()!!
+                .functionScore()
+                .query()!!
+                .bool()
+        assertThat(bool.filter()).hasSize(4)
+        assertThat(bool.filter()[3].term().field()).isEqualTo("placeIds")
+        assertThat(
+            bool
+                .filter()[3]
+                .term()
+                .value()
+                .stringValue(),
+        ).isEqualTo("42")
+        assertThat(bool.mustNot()).hasSize(1)
+        assertThat(bool.mustNot()[0].ids().values()).containsExactly("1", "2")
+
+        val plain =
+            capturedRequest(clientReturning(emptyList()), criteria())
+                .query()!!
+                .functionScore()
+                .query()!!
+                .bool()
+        assertThat(plain.mustNot()).isEmpty()
+    }
+
+    @Test
+    fun `키워드는 제목 가중 multi_match 가산 should 로 붙고 비면 넣지 않는다`() {
+        val should =
+            capturedRequest(clientReturning(emptyList()), criteria(keyword = "조용한 산책"))
+                .query()!!
+                .functionScore()
+                .query()!!
+                .bool()
+                .should()
+
+        assertThat(should).hasSize(4)
+        val keyword = should[1].multiMatch()
+        assertThat(keyword.query()).isEqualTo("조용한 산책")
+        assertThat(keyword.fields()).containsExactly("title^2", "description")
+        assertThat(keyword.boost()).isEqualTo(3.0f)
+        assertConstantScore(should[2], "sigunguCode", listOf("11680"), 3.5f)
+
+        val blank =
+            capturedRequest(clientReturning(emptyList()), criteria(keyword = "  "))
+                .query()!!
+                .functionScore()
+                .query()!!
+                .bool()
+                .should()
+        assertThat(blank).hasSize(3)
     }
 
     private fun assertConstantScore(
