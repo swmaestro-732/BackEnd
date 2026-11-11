@@ -102,7 +102,10 @@ class OpenSearchPlaceSearchAdapter(
                     },
                     AreaCodeSource::class.java,
                 )
-            response.hits().hits().mapNotNull { it.source()?.areaCode }
+            // 부분 응답으로 다수결을 내면 엉뚱한 지역이 될 수 있다 — 목록 검색과 같은 기준으로 불완전 응답은 실패로 본다.
+            check(!response.timedOut() && response.shards().failed() == 0) { "검색이 일부만 완료되었습니다." }
+            // exists 는 빈 문자열도 통과시키므로 코드가 비어 있는 장소는 여기서 뺀다.
+            response.hits().hits().mapNotNull { it.source()?.areaCode?.takeIf { code -> code.isNotBlank() } }
         } catch (e: Exception) {
             log.warn { "place 근처 법정동코드 조회 실패: ${e.message}" }
             throw unavailable()

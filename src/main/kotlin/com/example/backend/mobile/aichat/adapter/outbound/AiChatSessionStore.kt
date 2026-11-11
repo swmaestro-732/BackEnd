@@ -38,7 +38,7 @@ class AiChatSessionStore(
 
     override fun find(sessionId: String): AiChatSession? {
         val key = key(sessionId)
-        val json = redisOrNull()?.get(key) ?: localGet(key) ?: return null
+        val json = redisOrNull()?.let { commands -> redisCall { commands.get(key) } } ?: localGet(key) ?: return null
         return objectMapper.readValue(json, AiChatSession::class.java)
     }
 
@@ -47,23 +47,30 @@ class AiChatSessionStore(
         val json = objectMapper.writeValueAsString(session)
         val commands = redisOrNull()
         if (commands != null) {
-            commands.setex(key, TTL.seconds, json)
+            redisCall { commands.setex(key, TTL.seconds, json) }
         } else {
             local[key] = LocalEntry(Instant.now() + TTL, json)
             purgeExpired()
         }
     }
 
-    /** Redis 명령 — 없으면 메모리 폴백이 허용된 경우에만 null, 아니면 503. */
+    /** Redis 명령 — 없으면 메모리 폴백이 허용된 경우에만 null, 아니면 503. 연결 자체가 실패해도 503. */
     private fun redisOrNull(): RedisCommands<String, String>? =
-        redis
+        redisCall { redis }
             ?: if (properties.allowInMemory) {
                 null
             } else {
-                throw BusinessException(
-                    AiChatErrorCode.AI_CHAT_SESSION_UNAVAILABLE,
-                )
+                throw BusinessException(AiChatErrorCode.AI_CHAT_SESSION_UNAVAILABLE)
             }
+
+    /** Redis 연결·명령 실패(타임아웃, 끊김)는 500 대신 503 — 앱은 잠시 후 다시 시도 안내를 띄운다. */
+    private fun <T> redisCall(block: () -> T): T =
+        try {
+            block()
+        } catch (e: Exception) {
+            log.warn { "ai-chat 세션 Redis 실패(503): ${e.javaClass.simpleName}" }
+            throw BusinessException(AiChatErrorCode.AI_CHAT_SESSION_UNAVAILABLE)
+        }
 
     private fun localGet(key: String): String? {
         val entry = local[key] ?: return null

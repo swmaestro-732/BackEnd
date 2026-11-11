@@ -9,6 +9,7 @@ import com.example.backend.mobile.aichat.application.port.outbound.dto.AiChatSes
 import com.example.backend.mobile.aichat.application.port.outbound.dto.AiChatSession.RegionSlot
 import com.example.backend.mobile.aichat.application.port.outbound.dto.AiChatSession.ThemeSlot
 import io.lettuce.core.RedisClient
+import io.lettuce.core.RedisCommandTimeoutException
 import io.lettuce.core.api.StatefulRedisConnection
 import io.lettuce.core.api.sync.RedisCommands
 import org.assertj.core.api.Assertions.assertThat
@@ -86,6 +87,28 @@ class AiChatSessionStoreTest {
             .extracting { (it as BusinessException).errorCode }
             .isEqualTo(AiChatErrorCode.AI_CHAT_SESSION_UNAVAILABLE)
         assertThatThrownBy { store.find("s1") }
+            .isInstanceOf(BusinessException::class.java)
+            .extracting { (it as BusinessException).errorCode }
+            .isEqualTo(AiChatErrorCode.AI_CHAT_SESSION_UNAVAILABLE)
+    }
+
+    @Test
+    @Suppress("UNCHECKED_CAST")
+    fun `Redis 명령이 타임아웃 등으로 실패하면 500 이 아니라 503 이다`() {
+        val client = mock(RedisClient::class.java)
+        val connection = mock(StatefulRedisConnection::class.java) as StatefulRedisConnection<String, String>
+        val commands = mock(RedisCommands::class.java) as RedisCommands<String, String>
+        `when`(client.connect()).thenReturn(connection)
+        `when`(connection.sync()).thenReturn(commands)
+        `when`(commands.get(anyString())).thenThrow(RedisCommandTimeoutException("timeout"))
+        `when`(commands.setex(anyString(), eq(1800L), anyString())).thenThrow(RedisCommandTimeoutException("timeout"))
+        val store = AiChatSessionStore(providerOf(client), objectMapper, AiChatSessionProperties())
+
+        assertThatThrownBy { store.find("s1") }
+            .isInstanceOf(BusinessException::class.java)
+            .extracting { (it as BusinessException).errorCode }
+            .isEqualTo(AiChatErrorCode.AI_CHAT_SESSION_UNAVAILABLE)
+        assertThatThrownBy { store.save(session) }
             .isInstanceOf(BusinessException::class.java)
             .extracting { (it as BusinessException).errorCode }
             .isEqualTo(AiChatErrorCode.AI_CHAT_SESSION_UNAVAILABLE)

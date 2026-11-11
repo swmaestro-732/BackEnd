@@ -249,8 +249,12 @@ class OpenSearchPlaceSearchAdapterTest {
 
         @Suppress("UNCHECKED_CAST")
         val meta = mock(HitsMetadata::class.java) as HitsMetadata<OpenSearchPlaceSearchAdapter.AreaCodeSource>
+        `when`(response.timedOut()).thenReturn(false)
+        val shards = mock(org.opensearch.client.opensearch._types.ShardStatistics::class.java)
+        `when`(shards.failed()).thenReturn(0)
+        `when`(response.shards()).thenReturn(shards)
         val hits =
-            listOf("1120011400", null, "1120011500").map { code ->
+            listOf("1120011400", null, "", "1120011500").map { code ->
                 Hit
                     .Builder<OpenSearchPlaceSearchAdapter.AreaCodeSource>()
                     .index("place")
@@ -301,9 +305,20 @@ class OpenSearchPlaceSearchAdapterTest {
     }
 
     @Test
-    fun `근처 법정동코드 조회도 클라이언트가 없거나 실패하면 503 이다`() {
+    fun `근처 법정동코드 조회도 클라이언트가 없거나 실패·부분 응답이면 503 이다`() {
         val noClient = OpenSearchPlaceSearchAdapter(providerOf(null), OpenSearchProperties())
         assertThatThrownBy { noClient.findNearbyAreaCodes(Coordinate(37.5, 127.0), 1500, 20) }.isUnavailable()
+
+        @Suppress("UNCHECKED_CAST")
+        val partial = mock(SearchResponse::class.java) as SearchResponse<OpenSearchPlaceSearchAdapter.AreaCodeSource>
+        `when`(partial.timedOut()).thenReturn(true)
+        `when`(
+            client.search(
+                any<java.util.function.Function<SearchRequest.Builder, ObjectBuilder<SearchRequest>>>(),
+                eq(OpenSearchPlaceSearchAdapter.AreaCodeSource::class.java),
+            ),
+        ).thenReturn(partial)
+        assertThatThrownBy { adapter.findNearbyAreaCodes(Coordinate(37.5, 127.0), 1500, 20) }.isUnavailable()
 
         `when`(
             client.search(
