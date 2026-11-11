@@ -16,6 +16,6 @@ interface AreaDirectoryPort {
     /** 법정동코드(10자리) 단건 조회 — 읍면동 코드 또는 시군구 레벨 코드(뒤 5자리 0 패딩). 미존재 시 null. */
     fun findByCode(code: String): AreaDescriptor?
 
-    /** [prefix] 로 시작하는 활성 법정동코드가 하나라도 있는지. */
+    /** [prefix](시도 2·구 있는 시 4·시군구 5자리)로 시작하는 활성 법정동코드가 하나라도 있는지. 다른 길이는 false. */
     fun existsByPrefix(prefix: String): Boolean
 }

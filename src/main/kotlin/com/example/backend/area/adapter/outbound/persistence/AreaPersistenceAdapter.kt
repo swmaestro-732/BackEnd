@@ -51,7 +51,12 @@ class AreaPersistenceAdapter(
     override fun findByCode(code: String): AreaDescriptor? =
         if (code.endsWith(SIGUNGU_LEVEL_SUFFIX)) sigunguMap[code.take(SIGUNGU_CODE_LENGTH)] else dongMap[code]
 
-    override fun existsByPrefix(prefix: String): Boolean = activeAreas.any { it.code.value.startsWith(prefix) }
+    /** 지역 필터가 쓰는 prefix(시도 2·구 있는 시 4·시군구 5자리)만 미리 모아 둔다 — 요청마다 전체 코드를 훑지 않는다. */
+    private val filterPrefixes: Set<String> by lazy {
+        activeAreas.flatMapTo(HashSet()) { area -> FILTER_PREFIX_LENGTHS.map { area.code.value.take(it) } }
+    }
+
+    override fun existsByPrefix(prefix: String): Boolean = prefix in filterPrefixes
 
     override fun search(keyword: String): List<AreaDescriptor> {
         val trimmed = keyword.trim()
@@ -96,5 +101,8 @@ class AreaPersistenceAdapter(
         /** 시군구 레벨 코드는 시군구(앞 5자리) 뒤를 0 으로 패딩한 형태다(저장 단위는 읍면동뿐이라 별도 행이 없음). */
         const val SIGUNGU_LEVEL_SUFFIX = "00000"
         const val SIGUNGU_CODE_LENGTH = 5
+
+        /** [existsByPrefix] 가 답하는 prefix 길이 — 시도·구 있는 시·시군구. */
+        val FILTER_PREFIX_LENGTHS = listOf(2, 4, SIGUNGU_CODE_LENGTH)
     }
 }
