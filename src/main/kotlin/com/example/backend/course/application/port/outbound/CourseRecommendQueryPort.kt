@@ -15,6 +15,7 @@ interface CourseRecommendQueryPort {
  * [category]·[region] 은 후보 집합을 거르는 필터(점수에는 영향 없음).
  * [origin] 은 최신성 감쇠 기준 시각 — 페이지를 넘겨도 같은 값을 써야 점수가 흔들리지 않는다.
  * [after] 는 직전 페이지 마지막 히트의 (점수, id) — search_after 용. 첫 페이지는 null.
+ * [placeId] 는 그 장소가 들어간 코스만 남기는 필터, [excludeIds] 는 제외할 코스 id, [keyword] 는 제목·설명 일치 가산(should).
  */
 data class CourseRecommendCriteria(
     val likeThemes: List<String>,
@@ -25,6 +26,9 @@ data class CourseRecommendCriteria(
     val origin: Instant,
     val after: CourseRecommendAfter?,
     val size: Int,
+    val placeId: Long? = null,
+    val excludeIds: List<Long> = emptyList(),
+    val keyword: String? = null,
 )
 
 data class CourseRecommendAfter(

@@ -21,4 +21,6 @@ data class CourseRecommendProperties(
     val savesWeight: Double = 1.5,
     /** 좋아요는 저장보다 약한 신호라 절반 가중치 — 100개여도 약 3.5점으로 관심 일치 한 항목을 넘지 않는다. */
     val likesWeight: Double = 0.75,
+    /** 제목·설명 키워드 일치(multi_match) 가산 — AI 채팅의 테마 직접 입력용. */
+    val keywordWeight: Double = 3.0,
 )
