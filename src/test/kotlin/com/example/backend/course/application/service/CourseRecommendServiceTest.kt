@@ -10,6 +10,7 @@ import com.example.backend.course.application.port.outbound.CourseRecommendCrite
 import com.example.backend.course.application.port.outbound.CourseRecommendHit
 import com.example.backend.course.application.port.outbound.CourseRecommendQueryPort
 import com.example.backend.course.application.port.outbound.CourseRecommendResultPage
+import com.example.backend.course.application.port.outbound.CourseRegionFilter
 import com.example.backend.course.application.port.outbound.CourseSearchRow
 import com.example.backend.course.application.port.outbound.CourseSummaryRow
 import com.example.backend.course.application.port.outbound.FeedCursor
@@ -243,6 +244,56 @@ class CourseRecommendServiceTest {
         service.recommend(query(size = 0))
 
         assertThat(capturedCriteria().size).isEqualTo(1)
+    }
+
+    @Test
+    fun `region 없이 regionPrefixes 가 오면 그대로 include 필터가 되고 장소·제외·키워드 조건을 엔진에 넘긴다`() {
+        enginePage(emptyList(), hasNext = false)
+        `when`(persistence.findPlaceStats(anyList())).thenReturn(emptyMap())
+
+        service.recommend(
+            CourseRecommendQuery(
+                likeThemes = emptyList(),
+                areaCodes = emptyList(),
+                cursor = null,
+                size = 3,
+                regionPrefixes = listOf("1120011400"),
+                placeId = 42L,
+                excludeIds = listOf(1L, 2L),
+                keyword = "산책",
+            ),
+        )
+
+        val criteria = capturedCriteria()
+        assertThat(criteria.region).isEqualTo(CourseRegionFilter(includePrefixes = listOf("1120011400")))
+        assertThat(criteria.sigunguCodes).isEmpty()
+        assertThat(criteria.dongCodes).isEmpty()
+        assertThat(criteria.placeId).isEqualTo(42L)
+        assertThat(criteria.excludeIds).containsExactly(1L, 2L)
+        assertThat(criteria.keyword).isEqualTo("산책")
+    }
+
+    @Test
+    fun `DB 폴백은 제외 id 만큼 더 읽어 걸러낸 뒤 size 로 자른다`() {
+        `when`(recommendPort.recommend(anyArg<CourseRecommendCriteria>())).thenReturn(null)
+        `when`(persistence.findPublishedPublic(isNull(), eq(4), isNull(), isNull()))
+            .thenReturn(listOf(summaryRow(10), summaryRow(11), summaryRow(12), summaryRow(13)))
+        `when`(persistence.findPlaceStats(listOf(11L, 13L))).thenReturn(emptyMap())
+
+        val page =
+            service.recommend(
+                CourseRecommendQuery(
+                    likeThemes = emptyList(),
+                    areaCodes = emptyList(),
+                    cursor = null,
+                    size = 2,
+                    excludeIds = listOf(10L, 12L),
+                ),
+            )
+
+        assertThat(page.items.map { it.id }).containsExactly(11L, 13L)
+        assertThat(page.hasNext).isFalse()
+        assertThat(page.nextCursor).isNull()
     }
 
     @Test
