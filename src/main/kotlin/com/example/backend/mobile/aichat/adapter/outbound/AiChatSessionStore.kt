@@ -1,7 +1,11 @@
 package com.example.backend.mobile.aichat.adapter.outbound
 
+import com.example.backend.bootstrap.config.AiChatSessionProperties
+import com.example.backend.common.exception.BusinessException
+import com.example.backend.common.response.AiChatErrorCode
 import com.example.backend.mobile.aichat.application.port.outbound.AiChatSessionPort
 import com.example.backend.mobile.aichat.application.port.outbound.dto.AiChatSession
+import io.github.oshai.kotlinlogging.KotlinLogging
 import io.lettuce.core.RedisClient
 import io.lettuce.core.api.sync.RedisCommands
 import org.springframework.beans.factory.ObjectProvider
@@ -13,26 +17,35 @@ import java.util.concurrent.ConcurrentHashMap
 
 /**
  * 아웃바운드 어댑터 — 대화 세션을 Redis 에 JSON 으로 30분 보관한다(저장마다 TTL 갱신).
- * Redis 가 없으면(로컬·CI, `redis.endpoint` 미설정) 프로세스 메모리에 같은 TTL 로 둔다 — 인스턴스가 여럿인 환경에서는 Redis 가 필수다.
+ * Redis 가 없으면(`redis.endpoint` 미설정) 기본은 503(`AI_CHAT_SESSION_UNAVAILABLE`) — 인스턴스가 여럿인 운영에서
+ * 프로세스 메모리 세션은 요청마다 어긋나므로 쓰지 않는다. 로컬·CI 는 `ai-chat.session.allow-in-memory` 로 메모리 폴백을 켠다.
  */
 @Component
 class AiChatSessionStore(
     private val redisClientProvider: ObjectProvider<RedisClient>,
     private val objectMapper: ObjectMapper,
+    private val properties: AiChatSessionProperties,
 ) : AiChatSessionPort {
-    private val redis: RedisCommands<String, String>? by lazy { redisClientProvider.ifAvailable?.connect()?.sync() }
+    private val log = KotlinLogging.logger {}
+    private val redis: RedisCommands<String, String>? by lazy {
+        redisClientProvider.ifAvailable?.connect()?.sync().also { commands ->
+            if (commands == null && properties.allowInMemory) {
+                log.warn { "ai-chat 세션: Redis 미설정 → 프로세스 메모리 보관(allow-in-memory). 다중 인스턴스에서는 쓰지 말 것." }
+            }
+        }
+    }
     private val local = ConcurrentHashMap<String, LocalEntry>()
 
     override fun find(sessionId: String): AiChatSession? {
         val key = key(sessionId)
-        val json = redis?.get(key) ?: localGet(key) ?: return null
+        val json = redisOrNull()?.get(key) ?: localGet(key) ?: return null
         return objectMapper.readValue(json, AiChatSession::class.java)
     }
 
     override fun save(session: AiChatSession) {
         val key = key(session.id)
         val json = objectMapper.writeValueAsString(session)
-        val commands = redis
+        val commands = redisOrNull()
         if (commands != null) {
             commands.setex(key, TTL.seconds, json)
         } else {
@@ -40,6 +53,17 @@ class AiChatSessionStore(
             purgeExpired()
         }
     }
+
+    /** Redis 명령 — 없으면 메모리 폴백이 허용된 경우에만 null, 아니면 503. */
+    private fun redisOrNull(): RedisCommands<String, String>? =
+        redis
+            ?: if (properties.allowInMemory) {
+                null
+            } else {
+                throw BusinessException(
+                    AiChatErrorCode.AI_CHAT_SESSION_UNAVAILABLE,
+                )
+            }
 
     private fun localGet(key: String): String? {
         val entry = local[key] ?: return null

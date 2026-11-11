@@ -46,7 +46,7 @@ class AiChatPlaceAdapterTest {
 
     @Test
     fun `이름으로 상위 후보를 찾아 라벨과 동 이름을 붙인다`() {
-        `when`(placeQueryUseCase.searchByName(eqArg("어니언"), isNull(), eqArg(5), isNull()))
+        `when`(placeQueryUseCase.searchByName(eqArg("어니언"), isNull(), eqArg(5), isNull(), eqArg(listOf("1120011400"))))
             .thenReturn(
                 PlaceSummaryPage(
                     items =
@@ -61,7 +61,7 @@ class AiChatPlaceAdapterTest {
         `when`(areaQueryUseCase.findAreaByCode("1120011400"))
             .thenReturn(AreaDescriptor("1120011400", "성수동2가", "서울특별시 성동구 성수동2가", AreaLevel.DONG))
 
-        val result = adapter.searchByName("어니언", 5)
+        val result = adapter.searchByName("어니언", 5, listOf("1120011400"))
 
         assertThat(result).containsExactly(
             AiChatPlace(10L, "어니언 성수", "카페·디저트", "성수동2가"),
@@ -71,9 +71,9 @@ class AiChatPlaceAdapterTest {
 
     @Test
     fun `장소 검색이 비즈니스 예외로 실패하면 빈 목록이다`() {
-        `when`(placeQueryUseCase.searchByName(anyArg(), isNull(), anyInt(), isNull()))
+        `when`(placeQueryUseCase.searchByName(anyArg(), isNull(), anyInt(), isNull(), anyArg()))
             .thenThrow(BusinessException(CommonErrorCode.INVALID_INPUT))
 
-        assertThat(adapter.searchByName("어니언", 5)).isEmpty()
+        assertThat(adapter.searchByName("어니언", 5, emptyList())).isEmpty()
     }
 }

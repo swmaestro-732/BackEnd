@@ -301,7 +301,7 @@ class AiChatService(
         name: String,
         allowLlm: Boolean,
     ): Pair<AiChatSession, AiChatTurnResult> {
-        val candidates = placePort.searchByName(name, PLACE_CANDIDATE_LIMIT)
+        val candidates = placePort.searchByName(name, PLACE_CANDIDATE_LIMIT, session.region?.prefixes.orEmpty())
         if (candidates.isEmpty() && allowLlm) {
             val (withCalls, slots) = extractSlots(session, name)
             return when {

@@ -10,6 +10,7 @@ import org.springframework.stereotype.Component
 
 /**
  * BFF 아웃바운드 어댑터 — 장소 이름 검색을 place 도메인 인바운드 포트에 위임하고 되묻기 칩용 필드로 줄인다.
+ * 세션의 지역 prefix 를 함께 넘겨 같은 이름의 다른 지역 장소보다 그 지역 장소를 먼저 찾는다(0건이면 place 가 지역 없이 재검색).
  * 장소 검색은 엔진 전용(503)이라 실패하면 빈 목록으로 흡수한다 — 대화는 "장소 없이 추천"으로 이어갈 수 있다.
  */
 @Component
@@ -22,10 +23,16 @@ class AiChatPlaceAdapter(
     override fun searchByName(
         name: String,
         size: Int,
+        regionPrefixes: List<String>,
     ): List<AiChatPlace> {
         val page =
             try {
-                placeQueryUseCase.searchByName(query = name, cursor = null, size = size)
+                placeQueryUseCase.searchByName(
+                    query = name,
+                    cursor = null,
+                    size = size,
+                    areaCodePrefixes = regionPrefixes,
+                )
             } catch (e: BusinessException) {
                 log.warn { "ai-chat 장소 검색 실패(빈 결과로 진행): ${e.message}" }
                 return emptyList()

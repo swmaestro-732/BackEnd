@@ -391,6 +391,7 @@ class AiChatServiceTest {
 
         assertThat(result.step).isEqualTo(AiChatStep.RESULT)
         assertThat(places.queries).containsExactly("어니언")
+        assertThat(places.regions).containsExactly(listOf(SEONGSU_DONG)) // 앞 질문의 지역을 장소 검색에 같이 넘긴다
         assertThat(courses.calls.first().placeId).isEqualTo(10L)
         assertThat(saved().place).isEqualTo(PlaceSlot(10L, "어니언 성수"))
         assertThat(llm.requests).isEmpty()
@@ -723,13 +724,16 @@ class AiChatServiceTest {
 
     private class FakePlacePort : AiChatPlacePort {
         val queries = mutableListOf<String>()
+        val regions = mutableListOf<List<String>>()
         var answer: (String) -> List<AiChatPlace> = { emptyList() }
 
         override fun searchByName(
             name: String,
             size: Int,
+            regionPrefixes: List<String>,
         ): List<AiChatPlace> {
             queries += name
+            regions += regionPrefixes
             return answer(name)
         }
     }

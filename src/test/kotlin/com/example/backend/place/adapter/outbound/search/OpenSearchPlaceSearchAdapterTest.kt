@@ -21,6 +21,7 @@ import org.mockito.Mockito.verify
 import org.mockito.Mockito.`when`
 import org.opensearch.client.json.JsonData
 import org.opensearch.client.opensearch.OpenSearchClient
+import org.opensearch.client.opensearch._types.SortOrder
 import org.opensearch.client.opensearch._types.aggregations.Aggregate
 import org.opensearch.client.opensearch._types.aggregations.Buckets
 import org.opensearch.client.opensearch._types.aggregations.GeoHashGridBucket
@@ -29,6 +30,7 @@ import org.opensearch.client.opensearch.core.SearchResponse
 import org.opensearch.client.opensearch.core.search.Hit
 import org.opensearch.client.opensearch.core.search.HitsMetadata
 import org.opensearch.client.opensearch.core.search.TotalHitsRelation
+import org.opensearch.client.util.ObjectBuilder
 import org.springframework.beans.factory.ObjectProvider
 
 /**
@@ -238,6 +240,78 @@ class OpenSearchPlaceSearchAdapterTest {
                 PlaceMapSort.RELEVANCE,
             )
         }.isUnavailable()
+    }
+
+    @Test
+    fun `근처 법정동코드 조회는 활성·코드 있는 장소를 반경 안에서 거리순으로 size 만큼 읽고 코드만 돌려준다`() {
+        @Suppress("UNCHECKED_CAST")
+        val response = mock(SearchResponse::class.java) as SearchResponse<OpenSearchPlaceSearchAdapter.AreaCodeSource>
+
+        @Suppress("UNCHECKED_CAST")
+        val meta = mock(HitsMetadata::class.java) as HitsMetadata<OpenSearchPlaceSearchAdapter.AreaCodeSource>
+        val hits =
+            listOf("1120011400", null, "1120011500").map { code ->
+                Hit
+                    .Builder<OpenSearchPlaceSearchAdapter.AreaCodeSource>()
+                    .index("place")
+                    .id("1")
+                    .apply { code?.let { source(OpenSearchPlaceSearchAdapter.AreaCodeSource(it)) } }
+                    .build()
+            }
+        `when`(response.hits()).thenReturn(meta)
+        `when`(meta.hits()).thenReturn(hits)
+        `when`(
+            client.search(
+                any<java.util.function.Function<SearchRequest.Builder, ObjectBuilder<SearchRequest>>>(),
+                eq(OpenSearchPlaceSearchAdapter.AreaCodeSource::class.java),
+            ),
+        ).thenReturn(response)
+
+        val codes = adapter.findNearbyAreaCodes(Coordinate(37.5446, 127.0559), radiusMeters = 1500, size = 20)
+
+        assertThat(codes).containsExactly("1120011400", "1120011500")
+        @Suppress("UNCHECKED_CAST")
+        val captor =
+            ArgumentCaptor.forClass(java.util.function.Function::class.java)
+                as ArgumentCaptor<java.util.function.Function<SearchRequest.Builder, ObjectBuilder<SearchRequest>>>
+        verify(client).search(captor.capture(), eq(OpenSearchPlaceSearchAdapter.AreaCodeSource::class.java))
+        val request = captor.value.apply(SearchRequest.Builder()).build()
+        assertThat(request.index()).containsExactly("dev-place")
+        assertThat(request.size()).isEqualTo(20)
+        assertThat(request.source()!!.filter().includes()).containsExactly("areaCode")
+        val filters = request.query()!!.bool().filter()
+        assertThat(filters).hasSize(3)
+        assertThat(filters[0].term().field()).isEqualTo("status")
+        assertThat(filters[1].exists().field()).isEqualTo("areaCode")
+        assertThat(filters[2].geoDistance().distance()).isEqualTo("1500m")
+        assertThat(
+            filters[2]
+                .geoDistance()
+                .location()
+                .latlon()
+                .lat(),
+        ).isEqualTo(37.5446)
+        assertThat(
+            request
+                .sort()
+                .single()
+                .geoDistance()
+                .order(),
+        ).isEqualTo(SortOrder.Asc)
+    }
+
+    @Test
+    fun `근처 법정동코드 조회도 클라이언트가 없거나 실패하면 503 이다`() {
+        val noClient = OpenSearchPlaceSearchAdapter(providerOf(null), OpenSearchProperties())
+        assertThatThrownBy { noClient.findNearbyAreaCodes(Coordinate(37.5, 127.0), 1500, 20) }.isUnavailable()
+
+        `when`(
+            client.search(
+                any<java.util.function.Function<SearchRequest.Builder, ObjectBuilder<SearchRequest>>>(),
+                eq(OpenSearchPlaceSearchAdapter.AreaCodeSource::class.java),
+            ),
+        ).thenThrow(RuntimeException("boom"))
+        assertThatThrownBy { adapter.findNearbyAreaCodes(Coordinate(37.5, 127.0), 1500, 20) }.isUnavailable()
     }
 
     private fun org.assertj.core.api.AbstractThrowableAssert<*, *>.isUnavailable() =

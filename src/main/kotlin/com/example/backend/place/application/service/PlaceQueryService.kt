@@ -36,11 +36,20 @@ class PlaceQueryService(
             placeQueryPort.findPlacesById(placeIds).map { it.toSummary() }
         }
 
+    override fun findDominantAreaCodeNear(location: Coordinate): String? =
+        placeSearchQueryPort
+            .findNearbyAreaCodes(location, NEARBY_RADIUS_METERS, NEARBY_SAMPLE_SIZE)
+            .groupingBy { it }
+            .eachCount()
+            .maxByOrNull { it.value }
+            ?.key
+
     override fun searchByName(
         query: String,
         cursor: String?,
         size: Int,
         anchorPlaceId: Long?,
+        areaCodePrefixes: List<String>,
     ): PlaceSummaryPage {
         require(size in 1..50) { "조회 개수는 1~50 범위여야 합니다." }
         require(anchorPlaceId == null || anchorPlaceId > 0) { "기준 장소 ID는 양수여야 합니다." }
@@ -65,6 +74,7 @@ class PlaceQueryService(
             size = size,
             anchor = anchor,
             anchorPlaceId = anchorPlaceId,
+            areaCodePrefixes = areaCodePrefixes,
         )
     }
 
@@ -75,17 +85,21 @@ class PlaceQueryService(
         size: Int,
         anchor: Coordinate?,
         anchorPlaceId: Long?,
+        areaCodePrefixes: List<String>,
     ): PlaceSummaryPage {
         val pageSize = minOf(size, MAX_RESULT_WINDOW - offset)
         var usedFallback = textFallback
-        val criteria = buildCriteria(query, offset, usedFallback, pageSize, anchor)
+        val criteria = buildCriteria(query, offset, usedFallback, pageSize, anchor, areaCodePrefixes)
         var hits = placeSearchQueryPort.search(criteria)
 
-        // 0건 텍스트 재검색은 사전 필터만 풀고 기준 장소는 유지한다
+        // 0건 텍스트 재검색은 사전 필터와 호출자 지역 필터만 풀고 기준 장소는 유지한다
         val hadFilters = criteria.categories.isNotEmpty() || criteria.areaCodePrefixGroups.isNotEmpty()
         if (offset == 0 && !usedFallback && hits.totalCount == 0L && hadFilters) {
             usedFallback = true
-            hits = placeSearchQueryPort.search(buildCriteria(query, offset, usedFallback, pageSize, anchor))
+            hits =
+                placeSearchQueryPort.search(
+                    buildCriteria(query, offset, usedFallback, pageSize, anchor, areaCodePrefixes),
+                )
         }
 
         // hydration — 색인엔 있지만 DB 에서 삭제된 id 는 자연 탈락
@@ -112,6 +126,7 @@ class PlaceQueryService(
         textFallback: Boolean,
         size: Int,
         anchor: Coordinate?,
+        areaCodePrefixes: List<String>,
     ): PlaceSearchCriteria {
         if (textFallback) {
             // 0건 폴백 — 사전을 거치지 않고 전 토큰을 텍스트로 검색한다.
@@ -130,7 +145,9 @@ class PlaceQueryService(
         return PlaceSearchCriteria(
             textTokens = plan.textTokens,
             categories = plan.categories,
-            areaCodePrefixGroups = plan.areaCodePrefixGroups,
+            // 호출자가 준 지역(예: AI 채팅의 앞 질문 답)은 검색어에서 뽑은 지역과 AND 로 묶인다.
+            areaCodePrefixGroups =
+                plan.areaCodePrefixGroups + listOfNotNull(areaCodePrefixes.takeIf { it.isNotEmpty() }),
             viewport = null,
             from = offset,
             size = size,
@@ -141,6 +158,8 @@ class PlaceQueryService(
 
     private companion object {
         const val MAX_RESULT_WINDOW = 10_000
+        const val NEARBY_RADIUS_METERS = 1_500
+        const val NEARBY_SAMPLE_SIZE = 20
     }
 
     private fun Place.toSummary(): PlaceSummary =
