@@ -127,6 +127,15 @@ google:
   places:
     api-key: ${GOOGLE_PLACES_API_KEY:}
 
+# 코스 추천 AI 채팅(SCRUM-785) — 자유 입력 문장을 슬롯 JSON 으로 바꾸는 LLM. 키가 비면 규칙 기반 해석만 동작한다.
+ai-chat:
+  llm:
+    enabled: ${AI_CHAT_LLM_ENABLED:true}
+    api-key: ${ANTHROPIC_API_KEY:}
+    model: ${AI_CHAT_LLM_MODEL:claude-haiku-5-5}
+    timeout-millis: ${AI_CHAT_LLM_TIMEOUT_MILLIS:3000}
+    max-calls-per-session: ${AI_CHAT_LLM_MAX_CALLS_PER_SESSION:20}
+
 aws:
   region: ${AWS_REGION:ap-northeast-2}
   s3:
