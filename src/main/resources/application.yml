@@ -135,6 +135,9 @@ ai-chat:
     model: ${AI_CHAT_LLM_MODEL:claude-haiku-5-5}
     timeout-millis: ${AI_CHAT_LLM_TIMEOUT_MILLIS:3000}
     max-calls-per-session: ${AI_CHAT_LLM_MAX_CALLS_PER_SESSION:20}
+    # Messages API 호환 중계(OpenRouter: https://openrouter.ai/api, Bearer)로 보낼 때만 설정. 비면 Anthropic 직접.
+    base-url: ${AI_CHAT_LLM_BASE_URL:}
+    bearer-auth: ${AI_CHAT_LLM_BEARER_AUTH:false}
 
 aws:
   region: ${AWS_REGION:ap-northeast-2}

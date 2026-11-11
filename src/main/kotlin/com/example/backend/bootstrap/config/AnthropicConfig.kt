@@ -20,11 +20,18 @@ class AnthropicConfig(
     private val properties: AiChatLlmProperties,
 ) {
     @Bean(destroyMethod = "close")
-    fun anthropicClient(): AnthropicClient =
-        AnthropicOkHttpClient
-            .builder()
-            .apiKey(properties.apiKey.trim())
-            .timeout(Duration.ofMillis(properties.timeoutMillis))
-            .maxRetries(0)
-            .build()
+    fun anthropicClient(): AnthropicClient {
+        val builder =
+            AnthropicOkHttpClient
+                .builder()
+                .timeout(Duration.ofMillis(properties.timeoutMillis))
+                .maxRetries(0)
+        val key = properties.apiKey.trim()
+        if (properties.bearerAuth) builder.authToken(key) else builder.apiKey(key)
+        properties.baseUrl
+            .trim()
+            .takeIf { it.isNotEmpty() }
+            ?.let { builder.baseUrl(it) }
+        return builder.build()
+    }
 }
