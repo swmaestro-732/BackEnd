@@ -94,6 +94,10 @@ jwt:
   registration-ttl: PT10M
   admin-ttl: PT1H
 
+admin:
+  # 어드민 웹 오리진(CORS, /admin/v1/** 만). 운영 도메인과 로컬 개발 서버.
+  web-origins: ${ADMIN_WEB_ORIGINS:https://chilsami-admin.courmy.com,http://localhost:3001}
+
 oauth:
   kakao:
     # 로그인(OIDC)용 카카오 앱 client_id(REST API 키). 로컬(지도) 검색 키(kakao.local.rest-key)와 별개 앱/키.
