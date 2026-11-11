@@ -5,7 +5,7 @@ data class AiChatCourse(
     val id: Long,
     val title: String,
     val coverImageUrl: String?,
-    val theme: String?,
+    val themes: List<String>,
     val area: String?,
     val placeCount: Int,
     val walkingMinutes: Int,

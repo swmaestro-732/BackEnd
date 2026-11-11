@@ -25,7 +25,7 @@ import org.springframework.stereotype.Component
 /**
  * 아웃바운드 어댑터 — [CourseRecommendQueryPort] 를 OpenSearch function_score 로 구현한다.
  *
- * 점수 = 관심 일치(bool.should 의 constant_score: 테마·시군구·읍면동) + 최신성(createdAt exp 감쇠) + log1p(savesCnt).
+ * 점수 = 관심 일치(bool.should 의 constant_score: 테마·시군구·읍면동) + 최신성(createdAt exp 감쇠) + log1p(savesCnt) + log1p(likesCnt).
  * 관심 일치는 함수가 아니라 base 쿼리 점수로 둔다 — 클라이언트 라이브러리가 weight 만 있는 함수를 만들 수 없고,
  * boost_mode=sum 이면 결과는 같다(`_explain` 에서 항별 기여가 그대로 보인다). should 는 선택이라 못 맞춰도 탈락하지 않는다.
  * 정렬은 `_score desc, id desc` 로 고정하고 search_after 로 페이지를 넘긴다. 감쇠 origin 은 호출자가 고정해 넘긴다.
@@ -135,7 +135,7 @@ class OpenSearchCourseRecommendAdapter(
             }
         }
 
-    /** 최신성 감쇠와 저장수 — 둘 다 weight 를 곱해 더한다. */
+    /** 최신성 감쇠·저장수·좋아요수 — 각각 weight 를 곱해 더한다. */
     private fun scoreFunctions(criteria: CourseRecommendCriteria): List<FunctionScore> =
         listOf(
             FunctionScore.of { f ->
@@ -152,6 +152,11 @@ class OpenSearchCourseRecommendAdapter(
             FunctionScore.of { f ->
                 f.weight(weights.savesWeight).fieldValueFactor { v ->
                     v.field("savesCnt").modifier(FieldValueFactorModifier.Log1p).missing(0.0)
+                }
+            },
+            FunctionScore.of { f ->
+                f.weight(weights.likesWeight).fieldValueFactor { v ->
+                    v.field("likesCnt").modifier(FieldValueFactorModifier.Log1p).missing(0.0)
                 }
             },
         )

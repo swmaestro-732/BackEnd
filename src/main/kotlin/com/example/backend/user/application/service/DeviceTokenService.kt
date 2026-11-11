@@ -4,7 +4,7 @@ import com.example.backend.common.exception.BusinessException
 import com.example.backend.common.response.UserErrorCode
 import com.example.backend.user.application.port.inbound.DeviceTokenUseCase
 import com.example.backend.user.application.port.inbound.dto.RegisterDeviceTokenCommand
-import com.example.backend.user.application.port.outbound.DeviceTokenPersistencePort
+import com.example.backend.user.application.port.outbound.DevicePersistencePort
 import com.example.backend.user.application.port.outbound.UserPersistencePort
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
@@ -12,7 +12,7 @@ import org.springframework.transaction.annotation.Transactional
 @Service
 @Transactional
 class DeviceTokenService(
-    private val deviceTokenPersistencePort: DeviceTokenPersistencePort,
+    private val devicePersistencePort: DevicePersistencePort,
     private val userPersistencePort: UserPersistencePort,
 ) : DeviceTokenUseCase {
     override fun register(
@@ -23,11 +23,16 @@ class DeviceTokenService(
         if (userPersistencePort.lockActive(listOf(userId)).isEmpty()) {
             throw BusinessException(UserErrorCode.USER_NOT_FOUND, "사용자를 찾을 수 없습니다: id=$userId")
         }
-        deviceTokenPersistencePort.upsert(userId, command)
+        devicePersistencePort.saveToken(command, userId)
     }
 
     override fun unregister(
         userId: Long,
         deviceId: String,
-    ) = deviceTokenPersistencePort.deleteByUserAndDevice(userId, deviceId)
+    ) = devicePersistencePort.unlink(userId, deviceId)
+
+    override fun clearInvalidTokens(fcmTokens: Collection<String>) {
+        if (fcmTokens.isEmpty()) return
+        devicePersistencePort.clearTokens(fcmTokens)
+    }
 }

@@ -6,23 +6,20 @@ import com.example.backend.common.response.CourseErrorCode
 import com.example.backend.course.application.port.inbound.CourseQueryUseCase
 import com.example.backend.course.application.port.inbound.dto.AuthorCourseCursor
 import com.example.backend.course.application.port.inbound.dto.CourseDetailResult
+import com.example.backend.course.application.port.inbound.dto.CourseOwnerSummary
 import com.example.backend.course.application.port.inbound.dto.CoursePlaceImageResult
 import com.example.backend.course.application.port.inbound.dto.CoursePlaceResult
 import com.example.backend.course.application.port.inbound.dto.CourseSummary
 import com.example.backend.course.application.port.inbound.dto.CourseSummaryPage
-import com.example.backend.course.application.port.inbound.dto.FeedCursor
 import com.example.backend.course.application.port.outbound.CoursePersistencePort
-import com.example.backend.course.application.port.outbound.CoursePlaceStats
-import com.example.backend.course.application.port.outbound.CourseSummaryRow
 import com.example.backend.course.application.port.outbound.CourseTagQueryPort
 import com.example.backend.course.application.port.outbound.ViewerInteractionPort
-import com.example.backend.course.domain.model.CourseCategory
 import com.example.backend.course.domain.model.CourseStatus
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
 
 /**
- * 코스 조회 유스케이스 — 상세(단건·배치)와 목록(작성자별·공개 피드) 조회를 담당한다(읽기 전용).
+ * 코스 조회 유스케이스 — 상세(단건·배치)와 목록(작성자별) 조회를 담당한다(읽기 전용).
  * 쓰기(생성·편집·삭제)는 [com.example.backend.course.application.service.CourseService] 가 맡는다(커맨드/쿼리 분리).
  *
  * 조회 규칙: status=ACTIVE·미삭제만 반환, PRIVATE 은 소유자만, FOLLOWER 는 소유자·팔로워만(그 외 제외/404).
@@ -36,6 +33,9 @@ class CourseQueryService(
     private val viewerInteractionPort: ViewerInteractionPort,
     private val courseViewPolicy: CourseViewPolicy,
 ) : CourseQueryUseCase {
+    override fun findOwnerSummary(courseId: Long): CourseOwnerSummary? =
+        coursePersistencePort.findOwnerSummary(courseId)
+
     override fun getDetail(
         courseId: Long,
         viewerId: Long?,
@@ -88,7 +88,7 @@ class CourseQueryService(
                 id = course.id,
                 title = course.title,
                 coverImageUrl = course.coverImageUrl.orEmpty(),
-                theme = course.category?.name,
+                themes = course.categories.map { it.name },
                 area = course.area,
                 // 배치 조회는 태그를 읽지 않는다(코스 상세 화면 전용) — [getDetail] 이 단건으로 채운다.
                 tags = emptyList(),
@@ -126,7 +126,7 @@ class CourseQueryService(
                 size = size,
             )
         return CourseSummaryPage(
-            items = rows.take(size).map(::toCourseSummary),
+            items = rows.take(size).map { it.toCourseSummary() },
             hasNext = rows.size > size,
         )
     }
@@ -135,33 +135,7 @@ class CourseQueryService(
     override fun listDraftsByAuthor(authorId: Long): List<CourseSummary> =
         coursePersistencePort
             .findDraftsByAuthor(authorId)
-            .map(::toCourseSummary)
-
-    /**
-     * 전체 공개(PUBLIC) 발행 코스를 저장수+최신순 복합 커서 페이지로 내려준다(피드용).
-     * 정렬은 findPublishedPublic 이 SQL(saves_cnt DESC, created_at DESC, id DESC)로 수행한다.
-     * 영속 포트가 [size]보다 한 건 더 조회한 결과로 hasNext를 판정하고 초과분을 잘라낸다.
-     * 모두 PUBLIC 이라 공개범위(isViewable) 필터 없이 그대로 매핑한다.
-     * 카드 메타(장소 수, 총 도보 시간)는 페이지의 코스 id 로 한 번에 집계해 붙인다(장소 없는 코스는 0).
-     */
-    override fun listPublic(
-        cursor: FeedCursor?,
-        size: Int,
-        category: String?,
-    ): CourseSummaryPage {
-        val effectiveSize = size.coerceAtLeast(1)
-        val courseCategory =
-            category?.let { name ->
-                requireNotNull(CourseCategory.entries.find { it.name == name }) { "알 수 없는 코스 카테고리입니다: $name" }
-            }
-        val rows = coursePersistencePort.findPublishedPublic(cursor, effectiveSize, courseCategory)
-        val page = rows.take(effectiveSize)
-        val statsByCourse = coursePersistencePort.findPlaceStats(page.map { it.id })
-        return CourseSummaryPage(
-            items = page.map { toCourseSummary(it, statsByCourse[it.id] ?: CoursePlaceStats(0, 0)) },
-            hasNext = rows.size > effectiveSize,
-        )
-    }
+            .map { it.toCourseSummary() }
 
     /** 조회자에게 허용된 공개범위를 SQL 조건으로 전달해 필터 이후에도 페이지 크기와 hasNext가 정확하게 유지되게 한다. */
     private fun viewableVisibilities(
@@ -181,21 +155,4 @@ class CourseQueryService(
                 setOf(CourseVisibility.PUBLIC)
             }
         }
-
-    private fun toCourseSummary(
-        row: CourseSummaryRow,
-        stats: CoursePlaceStats? = null,
-    ) = CourseSummary(
-        id = row.id,
-        authorId = row.userId,
-        title = row.title,
-        coverImageUrl = row.coverImageUrl,
-        theme = row.category?.name,
-        area = row.area,
-        likesCnt = row.likesCnt,
-        savesCnt = row.savesCnt,
-        createdAt = row.createdAt,
-        placeCount = stats?.placeCount,
-        walkingMinutes = stats?.walkingMinutes,
-    )
 }

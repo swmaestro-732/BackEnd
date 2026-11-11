@@ -1,0 +1,69 @@
+package com.example.backend.push.adapter.inbound.messaging
+
+import com.example.backend.bootstrap.config.PushProperties
+import com.example.backend.push.adapter.messaging.PushQueueMessage
+import com.example.backend.push.application.port.inbound.PushDeliveryUseCase
+import io.awspring.cloud.sqs.annotation.SqsListener
+import io.github.oshai.kotlinlogging.KotlinLogging
+import io.micrometer.core.instrument.MeterRegistry
+import org.springframework.boot.autoconfigure.condition.ConditionalOnExpression
+import org.springframework.stereotype.Component
+import java.time.Clock
+import java.time.Duration
+
+/**
+ * 큐와 Firebase 키가 모두 설정된 환경에서만 수신한다. 키 없이 수신하면 발송은 생략되는데 메시지는 ack 되어 사라지므로,
+ * 그때는 리스너를 띄우지 않고 메시지를 큐에 남긴다. 예외를 전파해 SQS 재전송과 DLQ 처리를 인프라에 맡긴다.
+ * 단 오래된 메시지와 내용이 잘못된 메시지는 재시도해도 소용없으므로 정상 반환(ack)해 버린다.
+ */
+@Component
+@ConditionalOnExpression(
+    // 키 JSON 은 따옴표를 포함할 수 있어 placeholder 로 넣지 않고 FirebaseConfig 와 같이 environment 로 읽는다.
+    "'\${aws.sqs.push-queue-url:}'.trim().length() > 0 && " +
+        "@environment.getProperty('firebase.credentials-json', '').trim().length() > 0",
+)
+class PushSqsConsumer(
+    private val pushDeliveryUseCase: PushDeliveryUseCase,
+    private val pushProperties: PushProperties,
+    private val clock: Clock,
+    meterRegistry: MeterRegistry,
+) {
+    private val log = KotlinLogging.logger {}
+    private val staleCounter = meterRegistry.counter("push.skipped", "reason", "stale")
+    private val invalidMessageCounter = meterRegistry.counter("push.skipped", "reason", "invalid_message")
+
+    @SqsListener("\${aws.sqs.push-queue-url}")
+    fun onMessage(message: PushQueueMessage) {
+        val createdAt = message.createdAt
+        val age = createdAt?.let { Duration.between(it, clock.instant()) }
+        // TTL 을 지정한 메시지(마케팅 등)는 큐에서 TTL 만큼 기다렸으면 남은 TTL 이 없으므로 발송하지 않는다.
+        val ttlExpired = message.androidTtlSeconds?.let { age != null && age >= Duration.ofSeconds(it) } ?: false
+        if (age != null && (age > pushProperties.maxAge || ttlExpired)) {
+            staleCounter.increment(message.tokens.size.toDouble())
+            log.warn { "오래된 푸시 메시지라 발송하지 않고 버림: tokenCount=${message.tokens.size}, createdAt=$createdAt" }
+            return
+        }
+        // 메시지 내용 검증만 버림 대상으로 본다. 발송 중 예외(설정 오류 등)는 전파해 재전송과 DLQ 로 남긴다.
+        val pushMessage =
+            try {
+                message.toPushMessage()
+            } catch (e: IllegalArgumentException) {
+                // 같은 메시지는 몇 번을 다시 받아도 실패하므로 재시도하지 않는다. 예외 메시지는 키 이름 수준이라 토큰은 남지 않는다.
+                invalidMessageCounter.increment(message.tokens.size.toDouble())
+                log.error { "잘못된 푸시 메시지라 발송하지 않고 버림: tokenCount=${message.tokens.size}, error=${e.message}" }
+                return
+            }
+        // TTL 을 지정한 메시지는 큐에서 기다린 만큼 줄여 넘긴다. FCM 은 받은 시점부터 TTL 을 세므로, 그대로 넘기면
+        // 큐 대기와 기기 보관이 더해져 TTL 의 두 배까지 늦게 도착할 수 있다(마케팅의 21시 경계).
+        val ttl = pushMessage.androidTtl
+        pushDeliveryUseCase.deliver(
+            if (ttl != null &&
+                age != null
+            ) {
+                pushMessage.copy(androidTtl = ttl - age.coerceAtLeast(Duration.ZERO))
+            } else {
+                pushMessage
+            },
+        )
+    }
+}

@@ -24,4 +24,7 @@ enum class CourseErrorCode(
     // 4096(장소 리뷰)·4097(코스 리뷰)이 선점 — 다음 번호 4098 로 채번했다.
     COURSE_ALREADY_LIKED(409, 4098, "이미 좋아요한 코스입니다."),
     COURSE_TRACE_ALREADY_ENDED(409, 4099, "이미 종료된 따라가기입니다."),
+
+    // 4099 까지 선점 — 채번 규칙(HTTP 상태 × 10 + 일련번호)대로 4100 으로 채번했다.
+    COURSE_TRACE_ALREADY_IN_PROGRESS(409, 4100, "이미 따라가는 중인 코스가 있습니다."),
 }

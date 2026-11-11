@@ -2,7 +2,7 @@ package com.example.backend.course.application.service
 
 import com.example.backend.common.exception.BusinessException
 import com.example.backend.common.response.CommonErrorCode
-import com.example.backend.course.application.port.inbound.dto.FeedCursor
+import com.example.backend.course.application.port.outbound.FeedCursor
 import org.assertj.core.api.Assertions.assertThat
 import org.assertj.core.api.Assertions.assertThatThrownBy
 import org.junit.jupiter.api.Test

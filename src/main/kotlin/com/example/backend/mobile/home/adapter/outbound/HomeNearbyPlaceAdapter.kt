@@ -33,6 +33,7 @@ class HomeNearbyPlaceAdapter(
                 ratingCount = hit.ratingCount,
                 distanceMeters = hit.distanceMeters,
                 visited = hit.visited,
+                categoryDetail = hit.categoryDetail,
             )
         }
     }

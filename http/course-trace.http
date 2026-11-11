@@ -2,7 +2,7 @@
 # 모든 요청은 @AccessTokenRequired 로 access 토큰을 강제하고 @CurrentUserId(JWT subject)로 userId 를 뽑는다.
 # 아래 첫 요청(mock 로그인)이 accessToken 을 전역 저장 → 이후 요청은 Authorization 헤더로 재사용한다.
 # (auth.http 를 먼저 실행해 두었다면 이 요청은 건너뛰어도 된다.)
-# 흐름: 시작(세션 생성 또는 이어가기) → 장소 체크인(방문 즉시) → 종료(소요 시간·이동 거리, tracings_cnt +1).
+# 흐름: 시작(세션 생성 또는 이어가기) → 장소 체크인(방문 즉시) → 종료(소요 시간·이동 거리, tracings_cnt +1). 완주 목록·경로(/traces/route)는 별도. 진행 중 코스는 사용자당 하나 — 다른 코스로 바꾸려면 종료한다.
 
 ### 0) 사전: mock 소셜 로그인 — dev accessToken(user id=1) 발급 + 전역 저장
 POST http://localhost:8080/api/v1/auth/social-login?mock=true
@@ -20,7 +20,7 @@ Content-Type: application/json
 
 ## 따라가기 시작 (POST /api/v1/courses/{courseId}/traces)
 
-### 1) 시작 — 200 / 2000, data = { traceId, courseId, startedAt, visitedPlaces }. 진행 중 세션이 있으면 그 세션을 그대로 돌려준다(이어가기)
+### 1) 시작 — 200 / 2000, data = { traceId, courseId, startedAt, visitedPlaces }. 같은 코스를 진행 중이면 그 세션을 그대로 돌려준다(이어가기). 다른 코스를 진행 중이면 409 / 4100 COURSE_TRACE_ALREADY_IN_PROGRESS
 POST http://localhost:8080/api/v1/courses/1/traces
 Authorization: Bearer {{accessToken}}
 
@@ -30,6 +30,40 @@ Authorization: Bearer {{accessToken}}
 
 ### 2) 없는 코스 → 404 / 4041 COURSE_NOT_FOUND
 POST http://localhost:8080/api/v1/courses/999/traces
+Authorization: Bearer {{accessToken}}
+
+## 따라가기 시작 V2 (POST /api/v2/courses/{courseId}/traces)
+
+### 2-1) 루트를 수정해 시작 — 200 / 2000, data = { traceId, courseId, startedAt, placeIds, visitedPlaces }. placeIds 는 따라갈 순서대로(1~20개) — 코스 장소를 빼거나 순서를 바꾸거나 코스 밖 장소를 넣을 수 있다. 같은 코스를 진행 중이면 기존 세션과 그 세션의 루트를 돌려준다(요청 placeIds 는 반영하지 않음). 다른 코스를 진행 중이면 409 / 4100
+POST http://localhost:8080/api/v2/courses/1/traces
+Content-Type: application/json
+Authorization: Bearer {{accessToken}}
+
+{
+  "placeIds": [22, 25, 23]
+}
+
+> {%
+    client.global.set("traceId", response.body.data.traceId);
+%}
+
+### 2-2) 없는 장소 → 404 / 4043 PLACE_NOT_FOUND. placeIds 가 비었거나 20개를 넘으면 400 / 4002 VALIDATION_FAILED + fieldErrors, 같은 장소가 두 번 오면 400 / 4001 INVALID_INPUT
+POST http://localhost:8080/api/v2/courses/1/traces
+Content-Type: application/json
+Authorization: Bearer {{accessToken}}
+
+{
+  "placeIds": [22, 999999]
+}
+
+## 내 완주 목록 (GET /api/v1/my/traces?cursor&size)
+
+### 1-1) 완주 기록 — 최근 시작순 커서 페이지(size 1~50, 기본 10). data = { nextCursor, hasNext, traces: [{ traceId, startedAt, endedAt, durationMinutes, distanceMeters, course: { courseId, title, coverImageUrl, area, placeCount, isDeleted } }] }. 삭제·비공개 코스는 isDeleted=true 에 courseId 외 null
+GET http://localhost:8080/api/v1/my/traces?size=10
+Authorization: Bearer {{accessToken}}
+
+### 1-2) 잘못된 커서 → 400 / 4001 INVALID_INPUT
+GET http://localhost:8080/api/v1/my/traces?cursor=bad
 Authorization: Bearer {{accessToken}}
 
 ## 장소 체크인 (POST /api/v1/traces/{traceId}/places)
@@ -44,7 +78,7 @@ Authorization: Bearer {{accessToken}}
   "visitedAt": "2026-10-10T05:00:00Z"
 }
 
-### 4) 검증 실패 — placeId 0 → 400 / 4002 VALIDATION_FAILED + fieldErrors. 코스에 없는 장소는 400 / 4005 PLACE_NOT_IN_COURSE
+### 4) 검증 실패 — placeId 0 → 400 / 4002 VALIDATION_FAILED + fieldErrors. 따라가는 장소(V2 로 시작했으면 그 루트, 아니면 코스 장소)가 아니면 400 / 4005 PLACE_NOT_IN_COURSE
 POST http://localhost:8080/api/v1/traces/{{traceId}}/places
 Content-Type: application/json
 Authorization: Bearer {{accessToken}}
@@ -62,6 +96,26 @@ Authorization: Bearer {{accessToken}}
 {
   "placeId": 22,
   "visitedAt": "2026-10-10T05:00:00Z"
+}
+
+## 따라가는 중 루트 변경 (PATCH /api/v1/traces/{traceId}/route)
+
+### 5-1) 루트 변경 — 200 / 2000, data 없음. placeIds 는 앞으로 갈 장소만(따라갈 순서대로, 최대 20개) — 이미 체크인한 장소는 보내지 않는다. 체크인한 장소는 방문한 순서로 앞에 남고 그 뒤가 placeIds 로 바뀐다. V1 으로 시작해 코스 장소 그대로 따라가던 세션도 바꿀 수 있다
+PATCH http://localhost:8080/api/v1/traces/{{traceId}}/route
+Content-Type: application/json
+Authorization: Bearer {{accessToken}}
+
+{
+  "placeIds": [25, 23]
+}
+
+### 5-2) 이미 체크인한 장소를 보냄(위에서 22 를 체크인했다면) 또는 같은 장소가 두 번 → 400 / 4001 INVALID_INPUT. 체크인한 곳이 없는데 placeIds 가 비어도 400 / 4001. 없는 장소는 404 / 4043, 종료된 세션은 409 / 4099, 내 세션이 아니면 404 / 4049
+PATCH http://localhost:8080/api/v1/traces/{{traceId}}/route
+Content-Type: application/json
+Authorization: Bearer {{accessToken}}
+
+{
+  "placeIds": [22, 25]
 }
 
 ## 따라가기 종료 (POST /api/v1/traces/{traceId}/end)

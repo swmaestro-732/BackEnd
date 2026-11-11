@@ -68,6 +68,7 @@ class SavedPlaceService(
                 imageUrl = place.imageUrl,
                 rating = place.rating,
                 ratingCount = place.ratingCount,
+                categoryDetail = place.categoryDetail,
             ),
         )
         return saved

@@ -39,7 +39,7 @@ class OpenSearchCourseSearchIntegrationTest
                     title = title,
                     description = null,
                     area = "성수",
-                    category = category,
+                    category = listOfNotNull(category),
                     tags = tags,
                     coverImageUrl = null,
                     visibility = visibility,

@@ -12,17 +12,34 @@ import java.time.Instant
 class CourseTracePersistenceAdapter(
     private val courseTraceRepository: CourseTraceRepository,
 ) : CourseTracePersistencePort {
-    override fun findInProgress(
+    override fun findInProgress(userId: Long): CourseTraceRow? = courseTraceRepository.findInProgress(userId)
+
+    override fun findCompleted(
         userId: Long,
-        courseId: Long,
-    ): CourseTraceRow? = courseTraceRepository.findInProgress(userId, courseId)
+        beforeId: Long?,
+        size: Int,
+    ): List<CourseTraceRow> = courseTraceRepository.findCompleted(userId, beforeId, size)
 
     override fun insertInProgress(
         userId: Long,
         courseId: Long,
     ): Long? = courseTraceRepository.insertInProgress(userId, courseId)
 
+    override fun insertRoutePlaces(
+        traceId: Long,
+        placeIds: List<Long>,
+    ) = courseTraceRepository.insertRoutePlaces(traceId, placeIds)
+
+    override fun replaceRemainingRoutePlaces(
+        traceId: Long,
+        placeIds: List<Long>,
+    ) = courseTraceRepository.replaceRemainingRoutePlaces(traceId, placeIds)
+
+    override fun findRoutePlaceIds(traceId: Long): List<Long> = courseTraceRepository.findRoutePlaceIds(traceId)
+
     override fun findById(traceId: Long): CourseTraceRow? = courseTraceRepository.findById(traceId)
+
+    override fun readById(traceId: Long): CourseTraceRow? = courseTraceRepository.readById(traceId)
 
     override fun findVisitedPlaces(traceId: Long): List<VisitedPlaceResult> =
         courseTraceRepository.findVisitedPlaces(traceId)

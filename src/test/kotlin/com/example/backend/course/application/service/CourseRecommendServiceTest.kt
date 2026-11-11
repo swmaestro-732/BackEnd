@@ -3,7 +3,6 @@ package com.example.backend.course.application.service
 import com.example.backend.area.application.port.inbound.AreaQueryUseCase
 import com.example.backend.common.domain.CourseVisibility
 import com.example.backend.course.application.port.inbound.dto.CourseRecommendQuery
-import com.example.backend.course.application.port.inbound.dto.FeedCursor
 import com.example.backend.course.application.port.outbound.CoursePersistencePort
 import com.example.backend.course.application.port.outbound.CoursePlaceStats
 import com.example.backend.course.application.port.outbound.CourseRecommendAfter
@@ -13,6 +12,7 @@ import com.example.backend.course.application.port.outbound.CourseRecommendQuery
 import com.example.backend.course.application.port.outbound.CourseRecommendResultPage
 import com.example.backend.course.application.port.outbound.CourseSearchRow
 import com.example.backend.course.application.port.outbound.CourseSummaryRow
+import com.example.backend.course.application.port.outbound.FeedCursor
 import com.example.backend.course.domain.model.CourseCategory
 import org.assertj.core.api.Assertions.assertThat
 import org.assertj.core.api.Assertions.assertThatThrownBy
@@ -28,6 +28,8 @@ import org.mockito.Mockito.mock
 import org.mockito.Mockito.never
 import org.mockito.Mockito.verify
 import org.mockito.Mockito.`when`
+import org.springframework.transaction.PlatformTransactionManager
+import org.springframework.transaction.support.SimpleTransactionStatus
 import java.time.Instant
 import java.time.temporal.ChronoUnit
 
@@ -37,8 +39,13 @@ import java.time.temporal.ChronoUnit
 class CourseRecommendServiceTest {
     private val recommendPort = mock(CourseRecommendQueryPort::class.java)
     private val persistence = mock(CoursePersistencePort::class.java)
+    private val transactionManager =
+        mock(PlatformTransactionManager::class.java).also {
+            `when`(it.getTransaction(any())).thenReturn(SimpleTransactionStatus())
+        }
     private val areaQueryUseCase = mock(AreaQueryUseCase::class.java)
-    private val service = CourseRecommendService(recommendPort, persistence, CourseRegionResolver(areaQueryUseCase))
+    private val service =
+        CourseRecommendService(recommendPort, persistence, CourseRegionResolver(areaQueryUseCase), transactionManager)
 
     private val createdAt = Instant.parse("2026-09-01T00:00:00Z")
 
@@ -52,7 +59,7 @@ class CourseRecommendServiceTest {
             authorId = 7L,
             title = "코스 $id",
             coverImageUrl = "https://img/$id.jpg",
-            theme = "CAFETOUR",
+            themes = listOf("CAFETOUR"),
             area = "성수",
             likesCnt = 1,
             savesCnt = 2,
@@ -67,7 +74,7 @@ class CourseRecommendServiceTest {
         userId = 3L,
         title = "코스 $id",
         coverImageUrl = null,
-        category = CourseCategory.CAFETOUR,
+        categories = listOf(CourseCategory.CAFETOUR),
         area = "성수",
         visibility = CourseVisibility.PUBLIC,
         isPublished = true,
@@ -136,7 +143,7 @@ class CourseRecommendServiceTest {
         val first = page.items[0]
         assertThat(first.authorId).isEqualTo(7L)
         assertThat(first.title).isEqualTo("코스 1")
-        assertThat(first.theme).isEqualTo("CAFETOUR")
+        assertThat(first.themes).containsExactly("CAFETOUR")
         assertThat(first.placeCount).isEqualTo(4)
         assertThat(first.walkingMinutes).isEqualTo(30)
         assertThat(page.items[1].placeCount).isEqualTo(0)
@@ -201,7 +208,7 @@ class CourseRecommendServiceTest {
         assertThat(page.items.map { it.id }).containsExactly(10L, 11L)
         val first = page.items[0]
         assertThat(first.authorId).isEqualTo(3L)
-        assertThat(first.theme).isEqualTo("CAFETOUR")
+        assertThat(first.themes).containsExactly("CAFETOUR")
         assertThat(first.savesCnt).isEqualTo(9)
         assertThat(first.placeCount).isEqualTo(0)
         assertThat(page.items[1].placeCount).isEqualTo(3)

@@ -8,6 +8,7 @@ import com.example.backend.common.response.CourseErrorCode
 import com.example.backend.common.response.DirectionErrorCode
 import com.example.backend.common.response.ErrorCode
 import com.example.backend.common.response.PlaceErrorCode
+import com.example.backend.common.response.PushErrorCode
 import com.example.backend.common.response.ReportErrorCode
 import com.example.backend.common.response.UserErrorCode
 
@@ -26,6 +27,7 @@ object MockErrors {
             AreaErrorCode.entries +
             DirectionErrorCode.entries +
             ReportErrorCode.entries +
+            PushErrorCode.entries +
             AiChatErrorCode.entries
 
     fun throwIfRequested(mockError: Int?) {

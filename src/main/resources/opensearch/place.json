@@ -26,6 +26,7 @@
       },
       "description": { "type": "text", "analyzer": "korean" },
       "category": { "type": "keyword" },
+      "categoryDetail": { "type": "keyword" },
       "address": {
         "type": "text",
         "analyzer": "korean",

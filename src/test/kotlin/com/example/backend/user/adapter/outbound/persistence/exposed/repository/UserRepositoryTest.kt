@@ -180,6 +180,8 @@ class UserRepositoryTest
                 assertThat(repository.lockActive(emptyList())).isEmpty()
                 assertThat(repository.lockActive(listOf(a.id.value, b.id.value)))
                     .containsExactlyInAnyOrder(a.id.value, b.id.value)
+                assertThat(repository.lockActiveShared(listOf(a.id.value, b.id.value)))
+                    .containsExactlyInAnyOrder(a.id.value, b.id.value)
                 rollback()
             }
         }

@@ -5,11 +5,13 @@ import com.example.backend.mobile.home.application.port.outbound.HomeFeedPort
 import com.example.backend.mobile.home.application.port.outbound.HomeInterestPort
 import com.example.backend.mobile.home.application.port.outbound.HomeNearbyPlacePort
 import com.example.backend.mobile.home.application.port.outbound.HomeProfilePort
+import com.example.backend.mobile.home.application.port.outbound.HomeTracePort
 import com.example.backend.mobile.home.application.port.outbound.dto.HomeFeedCourse
 import com.example.backend.mobile.home.application.port.outbound.dto.HomeFeedCoursePage
 import com.example.backend.mobile.home.application.port.outbound.dto.HomeInterest
 import com.example.backend.mobile.home.application.port.outbound.dto.HomeNearbyPlace
 import com.example.backend.mobile.home.application.port.outbound.dto.HomeProfile
+import com.example.backend.mobile.home.application.port.outbound.dto.HomeTracingCourse
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Assertions.assertTrue
@@ -17,7 +19,7 @@ import org.junit.jupiter.api.Test
 import java.time.Instant
 
 /**
- * [HomeFeedService] 단위 테스트 — 아웃바운드 포트 4개를 페이크로 대체해 홈 조합 규칙만 검증한다.
+ * [HomeFeedService] 단위 테스트 — 아웃바운드 포트 5개를 페이크로 대체해 홈 조합 규칙만 검증한다.
  * 검증 대상: 비로그인과 좌표 없음에서 근처 섹션 생략, 추천 코스 상위 5개 요청, 관심사 전달, 도보 분 올림, 커서 통과.
  */
 class HomeFeedServiceTest {
@@ -74,7 +76,16 @@ class HomeFeedServiceTest {
             }
         }
 
-    private val service = HomeFeedService(fakeFeedPort, fakeInterestPort, fakeProfilePort, fakeNearbyPort)
+    private val service =
+        HomeFeedService(
+            fakeFeedPort,
+            fakeInterestPort,
+            fakeProfilePort,
+            fakeNearbyPort,
+            object : HomeTracePort {
+                override fun findInProgress(userId: Long): HomeTracingCourse? = null
+            },
+        )
 
     @Test
     fun `비로그인이면 프로필은 null 이고 근처 저장 장소는 조회하지 않는다`() {
@@ -179,7 +190,7 @@ class HomeFeedServiceTest {
             authorId = 1,
             title = "코스 $id",
             coverImageUrl = null,
-            theme = "CAFETOUR",
+            themes = listOf("CAFETOUR"),
             area = "성수",
             placeCount = 3,
             walkingMinutes = 12,

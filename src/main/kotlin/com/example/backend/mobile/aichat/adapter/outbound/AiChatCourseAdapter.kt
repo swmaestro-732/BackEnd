@@ -35,7 +35,7 @@ class AiChatCourseAdapter(
                     id = it.id,
                     title = it.title,
                     coverImageUrl = it.coverImageUrl,
-                    theme = it.theme,
+                    themes = it.themes,
                     area = it.area,
                     placeCount = it.placeCount ?: 0,
                     walkingMinutes = it.walkingMinutes ?: 0,

@@ -4,6 +4,7 @@ import com.example.backend.bootstrap.config.CourseRecommendProperties
 import com.example.backend.bootstrap.config.OpenSearchProperties
 import com.example.backend.course.application.port.outbound.CourseRecommendAfter
 import com.example.backend.course.application.port.outbound.CourseRecommendCriteria
+import com.example.backend.course.application.port.outbound.CourseRegionFilter
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.Test
 import org.mockito.ArgumentCaptor
@@ -44,6 +45,7 @@ class OpenSearchCourseRecommendAdapterTest {
             sigunguWeight = 3.5,
             dongWeight = 2.5,
             savesWeight = 1.25,
+            likesWeight = 0.5,
         )
 
     private fun doc(
@@ -54,7 +56,7 @@ class OpenSearchCourseRecommendAdapterTest {
         title = "코스 $id",
         description = "설명",
         area = "성수",
-        category = "CAFETOUR",
+        category = listOf("CAFETOUR"),
         tags = listOf("데이트"),
         coverImageUrl = "https://img/$id.jpg",
         visibility = "PUBLIC",
@@ -104,6 +106,7 @@ class OpenSearchCourseRecommendAdapterTest {
         sigunguCodes: List<String> = listOf("11680"),
         dongCodes: List<String> = listOf("1168010100"),
         category: String? = null,
+        region: CourseRegionFilter? = null,
         after: CourseRecommendAfter? = null,
         size: Int = 2,
     ) = CourseRecommendCriteria(
@@ -111,7 +114,7 @@ class OpenSearchCourseRecommendAdapterTest {
         sigunguCodes = sigunguCodes,
         dongCodes = dongCodes,
         category = category,
-        region = null,
+        region = region,
         origin = origin,
         after = after,
         size = size,
@@ -154,7 +157,7 @@ class OpenSearchCourseRecommendAdapterTest {
         val row = page.hits.first().row
         assertThat(row.authorId).isEqualTo(7L)
         assertThat(row.title).isEqualTo("코스 1")
-        assertThat(row.theme).isEqualTo("CAFETOUR")
+        assertThat(row.themes).containsExactly("CAFETOUR")
         assertThat(row.area).isEqualTo("성수")
         assertThat(row.savesCnt).isEqualTo(11)
         assertThat(row.createdAt).isEqualTo(Instant.ofEpochMilli(1000L))
@@ -196,7 +199,7 @@ class OpenSearchCourseRecommendAdapterTest {
         val fs = request.query()!!.functionScore()
         assertThat(fs.scoreMode()).isEqualTo(FunctionScoreMode.Sum)
         assertThat(fs.boostMode()).isEqualTo(FunctionBoostMode.Sum)
-        assertThat(fs.functions()).hasSize(2)
+        assertThat(fs.functions()).hasSize(3)
 
         val recency = fs.functions()[0]
         assertThat(recency.weight()).isEqualTo(7.0)
@@ -212,6 +215,11 @@ class OpenSearchCourseRecommendAdapterTest {
         assertThat(saves.fieldValueFactor().field()).isEqualTo("savesCnt")
         assertThat(saves.fieldValueFactor().modifier()).isEqualTo(FieldValueFactorModifier.Log1p)
         assertThat(saves.fieldValueFactor().missing()).isEqualTo(0.0)
+        val likes = fs.functions()[2]
+        assertThat(likes.weight()).isEqualTo(0.5)
+        assertThat(likes.fieldValueFactor().field()).isEqualTo("likesCnt")
+        assertThat(likes.fieldValueFactor().modifier()).isEqualTo(FieldValueFactorModifier.Log1p)
+        assertThat(likes.fieldValueFactor().missing()).isEqualTo(0.0)
     }
 
     @Test
@@ -243,6 +251,28 @@ class OpenSearchCourseRecommendAdapterTest {
         assertThat(categoryFilters).hasSize(4)
         assertThat(categoryFilters[3].term().field()).isEqualTo("category")
         assertThat(categoryFilters[3].term().value().stringValue()).isEqualTo("FOOD")
+    }
+
+    @Test
+    fun `region 필터는 include prefix 를 should(최소 1개) 로, exclude prefix 를 must_not 으로 붙인다`() {
+        val region = CourseRegionFilter(includePrefixes = listOf("12"), excludePrefixes = listOf("12210", "12240"))
+        val request = capturedRequest(clientReturning(emptyList()), criteria(region = region))
+
+        val filters =
+            request
+                .query()!!
+                .functionScore()
+                .query()!!
+                .bool()
+                .filter()
+        assertThat(filters).hasSize(4)
+        val regionBool = filters[3].bool()
+        assertThat(regionBool.minimumShouldMatch()).isEqualTo("1")
+        assertThat(
+            regionBool.should().map { it.prefix().field() to it.prefix().value() },
+        ).containsExactly("areaCode" to "12")
+        assertThat(regionBool.mustNot().map { it.prefix().field() to it.prefix().value() })
+            .containsExactly("areaCode" to "12210", "areaCode" to "12240")
     }
 
     @Test

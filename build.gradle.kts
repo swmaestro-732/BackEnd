@@ -53,6 +53,10 @@ dependencies {
     runtimeOnly("io.micrometer:micrometer-registry-prometheus")
     // Spring Boot 4: OTLP 트레이스 리포팅 공식 스타터(Micrometer Tracing + OTel autoconfig + OTLP exporter 일괄).
     implementation("org.springframework.boot:spring-boot-starter-opentelemetry")
+    // SCRUM-806: Boot 4 호환 JDBC 쿼리 계측.
+    implementation("net.ttddyy.observation:datasource-micrometer-spring-boot:2.3.0")
+    // SCRUM-806: Boot 4 는 RestClient.Builder 자동구성(관측 연동 포함)이 별도 모듈 — 없으면 HttpClientConfig 주입 실패.
+    implementation("org.springframework.boot:spring-boot-starter-restclient")
 
     // Sentry 에러 트래킹. Boot 4 전용 스타터(spring-boot-starter:4.1.0 대상). SENTRY_DSN 비면 no-op.
     implementation("io.sentry:sentry-spring-boot-4-starter:8.53.0")
@@ -83,6 +87,8 @@ dependencies {
     // @SqsListener(수신)·SqsTemplate(발행)을 자동 배선한다. 큐 미설정 시 리스너 비활성·발행 no-op(fail-soft).
     implementation(platform("io.awspring.cloud:spring-cloud-aws-dependencies:4.0.2"))
     implementation("io.awspring.cloud:spring-cloud-aws-starter-sqs")
+    // FCM 푸시 발송. 서비스 계정 JSON 미설정 시 발송을 생략한다.
+    implementation("com.google.firebase:firebase-admin:9.11.0")
     // OpenSearch(AWS) 연결 — 기본 FGAC basic auth(ApacheHttpClient5), 선택 IAM/SigV4(AwsSdk2Transport).
     // 사용하지 않는 구형 RestClient 전송(opensearch-rest-client)은 제외한다.
     implementation("org.opensearch.client:opensearch-java:2.25.0") {

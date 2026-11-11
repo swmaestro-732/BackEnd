@@ -1,25 +1,32 @@
 package com.example.backend.course.application.port.outbound
 
+import com.example.backend.common.domain.CourseTraceStatus
 import com.example.backend.course.application.port.inbound.dto.VisitedPlaceResult
-import com.example.backend.course.domain.model.CourseTraceStatus
 import java.time.Instant
 
-/** 따라가기 세션 한 행. */
+/** 따라가기 세션 한 행. endedAt 은 COMPLETED 일 때만, 소요 시간·이동 거리는 종료 전엔 0. */
 data class CourseTraceRow(
     val id: Long,
     val userId: Long,
     val courseId: Long,
     val status: CourseTraceStatus,
     val startedAt: Instant,
+    val endedAt: Instant?,
+    val durationMinutes: Int,
+    val distanceMeters: Int,
 )
 
 /** 아웃바운드 포트 — 코스 따라가기 세션(tracing_courses·tracing_course_places) 접근. 구현체(Exposed 어댑터)는 adapter/outbound/persistence 에 위치한다. */
 interface CourseTracePersistencePort {
-    /** (user, course) 의 진행 중 세션. */
-    fun findInProgress(
+    /** 사용자의 진행 중 세션(사용자당 최대 하나). */
+    fun findInProgress(userId: Long): CourseTraceRow?
+
+    /** 사용자의 완주 세션을 id DESC(최근 시작 순)로 [beforeId] 미만부터 최대 [size] 건 읽는다(hasNext 판별용 +1 은 호출부가 더한다). */
+    fun findCompleted(
         userId: Long,
-        courseId: Long,
-    ): CourseTraceRow?
+        beforeId: Long?,
+        size: Int,
+    ): List<CourseTraceRow>
 
     /** 진행 중 세션을 만들고 id 를 돌려준다. 이미 진행 중 세션이 있으면(동시 시작) null. */
     fun insertInProgress(
@@ -27,13 +34,31 @@ interface CourseTracePersistencePort {
         courseId: Long,
     ): Long?
 
+    /** 세션이 따라갈 루트(장소 id, 따라갈 순서)를 저장한다. */
+    fun insertRoutePlaces(
+        traceId: Long,
+        placeIds: List<Long>,
+    )
+
+    /** 세션 루트의 방문 전 장소를 [placeIds] 로 바꾼다 — 체크인한 장소는 체크인 순으로 앞에 두고 그 뒤에 잇는다. */
+    fun replaceRemainingRoutePlaces(
+        traceId: Long,
+        placeIds: List<Long>,
+    )
+
+    /** 세션 루트의 장소 id 를 순서대로(방문 여부 무관). 루트 없이 시작한 세션(코스 장소 그대로 따라가기)은 빈 목록. */
+    fun findRoutePlaceIds(traceId: Long): List<Long>
+
     /** 세션 행을 잠그고 읽는다(FOR UPDATE) — 쓰기 트랜잭션 안에서만 호출한다. */
     fun findById(traceId: Long): CourseTraceRow?
 
-    /** 세션의 체크인 장소를 체크인 순서대로. */
+    /** 세션 행을 잠그지 않고 읽는다 — 읽기 트랜잭션(화면 조회)용. */
+    fun readById(traceId: Long): CourseTraceRow?
+
+    /** 세션의 체크인 장소를 체크인 시각 순으로. */
     fun findVisitedPlaces(traceId: Long): List<VisitedPlaceResult>
 
-    /** 장소 체크인 — 같은 장소가 이미 있으면 무시한다. */
+    /** 방문 기록 — 루트에 그 장소의 방문 전 항목이 있으면 가장 앞선 것을 방문 처리하고, 없으면 새로 넣는다. 재전송·방문 횟수 초과는 호출부가 거른다. */
     fun insertVisitedPlace(
         traceId: Long,
         placeId: Long,

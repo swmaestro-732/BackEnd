@@ -5,7 +5,7 @@ import java.time.Instant
 
 /**
  * 웹 응답 DTO — 공개 코스 피드 화면 조합(BFF). 프론트 화면 계약 형태.
- * 저장수 내림차순·최신순으로 랭킹된 코스 목록([Item])과 nextCursor/hasNext를 내려준다.
+ * 추천 점수순으로 랭킹된 코스 목록([Item])과 nextCursor/hasNext를 내려준다.
  * 목([MOCK]) 응답에만 고정 예시를 채워 프론트가 형태를 확인할 수 있게 한다.
  */
 data class HomeFeedResponse(
@@ -20,6 +20,7 @@ data class HomeFeedResponse(
         val title: String,
         val coverImageUrl: String?,
         val theme: String?,
+        val themes: List<String>,
         val likesCnt: Int,
         val savesCnt: Int,
         val createdAt: Instant,
@@ -35,7 +36,8 @@ data class HomeFeedResponse(
                             authorId = it.authorId,
                             title = it.title,
                             coverImageUrl = it.coverImageUrl,
-                            theme = it.theme,
+                            theme = it.themes.firstOrNull(),
+                            themes = it.themes,
                             likesCnt = it.likesCnt,
                             savesCnt = it.savesCnt,
                             createdAt = it.createdAt,
@@ -61,6 +63,7 @@ data class HomeFeedResponse(
                             title = "비 오는 날 성수 감성 카페 코스",
                             coverImageUrl = image("HDBpbwjQOwLbBj3pgro4xFRpvBdRRZDTcbVmMkg"),
                             theme = "CAFETOUR",
+                            themes = listOf("CAFETOUR"),
                             likesCnt = 128,
                             savesCnt = 342,
                             createdAt = Instant.parse("2026-07-20T02:30:00Z"),
@@ -71,6 +74,7 @@ data class HomeFeedResponse(
                             title = "연남동 브런치 & 산책 코스",
                             coverImageUrl = image("SYjLV1q0A21vyJJ_N3LlUSp3HwiDDouEZRzcVhJb8KJw"),
                             theme = "WALK",
+                            themes = listOf("WALK"),
                             likesCnt = 74,
                             savesCnt = 205,
                             createdAt = Instant.parse("2026-07-24T05:10:00Z"),
@@ -81,6 +85,7 @@ data class HomeFeedResponse(
                             title = "을지로 노포 술집 투어",
                             coverImageUrl = image("Qr6pSHzsT4DD0ieT5VQ__SVo2ErRODzDyViWmZeXHGlA"),
                             theme = "FOODIE",
+                            themes = listOf("FOODIE"),
                             likesCnt = 41,
                             savesCnt = 96,
                             createdAt = Instant.parse("2026-07-28T09:45:00Z"),

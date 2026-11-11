@@ -6,7 +6,6 @@ import com.example.backend.common.response.CourseErrorCode
 import com.example.backend.course.application.port.outbound.CoursePersistencePort
 import com.example.backend.course.application.port.outbound.CoursePlaceImageRow
 import com.example.backend.course.application.port.outbound.CoursePlaceRow
-import com.example.backend.course.application.port.outbound.CoursePlaceStats
 import com.example.backend.course.application.port.outbound.CourseSummaryRow
 import com.example.backend.course.application.port.outbound.CourseTagQueryPort
 import com.example.backend.course.application.port.outbound.ViewerCourseState
@@ -14,7 +13,6 @@ import com.example.backend.course.application.port.outbound.ViewerInteractionPor
 import com.example.backend.course.domain.model.CourseCategory
 import com.example.backend.course.domain.model.CourseStatus
 import org.junit.jupiter.api.Assertions.assertEquals
-import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertThrows
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
@@ -103,50 +101,6 @@ class CourseQueryServiceTest {
         assertTrue(result.hasNext)
     }
 
-    @Test
-    fun `공개 목록 크기는 최소 1로 보정한다`() {
-        `when`(persistence.findPublishedPublic(null, 1)).thenReturn(listOf(summary(1L)))
-
-        val result = service.listPublic(null, 0)
-
-        assertEquals(listOf(1L), result.items.map { it.id })
-        assertFalse(result.hasNext)
-        verify(persistence).findPublishedPublic(null, 1)
-    }
-
-    @Test
-    fun `공개 목록은 페이지 코스들의 장소 집계를 한 번에 붙이고 장소 없는 코스는 0 이다`() {
-        `when`(persistence.findPublishedPublic(null, 2)).thenReturn(listOf(summary(1L), summary(2L), summary(3L)))
-        `when`(persistence.findPlaceStats(listOf(1L, 2L))).thenReturn(mapOf(1L to CoursePlaceStats(3, 12)))
-
-        val result = service.listPublic(null, 2)
-
-        // 초과분(3)은 hasNext 판정용이라 집계 대상에서 빠진다.
-        verify(persistence).findPlaceStats(listOf(1L, 2L))
-        assertEquals(listOf(3, 0), result.items.map { it.placeCount })
-        assertEquals(listOf(12, 0), result.items.map { it.walkingMinutes })
-        assertEquals("성수", result.items.first().area)
-        assertTrue(result.hasNext)
-    }
-
-    @Test
-    fun `공개 목록에 카테고리 이름을 주면 해당 카테고리로 조회한다`() {
-        `when`(persistence.findPublishedPublic(null, 2, CourseCategory.DATE)).thenReturn(listOf(summary(1L)))
-
-        val result = service.listPublic(null, 2, "DATE")
-
-        assertEquals(listOf(1L), result.items.map { it.id })
-        verify(persistence).findPublishedPublic(null, 2, CourseCategory.DATE)
-    }
-
-    @Test
-    fun `공개 목록에 알 수 없는 카테고리를 주면 조회 없이 IllegalArgumentException 이다`() {
-        val exception = assertThrows(IllegalArgumentException::class.java) { service.listPublic(null, 2, "date") }
-
-        assertEquals("알 수 없는 코스 카테고리입니다: date", exception.message)
-        verifyNoInteractions(persistence)
-    }
-
     private fun detail(
         id: Long,
         visibility: CourseVisibility,
@@ -157,7 +111,7 @@ class CourseQueryServiceTest {
         title = "코스 $id",
         coverImageUrl = null,
         description = null,
-        category = CourseCategory.CAFETOUR,
+        categories = listOf(CourseCategory.CAFETOUR),
         area = "성수",
         areaCode = "1120011400",
         tracingsCnt = 1,
@@ -173,7 +127,7 @@ class CourseQueryServiceTest {
             3L,
             "코스 $id",
             null,
-            CourseCategory.CAFETOUR,
+            listOf(CourseCategory.CAFETOUR),
             "성수",
             CourseVisibility.PUBLIC,
             true,

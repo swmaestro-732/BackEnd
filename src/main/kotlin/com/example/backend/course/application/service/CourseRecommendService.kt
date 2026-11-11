@@ -3,18 +3,17 @@ package com.example.backend.course.application.service
 import com.example.backend.course.application.port.inbound.CourseRecommendUseCase
 import com.example.backend.course.application.port.inbound.dto.CourseRecommendPage
 import com.example.backend.course.application.port.inbound.dto.CourseRecommendQuery
-import com.example.backend.course.application.port.inbound.dto.CourseSummary
-import com.example.backend.course.application.port.inbound.dto.FeedCursor
 import com.example.backend.course.application.port.outbound.CoursePersistencePort
 import com.example.backend.course.application.port.outbound.CoursePlaceStats
 import com.example.backend.course.application.port.outbound.CourseRecommendAfter
 import com.example.backend.course.application.port.outbound.CourseRecommendCriteria
 import com.example.backend.course.application.port.outbound.CourseRecommendQueryPort
 import com.example.backend.course.application.port.outbound.CourseRegionFilter
-import com.example.backend.course.application.port.outbound.CourseSearchRow
+import com.example.backend.course.application.port.outbound.FeedCursor
 import com.example.backend.course.domain.model.CourseCategory
 import org.springframework.stereotype.Service
-import org.springframework.transaction.annotation.Transactional
+import org.springframework.transaction.PlatformTransactionManager
+import org.springframework.transaction.support.TransactionTemplate
 import java.time.Instant
 
 /**
@@ -22,14 +21,17 @@ import java.time.Instant
  * 커서 출처(엔진/DB)는 [CourseRecommendCursorCodec] 이 접두사로 보존해 페이지 사이에 정렬이 바뀌지 않는다.
  * 엔진 커서로 진행 중 엔진이 실패하면 DB 로 갈아타지 않고 빈 페이지를 준다(갈아타면 중복·누락이 생긴다).
  * 카드 메타(장소 수·도보 시간)는 두 경로 모두 DB 집계([CoursePersistencePort.findPlaceStats])로 붙인다.
+ * 읽기 트랜잭션은 DB 조회 구간에만 건다 — 엔진 호출 동안 커넥션을 잡아두지 않는다.
  */
 @Service
-@Transactional(readOnly = true)
 class CourseRecommendService(
     private val courseRecommendQueryPort: CourseRecommendQueryPort,
     private val coursePersistencePort: CoursePersistencePort,
     private val courseRegionResolver: CourseRegionResolver,
+    transactionManager: PlatformTransactionManager,
 ) : CourseRecommendUseCase {
+    private val readTx = TransactionTemplate(transactionManager).apply { isReadOnly = true }
+
     override fun recommend(query: CourseRecommendQuery): CourseRecommendPage {
         val size = query.size.coerceAtLeast(1)
         val category =
@@ -81,13 +83,17 @@ class CourseRecommendService(
                 keyword = query.keyword,
             )
         val page = courseRecommendQueryPort.recommend(criteria) ?: return null
-        val statsByCourse = coursePersistencePort.findPlaceStats(page.hits.map { it.row.id })
+        val statsByCourse =
+            readTx
+                .execute { _ ->
+                    coursePersistencePort.findPlaceStats(page.hits.map { it.row.id })
+                }.orEmpty()
         val nextCursor =
             page.hits.lastOrNull()?.takeIf { page.hasNext }?.let {
                 CourseRecommendCursorCodec.encode(CourseRecommendCursor.Engine(origin, it.score, it.row.id))
             }
         return CourseRecommendPage(
-            items = page.hits.map { toCourseSummary(it.row, statsByCourse[it.row.id]) },
+            items = page.hits.map { it.row.toCourseSummary(statsByCourse[it.row.id] ?: CoursePlaceStats(0, 0)) },
             hasNext = page.hasNext,
             nextCursor = nextCursor,
         )
@@ -106,12 +112,14 @@ class CourseRecommendService(
     ): CourseRecommendPage {
         val excluded = excludeIds.toSet()
         val rows =
-            coursePersistencePort
-                .findPublishedPublic(cursor, size + excluded.size, category, region)
+            readTx
+                .execute { _ ->
+                    coursePersistencePort.findPublishedPublic(cursor, size + excluded.size, category, region)
+                }.orEmpty()
                 .filterNot { it.id in excluded }
         val page = rows.take(size)
         val hasNext = rows.size > size
-        val statsByCourse = coursePersistencePort.findPlaceStats(page.map { it.id })
+        val statsByCourse = readTx.execute { _ -> coursePersistencePort.findPlaceStats(page.map { it.id }) }.orEmpty()
         val nextCursor =
             page.lastOrNull()?.takeIf { hasNext }?.let {
                 CourseRecommendCursorCodec.encode(
@@ -121,44 +129,11 @@ class CourseRecommendService(
                 )
             }
         return CourseRecommendPage(
-            items =
-                page.map {
-                    val stats = statsByCourse[it.id] ?: CoursePlaceStats(0, 0)
-                    CourseSummary(
-                        id = it.id,
-                        authorId = it.userId,
-                        title = it.title,
-                        coverImageUrl = it.coverImageUrl,
-                        theme = it.category?.name,
-                        area = it.area,
-                        likesCnt = it.likesCnt,
-                        savesCnt = it.savesCnt,
-                        createdAt = it.createdAt,
-                        placeCount = stats.placeCount,
-                        walkingMinutes = stats.walkingMinutes,
-                    )
-                },
+            items = page.map { it.toCourseSummary(statsByCourse[it.id] ?: CoursePlaceStats(0, 0)) },
             hasNext = hasNext,
             nextCursor = nextCursor,
         )
     }
-
-    private fun toCourseSummary(
-        row: CourseSearchRow,
-        stats: CoursePlaceStats?,
-    ) = CourseSummary(
-        id = row.id,
-        authorId = row.authorId,
-        title = row.title,
-        coverImageUrl = row.coverImageUrl,
-        theme = row.theme,
-        area = row.area,
-        likesCnt = row.likesCnt,
-        savesCnt = row.savesCnt,
-        createdAt = row.createdAt,
-        placeCount = stats?.placeCount ?: 0,
-        walkingMinutes = stats?.walkingMinutes ?: 0,
-    )
 
     private companion object {
         val EMPTY = CourseRecommendPage(items = emptyList(), hasNext = false, nextCursor = null)
