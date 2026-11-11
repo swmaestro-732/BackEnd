@@ -13,7 +13,7 @@ import java.util.Base64
 
 /**
  * 장소 리뷰 커서 코덱 단위 테스트. 라운드트립(정밀도 보존) + 비정상 커서 방어
- * ([com.example.backend.mobile.home.application.service.HomeFeedCursorCodecTest] 와 같은 형식).
+ * ([com.example.backend.course.application.service.CourseReviewCursorCodecTest] 와 같은 형식).
  */
 class PlaceReviewCursorCodecTest {
     private fun raw(value: String): String =

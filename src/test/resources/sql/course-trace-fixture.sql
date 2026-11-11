@@ -23,7 +23,9 @@ INSERT INTO course_places (course_id, place_id, order_no)
 VALUES (1, 22, 0), (1, 23, 1), (1, 25, 2);
 
 -- 경로 조회(GET /api/v1/traces/route) 용 장소: 22·23 은 실제 행(좌표 포함), 99 는 없는 장소(404 대상).
+-- 24 는 코스에 없는 실제 장소 — 시작 V2·루트 변경에서 코스 밖 장소로 끼워 넣는 대상.
 INSERT INTO places (id, name, category, location, address)
 VALUES
     (22, '어니언 성수', 'CAFE', 'SRID=4326;POINT(127.0559 37.5446)'::geography, '서울 성동구 아차산로 100'),
-    (23, '대림창고', 'CAFE', 'SRID=4326;POINT(127.0563 37.5420)'::geography, '서울 성동구 성수이로 78');
+    (23, '대림창고', 'CAFE', 'SRID=4326;POINT(127.0563 37.5420)'::geography, '서울 성동구 성수이로 78'),
+    (24, '성수 연방', 'CAFE', 'SRID=4326;POINT(127.0570 37.5430)'::geography, '서울 성동구 성수이로14길 14');

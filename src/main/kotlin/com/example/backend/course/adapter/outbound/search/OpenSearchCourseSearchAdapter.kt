@@ -5,7 +5,6 @@ import com.example.backend.course.application.port.inbound.dto.CourseSearchSort
 import com.example.backend.course.application.port.outbound.CourseSearchCriteria
 import com.example.backend.course.application.port.outbound.CourseSearchPage
 import com.example.backend.course.application.port.outbound.CourseSearchQueryPort
-import com.example.backend.course.application.port.outbound.CourseSearchRow
 import io.github.oshai.kotlinlogging.KotlinLogging
 import org.opensearch.client.opensearch.OpenSearchClient
 import org.opensearch.client.opensearch._types.FieldValue
@@ -16,7 +15,6 @@ import org.opensearch.client.opensearch.core.SearchRequest
 import org.opensearch.client.opensearch.core.search.Hit
 import org.springframework.beans.factory.ObjectProvider
 import org.springframework.stereotype.Component
-import java.time.Instant
 
 /**
  * 아웃바운드 어댑터 — [CourseSearchQueryPort] 를 OpenSearch 검색으로 구현한다.
@@ -155,19 +153,6 @@ class OpenSearchCourseSearchAdapter(
             is Long -> FieldValue.of(value)
             else -> throw IllegalArgumentException("지원하지 않는 search_after 값 타입: ${value::class}")
         }
-
-    private fun CourseDocument.toRow(): CourseSearchRow =
-        CourseSearchRow(
-            id = id,
-            authorId = userId.toLong(),
-            title = title,
-            coverImageUrl = coverImageUrl,
-            themes = category.orEmpty(),
-            area = area,
-            likesCnt = likesCnt,
-            savesCnt = savesCnt,
-            createdAt = Instant.ofEpochMilli(createdAt ?: 0L),
-        )
 
     private companion object {
         val EMPTY = CourseSearchPage(hits = emptyList(), hasNext = false, nextCursor = null)

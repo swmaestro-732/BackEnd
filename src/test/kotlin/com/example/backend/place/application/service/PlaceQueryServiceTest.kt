@@ -40,10 +40,23 @@ class PlaceQueryServiceTest {
                 }
             }
         }
+    private var nearbyAreaCodes: List<String> = emptyList()
     private val engine =
         mock(PlaceSearchQueryPort::class.java) { invocation ->
-            criteria += invocation.getArgument<PlaceSearchCriteria>(0)
-            engineHits()
+            when (invocation.method.name) {
+                "search" -> {
+                    criteria += invocation.getArgument<PlaceSearchCriteria>(0)
+                    engineHits()
+                }
+
+                "findNearbyAreaCodes" -> {
+                    nearbyAreaCodes
+                }
+
+                else -> {
+                    error("예상하지 못한 검색: ${invocation.method.name}")
+                }
+            }
         }
     private val areas = mock(AreaQueryUseCase::class.java)
     private val service = PlaceQueryService(db, engine, PlaceSearchQueryPlanner(areas))
@@ -186,4 +199,27 @@ class PlaceQueryServiceTest {
             ratingSum = 9,
             ratingCnt = 2,
         )
+
+    @Test
+    fun `호출자 지역 prefix 는 검색어 지역과 별도 그룹으로 AND 되고 0건 폴백에서는 빠진다`() {
+        engineHits = { if (criteria.size == 1) PlaceSearchHits(emptyList(), 0) else PlaceSearchHits(listOf(1), 1) }
+
+        val page = service.searchByName("어니언", null, 5, areaCodePrefixes = listOf("1120011400", "1120011500"))
+
+        assertEquals(listOf(1L), page.items.map { it.id })
+        assertEquals(2, criteria.size)
+        assertEquals(listOf(listOf("1120011400", "1120011500")), criteria[0].areaCodePrefixGroups)
+        assertTrue(criteria[1].areaCodePrefixGroups.isEmpty())
+    }
+
+    @Test
+    fun `근처 장소의 법정동코드 다수결로 좌표의 지역을 고르고 장소가 없으면 null 이다`() {
+        nearbyAreaCodes = listOf("1120011400", "1120011500", "1120011400")
+
+        assertEquals("1120011400", service.findDominantAreaCodeNear(Coordinate(37.5446, 127.0559)))
+
+        nearbyAreaCodes = emptyList()
+        assertNull(service.findDominantAreaCodeNear(Coordinate(37.5446, 127.0559)))
+        assertTrue(criteria.isEmpty())
+    }
 }

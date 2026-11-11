@@ -18,8 +18,8 @@ import org.springframework.test.web.servlet.result.MockMvcResultMatchers.status
 
 /**
  * 따라가기 상세 화면 조합(`GET /service/v1/my/traces/{traceId}`) 통합 테스트.
- * 픽스처(course-trace-fixture.sql): 사용자 1(주체)·2(타인), 코스 1(공개, 장소 22·23·25 — 25 는 장소 행이 없어 삭제된 장소 역할).
- * 세션은 시작·체크인·종료 API 로 만든다.
+ * 픽스처(course-trace-fixture.sql): 사용자 1(주체)·2(타인), 코스 1(공개, 장소 22·23·25 — 25 는 장소 행이 없어 삭제된 장소 역할), 24 는 코스 밖 실제 장소.
+ * 세션은 시작(V1·V2)·체크인·종료 API 로 만든다.
  */
 @AutoConfigureMockMvc
 @Sql(scripts = ["/sql/course-trace-fixture.sql"], executionPhase = Sql.ExecutionPhase.BEFORE_TEST_METHOD)
@@ -118,6 +118,43 @@ class TraceScreenControllerTest
         }
 
         @Test
+        fun `루트를 수정해 시작한 세션은 루트 순서대로 장소를 내려주고 코스 밖 장소는 캡션·사진이 없다`() {
+            val traceId = startV2("[24, 22]")
+
+            screen(traceId, USER_ID)
+                .andExpect(status().isOk)
+                .andExpect(jsonPath("$.data.placeCount").value(2))
+                .andExpect(jsonPath("$.data.places.length()").value(2))
+                .andExpect(jsonPath("$.data.places[0].placeId").value(24))
+                .andExpect(jsonPath("$.data.places[0].orderNo").value(0))
+                .andExpect(jsonPath("$.data.places[0].caption").value(null))
+                .andExpect(jsonPath("$.data.places[0].images").isEmpty)
+                .andExpect(jsonPath("$.data.places[0].name").value("성수 연방"))
+                .andExpect(jsonPath("$.data.places[0].location.longitude").value(127.057))
+                .andExpect(jsonPath("$.data.places[1].placeId").value(22))
+                .andExpect(jsonPath("$.data.places[1].orderNo").value(1))
+                .andExpect(jsonPath("$.data.places[1].name").value("어니언 성수"))
+        }
+
+        @Test
+        fun `같은 장소가 여러 번 담긴 루트는 n 번째 항목에 그 장소의 n 번째 방문 시각을 붙인다`() {
+            val traceId = startV2("[22, 24, 22]")
+            checkIn(traceId, 22L, "2026-10-10T05:00:00Z")
+            checkIn(traceId, 22L, "2026-10-10T06:00:00Z")
+
+            screen(traceId, USER_ID)
+                .andExpect(status().isOk)
+                .andExpect(jsonPath("$.data.placeCount").value(3))
+                .andExpect(jsonPath("$.data.visitedPlaceCount").value(2))
+                .andExpect(jsonPath("$.data.places[0].placeId").value(22))
+                .andExpect(jsonPath("$.data.places[0].visitedAt").value("2026-10-10T05:00:00Z"))
+                .andExpect(jsonPath("$.data.places[1].placeId").value(24))
+                .andExpect(jsonPath("$.data.places[1].visitedAt").value(null))
+                .andExpect(jsonPath("$.data.places[2].placeId").value(22))
+                .andExpect(jsonPath("$.data.places[2].visitedAt").value("2026-10-10T06:00:00Z"))
+        }
+
+        @Test
         fun `mock=true 면 조회 없이 고정 목을 돌려준다`() {
             mockMvc
                 .perform(
@@ -152,6 +189,21 @@ class TraceScreenControllerTest
                 mockMvc
                     .perform(post("/api/v1/courses/1/traces").header(HttpHeaders.AUTHORIZATION, bearer(USER_ID)))
                     .andExpect(status().isOk)
+                    .andReturn()
+                    .response.contentAsString
+            return Regex("\"traceId\":(\\d+)").find(body)!!.groupValues[1].toLong()
+        }
+
+        /** 코스 1 을 [placeIds] 루트로 시작하고 traceId 를 돌려준다. */
+        private fun startV2(placeIds: String): Long {
+            val body =
+                mockMvc
+                    .perform(
+                        post("/api/v2/courses/1/traces")
+                            .header(HttpHeaders.AUTHORIZATION, bearer(USER_ID))
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content("""{"placeIds": $placeIds}"""),
+                    ).andExpect(status().isOk)
                     .andReturn()
                     .response.contentAsString
             return Regex("\"traceId\":(\\d+)").find(body)!!.groupValues[1].toLong()

@@ -1,5 +1,8 @@
 package com.example.backend
 
+import com.example.backend.bootstrap.config.AiChatLlmProperties
+import com.example.backend.bootstrap.config.AiChatSessionProperties
+import com.example.backend.bootstrap.config.CourseRecommendProperties
 import com.example.backend.bootstrap.config.DocumentDbProperties
 import com.example.backend.bootstrap.config.GooglePlacesProperties
 import com.example.backend.bootstrap.config.KakaoLocalProperties
@@ -28,10 +31,13 @@ import org.springframework.boot.runApplication
     TmapProperties::class,
     GooglePlacesProperties::class,
     OpenSearchProperties::class,
+    CourseRecommendProperties::class,
     DocumentDbProperties::class,
     RedisProperties::class,
     SqsProperties::class,
     PushProperties::class,
+    AiChatLlmProperties::class,
+    AiChatSessionProperties::class,
 )
 class BackendApplication
 

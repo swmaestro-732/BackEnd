@@ -3,10 +3,8 @@ package com.example.backend.course.application.service
 import com.example.backend.course.application.port.inbound.CourseSearchUseCase
 import com.example.backend.course.application.port.inbound.dto.CourseSearchCommand
 import com.example.backend.course.application.port.inbound.dto.CourseSearchResult
-import com.example.backend.course.application.port.inbound.dto.CourseSummary
 import com.example.backend.course.application.port.outbound.CourseSearchCriteria
 import com.example.backend.course.application.port.outbound.CourseSearchQueryPort
-import com.example.backend.course.application.port.outbound.CourseSearchRow
 import org.springframework.stereotype.Service
 
 /**
@@ -33,25 +31,9 @@ class CourseSearchService(
             )
         val page = courseSearchQueryPort.search(criteria)
         return CourseSearchResult(
-            courses = page.hits.map(::toCourseSummary),
+            courses = page.hits.map { it.toCourseSummary() },
             nextCursor = page.nextCursor,
             hasNext = page.hasNext,
         )
     }
-
-    /** 아웃바운드 검색 행을 인바운드 계약(CourseSummary)으로 옮긴다(영속성 경로의 toCourseSummary 와 동형). */
-    private fun toCourseSummary(row: CourseSearchRow) =
-        CourseSummary(
-            id = row.id,
-            authorId = row.authorId,
-            title = row.title,
-            coverImageUrl = row.coverImageUrl,
-            themes = row.themes,
-            area = row.area,
-            likesCnt = row.likesCnt,
-            savesCnt = row.savesCnt,
-            createdAt = row.createdAt,
-            placeCount = null,
-            walkingMinutes = null,
-        )
 }

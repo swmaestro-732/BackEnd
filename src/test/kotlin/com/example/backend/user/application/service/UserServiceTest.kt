@@ -9,6 +9,7 @@ import com.example.backend.user.application.port.outbound.NotificationCleanupPor
 import com.example.backend.user.application.port.outbound.RefreshTokenPort
 import com.example.backend.user.application.port.outbound.SavedCoursePersistencePort
 import com.example.backend.user.application.port.outbound.UserAreaPersistencePort
+import com.example.backend.user.application.port.outbound.UserLastLocationPersistencePort
 import com.example.backend.user.application.port.outbound.UserLikeThemePort
 import com.example.backend.user.application.port.outbound.UserPersistencePort
 import com.example.backend.user.domain.model.User
@@ -29,6 +30,7 @@ class UserServiceTest {
     private val userLikeThemePort = mock(UserLikeThemePort::class.java)
     private val courseCleanupPort = mock(CourseCleanupPort::class.java)
     private val devicePersistencePort = mock(DevicePersistencePort::class.java)
+    private val userLastLocationPersistencePort = mock(UserLastLocationPersistencePort::class.java)
     private val notificationCleanupPort = mock(NotificationCleanupPort::class.java)
 
     private val service =
@@ -41,6 +43,7 @@ class UserServiceTest {
             userLikeThemePort = userLikeThemePort,
             courseCleanupPort = courseCleanupPort,
             devicePersistencePort = devicePersistencePort,
+            userLastLocationPersistencePort = userLastLocationPersistencePort,
             notificationCleanupPort = notificationCleanupPort,
         )
 
@@ -72,20 +75,27 @@ class UserServiceTest {
         val ex = assertThrows(BusinessException::class.java) { service.withdraw(userId = 1L) }
 
         assertEquals(UserErrorCode.USER_NOT_FOUND, ex.errorCode)
-        verifyNoInteractions(devicePersistencePort)
+        verifyNoInteractions(devicePersistencePort, userLastLocationPersistencePort)
     }
 
     @Test
-    fun `withdraw - 팔로우 정리 직후 기기 연결을 끊는다`() {
+    fun `withdraw - 팔로우 정리 직후 기기 연결을 끊고 최근 위치를 지운다`() {
         `when`(userPersistencePort.lockActive(listOf(1L))).thenReturn(setOf(1L))
         `when`(userPersistencePort.findById(1L)).thenReturn(User.reconstitute(id = 1L, nickname = "탈퇴대상"))
         `when`(savedCoursePersistencePort.findAliveSavedCourseIds(1L)).thenReturn(emptyList())
 
         service.withdraw(1L)
 
-        val order = inOrder(followPersistencePort, devicePersistencePort, userAreaPersistencePort)
+        val order =
+            inOrder(
+                followPersistencePort,
+                devicePersistencePort,
+                userLastLocationPersistencePort,
+                userAreaPersistencePort,
+            )
         order.verify(followPersistencePort).purgeFollowsOf(1L)
         order.verify(devicePersistencePort).unlinkAllByUser(1L)
+        order.verify(userLastLocationPersistencePort).deleteByUser(1L)
         order.verify(userAreaPersistencePort).replaceAreas(1L, emptyList())
     }
 }
