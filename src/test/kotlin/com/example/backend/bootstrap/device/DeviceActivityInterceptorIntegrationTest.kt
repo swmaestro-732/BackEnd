@@ -80,7 +80,13 @@ class DeviceActivityInterceptorIntegrationTest
         fun `백그라운드 기기 API 요청은 활동으로 세지 않는다`() {
             val device = UUID.randomUUID().toString()
             mockMvc.perform(get("/api/v1/devices").header(HEADER, device))
-            mockMvc.perform(delete("/api/v1/my/devices").header(HEADER, device))
+            // /api/v1/my/** 는 인증 필수라 토큰이 없으면 보안 필터에서 막혀 인터셉터까지 오지 않는다.
+            mockMvc
+                .perform(
+                    delete("/api/v1/my/devices")
+                        .header(HEADER, device)
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer ${jwtTokenProvider.issueAccessToken(USER_ID)}"),
+                ).andExpect(status().isOk)
 
             deviceActivityExecutor.awaitIdle()
             assertThat(activityOf(device)).isEmpty()
