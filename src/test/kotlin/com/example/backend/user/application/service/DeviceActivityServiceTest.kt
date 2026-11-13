@@ -15,21 +15,26 @@ import org.springframework.transaction.support.TransactionOperations
 import java.time.Clock
 import java.time.Instant
 import java.time.LocalDate
+import java.time.ZoneOffset
 
 class DeviceActivityServiceTest {
     private val devicePersistencePort = FakeDevicePersistencePort()
     private val sync = TaskExecutor { it.run() }
 
-    // 1L 은 활성 사용자, 그 밖의 id 는 탈퇴했거나 없는 사용자다(목의 기본값은 빈 집합).
+    // 1L, 3L 은 활성 사용자, 그 밖의 id 는 탈퇴했거나 없는 사용자다(목의 기본값은 빈 집합).
     private val userPersistencePort =
-        mock(UserPersistencePort::class.java).also { `when`(it.lockActiveShared(listOf(1L))).thenReturn(setOf(1L)) }
+        mock(UserPersistencePort::class.java).also {
+            `when`(it.lockActiveShared(listOf(1L))).thenReturn(setOf(1L))
+            `when`(it.lockActiveShared(listOf(3L))).thenReturn(setOf(3L))
+        }
 
     private fun service(executor: TaskExecutor) =
         DeviceActivityService(
             devicePersistencePort,
             userPersistencePort,
             TransactionOperations.withoutTransaction(),
-            Clock.systemUTC(),
+            // 반복 기록 중 KST 자정을 넘으면 새 날로 보고 한 번 더 쓰므로 시계를 고정한다.
+            Clock.fixed(Instant.parse("2026-11-13T03:00:00Z"), ZoneOffset.UTC),
             executor,
         )
 
@@ -41,6 +46,16 @@ class DeviceActivityServiceTest {
         repeat(3) { service.record("device-a", 1L, "android") }
 
         assertEquals(listOf("device-a" to null, "device-a" to 1L), devicePersistencePort.recorded)
+    }
+
+    @Test
+    fun `같은 날 같은 기기에 다른 계정이 로그인하면 한 번 더 쓴다`() {
+        val service = service(sync)
+
+        service.record("device-a", 1L, "android")
+        repeat(2) { service.record("device-a", 3L, "android") }
+
+        assertEquals(listOf("device-a" to 1L, "device-a" to 3L), devicePersistencePort.recorded)
     }
 
     @Test
