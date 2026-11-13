@@ -150,6 +150,13 @@ class DeviceServiceTest {
 
         override fun unlinkAllByUser(userId: Long) = Unit
 
+        override fun recordActivity(
+            deviceId: String,
+            date: java.time.LocalDate,
+            userId: Long?,
+            platform: String?,
+        ) = Unit
+
         override fun clearTokens(fcmTokens: Collection<String>) = Unit
 
         override fun findMarketingTokens(night: Boolean): List<String> = emptyList()

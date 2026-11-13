@@ -3,6 +3,8 @@ package com.example.backend.bootstrap.config
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertDoesNotThrow
+import org.junit.jupiter.api.assertThrows
+import org.springframework.core.task.TaskRejectedException
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit
 
@@ -18,6 +20,21 @@ class AsyncConfigTest {
 
             assertDoesNotThrow { executor.execute { } }
             assertEquals(AsyncConfig.BUSINESS_HOURS_SYNC_QUEUE_CAPACITY, executor.threadPoolExecutor.queue.size)
+        } finally {
+            release.countDown()
+            executor.shutdown()
+        }
+    }
+
+    @Test
+    fun `기기 활동 실행기는 큐가 차면 거절해 호출부가 다시 시도할 수 있게 한다`() {
+        val executor = AsyncConfig().deviceActivityExecutor().apply { initialize() }
+        val release = CountDownLatch(1)
+        try {
+            val blocking = Runnable { release.await(5, TimeUnit.SECONDS) }
+            repeat(1 + AsyncConfig.DEVICE_ACTIVITY_QUEUE_CAPACITY) { executor.execute(blocking) }
+
+            assertThrows<TaskRejectedException> { executor.execute { } }
         } finally {
             release.countDown()
             executor.shutdown()
